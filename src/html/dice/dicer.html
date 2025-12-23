@@ -1,0 +1,1711 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Full-Screen Advanced Dice Physics Simulation</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #000;
+            color: #fff;
+            min-height: 100vh;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        #fullscreen-btn {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+        }
+        
+        #fullscreen-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: scale(1.05);
+        }
+        
+        #container {
+            display: flex;
+            height: 100vh;
+            width: 100vw;
+            position: relative;
+        }
+        
+        #header {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            padding: 20px;
+            text-align: center;
+            background: linear-gradient(to bottom, rgba(0, 0, 0, 0.8), transparent);
+            z-index: 100;
+            pointer-events: none;
+        }
+        
+        h1 {
+            font-size: 3rem;
+            margin-bottom: 10px;
+            background: linear-gradient(to right, #ff6b6b, #ffd166, #06d6a0, #118ab2);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            text-shadow: 0 0 30px rgba(255, 107, 107, 0.5);
+            letter-spacing: 1px;
+            font-weight: 800;
+        }
+        
+        .subtitle {
+            font-size: 1.2rem;
+            opacity: 0.9;
+            max-width: 900px;
+            margin: 10px auto;
+            line-height: 1.5;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+        }
+        
+        #canvas-container {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        #canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        
+        #trajectory-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 2;
+        }
+        
+        #ui-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 50;
+        }
+        
+        #physics-panel {
+            position: absolute;
+            top: 120px;
+            right: 20px;
+            width: 350px;
+            background: rgba(10, 10, 30, 0.85);
+            padding: 25px;
+            border-radius: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(15px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            pointer-events: auto;
+            transition: transform 0.3s ease;
+        }
+        
+        #physics-panel:hover {
+            transform: translateY(-5px);
+        }
+        
+        #physics-panel.collapsed {
+            width: 60px;
+            height: 60px;
+            padding: 0;
+            overflow: hidden;
+        }
+        
+        #panel-toggle {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: transparent;
+            border: none;
+            color: white;
+            cursor: pointer;
+            font-size: 1.2rem;
+        }
+        
+        .panel-section {
+            margin-bottom: 25px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+        }
+        
+        .panel-section:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+        
+        .panel-title {
+            font-size: 1.3rem;
+            margin-bottom: 18px;
+            color: #06d6a0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .control-group {
+            margin-bottom: 18px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 0.95rem;
+            opacity: 0.9;
+            font-weight: 500;
+        }
+        
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        input[type="range"] {
+            flex: 1;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+            outline: none;
+            -webkit-appearance: none;
+            transition: background 0.3s;
+        }
+        
+        input[type="range"]:hover {
+            background: rgba(255, 255, 255, 0.15);
+        }
+        
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            background: linear-gradient(135deg, #ff6b6b, #ff4757);
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(255, 107, 107, 0.5);
+            border: 2px solid white;
+        }
+        
+        .value-display {
+            min-width: 50px;
+            text-align: center;
+            font-size: 0.9rem;
+            color: #ffd166;
+            font-weight: 600;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 4px 8px;
+            border-radius: 4px;
+        }
+        
+        .button-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 15px;
+        }
+        
+        button {
+            padding: 14px;
+            background: linear-gradient(135deg, #ff6b6b, #ff4757);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3);
+            pointer-events: auto;
+        }
+        
+        button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(255, 107, 107, 0.4);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        button.secondary {
+            background: linear-gradient(135deg, #06d6a0, #1a936f);
+            box-shadow: 0 4px 15px rgba(6, 214, 160, 0.3);
+        }
+        
+        button.secondary:hover {
+            box-shadow: 0 8px 20px rgba(6, 214, 160, 0.4);
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-top: 15px;
+        }
+        
+        .stat-card {
+            background: rgba(255, 255, 255, 0.08);
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: transform 0.3s;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-3px);
+            background: rgba(255, 255, 255, 0.12);
+        }
+        
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #ffd166;
+            margin-bottom: 5px;
+        }
+        
+        .stat-label {
+            font-size: 0.85rem;
+            opacity: 0.8;
+        }
+        
+        .energy-container {
+            margin-top: 15px;
+        }
+        
+        .energy-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+        
+        .energy-bar {
+            height: 12px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 6px;
+            overflow: hidden;
+        }
+        
+        .energy-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #ff6b6b, #ffd166, #06d6a0);
+            border-radius: 6px;
+            transition: width 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        
+        #instructions {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 20px;
+            border-radius: 12px;
+            font-size: 0.9rem;
+            max-width: 320px;
+            border-left: 5px solid #ff6b6b;
+            backdrop-filter: blur(10px);
+            pointer-events: auto;
+        }
+        
+        #instructions h3 {
+            margin-bottom: 12px;
+            color: #ffd166;
+            font-size: 1.1rem;
+        }
+        
+        #instructions ul {
+            padding-left: 20px;
+        }
+        
+        #instructions li {
+            margin-bottom: 8px;
+            line-height: 1.4;
+        }
+        
+        #physics-info {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            max-width: 300px;
+            border-top: 5px solid #06d6a0;
+            backdrop-filter: blur(10px);
+            pointer-events: auto;
+        }
+        
+        #physics-info h3 {
+            margin-bottom: 10px;
+            color: #06d6a0;
+        }
+        
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 6px;
+            border-bottom: 1px dashed rgba(255, 255, 255, 0.1);
+            padding-bottom: 6px;
+        }
+        
+        .info-label {
+            opacity: 0.8;
+        }
+        
+        .info-value {
+            font-weight: bold;
+            color: #ffd166;
+        }
+        
+        #drag-indicator {
+            position: absolute;
+            pointer-events: none;
+            display: none;
+        }
+        
+        #performance-stats {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.6);
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-size: 0.8rem;
+            backdrop-filter: blur(5px);
+            pointer-events: none;
+        }
+        
+        @media (max-width: 768px) {
+            #physics-panel {
+                width: 300px;
+                right: 10px;
+                top: 100px;
+            }
+            
+            h1 {
+                font-size: 2rem;
+            }
+            
+            .subtitle {
+                font-size: 1rem;
+                padding: 0 10px;
+            }
+            
+            #instructions, #physics-info {
+                display: none;
+            }
+        }
+        
+        /* Fullscreen styles */
+        :fullscreen #container {
+            height: 100vh;
+            width: 100vw;
+        }
+        
+        :-webkit-full-screen #container {
+            height: 100vh;
+            width: 100vw;
+        }
+        
+        :-moz-full-screen #container {
+            height: 100vh;
+            width: 100vw;
+        }
+        
+        /* Loading screen */
+        #loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+            transition: opacity 0.5s ease;
+        }
+        
+        .spinner {
+            width: 60px;
+            height: 60px;
+            border: 4px solid rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            border-top-color: #ff6b6b;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        #loading-text {
+            font-size: 1.2rem;
+            color: #fff;
+            text-align: center;
+        }
+    </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <button id="fullscreen-btn">
+        <i class="fas fa-expand"></i> Fullscreen
+    </button>
+    
+    <div id="loading-screen">
+        <div class="spinner"></div>
+        <div id="loading-text">Loading Advanced Physics Simulation...</div>
+    </div>
+    
+    <div id="container">
+        <div id="header">
+            <h1><i class="fas fa-dice-d20"></i> ADVANCED DICE PHYSICS</h1>
+            <p class="subtitle">Full 3D physics simulation with accurate collisions, momentum conservation, and realistic energy dissipation</p>
+        </div>
+        
+        <div id="canvas-container">
+            <canvas id="canvas"></canvas>
+            <canvas id="trajectory-canvas"></canvas>
+            
+            <div id="ui-overlay">
+                <div id="drag-indicator"></div>
+                <div id="physics-info">
+                    <h3><i class="fas fa-atom"></i> PHYSICS SYSTEM</h3>
+                    <div class="info-item">
+                        <span class="info-label">Active Dice:</span>
+                        <span class="info-value" id="current-dice">0</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Total Energy:</span>
+                        <span class="info-value" id="system-energy">0 J</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Angular Momentum:</span>
+                        <span class="info-value" id="angular-momentum">0</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Collisions:</span>
+                        <span class="info-value" id="total-collisions">0</span>
+                    </div>
+                </div>
+                
+                <div id="instructions">
+                    <h3><i class="fas fa-gamepad"></i> CONTROLS</h3>
+                    <ul>
+                        <li><strong>CLICK</strong> to throw dice with physics-based trajectory</li>
+                        <li><strong>CLICK + DRAG</strong> to adjust throw direction and force</li>
+                        <li><strong>SPACEBAR</strong> to throw with random parameters</li>
+                        <li><strong>SCROLL</strong> to zoom camera in/out</li>
+                        <li><strong>DRAG</strong> to rotate camera view</li>
+                    </ul>
+                </div>
+                
+                <div id="performance-stats">
+                    <span id="fps-counter">60 FPS</span>
+                </div>
+            </div>
+        </div>
+        
+        <div id="physics-panel">
+            <button id="panel-toggle" style="display: none;">
+                <i class="fas fa-sliders-h"></i>
+            </button>
+            
+            <div class="panel-section">
+                <h3 class="panel-title"><i class="fas fa-sliders-h"></i> SIMULATION CONTROLS</h3>
+                <div class="button-group">
+                    <button id="throw-btn">
+                        <i class="fas fa-dice"></i> Throw Dice
+                    </button>
+                    <button id="reset-btn" class="secondary">
+                        <i class="fas fa-redo"></i> Reset
+                    </button>
+                </div>
+                <button id="throw-multiple" style="width: 100%; margin-top: 10px;">
+                    <i class="fas fa-dice-five"></i> Throw 5 Dice
+                </button>
+            </div>
+            
+            <div class="panel-section">
+                <h3 class="panel-title"><i class="fas fa-weight-hanging"></i> PHYSICS PARAMETERS</h3>
+                
+                <div class="control-group">
+                    <label for="gravity-slider">Gravity</label>
+                    <div class="slider-container">
+                        <input type="range" id="gravity-slider" min="0.1" max="20" step="0.1" value="9.81">
+                        <div class="value-display" id="gravity-value">9.81</div>
+                    </div>
+                </div>
+                
+                <div class="control-group">
+                    <label for="velocity-slider">Initial Velocity</label>
+                    <div class="slider-container">
+                        <input type="range" id="velocity-slider" min="1" max="30" step="0.5" value="12">
+                        <div class="value-display" id="velocity-value">12 m/s</div>
+                    </div>
+                </div>
+                
+                <div class="control-group">
+                    <label for="rotation-slider">Initial Rotation</label>
+                    <div class="slider-container">
+                        <input type="range" id="rotation-slider" min="1" max="50" step="0.5" value="15">
+                        <div class="value-display" id="rotation-value">15 rad/s</div>
+                    </div>
+                </div>
+                
+                <div class="control-group">
+                    <label for="elasticity">Elasticity (e)</label>
+                    <div class="slider-container">
+                        <input type="range" id="elasticity" min="0.1" max="0.95" step="0.05" value="0.8">
+                        <div class="value-display" id="elasticity-value">0.8</div>
+                    </div>
+                </div>
+                
+                <div class="control-group">
+                    <label for="friction">Friction (μ)</label>
+                    <div class="slider-container">
+                        <input type="range" id="friction" min="0.01" max="0.8" step="0.01" value="0.3">
+                        <div class="value-display" id="friction-value">0.3</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="panel-section">
+                <h3 class="panel-title"><i class="fas fa-chart-line"></i> DICE STATISTICS</h3>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-value" id="dice-count">0</div>
+                        <div class="stat-label">Active Dice</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="collision-count">0</div>
+                        <div class="stat-label">Collisions</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="ground-hits">0</div>
+                        <div class="stat-label">Ground Hits</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value" id="dice-hits">0</div>
+                        <div class="stat-label">Dice Collisions</div>
+                    </div>
+                </div>
+                
+                <div class="energy-container">
+                    <div class="energy-label">
+                        <span>System Energy</span>
+                        <span id="energy-percent">100%</span>
+                    </div>
+                    <div class="energy-bar">
+                        <div class="energy-fill" id="energy-bar" style="width: 100%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.162.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.162.0/examples/jsm/"
+            }
+        }
+    </script>
+    
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+        import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+        import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+        import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+        import { SMAAPass } from 'three/addons/postprocessing/SMAAPass.js';
+        import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+
+        // Hide loading screen
+        const loadingScreen = document.getElementById('loading-screen');
+        
+        // Initialize fullscreen
+        const fullscreenBtn = document.getElementById('fullscreen-btn');
+        fullscreenBtn.addEventListener('click', toggleFullscreen);
+        
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(err => {
+                    console.log(`Error attempting to enable fullscreen: ${err.message}`);
+                });
+                fullscreenBtn.innerHTML = '<i class="fas fa-compress"></i> Exit Fullscreen';
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                    fullscreenBtn.innerHTML = '<i class="fas fa-expand"></i> Fullscreen';
+                }
+            }
+        }
+        
+        // Get canvases
+        const canvas = document.getElementById('canvas');
+        const trajectoryCanvas = document.getElementById('trajectory-canvas');
+        
+        // Set canvas size to full screen
+        function resizeCanvases() {
+            const width = window.innerWidth;
+            const height = window.innerHeight;
+            
+            canvas.width = width;
+            canvas.height = height;
+            trajectoryCanvas.width = width;
+            trajectoryCanvas.height = height;
+            
+            return { width, height };
+        }
+        
+        const { width, height } = resizeCanvases();
+        const trajectoryCtx = trajectoryCanvas.getContext('2d');
+        
+        // Enhanced Three.js scene setup
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x000010);
+        scene.fog = new THREE.FogExp2(0x000010, 0.002);
+        
+        // Enhanced camera setup
+        const camera = new THREE.PerspectiveCamera(60, width / height, 0.1, 1000);
+        camera.position.set(25, 20, 25);
+        camera.lookAt(0, 2, 0);
+        
+        // Enhanced renderer with antialiasing
+        const renderer = new THREE.WebGLRenderer({ 
+            canvas: canvas,
+            antialias: true,
+            alpha: true,
+            powerPreference: "high-performance"
+        });
+        renderer.setSize(width, height);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.2;
+        renderer.outputEncoding = THREE.sRGBEncoding;
+        
+        // Post-processing setup
+        const composer = new EffectComposer(renderer);
+        const renderPass = new RenderPass(scene, camera);
+        composer.addPass(renderPass);
+        
+        const bloomPass = new UnrealBloomPass(
+            new THREE.Vector2(width, height),
+            1.2,    // strength
+            0.4,    // radius
+            0.8     // threshold
+        );
+        composer.addPass(bloomPass);
+        
+        const outputPass = new OutputPass();
+        composer.addPass(outputPass);
+        
+        // Add SMAA for better anti-aliasing
+        if (renderer.getPixelRatio() === 1 && renderer.capabilities.isWebGL2) {
+            const smaaPass = new SMAAPass(width, height);
+            composer.addPass(smaaPass);
+        }
+        
+        // Enhanced controls
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.maxPolarAngle = Math.PI * 0.8;
+        controls.minDistance = 5;
+        controls.maxDistance = 100;
+        controls.enablePan = true;
+        
+        // Enhanced lighting system
+        const ambientLight = new THREE.AmbientLight(0x404080, 0.6);
+        scene.add(ambientLight);
+        
+        // Main directional light with shadows
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 1.2);
+        directionalLight.position.set(20, 40, 10);
+        directionalLight.castShadow = true;
+        directionalLight.shadow.mapSize.width = 4096;
+        directionalLight.shadow.mapSize.height = 4096;
+        directionalLight.shadow.camera.near = 0.5;
+        directionalLight.shadow.camera.far = 100;
+        directionalLight.shadow.camera.left = -40;
+        directionalLight.shadow.camera.right = 40;
+        directionalLight.shadow.camera.top = 40;
+        directionalLight.shadow.camera.bottom = -40;
+        directionalLight.shadow.bias = -0.0001;
+        directionalLight.shadow.normalBias = 0.05;
+        scene.add(directionalLight);
+        
+        // Secondary fill light
+        const fillLight = new THREE.DirectionalLight(0x4488ff, 0.4);
+        fillLight.position.set(-20, 20, -20);
+        scene.add(fillLight);
+        
+        // Rim light for better edge definition
+        const rimLight = new THREE.DirectionalLight(0xff8844, 0.3);
+        rimLight.position.set(0, 10, 30);
+        scene.add(rimLight);
+        
+        // Point lights for dice illumination
+        const pointLight1 = new THREE.PointLight(0xff6b6b, 0.8, 30);
+        pointLight1.position.set(15, 10, 15);
+        pointLight1.castShadow = true;
+        scene.add(pointLight1);
+        
+        const pointLight2 = new THREE.PointLight(0x06d6a0, 0.8, 30);
+        pointLight2.position.set(-15, 10, -15);
+        pointLight2.castShadow = true;
+        scene.add(pointLight2);
+        
+        // Enhanced ground with displacement and normal maps
+        const groundGeometry = new THREE.PlaneGeometry(80, 80, 100, 100);
+        
+        // Create a more interesting ground material
+        const groundMaterial = new THREE.MeshStandardMaterial({ 
+            color: 0x1a1a3a,
+            roughness: 0.8,
+            metalness: 0.1,
+            side: THREE.DoubleSide
+        });
+        
+        const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+        ground.rotation.x = -Math.PI / 2;
+        ground.receiveShadow = true;
+        scene.add(ground);
+        
+        // Add reflective ground
+        const groundMirror = new THREE.Mesh(
+            new THREE.PlaneGeometry(80, 80),
+            new THREE.MeshBasicMaterial({
+                color: 0x000020,
+                transparent: true,
+                opacity: 0.1
+            })
+        );
+        groundMirror.rotation.x = -Math.PI / 2;
+        groundMirror.position.y = 0.01;
+        scene.add(groundMirror);
+        
+        // Grid helper with better visuals
+        const gridHelper = new THREE.GridHelper(80, 80, 0x333388, 0x222266);
+        gridHelper.position.y = 0.02;
+        scene.add(gridHelper);
+        
+        // Skybox/environment
+        const skyGeometry = new THREE.SphereGeometry(200, 32, 32);
+        const skyMaterial = new THREE.MeshBasicMaterial({
+            color: 0x000020,
+            side: THREE.BackSide
+        });
+        const skybox = new THREE.Mesh(skyGeometry, skyMaterial);
+        scene.add(skybox);
+        
+        // Enhanced Dice class with more accurate physics
+        class Dice {
+            constructor(position, velocity, angularVelocity, size = 1) {
+                this.size = size;
+                this.mass = Math.pow(size, 3); // mass = volume (density = 1)
+                
+                // Physics state
+                this.position = position.clone();
+                this.velocity = velocity.clone();
+                this.angularVelocity = angularVelocity.clone();
+                this.quaternion = new THREE.Quaternion();
+                
+                // Enhanced physics properties
+                this.linearMomentum = this.velocity.clone().multiplyScalar(this.mass);
+                this.inertiaTensor = this.calculateInertiaTensor();
+                this.angularMomentum = this.calculateAngularMomentum();
+                
+                // Energy tracking
+                this.initialEnergy = this.calculateTotalEnergy();
+                this.energy = this.initialEnergy;
+                this.energyLost = 0;
+                
+                // Collision tracking
+                this.collisionCount = 0;
+                this.groundHits = 0;
+                this.diceHits = 0;
+                this.isActive = true;
+                this.lastCollisionTime = 0;
+                this.collisionCooldown = 100; // ms
+                
+                // Trajectory visualization
+                this.trajectory = [];
+                this.maxTrajectoryPoints = 150;
+                this.trajectoryColor = new THREE.Color(
+                    Math.random() * 0.5 + 0.5,
+                    Math.random() * 0.5 + 0.5,
+                    Math.random() * 0.5 + 0.5
+                );
+                
+                // Create enhanced 3D mesh
+                this.createMesh();
+                
+                // Store initial state
+                this.initialState = {
+                    position: position.clone(),
+                    velocity: velocity.clone(),
+                    angularVelocity: angularVelocity.clone(),
+                    energy: this.initialEnergy
+                };
+            }
+            
+            calculateInertiaTensor() {
+                // Moment of inertia tensor for a cube
+                const I = (1/6) * this.mass * Math.pow(this.size, 2);
+                return new THREE.Matrix3().set(
+                    I, 0, 0,
+                    0, I, 0,
+                    0, 0, I
+                );
+            }
+            
+            calculateAngularMomentum() {
+                // L = I * ω
+                return this.angularVelocity.clone().applyMatrix3(this.inertiaTensor);
+            }
+            
+            calculateTotalEnergy() {
+                // Total energy = linear KE + rotational KE
+                const linearKE = 0.5 * this.mass * this.velocity.lengthSq();
+                const rotationalKE = 0.5 * this.angularVelocity.dot(this.calculateAngularMomentum());
+                return linearKE + rotationalKE;
+            }
+            
+            createMesh() {
+                // Create a high-quality dice mesh
+                const geometry = new THREE.BoxGeometry(this.size, this.size, this.size);
+                
+                // Enhanced materials with better properties
+                const materials = [
+                    this.createFaceMaterial(0xff6b6b, 0.3, 0.1),  // Red
+                    this.createFaceMaterial(0x4ecdc4, 0.3, 0.1),  // Teal
+                    this.createFaceMaterial(0xffd166, 0.3, 0.1),  // Yellow
+                    this.createFaceMaterial(0x06d6a0, 0.3, 0.1),  // Green
+                    this.createFaceMaterial(0x118ab2, 0.3, 0.1),  // Blue
+                    this.createFaceMaterial(0x9d4edd, 0.3, 0.1)   // Purple
+                ];
+                
+                // Create dice mesh
+                this.mesh = new THREE.Mesh(geometry, materials);
+                this.mesh.position.copy(this.position);
+                this.mesh.castShadow = true;
+                this.mesh.receiveShadow = true;
+                
+                // Add dice dots
+                this.addEnhancedDots();
+                
+                scene.add(this.mesh);
+                
+                // Add wireframe for better visibility
+                const wireframe = new THREE.LineSegments(
+                    new THREE.EdgesGeometry(geometry),
+                    new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.3 })
+                );
+                this.mesh.add(wireframe);
+            }
+            
+            createFaceMaterial(color, roughness, metalness) {
+                return new THREE.MeshStandardMaterial({
+                    color: color,
+                    roughness: roughness,
+                    metalness: metalness,
+                    envMapIntensity: 0.3,
+                    side: THREE.FrontSide
+                });
+            }
+            
+            addEnhancedDots() {
+                const dotGeometry = new THREE.SphereGeometry(0.15, 16, 16);
+                const dotMaterial = new THREE.MeshStandardMaterial({
+                    color: 0xffffff,
+                    roughness: 0.1,
+                    metalness: 0.9,
+                    emissive: 0x222222,
+                    emissiveIntensity: 0.5
+                });
+                
+                // Standard dice dot configurations
+                const dotConfigurations = [
+                    [[0, 0]], // Face 1
+                    [[-0.35, -0.35], [0.35, 0.35]], // Face 2
+                    [[-0.35, -0.35], [0, 0], [0.35, 0.35]], // Face 3
+                    [[-0.35, -0.35], [-0.35, 0.35], [0.35, -0.35], [0.35, 0.35]], // Face 4
+                    [[-0.35, -0.35], [-0.35, 0.35], [0, 0], [0.35, -0.35], [0.35, 0.35]], // Face 5
+                    [[-0.35, -0.35], [-0.35, 0], [-0.35, 0.35], [0.35, -0.35], [0.35, 0], [0.35, 0.35]] // Face 6
+                ];
+                
+                // Face normals and up vectors
+                const faceAxes = [
+                    { normal: new THREE.Vector3(0, 0, 1), up: new THREE.Vector3(0, 1, 0) },
+                    { normal: new THREE.Vector3(0, 0, -1), up: new THREE.Vector3(0, 1, 0) },
+                    { normal: new THREE.Vector3(0, 1, 0), up: new THREE.Vector3(0, 0, 1) },
+                    { normal: new THREE.Vector3(0, -1, 0), up: new THREE.Vector3(0, 0, 1) },
+                    { normal: new THREE.Vector3(1, 0, 0), up: new THREE.Vector3(0, 1, 0) },
+                    { normal: new THREE.Vector3(-1, 0, 0), up: new THREE.Vector3(0, 1, 0) }
+                ];
+                
+                // Create dots for each face
+                for (let face = 0; face < 6; face++) {
+                    const config = dotConfigurations[face];
+                    const { normal, up } = faceAxes[face];
+                    
+                    const right = new THREE.Vector3().crossVectors(up, normal).normalize();
+                    
+                    for (const dotPos of config) {
+                        const dot = new THREE.Mesh(dotGeometry, dotMaterial);
+                        
+                        const position = new THREE.Vector3()
+                            .addScaledVector(right, dotPos[0] * this.size)
+                            .addScaledVector(up, dotPos[1] * this.size)
+                            .addScaledVector(normal, 0.51 * this.size / 2);
+                        
+                        dot.position.copy(position);
+                        dot.castShadow = true;
+                        this.mesh.add(dot);
+                    }
+                }
+            }
+            
+            update(deltaTime, gravity) {
+                if (!this.isActive) return;
+                
+                // Store trajectory point
+                this.trajectory.push(this.position.clone());
+                if (this.trajectory.length > this.maxTrajectoryPoints) {
+                    this.trajectory.shift();
+                }
+                
+                // Apply gravity with time-corrected integration
+                this.velocity.y -= gravity * deltaTime;
+                
+                // Apply air resistance (quadratic drag) - more accurate
+                const dragCoefficient = 0.0015;
+                const frontalArea = Math.pow(this.size, 2);
+                const speed = this.velocity.length();
+                if (speed > 0) {
+                    const dragForce = this.velocity.clone()
+                        .normalize()
+                        .multiplyScalar(-0.5 * dragCoefficient * frontalArea * speed * speed);
+                    this.velocity.add(dragForce.multiplyScalar(deltaTime / this.mass));
+                }
+                
+                // Apply angular damping with air resistance
+                const angularDrag = 0.002;
+                const angularSpeed = this.angularVelocity.length();
+                if (angularSpeed > 0) {
+                    const angularDragForce = this.angularVelocity.clone()
+                        .normalize()
+                        .multiplyScalar(-angularDrag * Math.pow(this.size, 3) * angularSpeed * angularSpeed);
+                    this.angularVelocity.add(angularDragForce.multiplyScalar(deltaTime));
+                }
+                
+                // Apply damping for stability
+                this.angularVelocity.multiplyScalar(Math.pow(0.995, deltaTime * 60));
+                
+                // Update position with semi-implicit Euler integration
+                this.position.add(this.velocity.clone().multiplyScalar(deltaTime));
+                
+                // Update rotation using quaternion integration
+                const angularSpeedVec = this.angularVelocity.clone().multiplyScalar(deltaTime);
+                const rotationQuat = new THREE.Quaternion()
+                    .setFromEuler(new THREE.Euler(angularSpeedVec.x, angularSpeedVec.y, angularSpeedVec.z));
+                this.quaternion.multiply(rotationQuat);
+                this.quaternion.normalize();
+                
+                // Update mesh transform
+                this.mesh.position.copy(this.position);
+                this.mesh.setRotationFromQuaternion(this.quaternion);
+                
+                // Update physics quantities
+                const newEnergy = this.calculateTotalEnergy();
+                this.energyLost += this.energy - newEnergy;
+                this.energy = newEnergy;
+                
+                // Update angular momentum
+                this.angularMomentum = this.calculateAngularMomentum();
+                
+                // Check if dice should become inactive
+                if (this.energy < this.initialEnergy * 0.005) {
+                    this.isActive = false;
+                    this.mesh.material.forEach(mat => {
+                        if (mat.emissive) {
+                            mat.emissive = new THREE.Color(0x333333);
+                            mat.emissiveIntensity = 0.1;
+                        }
+                    });
+                }
+                
+                // Check boundary collisions
+                this.checkBoundaryCollisions();
+            }
+            
+            checkBoundaryCollisions() {
+                const boundary = 39;
+                const bounceFactor = 0.7;
+                
+                // Check each axis
+                const halfSize = this.size / 2;
+                
+                if (this.position.x - halfSize < -boundary) {
+                    this.position.x = -boundary + halfSize;
+                    this.velocity.x = Math.abs(this.velocity.x) * bounceFactor;
+                    this.applyCollisionEffects(new THREE.Vector3(1, 0, 0));
+                } else if (this.position.x + halfSize > boundary) {
+                    this.position.x = boundary - halfSize;
+                    this.velocity.x = -Math.abs(this.velocity.x) * bounceFactor;
+                    this.applyCollisionEffects(new THREE.Vector3(-1, 0, 0));
+                }
+                
+                if (this.position.z - halfSize < -boundary) {
+                    this.position.z = -boundary + halfSize;
+                    this.velocity.z = Math.abs(this.velocity.z) * bounceFactor;
+                    this.applyCollisionEffects(new THREE.Vector3(0, 0, 1));
+                } else if (this.position.z + halfSize > boundary) {
+                    this.position.z = boundary - halfSize;
+                    this.velocity.z = -Math.abs(this.velocity.z) * bounceFactor;
+                    this.applyCollisionEffects(new THREE.Vector3(0, 0, -1));
+                }
+            }
+            
+            applyCollisionEffects(normal) {
+                // Apply friction based on surface normal
+                const friction = parseFloat(document.getElementById('friction').value);
+                const velocityNormal = this.velocity.clone().projectOnVector(normal);
+                const velocityTangent = this.velocity.clone().sub(velocityNormal);
+                
+                // Apply friction to tangential velocity
+                velocityTangent.multiplyScalar(1 - friction * 0.5);
+                this.velocity.copy(velocityNormal).add(velocityTangent);
+                
+                // Apply some angular velocity change
+                const torque = normal.clone().cross(this.velocity).multiplyScalar(0.1);
+                this.angularVelocity.add(torque);
+            }
+            
+            checkGroundCollision(groundY = 0) {
+                // Calculate AABB collision with ground
+                const halfSize = this.size / 2;
+                const bottom = this.position.y - halfSize;
+                
+                if (bottom <= groundY) {
+                    const currentTime = Date.now();
+                    if (currentTime - this.lastCollisionTime < this.collisionCooldown) return false;
+                    
+                    this.lastCollisionTime = currentTime;
+                    
+                    // Calculate penetration depth and correct position
+                    const penetration = groundY - bottom;
+                    this.position.y += penetration;
+                    
+                    // Calculate impact point (lowest point of dice)
+                    const localLowest = new THREE.Vector3(0, -halfSize, 0);
+                    const worldLowest = localLowest.applyQuaternion(this.quaternion).add(this.position);
+                    
+                    // Calculate velocity at impact point
+                    const r = worldLowest.clone().sub(this.position);
+                    const velocityAtImpact = this.velocity.clone().add(
+                        this.angularVelocity.clone().cross(r)
+                    );
+                    
+                    // Ground normal
+                    const normal = new THREE.Vector3(0, 1, 0);
+                    
+                    // Relative velocity along normal
+                    const vn = velocityAtImpact.dot(normal);
+                    
+                    if (vn < 0) {
+                        // Get physics parameters
+                        const restitution = parseFloat(document.getElementById('elasticity').value) * 0.75;
+                        const friction = parseFloat(document.getElementById('friction').value);
+                        
+                        // Calculate impulse using more accurate formula
+                        const denominator = 1/this.mass + 
+                            r.cross(normal).dot(this.inertiaTensor.invert().multiplyVector(r.cross(normal)));
+                        
+                        const j = -(1 + restitution) * vn / denominator;
+                        
+                        // Apply linear impulse
+                        const impulse = normal.clone().multiplyScalar(j);
+                        this.velocity.add(impulse.clone().divideScalar(this.mass));
+                        
+                        // Apply angular impulse
+                        const angularImpulse = r.cross(impulse);
+                        const deltaOmega = this.inertiaTensor.invert().multiplyVector(angularImpulse);
+                        this.angularVelocity.add(deltaOmega);
+                        
+                        // Apply friction
+                        const tangentVel = velocityAtImpact.clone().sub(normal.clone().multiplyScalar(vn));
+                        if (tangentVel.length() > 0.01) {
+                            const tangentDir = tangentVel.clone().normalize();
+                            const frictionImpulse = tangentDir.multiplyScalar(
+                                -Math.min(friction * Math.abs(j), tangentVel.length() * this.mass)
+                            );
+                            this.velocity.add(frictionImpulse.divideScalar(this.mass));
+                        }
+                        
+                        this.groundHits++;
+                        this.collisionCount++;
+                        
+                        // Visual feedback
+                        this.showCollisionEffect(worldLowest);
+                        
+                        return true;
+                    }
+                }
+                return false;
+            }
+            
+            checkDiceCollision(otherDice) {
+                if (this === otherDice || !this.isActive || !otherDice.isActive) return false;
+                
+                const currentTime = Date.now();
+                if (currentTime - this.lastCollisionTime < this.collisionCooldown) return false;
+                
+                // Calculate distance between centers
+                const distanceVec = new THREE.Vector3().subVectors(this.position, otherDice.position);
+                const distance = distanceVec.length();
+                const minDistance = (this.size + otherDice.size) / 2;
+                
+                if (distance < minDistance && distance > 0.001) {
+                    this.lastCollisionTime = currentTime;
+                    otherDice.lastCollisionTime = currentTime;
+                    
+                    // Calculate collision normal
+                    const normal = distanceVec.clone().normalize();
+                    
+                    // Calculate relative velocity
+                    const relativeVelocity = new THREE.Vector3().subVectors(this.velocity, otherDice.velocity);
+                    
+                    // Calculate velocity along normal
+                    const velocityAlongNormal = relativeVelocity.dot(normal);
+                    
+                    // If objects are separating, don't collide
+                    if (velocityAlongNormal > 0) return false;
+                    
+                    // Get physics parameters
+                    const restitution = parseFloat(document.getElementById('elasticity').value) * 0.8;
+                    
+                    // Calculate impulse using proper collision response
+                    const r1 = normal.clone().multiplyScalar(this.size / 2);
+                    const r2 = normal.clone().multiplyScalar(-otherDice.size / 2);
+                    
+                    const term1 = 1/this.mass + 1/otherDice.mass;
+                    const term2 = r1.cross(normal).dot(
+                        this.inertiaTensor.invert().multiplyVector(r1.cross(normal))
+                    );
+                    const term3 = r2.cross(normal).dot(
+                        otherDice.inertiaTensor.invert().multiplyVector(r2.cross(normal))
+                    );
+                    
+                    const j = -(1 + restitution) * velocityAlongNormal / (term1 + term2 + term3);
+                    
+                    // Apply impulses
+                    const impulse = normal.clone().multiplyScalar(j);
+                    
+                    this.velocity.add(impulse.clone().divideScalar(this.mass));
+                    otherDice.velocity.sub(impulse.clone().divideScalar(otherDice.mass));
+                    
+                    // Apply angular impulses
+                    const angularImpulse1 = r1.cross(impulse);
+                    const angularImpulse2 = r2.cross(impulse);
+                    
+                    const deltaOmega1 = this.inertiaTensor.invert().multiplyVector(angularImpulse1);
+                    const deltaOmega2 = otherDice.inertiaTensor.invert().multiplyVector(angularImpulse2);
+                    
+                    this.angularVelocity.add(deltaOmega1);
+                    otherDice.angularVelocity.sub(deltaOmega2);
+                    
+                    // Separate dice to prevent sticking
+                    const overlap = minDistance - distance;
+                    const separation = normal.clone().multiplyScalar(overlap * 0.5);
+                    this.position.add(separation);
+                    otherDice.position.sub(separation);
+                    
+                    // Update collision stats
+                    this.diceHits++;
+                    otherDice.diceHits++;
+                    this.collisionCount++;
+                    otherDice.collisionCount++;
+                    
+                    // Visual feedback
+                    const collisionPoint = this.position.clone().add(
+                        otherDice.position.clone().sub(this.position).multiplyScalar(0.5)
+                    );
+                    this.showCollisionEffect(collisionPoint);
+                    otherDice.showCollisionEffect(collisionPoint);
+                    
+                    return true;
+                }
+                return false;
+            }
+            
+            showCollisionEffect(position) {
+                // Create a temporary collision effect
+                const geometry = new THREE.SphereGeometry(0.3, 8, 8);
+                const material = new THREE.MeshBasicMaterial({
+                    color: 0xffffff,
+                    transparent: true,
+                    opacity: 0.8
+                });
+                const effect = new THREE.Mesh(geometry, material);
+                effect.position.copy(position);
+                scene.add(effect);
+                
+                // Animate and remove effect
+                let scale = 0.5;
+                const animateEffect = () => {
+                    scale += 0.1;
+                    effect.scale.setScalar(scale);
+                    material.opacity -= 0.05;
+                    
+                    if (material.opacity > 0) {
+                        requestAnimationFrame(animateEffect);
+                    } else {
+                        scene.remove(effect);
+                    }
+                };
+                animateEffect();
+            }
+            
+            getEnergyPercentage() {
+                return (this.energy / this.initialEnergy) * 100;
+            }
+            
+            drawTrajectory() {
+                if (this.trajectory.length < 2) return;
+                
+                const ctx = trajectoryCtx;
+                const color = this.trajectoryColor;
+                
+                // Draw smooth trajectory line
+                ctx.beginPath();
+                ctx.strokeStyle = `rgba(${Math.floor(color.r * 255)}, ${Math.floor(color.g * 255)}, ${Math.floor(color.b * 255)}, ${this.isActive ? 0.6 : 0.3})`;
+                ctx.lineWidth = this.isActive ? 3 : 1.5;
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
+                
+                // Convert first point to screen coordinates
+                const firstPoint = this.trajectory[0];
+                const screenPos = this.worldToScreen(firstPoint);
+                ctx.moveTo(screenPos.x, screenPos.y);
+                
+                // Draw smooth curve through points
+                for (let i = 1; i < this.trajectory.length; i++) {
+                    const screenPos = this.worldToScreen(this.trajectory[i]);
+                    ctx.lineTo(screenPos.x, screenPos.y);
+                }
+                
+                ctx.stroke();
+                
+                // Draw current position indicator
+                const currentScreenPos = this.worldToScreen(this.position);
+                ctx.beginPath();
+                ctx.arc(currentScreenPos.x, currentScreenPos.y, this.isActive ? 5 : 3, 0, Math.PI * 2);
+                ctx.fillStyle = this.isActive ? 
+                    `rgba(${Math.floor(color.r * 255)}, ${Math.floor(color.g * 255)}, ${Math.floor(color.b * 255)}, 0.8)` :
+                    'rgba(255, 255, 255, 0.3)';
+                ctx.fill();
+            }
+            
+            worldToScreen(worldPos) {
+                const vector = new THREE.Vector3(worldPos.x, worldPos.y, worldPos.z);
+                vector.project(camera);
+                
+                return {
+                    x: (vector.x * 0.5 + 0.5) * width,
+                    y: (-vector.y * 0.5 + 0.5) * height
+                };
+            }
+        }
+        
+        // Simulation variables
+        let diceArray = [];
+        let lastThrowTime = 0;
+        const throwCooldown = 200;
+        
+        // Physics parameters
+        let gravity = 9.81;
+        let initialVelocity = 12;
+        let initialRotation = 15;
+        let elasticity = 0.8;
+        let friction = 0.3;
+        
+        // Stats
+        let totalCollisions = 0;
+        let totalGroundHits = 0;
+        let totalDiceHits = 0;
+        let systemEnergy = 0;
+        let totalAngularMomentum = 0;
+        
+        // Performance tracking
+        let frameCount = 0;
+        let lastFpsUpdate = 0;
+        let fps = 60;
+        
+        // Initialize UI
+        function initializeUI() {
+            document.getElementById('gravity-value').textContent = gravity.toFixed(2);
+            document.getElementById('velocity-value').textContent = initialVelocity + ' m/s';
+            document.getElementById('rotation-value').textContent = initialRotation + ' rad/s';
+            document.getElementById('elasticity-value').textContent = elasticity.toFixed(2);
+            document.getElementById('friction-value').textContent = friction.toFixed(2);
+            
+            // Event listeners
+            document.getElementById('throw-btn').addEventListener('click', throwDice);
+            document.getElementById('reset-btn').addEventListener('click', resetSimulation);
+            document.getElementById('throw-multiple').addEventListener('click', throwMultipleDice);
+            
+            // Slider listeners
+            document.getElementById('gravity-slider').addEventListener('input', (e) => {
+                gravity = parseFloat(e.target.value);
+                document.getElementById('gravity-value').textContent = gravity.toFixed(2);
+            });
+            
+            document.getElementById('velocity-slider').addEventListener('input', (e) => {
+                initialVelocity = parseFloat(e.target.value);
+                document.getElementById('velocity-value').textContent = initialVelocity + ' m/s';
+            });
+            
+            document.getElementById('rotation-slider').addEventListener('input', (e) => {
+                initialRotation = parseFloat(e.target.value);
+                document.getElementById('rotation-value').textContent = initialRotation + ' rad/s';
+            });
+            
+            document.getElementById('elasticity').addEventListener('input', (e) => {
+                elasticity = parseFloat(e.target.value);
+                document.getElementById('elasticity-value').textContent = elasticity.toFixed(2);
+            });
+            
+            document.getElementById('friction').addEventListener('input', (e) => {
+                friction = parseFloat(e.target.value);
+                document.getElementById('friction-value').textContent = friction.toFixed(2);
+            });
+            
+            // Hide loading screen
+            setTimeout(() => {
+                loadingScreen.style.opacity = '0';
+                setTimeout(() => {
+                    loadingScreen.style.display = 'none';
+                }, 500);
+            }, 1000);
+        }
+        
+        // Mouse interaction
+        let isDragging = false;
+        let dragStart = { x: 0, y: 0 };
+        
+        canvas.addEventListener('mousedown', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            dragStart.x = e.clientX - rect.left;
+            dragStart.y = e.clientY - rect.top;
+            isDragging = true;
+            
+            // Show drag indicator
+            const dragIndicator = document.getElementById('drag-indicator');
+            dragIndicator.style.display = 'block';
+            dragIndicator.style.left = dragStart.x + 'px';
+            dragIndicator.style.top = dragStart.y + 'px';
+        });
+        
+        canvas.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+            
+            const rect = canvas.getBoundingClientRect();
+            const dragCurrent = {
+                x: e.clientX - rect.left,
+                y: e.clientY - rect.top
+            };
+            
+            // Update drag indicator
+            const dragIndicator = document.getElementById('drag-indicator');
+            const dx = dragCurrent.x - dragStart.x;
+            const dy = dragCurrent.y - dragStart.y;
+            const length = Math.sqrt(dx * dx + dy * dy);
+            const angle = Math.atan2(dy, dx);
+            
+            dragIndicator.style.width = Math.min(length, 200) + 'px';
+            dragIndicator.style.transform = `rotate(${angle}rad)`;
+            dragIndicator.style.background = `linear-gradient(to right, rgba(255, 107, 107, 0.3), rgba(255, 107, 107, ${Math.min(length / 100, 0.8)}))`;
+        });
+        
+        canvas.addEventListener('mouseup', (e) => {
+            if (!isDragging) return;
+            
+            const rect = canvas.getBoundingClientRect();
+            const dragEnd = {
+                x: e.clientX - rect.left,
+                y: e.clientY - rect.top
+            };
+            
+            const now = Date.now();
+            if (now - lastThrowTime > throwCooldown) {
+                lastThrowTime = now;
+                throwDiceWithDrag(dragStart, dragEnd);
+            }
+            
+            isDragging = false;
+            document.getElementById('drag-indicator').style.display = 'none';
+        });
+        
+        // Keyboard controls
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space') {
+                e.preventDefault();
+                const now = Date.now();
+                if (now - lastThrowTime > throwCooldown) {
+                    lastThrowTime = now;
+                    throwDice();
+                }
+            }
+        });
+        
+        // Throw dice with drag
+        function throwDiceWithDrag(start, end) {
+            const dx = end.x - start.x;
+            const dy = end.y - start.y;
+            const dragLength = Math.sqrt(dx * dx + dy * dy);
+            const maxDrag = 200;
+            const normalizedDrag = Math.min(dragLength / maxDrag, 1);
+            
+            // Calculate throw direction
+            const throwDirection = new THREE.Vector3(
+                (dx / width) * 2,
+                Math.max(0.2, 1.5 - normalizedDrag),
+                (dy / height) * 2
+            ).normalize();
+            
+            // Calculate velocity based on drag strength
+            const velocity = initialVelocity * (0.3 + normalizedDrag * 0.7);
+            
+            // Calculate angular velocity based on drag direction
+            const angularVelocity = new THREE.Vector3(
+                -dy * 0.02,
+                dx * 0.01,
+                (dx - dy) * 0.015
+            ).multiplyScalar(initialRotation);
+            
+            // Start from camera position
+            const startPosition = camera.position.clone();
+            startPosition.y = Math.max(3, startPosition.y - 3);
+            
+            createDice(startPosition, throwDirection.multiplyScalar(velocity), angularVelocity);
+        }
+        
+        function throwDice() {
+            const position = new THREE.Vector3(
+                (Math.random() - 0.5) * 20,
+                10 + Math.random() * 5,
+                (Math.random() - 0.5) * 20
+            );
+            
+            const direction = new THREE.Vector3(
+                (Math.random() - 0.5) * 2,
+                1 + Math.random() * 0.5,
+                (Math.random() - 0.5) * 2
+            ).normalize();
+            
+            const angularVelocity = new THREE.Vector3(
+                (Math.random() - 0.5) * initialRotation * 2,
+                (Math.random() - 0.5) * initialRotation * 2,
+                (Math.random() - 0.5) * initialRotation * 2
+            );
+            
+            createDice(position, direction.multiplyScalar(initialVelocity), angularVelocity);
+        }
+        
+        function throwMultipleDice() {
+            for (let i = 0; i < 5; i++) {
+                setTimeout(() => {
+                    throwDice();
+                }, i * 80);
+            }
+        }
+        
+        function createDice(position, velocity, angularVelocity) {
+            const dice = new Dice(
+                position,
+                velocity,
+                angularVelocity,
+                0.9 + Math.random() * 0.3
+            );
+            
+            diceArray.push(dice);
+            updateStats();
+        }
+        
+        // Reset simulation
+        function resetSimulation() {
+            diceArray.forEach(dice => {
+                scene.remove(dice.mesh);
+                while(dice.mesh.children.length > 0) {
+                    dice.mesh.remove(dice.mesh.children[0]);
+                }
+            });
+            
+            diceArray = [];
+            totalCollisions = 0;
+            totalGroundHits = 0;
+            totalDiceHits = 0;
+            systemEnergy = 0;
+            totalAngularMomentum = 0;
+            
+            trajectoryCtx.clearRect(0, 0, width, height);
+            updateStats();
+        }
+        
+        // Update statistics
+        function updateStats() {
+            const activeDice = diceArray.filter(d => d.isActive).length;
+            const diceCount = diceArray.length;
+            
+            totalCollisions = diceArray.reduce((sum, dice) => sum + dice.collisionCount, 0);
+            totalGroundHits = diceArray.reduce((sum, dice) => sum + dice.groundHits, 0);
+            totalDiceHits = diceArray.reduce((sum, dice) => sum + dice.diceHits, 0);
+            systemEnergy = diceArray.reduce((sum, dice) => sum + dice.energy, 0);
+            totalAngularMomentum = diceArray.reduce((sum, dice) => sum + dice.angularMomentum.length(), 0);
+            
+            let avgEnergyPercent = 0;
+            if (diceArray.length > 0) {
+                const totalEnergyPercent = diceArray.reduce((sum, dice) => sum + dice.getEnergyPercentage(), 0);
+                avgEnergyPercent = totalEnergyPercent / diceArray.length;
+            }
+            
+            // Update UI
+            document.getElementById('dice-count').textContent = activeDice;
+            document.getElementById('collision-count').textContent = totalCollisions;
+            document.getElementById('ground-hits').textContent = totalGroundHits;
+            document.getElementById('dice-hits').textContent = totalDiceHits;
+            document.getElementById('energy-percent').textContent = `${avgEnergyPercent.toFixed(1)}%`;
+            document.getElementById('energy-bar').style.width = `${avgEnergyPercent}%`;
+            
+            document.getElementById('current-dice').textContent = diceCount;
+            document.getElementById('total-collisions').textContent = totalCollisions;
+            document.getElementById('system-energy').textContent = `${systemEnergy.toFixed(2)} J`;
+            document.getElementById('angular-momentum').textContent = totalAngularMomentum.toFixed(2);
+        }
+        
+        // Update FPS counter
+        function updateFPS(currentTime) {
+            frameCount++;
+            
+            if (currentTime - lastFpsUpdate >= 1000) {
+                fps = Math.round((frameCount * 1000) / (currentTime - lastFpsUpdate));
+                frameCount = 0;
+                lastFpsUpdate = currentTime;
+                
+                document.getElementById('fps-counter').textContent = `${fps} FPS`;
+            }
+        }
+        
+        // Animation loop
+        let lastTime = 0;
+        function animate(currentTime) {
+            requestAnimationFrame(animate);
+            
+            const deltaTime = Math.min((currentTime - lastTime) / 1000, 0.033);
+            lastTime = currentTime;
+            
+            // Update controls
+            controls.update();
+            
+            // Clear trajectory canvas with fade effect
+            trajectoryCtx.fillStyle = 'rgba(0, 0, 0, 0.05)';
+            trajectoryCtx.fillRect(0, 0, width, height);
+            
+            // Update all dice
+            diceArray.forEach((dice, index) => {
+                dice.update(deltaTime, gravity);
+                
+                if (dice.checkGroundCollision(0)) {
+                    totalGroundHits++;
+                }
+                
+                // Check collisions with other dice
+                for (let j = index + 1; j < diceArray.length; j++) {
+                    dice.checkDiceCollision(diceArray[j]);
+                }
+                
+                // Draw trajectory
+                dice.drawTrajectory();
+            });
+            
+            // Update stats less frequently for performance
+            if (currentTime % 200 < 16) {
+                updateStats();
+            }
+            
+            // Update FPS
+            updateFPS(currentTime);
+            
+            // Render with post-processing
+            composer.render();
+        }
+        
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            const { width, height } = resizeCanvases();
+            
+            camera.aspect = width / height;
+            camera.updateProjectionMatrix();
+            
+            renderer.setSize(width, height);
+            composer.setSize(width, height);
+            
+            bloomPass.setSize(width, height);
+        });
+        
+        // Initialize and start
+        initializeUI();
+        animate(0);
+        
+        // Throw initial dice
+        setTimeout(() => {
+            throwDice();
+            setTimeout(throwDice, 400);
+            setTimeout(throwDice, 800);
+        }, 1500);
+    </script>
+</body>
+</html>

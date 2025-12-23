@@ -1,0 +1,1278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Dice Physics Simulation</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
+            color: #fff;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+        
+        #container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            min-width: 600px;
+        }
+        
+        #header {
+            padding: 20px;
+            text-align: center;
+            background: rgba(0, 0, 0, 0.4);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+        }
+        
+        h1 {
+            font-size: 2.8rem;
+            margin-bottom: 8px;
+            background: linear-gradient(to right, #ff6b6b, #ffd166, #06d6a0);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+            letter-spacing: 1px;
+        }
+        
+        .subtitle {
+            font-size: 1.1rem;
+            opacity: 0.9;
+            max-width: 900px;
+            margin: 10px auto;
+            line-height: 1.5;
+        }
+        
+        #content {
+            display: fix;
+            flex: 1;
+            overflow: auto;
+        }
+        
+        #canvas-container {
+            
+            position: relative;
+            overflow: hidden;
+min-width: 660px;
+height: 100vh;
+        }
+        
+        #physics-panel {
+            min-width: 750px;
+            background: rgba(10, 10, 40, 0.7);
+            padding: 25px;
+            border-left: 1px solid rgba(255, 255, 255, 0.15);
+            overflow-y: auto;
+            backdrop-filter: blur(10px);
+        }
+        
+        .panel-section {
+            margin-bottom: 25px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .panel-title {
+            font-size: 1.3rem;
+            margin-bottom: 18px;
+            color: #06d6a0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .panel-title i {
+            font-size: 1.1rem;
+        }
+        
+        .control-group {
+            margin-bottom: 18px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 0.95rem;
+            opacity: 0.9;
+            font-weight: 500;
+        }
+        
+        input[type="range"] {
+            width: 100%;
+            height: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 5px;
+            outline: none;
+            -webkit-appearance: none;
+            transition: background 0.3s;
+        }
+        
+        input[type="range"]:hover {
+            background: rgba(255, 255, 255, 0.15);
+        }
+        
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 22px;
+            height: 22px;
+            background: linear-gradient(to bottom, #ff6b6b, #ff4757);
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+            border: 2px solid rgba(255, 255, 255, 0.8);
+        }
+        
+        .value-display {
+            text-align: right;
+            font-size: 0.95rem;
+            margin-top: 8px;
+            color: #ffd166;
+            font-weight: 600;
+        }
+        
+        .button-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 15px;
+        }
+        
+        button {
+            padding: 14px;
+            background: linear-gradient(135deg, #ff6b6b, #ff4757);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            box-shadow: 0 4px 12px rgba(255, 107, 107, 0.3);
+        }
+        
+        button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 16px rgba(255, 107, 107, 0.4);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        button.secondary {
+            background: linear-gradient(135deg, #06d6a0, #1a936f);
+            box-shadow: 0 4px 12px rgba(6, 214, 160, 0.3);
+        }
+        
+        button.secondary:hover {
+            box-shadow: 0 6px 16px rgba(6, 214, 160, 0.4);
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 15px;
+        }
+        
+        .stat-card {
+            background: rgba(255, 255, 255, 0.08);
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: transform 0.3s;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-3px);
+            background: rgba(255, 255, 255, 0.12);
+        }
+        
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #ffd166;
+            margin-bottom: 5px;
+        }
+        
+        .stat-label {
+            font-size: 0.85rem;
+            opacity: 0.8;
+        }
+        
+        .energy-container {
+            margin-top: 15px;
+        }
+        
+        .energy-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+        
+        .energy-bar {
+            height: 12px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 6px;
+            overflow: hidden;
+        }
+        
+        .energy-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #ff6b6b, #ffd166, #06d6a0);
+            border-radius: 6px;
+            transition: width 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        
+        #trajectory-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+min-width: 600px;
+min-height: 800px;
+            z-index: 1;
+        }
+        
+        #instructions {
+            position: absolute;
+            bottom: 25px;
+            left: 25px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 20px;
+            border-radius: 12px;
+            font-size: 0.9rem;
+            max-width: 320px;
+            border-left: 5px solid #ff6b6b;
+            backdrop-filter: blur(5px);
+        }
+        
+        #instructions h3 {
+            margin-bottom: 12px;
+            color: #ffd166;
+            font-size: 1.1rem;
+        }
+        
+        #instructions ul {
+            padding-left: 20px;
+        }
+        
+        #instructions li {
+            margin-bottom: 8px;
+            line-height: 1.4;
+        }
+        
+        #physics-info {
+            position: absolute;
+            top: 25px;
+            right: 25px;
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            min-width: 500px;
+            border-top: 5px solid #06d6a0;
+            backdrop-filter: blur(5px);
+        }
+        
+        #physics-info h3 {
+            margin-bottom: 10px;
+            color: #06d6a0;
+        }
+        
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 6px;
+            border-bottom: 1px dashed rgba(255, 255, 255, 0.1);
+            padding-bottom: 6px;
+        }
+        
+        @media (max-width: 1100px) {
+            #content {
+                flex-direction: column;
+            }
+            
+            #physics-panel {
+                width: 100%;
+                height: 800px;
+            }
+            
+            #instructions, #physics-info {
+                display: none;
+            }
+        }
+    </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <div id="container">
+        <div id="header">
+            <h1><i class="fas fa-dice-d20"></i> Advanced Dice Physics</h1>
+            <p class="subtitle">Realistic 3D dice simulation with accurate collision physics, angular momentum conservation, and energy dissipation. Features bounce direction based on impact point, angular velocity influence, and realistic scattering.</p>
+        </div>
+        
+        <div id="content">
+            <div id="canvas-container">
+                <canvas id="canvas"></canvas>
+                <canvas id="trajectory-canvas"></canvas>
+                
+                <div id="instructions">
+                    <h3><i class="fas fa-gamepad"></i> Controls & Physics</h3>
+                    <ul>
+                        <li><strong>Click</strong> to throw dice with physics-based trajectory</li>
+                        <li><strong>Click + Drag</strong> to adjust throw direction and force</li>
+                        <li><strong>Spacebar</strong> to throw with random parameters</li>
+                        <li>Physics includes: <strong>angular momentum</strong>, <strong>impulse response</strong>, <strong>friction</strong>, and <strong>energy loss</strong></li>
+                        <li>Dice lose 20% energy on cube collisions, 25% on ground collisions</li>
+                    </ul>
+                </div>
+                
+                <div id="physics-info">
+                    <h3><i class="fas fa-atom"></i> Physics Properties</h3>
+                    <div class="info-item">
+                        <span>Current Dice:</span>
+                        <span id="current-dice">0</span>
+                    </div>
+                    <div class="info-item">
+                        <span>Total Collisions:</span>
+                        <span id="total-collisions">0</span>
+                    </div>
+                    <div class="info-item">
+                        <span>System Energy:</span>
+                        <span id="system-energy">0 J</span>
+                    </div>
+                    <div class="info-item">
+                        <span>Angular Momentum:</span>
+                        <span id="angular-momentum">0</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="physics-panel">
+                <div class="panel-section">
+                    <h3 class="panel-title"><i class="fas fa-sliders-h"></i> Simulation Controls</h3>
+                    <div class="button-group">
+                        <button id="throw-btn">
+                            <i class="fas fa-dice"></i> Throw Dice
+                        </button>
+                        <button id="reset-btn" class="secondary">
+                            <i class="fas fa-redo"></i> Reset
+                        </button>
+                    </div>
+                    <button id="throw-multiple">
+                        <i class="fas fa-dice-five"></i> Throw 5 Dice
+                    </button>
+                </div>
+                
+                <div class="panel-section">
+                    <h3 class="panel-title"><i class="fas fa-weight-hanging"></i> Physics Parameters</h3>
+                    
+                    <div class="control-group">
+                        <label for="gravity-slider">Gravity: <span id="gravity-value">9.81</span> m/s²</label>
+                        <input type="range" id="gravity-slider" min="0.1" max="20" step="0.1" value="9.81">
+                    </div>
+                    
+                    <div class="control-group">
+                        <label for="velocity-slider">Initial Velocity: <span id="velocity-value">12</span> m/s</label>
+                        <input type="range" id="velocity-slider" min="1" max="30" step="0.5" value="12">
+                    </div>
+                    
+                    <div class="control-group">
+                        <label for="rotation-slider">Initial Rotation: <span id="rotation-value">15</span> rad/s</label>
+                        <input type="range" id="rotation-slider" min="1" max="50" step="0.5" value="15">
+                    </div>
+                    
+                    <div class="control-group">
+                        <label for="elasticity">Elasticity (e): <span id="elasticity-value">0.8</span></label>
+                        <input type="range" id="elasticity" min="0.1" max="0.95" step="0.05" value="0.8">
+                    </div>
+                    
+                    <div class="control-group">
+                        <label for="friction">Friction (μ): <span id="friction-value">0.3</span></label>
+                        <input type="range" id="friction" min="0.01" max="0.8" step="0.01" value="0.3">
+                    </div>
+                </div>
+                
+                <div class="panel-section">
+                    <h3 class="panel-title"><i class="fas fa-chart-line"></i> Dice Statistics</h3>
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-value" id="dice-count">0</div>
+                            <div class="stat-label">Active Dice</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="collision-count">0</div>
+                            <div class="stat-label">Total Collisions</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="ground-hits">0</div>
+                            <div class="stat-label">Ground Hits</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="dice-hits">0</div>
+                            <div class="stat-label">Dice Collisions</div>
+                        </div>
+                    </div>
+                    
+                    <div class="energy-container">
+                        <div class="energy-label">
+                            <span>System Energy</span>
+                            <span id="energy-percent">100%</span>
+                        </div>
+                        <div class="energy-bar">
+                            <div class="energy-fill" id="energy-bar" style="width: 100%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.162.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.162.0/examples/jsm/"
+            }
+        }
+    </script>
+    
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        // Get canvases
+        let canvas = document.getElementById('canvas');
+
+        const trajectoryCanvas = document.getElementById('trajectory-canvas');
+        trajectoryCanvas.width = canvas.clientWidth;
+        trajectoryCanvas.height = canvas.clientHeight;
+        const trajectoryCtx = trajectoryCanvas.getContext('2d');
+        
+        // Three.js scene setup
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x0a0a1a);
+        scene.fog = new THREE.Fog(0x0a0a1a, 20, 60);
+        
+        // Camera setup
+        const camera = new THREE.PerspectiveCamera(60, canvas.clientWidth / canvas.clientHeight, 0.1, 1000);
+        camera.position.set(20, 15, 20);
+        camera.lookAt(0, 2, 0);
+        
+        // Renderer setup
+        const renderer = new THREE.WebGLRenderer({ 
+            canvas: canvas,
+            antialias: true,
+            alpha: true
+        });
+        renderer.setSize(canvas.clientWidth, canvas.clientHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.2;
+        
+        // Controls
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.maxPolarAngle = Math.PI * 0.8;
+        controls.minDistance = 5;
+        controls.maxDistance = 50;
+        
+        // Enhanced lighting
+        const ambientLight = new THREE.AmbientLight(0x404060, 0.6);
+        scene.add(ambientLight);
+        
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.9);
+        directionalLight.position.set(15, 25, 10);
+        directionalLight.castShadow = true;
+        directionalLight.shadow.mapSize.width = 2048;
+        directionalLight.shadow.mapSize.height = 2048;
+        directionalLight.shadow.camera.near = 0.5;
+        directionalLight.shadow.camera.far = 50;
+        directionalLight.shadow.camera.left = -25;
+        directionalLight.shadow.camera.right = 25;
+        directionalLight.shadow.camera.top = 25;
+        directionalLight.shadow.camera.bottom = -25;
+        directionalLight.shadow.bias = -0.0001;
+        scene.add(directionalLight);
+        
+        // Add hemisphere light for ambient outdoor effect
+        const hemisphereLight = new THREE.HemisphereLight(0x443388, 0x228822, 0.3);
+        scene.add(hemisphereLight);
+        
+        // Ground plane with improved material
+        const groundGeometry = new THREE.PlaneGeometry(60, 60);
+        const groundMaterial = new THREE.MeshStandardMaterial({ 
+            color: 0x1a1a3a,
+            roughness: 0.7,
+            metalness: 0.1
+        });
+        const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+        ground.rotation.x = -Math.PI / 2;
+        ground.receiveShadow = true;
+        scene.add(ground);
+        
+        // Add ground texture for better visual
+        const gridHelper = new THREE.GridHelper(60, 60, 0x333355, 0x222244);
+        gridHelper.position.y = 0.01;
+        scene.add(gridHelper);
+        
+        // Add boundary walls
+        const createWall = (width, height, depth, position, rotation) => {
+            const wallGeometry = new THREE.BoxGeometry(width, height, depth);
+            const wallMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0x2a2a5a,
+                roughness: 0.8,
+                metalness: 0.1,
+                transparent: true,
+                opacity: 0.3
+            });
+            const wall = new THREE.Mesh(wallGeometry, wallMaterial);
+            wall.position.copy(position);
+            wall.rotation.copy(rotation);
+            wall.receiveShadow = true;
+            wall.castShadow = true;
+            scene.add(wall);
+            return wall;
+        };
+        
+        const walls = [
+            createWall(60, 10, 0.5, new THREE.Vector3(0, 5, -30), new THREE.Vector3(0, 0, 0)),
+            createWall(60, 10, 0.5, new THREE.Vector3(0, 5, 30), new THREE.Vector3(0, 0, 0)),
+            createWall(0.5, 10, 60, new THREE.Vector3(-30, 5, 0), new THREE.Vector3(0, 0, 0)),
+            createWall(0.5, 10, 60, new THREE.Vector3(30, 5, 0), new THREE.Vector3(0, 0, 0)),
+        ];
+        
+        // Enhanced Dice class with realistic physics
+        class Dice {
+            constructor(position, velocity, angularVelocity, size = 1) {
+                this.size = size;
+                this.mass = Math.pow(size, 3); // mass = volume (density = 1)
+                
+                // Position and orientation
+                this.position = position.clone();
+                this.velocity = velocity.clone();
+                this.angularVelocity = angularVelocity.clone();
+                this.quaternion = new THREE.Quaternion();
+                
+                // Physics properties
+                this.linearMomentum = this.velocity.clone().multiplyScalar(this.mass);
+                this.inertia = (1/6) * this.mass * Math.pow(size, 2); // moment of inertia for cube
+                this.angularMomentum = this.angularVelocity.clone().multiplyScalar(this.inertia);
+                
+                // Energy tracking
+                this.initialEnergy = this.calculateEnergy();
+                this.energy = this.initialEnergy;
+                this.energyLost = 0;
+                
+                // Collision tracking
+                this.collisionCount = 0;
+                this.groundHits = 0;
+                this.diceHits = 0;
+                this.isActive = true;
+                this.lastCollisionTime = 0;
+                
+                // For trajectory visualization
+                this.trajectory = [];
+                this.maxTrajectoryPoints = 100;
+                
+                // Create 3D mesh
+                this.createMesh();
+                
+                // Store initial state for reference
+                this.initialState = {
+                    position: position.clone(),
+                    velocity: velocity.clone(),
+                    angularVelocity: angularVelocity.clone(),
+                    energy: this.initialEnergy
+                };
+            }
+            
+            createMesh() {
+                // Create a cube with different colors on each face
+                const geometry = new THREE.BoxGeometry(this.size, this.size, this.size);
+                
+                // Create materials for each face (dice colors with improved materials)
+                const materials = [
+                    new THREE.MeshStandardMaterial({ 
+                        color: 0xff6b6b,
+                        roughness: 0.4,
+                        metalness: 0.2,
+                        emissive: 0x220000,
+                        emissiveIntensity: 0.1
+                    }), // Red
+                    new THREE.MeshStandardMaterial({ 
+                        color: 0x4ecdc4,
+                        roughness: 0.4,
+                        metalness: 0.2,
+                        emissive: 0x002222,
+                        emissiveIntensity: 0.1
+                    }), // Teal
+                    new THREE.MeshStandardMaterial({ 
+                        color: 0xffd166,
+                        roughness: 0.4,
+                        metalness: 0.2,
+                        emissive: 0x222200,
+                        emissiveIntensity: 0.1
+                    }), // Yellow
+                    new THREE.MeshStandardMaterial({ 
+                        color: 0x06d6a0,
+                        roughness: 0.4,
+                        metalness: 0.2,
+                        emissive: 0x002222,
+                        emissiveIntensity: 0.1
+                    }), // Green
+                    new THREE.MeshStandardMaterial({ 
+                        color: 0x118ab2,
+                        roughness: 0.4,
+                        metalness: 0.2,
+                        emissive: 0x000022,
+                        emissiveIntensity: 0.1
+                    }), // Blue
+                    new THREE.MeshStandardMaterial({ 
+                        color: 0x9d4edd,
+                        roughness: 0.4,
+                        metalness: 0.2,
+                        emissive: 0x220022,
+                        emissiveIntensity: 0.1
+                    })  // Purple
+                ];
+                
+                // Create dice mesh
+                this.mesh = new THREE.Mesh(geometry, materials);
+                this.mesh.position.copy(this.position);
+                this.mesh.castShadow = true;
+                this.mesh.receiveShadow = true;
+                
+                // Add dots to represent dice faces
+                this.addDots();
+                
+                scene.add(this.mesh);
+            }
+            
+            addDots() {
+                const dotGeometry = new THREE.SphereGeometry(0.12, 12, 12);
+                const dotMaterial = new THREE.MeshStandardMaterial({ 
+                    color: 0xffffff,
+                    roughness: 0.1,
+                    metalness: 0.8
+                });
+                
+                // Define dot positions for each face (standard dice patterns)
+                const dotConfigurations = [
+                    [[0, 0]], // Face 1
+                    [[-0.3, -0.3], [0.3, 0.3]], // Face 2
+                    [[-0.3, -0.3], [0, 0], [0.3, 0.3]], // Face 3
+                    [[-0.3, -0.3], [-0.3, 0.3], [0.3, -0.3], [0.3, 0.3]], // Face 4
+                    [[-0.3, -0.3], [-0.3, 0.3], [0, 0], [0.3, -0.3], [0.3, 0.3]], // Face 5
+                    [[-0.3, -0.3], [-0.3, 0], [-0.3, 0.3], [0.3, -0.3], [0.3, 0], [0.3, 0.3]] // Face 6
+                ];
+                
+                // Local axes for each face
+                const faceAxes = [
+                    { normal: new THREE.Vector3(0, 0, 1), up: new THREE.Vector3(0, 1, 0) }, // Front
+                    { normal: new THREE.Vector3(0, 0, -1), up: new THREE.Vector3(0, 1, 0) }, // Back
+                    { normal: new THREE.Vector3(0, 1, 0), up: new THREE.Vector3(0, 0, 1) }, // Top
+                    { normal: new THREE.Vector3(0, -1, 0), up: new THREE.Vector3(0, 0, 1) }, // Bottom
+                    { normal: new THREE.Vector3(1, 0, 0), up: new THREE.Vector3(0, 1, 0) }, // Right
+                    { normal: new THREE.Vector3(-1, 0, 0), up: new THREE.Vector3(0, 1, 0) }  // Left
+                ];
+                
+                // Create dots for each face
+                for (let face = 0; face < 6; face++) {
+                    const config = dotConfigurations[face];
+                    const { normal, up } = faceAxes[face];
+                    
+                    // Calculate right vector
+                    const right = new THREE.Vector3().crossVectors(up, normal).normalize();
+                    
+                    for (const dotPos of config) {
+                        const dot = new THREE.Mesh(dotGeometry, dotMaterial);
+                        
+                        // Position dot on the face surface
+                        const position = new THREE.Vector3()
+                            .addScaledVector(right, dotPos[0] * this.size)
+                            .addScaledVector(up, dotPos[1] * this.size)
+                            .addScaledVector(normal, 0.51 * this.size / 2);
+                        
+                        dot.position.copy(position);
+                        dot.castShadow = true;
+                        this.mesh.add(dot);
+                    }
+                }
+            }
+            
+            calculateEnergy() {
+                // Total kinetic energy = linear KE + rotational KE
+                const linearKE = 0.5 * this.mass * this.velocity.lengthSq();
+                const rotationalKE = 0.5 * this.inertia * this.angularVelocity.lengthSq();
+                return linearKE + rotationalKE;
+            }
+            
+            calculateLinearMomentum() {
+                return this.velocity.clone().multiplyScalar(this.mass);
+            }
+            
+            calculateAngularMomentum() {
+                return this.angularVelocity.clone().multiplyScalar(this.inertia);
+            }
+            
+            update(deltaTime, gravity) {
+                if (!this.isActive) return;
+                
+                // Store previous position for trajectory
+                this.trajectory.push(this.position.clone());
+                if (this.trajectory.length > this.maxTrajectoryPoints) {
+                    this.trajectory.shift();
+                }
+                
+                // Apply gravity
+                this.velocity.y -= gravity * deltaTime;
+                
+                // Apply air resistance (quadratic drag)
+                const dragCoefficient = 0.001;
+                const speed = this.velocity.length();
+                if (speed > 0) {
+                    const dragForce = this.velocity.clone()
+                        .normalize()
+                        .multiplyScalar(-dragCoefficient * speed * speed);
+                    this.velocity.add(dragForce.multiplyScalar(deltaTime / this.mass));
+                }
+                
+                // Apply angular damping
+                const angularDamping = 0.99;
+                this.angularVelocity.multiplyScalar(Math.pow(angularDamping, deltaTime));
+                
+                // Update position
+                this.position.add(this.velocity.clone().multiplyScalar(deltaTime));
+                
+                // Update rotation using quaternions for accuracy
+                const rotationDelta = this.angularVelocity.clone().multiplyScalar(deltaTime);
+                const rotationQuat = new THREE.Quaternion()
+                    .setFromEuler(new THREE.Euler(rotationDelta.x, rotationDelta.y, rotationDelta.z));
+                this.quaternion.multiply(rotationQuat);
+                this.quaternion.normalize();
+                
+                // Update mesh
+                this.mesh.position.copy(this.position);
+                this.mesh.setRotationFromQuaternion(this.quaternion);
+                
+                // Update energy
+                const newEnergy = this.calculateEnergy();
+                this.energyLost += this.energy - newEnergy;
+                this.energy = newEnergy;
+                
+                // Check if dice should become inactive
+                if (this.energy < this.initialEnergy * 0.01) {
+                    this.isActive = false;
+                    this.mesh.material.forEach(mat => {
+                        mat.emissive = new THREE.Color(0x333333);
+                        mat.emissiveIntensity = 0.3;
+                    });
+                }
+                
+                // Check boundary collisions
+                this.checkBoundaryCollisions();
+            }
+            
+            checkBoundaryCollisions() {
+                const boundary = 29;
+                const bounceFactor = 0.7;
+                
+                if (this.position.x - this.size/2 < -boundary) {
+                    this.position.x = -boundary + this.size/2;
+                    this.velocity.x = Math.abs(this.velocity.x) * bounceFactor;
+                } else if (this.position.x + this.size/2 > boundary) {
+                    this.position.x = boundary - this.size/2;
+                    this.velocity.x = -Math.abs(this.velocity.x) * bounceFactor;
+                }
+                
+                if (this.position.z - this.size/2 < -boundary) {
+                    this.position.z = -boundary + this.size/2;
+                    this.velocity.z = Math.abs(this.velocity.z) * bounceFactor;
+                } else if (this.position.z + this.size/2 > boundary) {
+                    this.position.z = boundary - this.size/2;
+                    this.velocity.z = -Math.abs(this.velocity.z) * bounceFactor;
+                }
+            }
+            
+            checkGroundCollision(groundY = 0) {
+                if (this.position.y - this.size/2 <= groundY) {
+                    const currentTime = Date.now();
+                    if (currentTime - this.lastCollisionTime < 50) return false; // Collision cooldown
+                    
+                    this.lastCollisionTime = currentTime;
+                    this.position.y = groundY + this.size/2;
+                    
+                    // Calculate impact point relative to center
+                    const impactPoint = new THREE.Vector3(0, -this.size/2, 0);
+                    const worldImpactPoint = this.position.clone().add(
+                        impactPoint.applyQuaternion(this.quaternion)
+                    );
+                    
+                    // Calculate velocity at impact point (linear + angular)
+                    const r = worldImpactPoint.clone().sub(this.position);
+                    const velocityAtImpact = this.velocity.clone().add(
+                        this.angularVelocity.clone().cross(r)
+                    );
+                    
+                    // Calculate normal (ground normal is always up)
+                    const normal = new THREE.Vector3(0, 1, 0);
+                    
+                    // Calculate impulse using physics formulas
+                    const restitution = parseFloat(document.getElementById('elasticity').value) * 0.75; // 25% energy loss
+                    const friction = parseFloat(document.getElementById('friction').value);
+                    
+                    // Relative velocity along normal
+                    const vn = velocityAtImpact.dot(normal);
+                    
+                    if (vn < 0) { // Moving toward ground
+                        // Calculate impulse magnitude
+                        const j = -(1 + restitution) * vn * this.mass;
+                        
+                        // Apply impulse to linear velocity
+                        const impulse = normal.clone().multiplyScalar(j / this.mass);
+                        this.velocity.add(impulse);
+                        
+                        // Apply friction (tangential impulse)
+                        const vt = velocityAtImpact.clone().sub(normal.clone().multiplyScalar(vn));
+                        if (vt.length() > 0) {
+                            const frictionImpulse = vt.normalize().multiplyScalar(
+                                -Math.min(friction * Math.abs(j) / this.mass, vt.length())
+                            );
+                            this.velocity.add(frictionImpulse);
+                        }
+                        
+                        // Apply angular impulse
+                        const angularImpulse = r.clone().cross(normal).multiplyScalar(j / this.inertia);
+                        this.angularVelocity.add(angularImpulse);
+                        
+                        this.groundHits++;
+                        this.collisionCount++;
+                        return true;
+                    }
+                }
+                return false;
+            }
+            
+            checkDiceCollision(otherDice) {
+                if (this === otherDice || !this.isActive || !otherDice.isActive) return false;
+                
+                const currentTime = Date.now();
+                if (currentTime - this.lastCollisionTime < 50) return false;
+                
+                const distance = this.position.distanceTo(otherDice.position);
+                const minDistance = (this.size + otherDice.size) / 2;
+                
+                if (distance < minDistance) {
+                    this.lastCollisionTime = currentTime;
+                    otherDice.lastCollisionTime = currentTime;
+                    
+                    // Calculate collision normal
+                    const normal = new THREE.Vector3()
+                        .subVectors(this.position, otherDice.position)
+                        .normalize();
+                    
+                    // Calculate relative velocity
+                    const relativeVelocity = new THREE.Vector3()
+                        .subVectors(this.velocity, otherDice.velocity);
+                    
+                    // Calculate velocity along normal
+                    const velocityAlongNormal = relativeVelocity.dot(normal);
+                    
+                    // If objects are moving away from each other, don't collide
+                    if (velocityAlongNormal > 0) return false;
+                    
+                    // Calculate restitution with 20% energy loss
+                    const restitution = parseFloat(document.getElementById('elasticity').value) * 0.8;
+                    
+                    // Calculate impulse magnitude (simplified collision response)
+                    const impulseMagnitude = -(1 + restitution) * velocityAlongNormal /
+                        (1/this.mass + 1/otherDice.mass);
+                    
+                    // Apply impulse
+                    const impulse = normal.clone().multiplyScalar(impulseMagnitude);
+                    
+                    this.velocity.add(impulse.clone().multiplyScalar(1/this.mass));
+                    otherDice.velocity.sub(impulse.clone().multiplyScalar(1/otherDice.mass));
+                    
+                    // Apply angular impulse based on impact point
+                    const r1 = normal.clone().multiplyScalar(this.size/2);
+                    const r2 = normal.clone().multiplyScalar(-otherDice.size/2);
+                    
+                    const angularImpulse1 = r1.clone().cross(impulse).divideScalar(this.inertia);
+                    const angularImpulse2 = r2.clone().cross(impulse).divideScalar(otherDice.inertia);
+                    
+                    this.angularVelocity.add(angularImpulse1);
+                    otherDice.angularVelocity.sub(angularImpulse2);
+                    
+                    // Separate dice to prevent sticking
+                    const overlap = minDistance - distance;
+                    const separation = normal.clone().multiplyScalar(overlap * 0.5);
+                    this.position.add(separation);
+                    otherDice.position.sub(separation);
+                    
+                    this.diceHits++;
+                    otherDice.diceHits++;
+                    this.collisionCount++;
+                    otherDice.collisionCount++;
+                    
+                    return true;
+                }
+                return false;
+            }
+            
+            getEnergyPercentage() {
+                return (this.energy / this.initialEnergy) * 100;
+            }
+            
+            drawTrajectory() {
+                if (this.trajectory.length < 2) return;
+                
+                trajectoryCtx.strokeStyle = `rgba(255, 209, 102, ${this.isActive ? 0.7 : 0.3})`;
+                trajectoryCtx.lineWidth = 2;
+                trajectoryCtx.beginPath();
+                
+                // Convert 3D position to 2D screen coordinates
+                const firstPoint = this.trajectory[0];
+                const screenPos = this.worldToScreen(firstPoint);
+                trajectoryCtx.moveTo(screenPos.x, screenPos.y);
+                
+                for (let i = 1; i < this.trajectory.length; i++) {
+                    const screenPos = this.worldToScreen(this.trajectory[i]);
+                    trajectoryCtx.lineTo(screenPos.x, screenPos.y);
+                }
+                
+                trajectoryCtx.stroke();
+            }
+            
+            worldToScreen(worldPos) {
+                const vector = new THREE.Vector3(worldPos.x, worldPos.y, worldPos.z);
+                vector.project(camera);
+                
+                return {
+                    x: (vector.x * 0.5 + 0.5) * canvas.clientWidth,
+                    y: (-vector.y * 0.5 + 0.5) * canvas.clientHeight
+                };
+            }
+        }
+        
+        // Simulation variables
+        let diceArray = [];
+        let lastThrowTime = 0;
+        const throwCooldown = 300;
+        
+        // Physics parameters
+        let gravity = 9.81;
+        let initialVelocity = 12;
+        let initialRotation = 15;
+        let elasticity = 0.8;
+        let friction = 0.3;
+        
+        // Stats
+        let totalCollisions = 0;
+        let totalGroundHits = 0;
+        let totalDiceHits = 0;
+        let systemEnergy = 0;
+        let totalAngularMomentum = 0;
+        
+        // Initialize UI values
+        document.getElementById('gravity-value').textContent = gravity.toFixed(2);
+        document.getElementById('velocity-value').textContent = initialVelocity;
+        document.getElementById('rotation-value').textContent = initialRotation;
+        document.getElementById('elasticity-value').textContent = elasticity.toFixed(2);
+        document.getElementById('friction-value').textContent = friction.toFixed(2);
+        
+        // Event listeners for controls
+        document.getElementById('throw-btn').addEventListener('click', throwDice);
+        document.getElementById('reset-btn').addEventListener('click', resetSimulation);
+        document.getElementById('throw-multiple').addEventListener('click', throwMultipleDice);
+        
+        document.getElementById('gravity-slider').addEventListener('input', (e) => {
+            gravity = parseFloat(e.target.value);
+            document.getElementById('gravity-value').textContent = gravity.toFixed(2);
+        });
+        
+        document.getElementById('velocity-slider').addEventListener('input', (e) => {
+            initialVelocity = parseFloat(e.target.value);
+            document.getElementById('velocity-value').textContent = initialVelocity;
+        });
+        
+        document.getElementById('rotation-slider').addEventListener('input', (e) => {
+            initialRotation = parseFloat(e.target.value);
+            document.getElementById('rotation-value').textContent = initialRotation;
+        });
+        
+        document.getElementById('elasticity').addEventListener('input', (e) => {
+            elasticity = parseFloat(e.target.value);
+            document.getElementById('elasticity-value').textContent = elasticity.toFixed(2);
+        });
+        
+        document.getElementById('friction').addEventListener('input', (e) => {
+            friction = parseFloat(e.target.value);
+            document.getElementById('friction-value').textContent = friction.toFixed(2);
+        });
+        
+        // Mouse interaction for throwing
+        let isDragging = false;
+        let dragStart = { x: 0, y: 0 };
+        let dragEnd = { x: 0, y: 0 };
+        
+        canvas.addEventListener('mousedown', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            dragStart.x = e.clientX - rect.left;
+            dragStart.y = e.clientY - rect.top;
+            isDragging = true;
+        });
+        
+        canvas.addEventListener('mouseup', (e) => {
+            if (!isDragging) return;
+            
+            const rect = canvas.getBoundingClientRect();
+            dragEnd.x = e.clientX - rect.left;
+            dragEnd.y = e.clientY - rect.top;
+            
+            const now = Date.now();
+            if (now - lastThrowTime > throwCooldown) {
+                lastThrowTime = now;
+                throwDiceWithDrag();
+            }
+            
+            isDragging = false;
+        });
+        
+        // Spacebar to throw dice
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space') {
+                e.preventDefault();
+                const now = Date.now();
+                if (now - lastThrowTime > throwCooldown) {
+                    lastThrowTime = now;
+                    throwDice();
+                }
+            }
+        });
+        
+        // Throw dice with mouse drag direction
+        function throwDiceWithDrag() {
+            const dragVector = {
+                x: dragEnd.x - dragStart.x,
+                y: dragEnd.y - dragStart.y
+            };
+            
+            // Normalize and scale drag
+            const dragLength = Math.sqrt(dragVector.x * dragVector.x + dragVector.y * dragVector.y);
+            const maxDrag = 200;
+            const normalizedDrag = Math.min(dragLength / maxDrag, 1);
+            
+            // Calculate throw direction based on drag
+            const throwDirection = new THREE.Vector3(
+                (dragVector.x / canvas.clientWidth) * 2,
+                Math.max(0.3, 1 - normalizedDrag),
+                (dragVector.y / canvas.clientHeight) * 2
+            ).normalize();
+            
+            // Calculate velocity based on drag strength
+            const velocity = initialVelocity * (0.5 + normalizedDrag * 0.5);
+            
+            // Random angular velocity
+            const angularVelocity = new THREE.Vector3(
+                (Math.random() - 0.5) * initialRotation * 2,
+                (Math.random() - 0.5) * initialRotation * 2,
+                (Math.random() - 0.5) * initialRotation * 2
+            );
+            
+            // Start from camera position
+            const startPosition = camera.position.clone();
+            startPosition.y = Math.max(5, startPosition.y - 5);
+            
+            createDice(startPosition, throwDirection.multiplyScalar(velocity), angularVelocity);
+        }
+        
+        function throwDice() {
+            // Random position above ground
+            const position = new THREE.Vector3(
+                (Math.random() - 0.5) * 15,
+                8 + Math.random() * 5,
+                (Math.random() - 0.5) * 15
+            );
+            
+            // Random direction with upward bias
+            const direction = new THREE.Vector3(
+                (Math.random() - 0.5) * 1.5,
+                0.8 + Math.random() * 0.5,
+                (Math.random() - 0.5) * 1.5
+            ).normalize();
+            
+            // Random angular velocity
+            const angularVelocity = new THREE.Vector3(
+                (Math.random() - 0.5) * initialRotation * 2,
+                (Math.random() - 0.5) * initialRotation * 2,
+                (Math.random() - 0.5) * initialRotation * 2
+            );
+            
+            createDice(position, direction.multiplyScalar(initialVelocity), angularVelocity);
+        }
+        
+        function throwMultipleDice() {
+            for (let i = 0; i < 5; i++) {
+                setTimeout(() => {
+                    throwDice();
+                }, i * 100);
+            }
+        }
+        
+        function createDice(position, velocity, angularVelocity) {
+            const dice = new Dice(
+                position,
+                velocity,
+                angularVelocity,
+                0.8 + Math.random() * 0.4 // Random size between 0.8 and 1.2
+            );
+            
+            diceArray.push(dice);
+            updateStats();
+        }
+        
+        // Reset simulation
+        function resetSimulation() {
+            // Remove all dice from scene
+            diceArray.forEach(dice => {
+                scene.remove(dice.mesh);
+                // Remove all child dots
+                while(dice.mesh.children.length > 0) {
+                    dice.mesh.remove(dice.mesh.children[0]);
+                }
+            });
+            
+            // Clear dice array
+            diceArray = [];
+            totalCollisions = 0;
+            totalGroundHits = 0;
+            totalDiceHits = 0;
+            systemEnergy = 0;
+            totalAngularMomentum = 0;
+            
+            // Clear trajectory canvas
+            trajectoryCtx.clearRect(0, 0, trajectoryCanvas.width, trajectoryCanvas.height);
+            
+            updateStats();
+        }
+        
+        // Update statistics
+        function updateStats() {
+            const activeDice = diceArray.filter(d => d.isActive).length;
+            const diceCount = diceArray.length;
+            
+            // Calculate total stats
+            totalCollisions = diceArray.reduce((sum, dice) => sum + dice.collisionCount, 0);
+            totalGroundHits = diceArray.reduce((sum, dice) => sum + dice.groundHits, 0);
+            totalDiceHits = diceArray.reduce((sum, dice) => sum + dice.diceHits, 0);
+            systemEnergy = diceArray.reduce((sum, dice) => sum + dice.energy, 0);
+            totalAngularMomentum = diceArray.reduce((sum, dice) => sum + dice.calculateAngularMomentum().length(), 0);
+            
+            // Calculate average energy percentage
+            let avgEnergyPercent = 0;
+            if (diceArray.length > 0) {
+                const totalEnergyPercent = diceArray.reduce((sum, dice) => sum + dice.getEnergyPercentage(), 0);
+                avgEnergyPercent = totalEnergyPercent / diceArray.length;
+            }
+            
+            // Update UI
+            document.getElementById('dice-count').textContent = activeDice;
+            document.getElementById('collision-count').textContent = totalCollisions;
+            document.getElementById('ground-hits').textContent = totalGroundHits;
+            document.getElementById('dice-hits').textContent = totalDiceHits;
+            document.getElementById('energy-percent').textContent = `${avgEnergyPercent.toFixed(1)}%`;
+            document.getElementById('energy-bar').style.width = `${avgEnergyPercent}%`;
+            
+            // Update physics info
+            document.getElementById('current-dice').textContent = diceArray.length;
+            document.getElementById('total-collisions').textContent = totalCollisions;
+            document.getElementById('system-energy').textContent = `${systemEnergy.toFixed(2)} J`;
+            document.getElementById('angular-momentum').textContent = totalAngularMomentum.toFixed(2);
+        }
+        
+        // Animation loop
+        let lastTime = 0;
+        function animate(currentTime) {
+            requestAnimationFrame(animate);
+            
+            // Calculate delta time in seconds
+            const deltaTime = Math.min((currentTime - lastTime) / 1000, 0.033);
+            lastTime = currentTime;
+            
+            // Update controls
+            controls.update();
+            
+            // Clear trajectory canvas
+            trajectoryCtx.clearRect(0, 0, trajectoryCanvas.width, trajectoryCanvas.height);
+            
+            // Update all dice
+            diceArray.forEach(dice => {
+                dice.update(deltaTime, gravity);
+                
+                // Check for ground collision
+                if (dice.checkGroundCollision(0)) {
+                    totalGroundHits++;
+                }
+                
+                // Check for collisions with other dice
+                diceArray.forEach(otherDice => {
+                    if (dice !== otherDice) {
+                        dice.checkDiceCollision(otherDice);
+                    }
+                });
+                
+                // Draw trajectory
+                dice.drawTrajectory();
+            });
+            
+            // Update stats less frequently for performance
+            if (currentTime % 100 < 16) { // ~6 times per second
+                updateStats();
+            }
+            
+            // Render scene
+            renderer.render(scene, camera);
+        }
+        
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            camera.aspect = canvas.clientWidth / canvas.clientHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(canvas.clientWidth, canvas.clientHeight);
+            trajectoryCanvas.width = canvas.clientWidth;
+            trajectoryCanvas.height = canvas.clientHeight;
+        });
+        
+        // Start animation
+        animate(0);
+        
+        // Throw initial dice
+        setTimeout(() => {
+            throwDice();
+            setTimeout(throwDice, 300);
+            setTimeout(throwDice, 600);
+        }, 1000);
+    </script>
+</body>
+</html>
