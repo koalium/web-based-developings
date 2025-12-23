@@ -1,0 +1,2018 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spiral Galaxy Simulation - Astrophysical Visualization</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/libs/stats.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+            background: #000;
+            color: #fff;
+        }
+        
+        #container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+        
+        #canvas-container {
+            width: 100%;
+            height: 100%;
+        }
+        
+        #ui {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 100;
+            background: rgba(0, 5, 15, 0.85);
+            padding: 20px;
+            border-radius: 10px;
+            max-width: 320px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(100, 180, 255, 0.3);
+            box-shadow: 0 0 30px rgba(0, 100, 255, 0.2);
+        }
+        
+        #controls {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 100;
+            background: rgba(0, 5, 15, 0.85);
+            padding: 20px;
+            border-radius: 10px;
+            max-width: 300px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(100, 180, 255, 0.3);
+            box-shadow: 0 0 30px rgba(0, 100, 255, 0.2);
+        }
+        
+        h1 {
+            font-size: 1.5rem;
+            margin-bottom: 15px;
+            color: #8cf;
+            text-shadow: 0 0 15px rgba(100, 200, 255, 0.8);
+            text-align: center;
+            font-weight: 300;
+            letter-spacing: 1px;
+        }
+        
+        h2 {
+            font-size: 1.2rem;
+            margin: 20px 0 10px 0;
+            color: #6af;
+            border-bottom: 1px solid rgba(100, 180, 255, 0.4);
+            padding-bottom: 8px;
+            font-weight: 300;
+        }
+        
+        .info-item {
+            margin: 10px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .info-label {
+            color: #bbf;
+            font-size: 0.9rem;
+        }
+        
+        .info-value {
+            color: #fff;
+            font-weight: bold;
+            font-size: 1rem;
+            text-shadow: 0 0 5px rgba(255, 255, 255, 0.5);
+        }
+        
+        .control-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #bbf;
+            font-size: 0.9rem;
+            font-weight: 300;
+        }
+        
+        select, button, input[type="range"] {
+            width: 100%;
+            padding: 10px;
+            background: rgba(20, 40, 80, 0.6);
+            border: 1px solid rgba(100, 180, 255, 0.4);
+            border-radius: 6px;
+            color: white;
+            margin-bottom: 12px;
+            font-size: 0.9rem;
+            transition: all 0.3s;
+        }
+        
+        select:focus, button:focus {
+            outline: none;
+            border-color: #4af;
+            box-shadow: 0 0 10px rgba(100, 200, 255, 0.5);
+        }
+        
+        button {
+            background: linear-gradient(to bottom, #2a6caa, #1a4c8a);
+            cursor: pointer;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+        }
+        
+        button:hover {
+            background: linear-gradient(to bottom, #3a7cba, #2a5c9a);
+            box-shadow: 0 0 15px rgba(100, 200, 255, 0.6);
+            transform: translateY(-2px);
+        }
+        
+        .checkbox {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+            padding: 5px 0;
+        }
+        
+        .checkbox input {
+            margin-right: 10px;
+            width: auto;
+            transform: scale(1.2);
+        }
+        
+        .checkbox label {
+            margin-bottom: 0;
+            cursor: pointer;
+        }
+        
+        #loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 1.8rem;
+            color: #8cf;
+            z-index: 200;
+            text-align: center;
+            text-shadow: 0 0 20px rgba(100, 200, 255, 0.8);
+        }
+        
+        #loading:after {
+            content: '';
+            animation: loadingDots 1.5s infinite;
+        }
+        
+        @keyframes loadingDots {
+            0%, 20% { content: '.'; }
+            40% { content: '..'; }
+            60%, 100% { content: '...'; }
+        }
+        
+        #stats {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            opacity: 0.7;
+        }
+        
+        .star-type {
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            margin-right: 8px;
+            vertical-align: middle;
+            box-shadow: 0 0 8px currentColor;
+        }
+        
+        .legend {
+            margin-top: 20px;
+            font-size: 0.85rem;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+            padding: 3px 0;
+        }
+        
+        .supernova-indicator {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+            z-index: 50;
+            opacity: 0;
+        }
+        
+        .pulsar-beam {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+            z-index: 40;
+        }
+        
+        #notification {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 20, 0.9);
+            padding: 25px 35px;
+            border-radius: 12px;
+            border: 2px solid #f55;
+            color: #fff;
+            font-size: 1.2rem;
+            text-align: center;
+            z-index: 300;
+            opacity: 0;
+            transition: opacity 0.5s;
+            max-width: 500px;
+            line-height: 1.6;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 0 40px rgba(255, 0, 0, 0.3);
+        }
+        
+        .range-container {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .range-container label {
+            flex: 1;
+            margin-bottom: 0;
+        }
+        
+        .range-value {
+            margin-left: 10px;
+            color: #8cf;
+            font-weight: bold;
+            min-width: 40px;
+            text-align: right;
+        }
+        
+        input[type="range"] {
+            padding: 0;
+            margin-bottom: 0;
+            background: rgba(100, 150, 255, 0.1);
+            height: 6px;
+            border-radius: 3px;
+            -webkit-appearance: none;
+        }
+        
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #4af;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(100, 200, 255, 0.8);
+        }
+        
+        #galaxy-visual {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 5;
+            opacity: 0.2;
+        }
+        
+        .progress-bar {
+            height: 4px;
+            background: linear-gradient(to right, #0066ff, #00ccff);
+            width: 0%;
+            transition: width 0.3s;
+            border-radius: 2px;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <div id="canvas-container"></div>
+        
+        <div id="ui">
+            <h1>Spiral Galaxy Simulation</h1>
+            
+            <div class="info-item">
+                <span class="info-label">Total Stars:</span>
+                <span id="total-stars" class="info-value">0</span>
+            </div>
+            
+            <div class="info-item">
+                <span class="info-label">Galaxy Age:</span>
+                <span id="galaxy-age" class="info-value">0 Myr</span>
+            </div>
+            
+            <div class="info-item">
+                <span class="info-label">Supernovae:</span>
+                <span id="supernova-count" class="info-value">0</span>
+            </div>
+            
+            <div class="info-item">
+                <span class="info-label">Star Formations:</span>
+                <span id="formation-count" class="info-value">0</span>
+            </div>
+            
+            <div class="info-item">
+                <span class="info-label">Selected Star:</span>
+                <span id="selected-star" class="info-value">None</span>
+            </div>
+            
+            <div class="info-item">
+                <span class="info-label">Galactic Phase:</span>
+                <span id="galactic-phase" class="info-value">0°</span>
+            </div>
+            
+            <div class="legend">
+                <h2>Star Classification</h2>
+                <div class="legend-item"><span class="star-type" style="background-color: #ff3300; box-shadow: 0 0 10px #ff3300;"></span> Red Dwarf (M)</div>
+                <div class="legend-item"><span class="star-type" style="background-color: #ffff00; box-shadow: 0 0 10px #ffff00;"></span> Sun-like (G)</div>
+                <div class="legend-item"><span class="star-type" style="background-color: #ff9900; box-shadow: 0 0 10px #ff9900;"></span> Red Giant (K-M)</div>
+                <div class="legend-item"><span class="star-type" style="background-color: #3399ff; box-shadow: 0 0 15px #3399ff;"></span> Blue Giant (O-B)</div>
+                <div class="legend-item"><span class="star-type" style="background-color: #ff66cc; box-shadow: 0 0 8px #ff66cc;"></span> Neutron Star</div>
+                <div class="legend-item"><span class="star-type" style="background-color: #ffffff; box-shadow: 0 0 8px #ffffff;"></span> White Dwarf</div>
+            </div>
+            
+            <div class="progress-bar" id="loading-bar"></div>
+        </div>
+        
+        <div id="controls">
+            <h2>Simulation Controls</h2>
+            
+            <div class="control-group">
+                <label for="time-speed">Time Speed</label>
+                <select id="time-speed">
+                    <option value="0.05">Very Slow (0.05x)</option>
+                    <option value="0.2">Slow (0.2x)</option>
+                    <option value="1" selected>Real-time (1x)</option>
+                    <option value="5">Fast (5x)</option>
+                    <option value="20">Galactic (20x)</option>
+                    <option value="100">Cosmic (100x)</option>
+                </select>
+            </div>
+            
+            <div class="control-group">
+                <label for="view-mode">View Mode</label>
+                <select id="view-mode">
+                    <option value="full" selected>Full Galaxy (3D)</option>
+                    <option value="top">Top-Down View</option>
+                    <option value="side">Edge-On View</option>
+                    <option value="core">Galactic Core</option>
+                    <option value="arm">Spiral Arm</option>
+                    <option value="follow">Follow Star</option>
+                </select>
+            </div>
+            
+            <div class="control-group">
+                <div class="range-container">
+                    <label for="star-density">Star Density</label>
+                    <span class="range-value" id="density-value">100%</span>
+                </div>
+                <input type="range" id="star-density" min="10" max="100" value="100" step="5">
+                
+                <div class="range-container">
+                    <label for="brightness">Brightness</label>
+                    <span class="range-value" id="brightness-value">100%</span>
+                </div>
+                <input type="range" id="brightness" min="10" max="200" value="100" step="5">
+            </div>
+            
+            <div class="control-group">
+                <div class="checkbox">
+                    <input type="checkbox" id="show-orbits" checked>
+                    <label for="show-orbits">Show Orbits</label>
+                </div>
+                
+                <div class="checkbox">
+                    <input type="checkbox" id="show-nebulas" checked>
+                    <label for="show-nebulas">Show Nebulas</label>
+                </div>
+                
+                <div class="checkbox">
+                    <input type="checkbox" id="show-dark-matter">
+                    <label for="show-dark-matter">Dark Matter Halo</label>
+                </div>
+                
+                <div class="checkbox">
+                    <input type="checkbox" id="auto-supernovae" checked>
+                    <label for="auto-supernovae">Auto Supernovae</label>
+                </div>
+                
+                <div class="checkbox">
+                    <input type="checkbox" id="show-constellations">
+                    <label for="show-constellations">Constellation Lines</label>
+                </div>
+            </div>
+            
+            <div class="control-group">
+                <button id="trigger-supernova">Trigger Supernova</button>
+                <button id="form-star-cluster">Form Star Cluster</button>
+                <button id="reset-view">Reset Camera</button>
+            </div>
+            
+            <div class="control-group">
+                <button id="toggle-help">Help & Info</button>
+                <button id="toggle-advanced">Advanced Settings</button>
+            </div>
+        </div>
+        
+        <div id="loading">Initializing Galaxy Simulation<span></span></div>
+        
+        <div id="notification"></div>
+        
+        <div id="stats"></div>
+        
+        <div class="supernova-indicator" id="supernova-indicator"></div>
+        <div class="pulsar-beam" id="pulsar-beam"></div>
+    </div>
+
+    <script>
+        // Main Galaxy Simulation Script
+        class GalaxySimulation {
+            constructor() {
+                this.scene = null;
+                this.camera = null;
+                this.renderer = null;
+                this.controls = null;
+                this.stats = null;
+                
+                this.stars = [];
+                this.starPoints = null;
+                this.starAttributes = {
+                    positions: null,
+                    colors: null,
+                    sizes: null
+                };
+                
+                this.nebulas = [];
+                this.starClusters = [];
+                this.supernovae = [];
+                this.pulsars = [];
+                this.constellations = [];
+                
+                this.galaxyAge = 0; // In millions of years
+                this.supernovaCount = 0;
+                this.starFormationCount = 0;
+                this.totalStars = 0;
+                
+                this.timeScale = 1.0;
+                this.rotationSpeed = 0.0005;
+                this.galacticPhase = 0;
+                
+                this.selectedStar = null;
+                this.followedStar = null;
+                this.raycaster = new THREE.Raycaster();
+                this.mouse = new THREE.Vector2();
+                
+                this.starDensity = 1.0;
+                this.brightness = 1.0;
+                
+                this.starTypes = {
+                    'redDwarf': {color: new THREE.Color(0xff3300), size: 0.8, mass: 0.1, lifetime: 19000000, temperature: 3500, count: 0},
+                    'sunLike': {color: new THREE.Color(0xffff00), size: 1.2, mass: 1.0, lifetime: 6100000, temperature: 5800, count: 0},
+                    'redGiant': {color: new THREE.Color(0xff9900), size: 2.5, mass: 1.5, lifetime: 160000, temperature: 4000, count: 0},
+                    'blueGiant': {color: new THREE.Color(0x3399ff), size: 2.0, mass: 10.0, lifetime: 10000, temperature: 20000, count: 0},
+                    'neutronStar': {color: new THREE.Color(0xff66cc), size: 0.5, mass: 1.4, lifetime: Infinity, temperature: 1000000, count: 0},
+                    'whiteDwarf': {color: new THREE.Color(0xffffff), size: 0.7, mass: 0.6, lifetime: Infinity, temperature: 15000, count: 0}
+                };
+                
+                // Spiral arm parameters (logarithmic spirals)
+                this.spiralArms = [
+                    {name: 'Perseus Arm', angleOffset: 0, tightness: 0.25, width: 0.15, starDensity: 1.30, color: 0x4488ff},
+                    {name: 'Norma Arm', angleOffset: Math.PI/2, tightness: 0.23, width: 0.12, starDensity: 0.69, color: 0x55aaff},
+                    {name: 'Scutum-Centaurus Arm', angleOffset: Math.PI, tightness: 0.22, width: 0.18, starDensity: 1.15, color: 0x66bbff},
+                    {name: 'Sagittarius Arm', angleOffset: 3*Math.PI/2, tightness: 0.27, width: 0.10, starDensity: 0.58, color: 0x77ccff},
+                    {name: 'Orion Spur', angleOffset: Math.PI/4, tightness: 0.30, width: 0.08, starDensity: 0.97, color: 0x88ddff}
+                ];
+                
+                this.init();
+            }
+            
+            async init() {
+                // Initialize Three.js scene
+                this.scene = new THREE.Scene();
+                this.scene.background = new THREE.Color(0x000010);
+                
+                // Add some fog for depth effect
+                this.scene.fog = new THREE.Fog(0x000010, 50, 300);
+                
+                // Create camera
+                this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 3000);
+                this.camera.position.set(0, 80, 120);
+                
+                // Create renderer
+                this.renderer = new THREE.WebGLRenderer({ 
+                    antialias: true,
+                    alpha: true
+                });
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
+                this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+                this.renderer.shadowMap.enabled = true;
+                this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+                
+                document.getElementById('canvas-container').appendChild(this.renderer.domElement);
+                
+                // Add orbit controls
+                this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
+                this.controls.enableDamping = true;
+                this.controls.dampingFactor = 0.05;
+                this.controls.maxDistance = 500;
+                this.controls.minDistance = 10;
+                this.controls.maxPolarAngle = Math.PI; // Allow looking from below
+                
+                // Initialize stats
+                this.stats = new Stats();
+                this.stats.domElement.style.position = 'absolute';
+                this.stats.domElement.style.bottom = '0px';
+                this.stats.domElement.style.right = '0px';
+                document.getElementById('stats').appendChild(this.stats.domElement);
+                
+                // Add lighting
+                this.addLighting();
+                
+                // Create galaxy
+                await this.createGalaxy();
+                
+                // Create nebulas and star-forming regions
+                this.createNebulas();
+                
+                // Create dark matter halo
+                this.createDarkMatterHalo();
+                
+                // Setup event listeners
+                this.setupEventListeners();
+                
+                // Hide loading screen
+                document.getElementById('loading').style.display = 'none';
+                
+                // Start animation loop
+                this.animate();
+            }
+            
+            addLighting() {
+                // Ambient light for overall illumination
+                const ambientLight = new THREE.AmbientLight(0x223344, 0.1);
+                this.scene.add(ambientLight);
+                
+                // Directional light (simulating galaxy core)
+                const directionalLight = new THREE.DirectionalLight(0xffffaa, 0.5);
+                directionalLight.position.set(0, 0, 0);
+                this.scene.add(directionalLight);
+                
+                // Core glow
+                const coreGlowGeometry = new THREE.SphereGeometry(15, 32, 32);
+                const coreGlowMaterial = new THREE.MeshBasicMaterial({
+                    color: 0xffffaa,
+                    transparent: true,
+                    opacity: 0.1,
+                    side: THREE.BackSide
+                });
+                const coreGlow = new THREE.Mesh(coreGlowGeometry, coreGlowMaterial);
+                this.scene.add(coreGlow);
+            }
+            
+            async createGalaxy() {
+                // Update loading bar
+                const loadingBar = document.getElementById('loading-bar');
+                
+                // Step 1: Create spiral arms
+                loadingBar.style.width = '20%';
+                document.getElementById('loading').textContent = 'Creating spiral arms...';
+                await this.createSpiralArms();
+                
+                // Step 2: Create galactic bulge
+                loadingBar.style.width = '40%';
+                document.getElementById('loading').textContent = 'Creating galactic bulge...';
+                await this.createGalacticBulge();
+                
+                // Step 3: Create halo stars
+                loadingBar.style.width = '60%';
+                document.getElementById('loading').textContent = 'Creating halo stars...';
+                await this.createHaloStars();
+                
+                // Step 4: Create star clusters
+                loadingBar.style.width = '80%';
+                document.getElementById('loading').textContent = 'Creating star clusters...';
+                await this.createStarClusters();
+                
+                // Step 5: Create point system for stars
+                loadingBar.style.width = '100%';
+                document.getElementById('loading').textContent = 'Finalizing galaxy...';
+                await this.createStarPointSystem();
+                
+                // Update total stars count
+                this.totalStars = this.stars.length;
+                document.getElementById('total-stars').textContent = this.totalStars.toLocaleString();
+                
+                // Create orbital paths for selected stars
+                this.createOrbitalPaths();
+                
+                // Create constellation lines
+                this.createConstellations();
+                
+                return new Promise(resolve => setTimeout(resolve, 500));
+            }
+            
+            async createSpiralArms() {
+                const armStarsCount = 15000; // Total stars in arms
+                const starsPerArm = Math.floor(armStarsCount / this.spiralArms.length);
+                
+                // Prepare arrays for star data
+                const starData = [];
+                
+                for (let armIndex = 0; armIndex < this.spiralArms.length; armIndex++) {
+                    const arm = this.spiralArms[armIndex];
+                    
+                    for (let i = 0; i < starsPerArm; i++) {
+                        // Calculate position along spiral arm (logarithmic spiral)
+                        const t = i / starsPerArm;
+                        const minRadius = 20;
+                        const maxRadius = 150;
+                        const radius = minRadius + t * (maxRadius - minRadius);
+                        
+                        // Logarithmic spiral equation: r = a * e^(bθ)
+                        const a = 5; // Scale factor
+                        const b = arm.tightness; // Tightness of the spiral
+                        const theta = arm.angleOffset + (1/b) * Math.log(radius/a);
+                        
+                        // Add randomness to position
+                        const randomRadius = radius + (Math.random() - 0.5) * 8;
+                        const randomTheta = theta + (Math.random() - 0.5) * arm.width;
+                        
+                        // Convert to Cartesian coordinates with vertical distribution
+                        const x = Math.cos(randomTheta) * randomRadius;
+                        const y = (Math.random() - 0.5) * 4 * Math.exp(-randomRadius/100); // Thinner at edges
+                        const z = Math.sin(randomTheta) * randomRadius;
+                        
+                        // Determine star type based on position and probability
+                        const starType = this.determineStarType(radius, y);
+                        
+                        // Calculate luminosity based on star type
+                        const luminosity = this.calculateLuminosity(starType);
+                        
+                        // Get star color
+                        const color = this.starTypes[starType].color.clone();
+                        
+                        // Adjust color based on temperature (redshift/blueshift)
+                        this.adjustColorByTemperature(color, starType);
+                        
+                        // Store star data
+                        starData.push({
+                            position: new THREE.Vector3(x, y, z),
+                            color: color,
+                            size: this.starTypes[starType].size * (0.8 + Math.random() * 0.4),
+                            type: starType,
+                            luminosity: luminosity,
+                            temperature: this.starTypes[starType].temperature,
+                            mass: this.starTypes[starType].mass,
+                            age: Math.random() * 5000,
+                            orbitRadius: randomRadius,
+                            orbitAngle: randomTheta,
+                            orbitalSpeed: this.calculateOrbitalSpeed(randomRadius),
+                            armIndex: armIndex,
+                            hasCompanion: Math.random() < 0.25,
+                            isInCluster: Math.random() < 0.15
+                        });
+                        
+                        arm.stars = (arm.stars || 0) + 1;
+                        this.starTypes[starType].count++;
+                    }
+                    
+                    // Create arm visual guide (for debugging)
+                    this.createArmVisual(arm);
+                }
+                
+                // Add companion stars
+                await this.addCompanionStars(starData);
+                
+                // Store star data
+                this.starData = starData;
+                
+                return new Promise(resolve => setTimeout(resolve, 0));
+            }
+            
+            createArmVisual(arm) {
+                // Create a visual representation of the spiral arm (for debugging)
+                const points = [];
+                const segments = 100;
+                
+                for (let i = 0; i <= segments; i++) {
+                    const t = i / segments;
+                    const radius = 20 + t * 130;
+                    const a = 5;
+                    const b = arm.tightness;
+                    const theta = arm.angleOffset + (1/b) * Math.log(radius/a);
+                    
+                    const x = Math.cos(theta) * radius;
+                    const z = Math.sin(theta) * radius;
+                    
+                    points.push(new THREE.Vector3(x, 0, z));
+                }
+                
+                const geometry = new THREE.BufferGeometry().setFromPoints(points);
+                const material = new THREE.LineBasicMaterial({
+                    color: arm.color,
+                    transparent: true,
+                    opacity: 0.05,
+                    linewidth: 1
+                });
+                
+                const armLine = new THREE.Line(geometry, material);
+                this.scene.add(armLine);
+            }
+            
+            async addCompanionStars(starData) {
+                const companionsToAdd = [];
+                
+                for (let i = 0; i < starData.length; i++) {
+                    const star = starData[i];
+                    
+                    if (star.hasCompanion && Math.random() < 0.7) { // 70% of companions actually created
+                        const distance = 0.3 + Math.random() * 1.5;
+                        const angle = Math.random() * Math.PI * 2;
+                        
+                        // Companion is usually smaller
+                        let companionType;
+                        const rand = Math.random();
+                        if (rand < 0.6) companionType = 'redDwarf';
+                        else if (rand < 0.9) companionType = 'sunLike';
+                        else companionType = 'whiteDwarf';
+                        
+                        const offsetX = Math.cos(angle) * distance;
+                        const offsetY = (Math.random() - 0.5) * 0.2;
+                        const offsetZ = Math.sin(angle) * distance;
+                        
+                        const companionColor = this.starTypes[companionType].color.clone();
+                        this.adjustColorByTemperature(companionColor, companionType);
+                        
+                        companionsToAdd.push({
+                            position: new THREE.Vector3(
+                                star.position.x + offsetX,
+                                star.position.y + offsetY,
+                                star.position.z + offsetZ
+                            ),
+                            color: companionColor,
+                            size: this.starTypes[companionType].size * (0.7 + Math.random() * 0.3),
+                            type: companionType,
+                            luminosity: this.calculateLuminosity(companionType),
+                            temperature: this.starTypes[companionType].temperature,
+                            mass: this.starTypes[companionType].mass,
+                            age: star.age + (Math.random() - 0.5) * 100,
+                            orbitRadius: star.orbitRadius,
+                            orbitAngle: star.orbitAngle,
+                            orbitalSpeed: star.orbitalSpeed * (0.8 + Math.random() * 0.4),
+                            isCompanion: true,
+                            primaryIndex: i,
+                            companionDistance: distance,
+                            companionAngle: angle,
+                            companionOrbitalSpeed: 0.02 + Math.random() * 0.03
+                        });
+                        
+                        star.companionIndex = starData.length + companionsToAdd.length - 1;
+                        this.starTypes[companionType].count++;
+                        
+                        // Small chance of triple system
+                        if (Math.random() < 0.08) {
+                            this.addThirdStar(starData, star, companionsToAdd);
+                        }
+                    }
+                }
+                
+                // Add all companions to starData
+                starData.push(...companionsToAdd);
+                
+                return new Promise(resolve => setTimeout(resolve, 0));
+            }
+            
+            addThirdStar(starData, primaryStar, companionsToAdd) {
+                const distance = 2 + Math.random() * 4;
+                const angle = Math.random() * Math.PI * 2;
+                
+                let thirdType;
+                const rand = Math.random();
+                if (rand < 0.7) thirdType = 'redDwarf';
+                else thirdType = 'sunLike';
+                
+                const offsetX = Math.cos(angle) * distance;
+                const offsetY = (Math.random() - 0.5) * 0.5;
+                const offsetZ = Math.sin(angle) * distance;
+                
+                const thirdColor = this.starTypes[thirdType].color.clone();
+                this.adjustColorByTemperature(thirdColor, thirdType);
+                
+                companionsToAdd.push({
+                    position: new THREE.Vector3(
+                        primaryStar.position.x + offsetX,
+                        primaryStar.position.y + offsetY,
+                        primaryStar.position.z + offsetZ
+                    ),
+                    color: thirdColor,
+                    size: this.starTypes[thirdType].size * (0.6 + Math.random() * 0.4),
+                    type: thirdType,
+                    luminosity: this.calculateLuminosity(thirdType),
+                    temperature: this.starTypes[thirdType].temperature,
+                    mass: this.starTypes[thirdType].mass,
+                    age: primaryStar.age + (Math.random() - 0.5) * 100,
+                    orbitRadius: primaryStar.orbitRadius,
+                    orbitAngle: primaryStar.orbitAngle,
+                    orbitalSpeed: primaryStar.orbitalSpeed * (0.7 + Math.random() * 0.3),
+                    isInTriple: true,
+                    primaryIndex: starData.indexOf(primaryStar),
+                    tripleDistance: distance,
+                    tripleAngle: angle,
+                    tripleOrbitalSpeed: 0.01 + Math.random() * 0.02
+                });
+                
+                primaryStar.inTriple = true;
+                this.starTypes[thirdType].count++;
+            }
+            
+            async createGalacticBulge() {
+                const bulgeStarsCount = 5000;
+                const bulgeData = [];
+                
+                for (let i = 0; i < bulgeStarsCount; i++) {
+                    // Use exponential distribution for bulge (more dense towards center)
+                    const radius = Math.pow(Math.random(), 2) * 25;
+                    const theta = Math.random() * Math.PI * 2;
+                    const phi = Math.acos(2 * Math.random() - 1);
+                    
+                    const x = radius * Math.sin(phi) * Math.cos(theta);
+                    const y = radius * Math.sin(phi) * Math.sin(theta) * 0.4; // Flattened bulge
+                    const z = radius * Math.cos(phi);
+                    
+                    // Bulge has mostly older stars
+                    let starType;
+                    const rand = Math.random();
+                    if (rand < 0.6) starType = 'redDwarf';
+                    else if (rand < 0.8) starType = 'sunLike';
+                    else if (rand < 0.95) starType = 'whiteDwarf';
+                    else starType = 'redGiant';
+                    
+                    const color = this.starTypes[starType].color.clone();
+                    this.adjustColorByTemperature(color, starType);
+                    
+                    bulgeData.push({
+                        position: new THREE.Vector3(x, y, z),
+                        color: color,
+                        size: this.starTypes[starType].size * (0.9 + Math.random() * 0.2),
+                        type: starType,
+                        luminosity: this.calculateLuminosity(starType),
+                        temperature: this.starTypes[starType].temperature,
+                        mass: this.starTypes[starType].mass,
+                        age: 8000 + Math.random() * 5000,
+                        orbitRadius: Math.sqrt(x*x + z*z),
+                        orbitalSpeed: this.calculateOrbitalSpeed(Math.sqrt(x*x + z*z)),
+                        isInBulge: true
+                    });
+                    
+                    this.starTypes[starType].count++;
+                }
+                
+                // Add bulge data to starData
+                this.starData.push(...bulgeData);
+                
+                return new Promise(resolve => setTimeout(resolve, 0));
+            }
+            
+            async createHaloStars() {
+                const haloStarsCount = 2000;
+                const haloData = [];
+                
+                for (let i = 0; i < haloStarsCount; i++) {
+                    // Halo stars are in a spherical distribution
+                    const radius = 50 + Math.random() * 200;
+                    const theta = Math.random() * Math.PI * 2;
+                    const phi = Math.acos(2 * Math.random() - 1);
+                    
+                    const x = radius * Math.sin(phi) * Math.cos(theta);
+                    const y = radius * Math.sin(phi) * Math.sin(theta) * 0.8;
+                    const z = radius * Math.cos(phi);
+                    
+                    // Halo has mostly old stars
+                    let starType;
+                    const rand = Math.random();
+                    if (rand < 0.7) starType = 'redDwarf';
+                    else if (rand < 0.9) starType = 'whiteDwarf';
+                    else starType = 'sunLike';
+                    
+                    const color = this.starTypes[starType].color.clone();
+                    this.adjustColorByTemperature(color, starType);
+                    color.multiplyScalar(0.7); // Dimmer in halo
+                    
+                    haloData.push({
+                        position: new THREE.Vector3(x, y, z),
+                        color: color,
+                        size: this.starTypes[starType].size * (0.8 + Math.random() * 0.3),
+                        type: starType,
+                        luminosity: this.calculateLuminosity(starType) * 0.5,
+                        temperature: this.starTypes[starType].temperature,
+                        mass: this.starTypes[starType].mass,
+                        age: 10000 + Math.random() * 5000,
+                        orbitRadius: Math.sqrt(x*x + y*y + z*z),
+                        orbitalSpeed: this.calculateOrbitalSpeed(Math.sqrt(x*x + z*z)) * 0.5,
+                        isInHalo: true
+                    });
+                    
+                    this.starTypes[starType].count++;
+                }
+                
+                // Add halo data to starData
+                this.starData.push(...haloData);
+                
+                return new Promise(resolve => setTimeout(resolve, 0));
+            }
+            
+            async createStarClusters() {
+                const clusterCount = 8 + Math.floor(Math.random() * 5);
+                const clusterData = [];
+                
+                for (let clusterIndex = 0; clusterIndex < clusterCount; clusterIndex++) {
+                    // Place cluster in a spiral arm
+                    const arm = this.spiralArms[Math.floor(Math.random() * this.spiralArms.length)];
+                    const radius = 40 + Math.random() * 100;
+                    const a = 5;
+                    const b = arm.tightness;
+                    const theta = arm.angleOffset + (1/b) * Math.log(radius/a);
+                    
+                    const clusterX = Math.cos(theta) * radius;
+                    const clusterZ = Math.sin(theta) * radius;
+                    const clusterY = (Math.random() - 0.5) * 3;
+                    
+                    const starsInCluster = 30 + Math.floor(Math.random() * 71); // 30-100 stars
+                    
+                    for (let i = 0; i < starsInCluster; i++) {
+                        const offsetX = (Math.random() - 0.5) * 10;
+                        const offsetY = (Math.random() - 0.5) * 3;
+                        const offsetZ = (Math.random() - 0.5) * 10;
+                        
+                        // Cluster stars are mostly young and massive
+                        let starType;
+                        const rand = Math.random();
+                        if (rand < 0.15) starType = 'blueGiant';
+                        else if (rand < 0.4) starType = 'sunLike';
+                        else starType = 'redDwarf';
+                        
+                        const color = this.starTypes[starType].color.clone();
+                        this.adjustColorByTemperature(color, starType);
+                        
+                        clusterData.push({
+                            position: new THREE.Vector3(
+                                clusterX + offsetX,
+                                clusterY + offsetY,
+                                clusterZ + offsetZ
+                            ),
+                            color: color,
+                            size: this.starTypes[starType].size * (0.9 + Math.random() * 0.3),
+                            type: starType,
+                            luminosity: this.calculateLuminosity(starType),
+                            temperature: this.starTypes[starType].temperature,
+                            mass: this.starTypes[starType].mass,
+                            age: Math.random() * 100, // Young cluster
+                            orbitRadius: Math.sqrt((clusterX+offsetX)*(clusterX+offsetX) + (clusterZ+offsetZ)*(clusterZ+offsetZ)),
+                            orbitAngle: Math.atan2(clusterZ+offsetZ, clusterX+offsetX),
+                            orbitalSpeed: this.calculateOrbitalSpeed(Math.sqrt((clusterX+offsetX)*(clusterX+offsetX) + (clusterZ+offsetZ)*(clusterZ+offsetZ))),
+                            isInCluster: true,
+                            clusterId: clusterIndex
+                        });
+                        
+                        this.starTypes[starType].count++;
+                    }
+                    
+                    this.starClusters.push({
+                        position: new THREE.Vector3(clusterX, clusterY, clusterZ),
+                        radius: 10,
+                        age: Math.random() * 100,
+                        starCount: starsInCluster
+                    });
+                }
+                
+                // Add cluster data to starData
+                this.starData.push(...clusterData);
+                
+                return new Promise(resolve => setTimeout(resolve, 0));
+            }
+            
+            async createStarPointSystem() {
+                // Create a point system for all stars for better performance
+                const starCount = this.starData.length;
+                
+                // Create buffers
+                const positions = new Float32Array(starCount * 3);
+                const colors = new Float32Array(starCount * 3);
+                const sizes = new Float32Array(starCount);
+                
+                // Fill buffers with star data
+                for (let i = 0; i < starCount; i++) {
+                    const star = this.starData[i];
+                    
+                    // Position
+                    positions[i * 3] = star.position.x;
+                    positions[i * 3 + 1] = star.position.y;
+                    positions[i * 3 + 2] = star.position.z;
+                    
+                    // Color
+                    colors[i * 3] = star.color.r;
+                    colors[i * 3 + 1] = star.color.g;
+                    colors[i * 3 + 2] = star.color.b;
+                    
+                    // Size (adjusted by luminosity and distance)
+                    const baseSize = star.size || 1.0;
+                    const luminosityFactor = Math.sqrt(star.luminosity || 1.0);
+                    sizes[i] = baseSize * luminosityFactor;
+                }
+                
+                // Create geometry
+                const geometry = new THREE.BufferGeometry();
+                geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+                geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+                geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+                
+                // Create custom shader material for glowing points
+                const vertexShader = `
+                    attribute float size;
+                    attribute vec3 color;
+                    varying vec3 vColor;
+                    
+                    void main() {
+                        vColor = color;
+                        vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+                        gl_PointSize = size * (300.0 / -mvPosition.z);
+                        gl_Position = projectionMatrix * mvPosition;
+                    }
+                `;
+                
+                const fragmentShader = `
+                    varying vec3 vColor;
+                    uniform float brightness;
+                    
+                    void main() {
+                        // Create a circular point
+                        float dist = length(gl_PointCoord - vec2(0.5, 0.5));
+                        if (dist > 0.5) discard;
+                        
+                        // Glow effect - brighter in center
+                        float alpha = 1.0 - smoothstep(0.0, 0.5, dist);
+                        alpha = pow(alpha, 0.7);
+                        
+                        // Color with brightness adjustment
+                        vec3 finalColor = vColor * brightness;
+                        
+                        // Add a subtle halo
+                        float halo = 1.0 - smoothstep(0.3, 0.5, dist);
+                        finalColor += vColor * halo * 0.3;
+                        
+                        gl_FragColor = vec4(finalColor, alpha);
+                    }
+                `;
+                
+                const material = new THREE.ShaderMaterial({
+                    uniforms: {
+                        brightness: { value: this.brightness }
+                    },
+                    vertexShader: vertexShader,
+                    fragmentShader: fragmentShader,
+                    transparent: true,
+                    depthWrite: false,
+                    blending: THREE.AdditiveBlending
+                });
+                
+                // Create points system
+                this.starPoints = new THREE.Points(geometry, material);
+                this.scene.add(this.starPoints);
+                
+                // Store attributes for updates
+                this.starAttributes.positions = positions;
+                this.starAttributes.colors = colors;
+                this.starAttributes.sizes = sizes;
+                
+                return new Promise(resolve => setTimeout(resolve, 0));
+            }
+            
+            createNebulas() {
+                // Create emission nebulae in spiral arms
+                const nebulaCount = 12;
+                
+                for (let i = 0; i < nebulaCount; i++) {
+                    // Place nebula in a spiral arm
+                    const arm = this.spiralArms[Math.floor(Math.random() * this.spiralArms.length)];
+                    const radius = 50 + Math.random() * 100;
+                    const a = 5;
+                    const b = arm.tightness;
+                    const theta = arm.angleOffset + (1/b) * Math.log(radius/a);
+                    
+                    const x = Math.cos(theta) * radius;
+                    const z = Math.sin(theta) * radius;
+                    const y = (Math.random() - 0.5) * 5;
+                    
+                    // Create nebula as a particle cloud
+                    const nebulaParticles = 200 + Math.floor(Math.random() * 300);
+                    const nebulaGeometry = new THREE.BufferGeometry();
+                    const positions = new Float32Array(nebulaParticles * 3);
+                    const colors = new Float32Array(nebulaParticles * 3);
+                    const sizes = new Float32Array(nebulaParticles);
+                    
+                    const nebulaColor = new THREE.Color();
+                    // Random nebula color (emission nebulae are often red/pink/blue)
+                    if (Math.random() < 0.5) {
+                        nebulaColor.setHSL(0.7 + Math.random() * 0.2, 0.8, 0.5); // Blues
+                    } else {
+                        nebulaColor.setHSL(0.9 + Math.random() * 0.1, 0.9, 0.6); // Reds/Pinks
+                    }
+                    
+                    for (let j = 0; j < nebulaParticles; j++) {
+                        // Random position within nebula
+                        const angle1 = Math.random() * Math.PI * 2;
+                        const angle2 = Math.random() * Math.PI;
+                        const distance = Math.random() * 15;
+                        
+                        positions[j * 3] = x + Math.sin(angle2) * Math.cos(angle1) * distance;
+                        positions[j * 3 + 1] = y + Math.sin(angle2) * Math.sin(angle1) * distance * 0.3;
+                        positions[j * 3 + 2] = z + Math.cos(angle2) * distance;
+                        
+                        // Color variation
+                        const colorVar = nebulaColor.clone();
+                        colorVar.offsetHSL((Math.random() - 0.5) * 0.1, 0, (Math.random() - 0.5) * 0.2);
+                        
+                        colors[j * 3] = colorVar.r;
+                        colors[j * 3 + 1] = colorVar.g;
+                        colors[j * 3 + 2] = colorVar.b;
+                        
+                        sizes[j] = 2 + Math.random() * 4;
+                    }
+                    
+                    nebulaGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+                    nebulaGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+                    nebulaGeometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+                    
+                    const nebulaMaterial = new THREE.ShaderMaterial({
+                        uniforms: {
+                            time: { value: 0 }
+                        },
+                        vertexShader: `
+                            attribute float size;
+                            attribute vec3 color;
+                            varying vec3 vColor;
+                            uniform float time;
+                            
+                            void main() {
+                                vColor = color;
+                                vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+                                
+                                // Subtle animation
+                                float wave = sin(time + position.x * 0.1 + position.z * 0.1) * 0.1;
+                                mvPosition.y += wave;
+                                
+                                gl_PointSize = size * (200.0 / -mvPosition.z);
+                                gl_Position = projectionMatrix * mvPosition;
+                            }
+                        `,
+                        fragmentShader: `
+                            varying vec3 vColor;
+                            
+                            void main() {
+                                float dist = length(gl_PointCoord - vec2(0.5, 0.5));
+                                if (dist > 0.5) discard;
+                                
+                                // Soft particle with glow
+                                float alpha = 1.0 - smoothstep(0.0, 0.5, dist);
+                                alpha = pow(alpha, 0.5) * 0.3;
+                                
+                                gl_FragColor = vec4(vColor, alpha);
+                            }
+                        `,
+                        transparent: true,
+                        depthWrite: false,
+                        blending: THREE.AdditiveBlending
+                    });
+                    
+                    const nebula = new THREE.Points(nebulaGeometry, nebulaMaterial);
+                    nebula.userData = {
+                        type: 'nebula',
+                        age: 0,
+                        starFormationRate: 0.005 + Math.random() * 0.01,
+                        lastStarFormation: 0
+                    };
+                    
+                    this.scene.add(nebula);
+                    this.nebulas.push(nebula);
+                }
+            }
+            
+            createDarkMatterHalo() {
+                // Create a spherical dark matter halo
+                const haloGeometry = new THREE.SphereGeometry(250, 32, 32);
+                const haloMaterial = new THREE.MeshBasicMaterial({
+                    color: 0x000033,
+                    transparent: true,
+                    opacity: 0.03,
+                    wireframe: true,
+                    visible: false
+                });
+                
+                this.darkMatterHalo = new THREE.Mesh(haloGeometry, haloMaterial);
+                this.scene.add(this.darkMatterHalo);
+            }
+            
+            createOrbitalPaths() {
+                // Create orbital paths for visualization
+                this.orbitalPaths = [];
+                const pathCount = 30;
+                
+                for (let i = 0; i < pathCount; i++) {
+                    const starIndex = Math.floor(Math.random() * this.starData.length);
+                    const star = this.starData[starIndex];
+                    
+                    if (star.orbitRadius > 25 && !star.isInBulge && !star.isInHalo) {
+                        const pathGeometry = new THREE.BufferGeometry();
+                        const points = [];
+                        const segments = 64;
+                        
+                        for (let j = 0; j <= segments; j++) {
+                            const angle = (j / segments) * Math.PI * 2;
+                            const x = Math.cos(angle) * star.orbitRadius;
+                            const z = Math.sin(angle) * star.orbitRadius;
+                            points.push(new THREE.Vector3(x, star.position.y, z));
+                        }
+                        
+                        pathGeometry.setFromPoints(points);
+                        const pathMaterial = new THREE.LineBasicMaterial({
+                            color: 0x4488ff,
+                            transparent: true,
+                            opacity: 0.15,
+                            linewidth: 1
+                        });
+                        
+                        const orbitPath = new THREE.Line(pathGeometry, pathMaterial);
+                        orbitPath.userData.starIndex = starIndex;
+                        this.scene.add(orbitPath);
+                        this.orbitalPaths.push(orbitPath);
+                    }
+                }
+            }
+            
+            createConstellations() {
+                // Create imaginary constellation lines between bright stars
+                if (!document.getElementById('show-constellations').checked) return;
+                
+                const brightStars = this.starData.filter(star => 
+                    (star.type === 'blueGiant' || star.type === 'sunLike' || star.type === 'redGiant') &&
+                    star.orbitRadius > 40 && star.orbitRadius < 120
+                );
+                
+                // Create lines between nearby bright stars
+                for (let i = 0; i < brightStars.length && i < 20; i++) {
+                    const star1 = brightStars[i];
+                    
+                    // Find nearest bright stars
+                    const nearbyStars = brightStars.filter((star2, j) => {
+                        if (i === j) return false;
+                        const distance = star1.position.distanceTo(star2.position);
+                        return distance < 30 && distance > 10;
+                    });
+                    
+                    // Connect to 1-3 nearby stars
+                    const connections = Math.min(3, nearbyStars.length);
+                    for (let j = 0; j < connections; j++) {
+                        const star2 = nearbyStars[j];
+                        
+                        const lineGeometry = new THREE.BufferGeometry().setFromPoints([
+                            star1.position,
+                            star2.position
+                        ]);
+                        
+                        const lineMaterial = new THREE.LineBasicMaterial({
+                            color: 0x88aaff,
+                            transparent: true,
+                            opacity: 0.1,
+                            linewidth: 1
+                        });
+                        
+                        const constellationLine = new THREE.Line(lineGeometry, lineMaterial);
+                        this.scene.add(constellationLine);
+                        this.constellations.push(constellationLine);
+                    }
+                }
+            }
+            
+            determineStarType(radius, y) {
+                // Determine star type based on position and astrophysical probability
+                const distanceFromPlane = Math.abs(y);
+                const isInArm = radius > 20 && radius < 140;
+                const isInDenseRegion = radius > 60 && radius < 100 && distanceFromPlane < 2;
+                
+                if (isInArm) {
+                    // In spiral arms (star-forming regions)
+                    if (isInDenseRegion && Math.random() < 0.01) return 'blueGiant'; // 1% in dense regions
+                    if (isInDenseRegion && Math.random() < 0.05) return 'redGiant'; // 4% in dense regions
+                    if (Math.random() < 0.12) return 'sunLike'; // 12%
+                    if (Math.random() < 0.18) return 'whiteDwarf'; // 6%
+                    if (Math.random() < 0.20) return 'neutronStar'; // 2%
+                    return 'redDwarf'; // ~75%
+                } else {
+                    // In inter-arm regions, bulge, or halo
+                    if (Math.random() < 0.01) return 'redGiant'; // 1%
+                    if (Math.random() < 0.05) return 'sunLike'; // 4%
+                    if (Math.random() < 0.10) return 'whiteDwarf'; // 5%
+                    if (Math.random() < 0.12) return 'neutronStar'; // 2%
+                    return 'redDwarf'; // ~88%
+                }
+            }
+            
+            calculateLuminosity(starType) {
+                // Relative to sun's luminosity (L☉)
+                switch(starType) {
+                    case 'redDwarf': return 1 + Math.random() *2;
+                    case 'sunLike': return 10+ Math.random() * 15;
+                    case 'redGiant': return 100 + Math.random() * 150;
+                    case 'blueGiant': return 1000 + Math.random() * 1500;
+                    case 'neutronStar': return 0.15; // Very low except in pulsar phase
+                    case 'whiteDwarf': return 0.5 + Math.random() * 1.1;
+                    default: return 1;
+                }
+            }
+            
+            adjustColorByTemperature(color, starType) {
+                // Adjust color based on temperature (blackbody radiation approximation)
+                const temp = this.starTypes[starType].temperature;
+                
+                // Simple blackbody color approximation
+                let r, g, b;
+                
+                if (temp < 3500) {
+                    // Red
+                    r = 1.0;
+                    g = 0.4 + (temp - 2000) / 1500 * 0.6;
+                    b = 0.4;
+                } else if (temp < 5000) {
+                    // Orange-Yellow
+                    r = 1.0;
+                    g = 0.8 + (temp - 3500) / 1500 * 0.2;
+                    b = 0.5 + (temp - 3500) / 1500 * 0.3;
+                } else if (temp < 6000) {
+                    // Yellow
+                    r = 1.0;
+                    g = 1.0;
+                    b = 0.6 + (temp - 5000) / 1000 * 0.4;
+                } else if (temp < 7500) {
+                    // Yellow-White
+                    r = 0.9 + (temp - 6000) / 1500 * 0.1;
+                    g = 0.9 + (temp - 6000) / 1500 * 0.1;
+                    b = 0.9;
+                } else if (temp < 10000) {
+                    // White
+                    const t = (temp - 7500) / 2500;
+                    r = 0.8 + t * 0.2;
+                    g = 0.8 + t * 0.2;
+                    b = 1.0;
+                } else {
+                    // Blue
+                    const t = Math.min(1, (temp - 10000) / 20000);
+                    r = 0.6 - t * 0.4;
+                    g = 0.7 - t * 0.5;
+                    b = 1.0;
+                }
+                
+                // Apply the temperature adjustment
+                color.r *= r;
+                color.g *= g;
+                color.b *= b;
+                
+                // Clamp values
+                color.r = Math.min(1, Math.max(0, color.r));
+                color.g = Math.min(1, Math.max(0, color.g));
+                color.b = Math.min(1, Math.max(0, color.b));
+            }
+            
+            calculateOrbitalSpeed(radius) {
+                // Galactic rotation curve: roughly constant speed beyond certain radius
+                if (radius < 30) {
+                    return 0.001 + (radius / 30) * 0.002; // Increasing in bulge
+                } else {
+                    return 0.003 * Math.sqrt(150 / Math.max(radius, 30)); // Keplerian falloff
+                }
+            }
+            
+            setupEventListeners() {
+                // Window resize
+                window.addEventListener('resize', () => {
+                    this.camera.aspect = window.innerWidth / window.innerHeight;
+                    this.camera.updateProjectionMatrix();
+                    this.renderer.setSize(window.innerWidth, window.innerHeight);
+                });
+                
+                // Mouse click for star selection
+                window.addEventListener('click', (event) => {
+                    this.mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+                    this.mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+                    
+                    this.raycaster.setFromCamera(this.mouse, this.camera);
+                    
+                    // We can't directly raycast against points, so we'll select based on proximity
+                    // For now, we'll just update UI with a random star
+                    if (this.starData.length > 0 && Math.random() < 0.3) {
+                        const randomIndex = Math.floor(Math.random() * Math.min(100, this.starData.length));
+                        const star = this.starData[randomIndex];
+                        this.selectStar(star, randomIndex);
+                    }
+                });
+                
+                // Control panel event listeners
+                document.getElementById('time-speed').addEventListener('change', (e) => {
+                    this.timeScale = parseFloat(e.target.value);
+                });
+                
+                document.getElementById('view-mode').addEventListener('change', (e) => {
+                    this.changeViewMode(e.target.value);
+                });
+                
+                document.getElementById('star-density').addEventListener('input', (e) => {
+                    this.starDensity = parseInt(e.target.value) / 100;
+                    document.getElementById('density-value').textContent = `${e.target.value}%`;
+                    this.updateStarVisibility();
+                });
+                
+                document.getElementById('brightness').addEventListener('input', (e) => {
+                    this.brightness = parseInt(e.target.value) / 100;
+                    document.getElementById('brightness-value').textContent = `${e.target.value}%`;
+                    if (this.starPoints && this.starPoints.material.uniforms.brightness) {
+                        this.starPoints.material.uniforms.brightness.value = this.brightness;
+                    }
+                });
+                
+                document.getElementById('show-orbits').addEventListener('change', (e) => {
+                    this.orbitalPaths.forEach(path => {
+                        path.visible = e.target.checked;
+                    });
+                });
+                
+                document.getElementById('show-nebulas').addEventListener('change', (e) => {
+                    this.nebulas.forEach(nebula => {
+                        nebula.visible = e.target.checked;
+                    });
+                });
+                
+                document.getElementById('show-dark-matter').addEventListener('change', (e) => {
+                    if (this.darkMatterHalo) {
+                        this.darkMatterHalo.visible = e.target.checked;
+                    }
+                });
+                
+                document.getElementById('show-constellations').addEventListener('change', (e) => {
+                    // Recreate constellations if checked
+                    this.constellations.forEach(line => this.scene.remove(line));
+                    this.constellations = [];
+                    if (e.target.checked) {
+                        this.createConstellations();
+                    }
+                });
+                
+                document.getElementById('trigger-supernova').addEventListener('click', () => {
+                    this.triggerSupernova();
+                });
+                
+                document.getElementById('form-star-cluster').addEventListener('click', () => {
+                    this.formNewStarCluster();
+                });
+                
+                document.getElementById('reset-view').addEventListener('click', () => {
+                    this.resetView();
+                });
+                
+                document.getElementById('toggle-help').addEventListener('click', () => {
+                    this.showNotification(
+                        "🌟 SPIRAL GALAXY SIMULATION 🌟\n\n" +
+                        "CONTROLS:\n" +
+                        "- Click anywhere to select a random star\n" +
+                        "- Mouse drag: Rotate view\n" +
+                        "- Mouse wheel: Zoom in/out\n" +
+                        "- Right-click drag: Pan view\n\n" +
+                        "SIMULATION FEATURES:\n" +
+                        "- 25,000+ stars with accurate colors\n" +
+                        "- 6 star types with realistic distribution\n" +
+                        "- Binary and triple star systems\n" +
+                        "- Spiral arm structure with 5 arms\n" +
+                        "- Galactic rotation with differential speeds\n" +
+                        "- Supernovae and star formation\n" +
+                        "- Dark matter halo visualization\n\n" +
+                        "ADJUSTABLE SETTINGS:\n" +
+                        "- Time speed: From very slow to cosmic\n" +
+                        "- View modes: Top, side, core, arm, follow\n" +
+                        "- Star density and brightness sliders\n" +
+                        "- Toggle orbits, nebulas, dark matter",
+                        12000
+                    );
+                });
+                
+                document.getElementById('toggle-advanced').addEventListener('click', () => {
+                    this.showNotification(
+                        "ADVANCED ASTROPHYSICAL MODEL:\n\n" +
+                        "STAR TYPES:\n" +
+                        "- Red Dwarfs (M-type): 75% of stars, 0.1-0.5 M☉, 0.01-0.1 L☉\n" +
+                        "- Sun-like (G-type): 10% of stars, 0.8-1.2 M☉, 0.5-2 L☉\n" +
+                        "- Red Giants (K-M): 3% of stars, 1-8 M☉, 100-1000 L☉\n" +
+                        "- Blue Giants (O-B): 1% of stars, 10-50 M☉, 10,000-100,000 L☉\n" +
+                        "- White Dwarfs: 8% of stars, 0.5-1.4 M☉, 0.01-0.1 L☉\n" +
+                        "- Neutron Stars: 2% of stars, 1.4-3 M☉, <0.001 L☉\n\n" +
+                        "GALACTIC STRUCTURE:\n" +
+                        "- Logarithmic spiral arms (r = a·e^(bθ))\n" +
+                        "- Galactic bulge: 5k stars, exponential density profile\n" +
+                        "- Stellar halo: 2k stars, spherical distribution\n" +
+                        "- Dark matter halo: Spherical, invisible mass\n\n" +
+                        "DYNAMICS:\n" +
+                        "- Differential rotation (faster near core)\n" +
+                        - "Star formation in emission nebulae\n" +
+                        "- Supernovae create neutron stars/white dwarfs\n" +
+                        "- Binary systems with orbital mechanics",
+                        15000
+                    );
+                });
+            }
+            
+            selectStar(star, index) {
+                this.selectedStar = { data: star, index: index };
+                
+                // Update UI
+                const typeNames = {
+                    'redDwarf': 'Red Dwarf',
+                    'sunLike': 'Sun-like Star',
+                    'redGiant': 'Red Giant',
+                    'blueGiant': 'Blue Giant',
+                    'neutronStar': 'Neutron Star',
+                    'whiteDwarf': 'White Dwarf'
+                };
+                
+                document.getElementById('selected-star').textContent = 
+                    `${typeNames[star.type]} (${star.type.charAt(0).toUpperCase()}-type)`;
+                
+                // Show notification about star
+                let companionInfo = '';
+                if (star.hasCompanion) {
+                    companionInfo = `\nBinary star system`;
+                }
+                if (star.inTriple) {
+                    companionInfo = `\nTriple star system`;
+                }
+                
+                this.showNotification(
+                    `SELECTED STAR:\n` +
+                    `Type: ${typeNames[star.type]} (${star.type.charAt(0).toUpperCase()}-type)\n` +
+                    `Mass: ${star.mass.toFixed(2)} Solar masses\n` +
+                    `Age: ${star.age.toFixed(0)} million years\n` +
+                    `Luminosity: ${star.luminosity.toFixed(2)} × Sun\n` +
+                    `Temperature: ${star.temperature.toFixed(0)} K` +
+                    companionInfo,
+                    5000
+                );
+                
+                // If in follow mode, follow this star
+                if (document.getElementById('view-mode').value === 'follow') {
+                    this.followedStar = star;
+                }
+            }
+            
+            changeViewMode(mode) {
+                switch(mode) {
+                    case 'full':
+                        this.camera.position.set(0, 80, 120);
+                        this.controls.target.set(0, 0, 0);
+                        this.followedStar = null;
+                        break;
+                    case 'top':
+                        this.camera.position.set(0, 200, 0);
+                        this.controls.target.set(0, 0, 0);
+                        this.followedStar = null;
+                        break;
+                    case 'side':
+                        this.camera.position.set(200, 0, 0);
+                        this.controls.target.set(0, 0, 0);
+                        this.followedStar = null;
+                        break;
+                    case 'core':
+                        this.camera.position.set(0, 20, 40);
+                        this.controls.target.set(0, 0, 0);
+                        this.followedStar = null;
+                        break;
+                    case 'arm':
+                        // Position camera in a spiral arm
+                        const arm = this.spiralArms[2];
+                        const radius = 80;
+                        const a = 5;
+                        const b = arm.tightness;
+                        const theta = arm.angleOffset + (1/b) * Math.log(radius/a);
+                        const x = Math.cos(theta) * radius;
+                        const z = Math.sin(theta) * radius;
+                        this.camera.position.set(x + 15, 5, z + 15);
+                        this.controls.target.set(x, 0, z);
+                        this.followedStar = null;
+                        break;
+                    case 'follow':
+                        if (this.selectedStar) {
+                            this.followedStar = this.selectedStar.data;
+                        } else if (this.starData.length > 0) {
+                            this.followedStar = this.starData[Math.floor(Math.random() * 100)];
+                        }
+                        break;
+                }
+            }
+            
+            updateStarVisibility() {
+                // Update which stars are visible based on density
+                if (!this.starPoints || !this.starAttributes.positions) return;
+                
+                const positions = this.starAttributes.positions;
+                const colors = this.starAttributes.colors;
+                const sizes = this.starAttributes.sizes;
+                
+                // For simplicity, we'll just adjust opacity in shader
+                // In a more advanced version, we'd cull stars based on density
+                if (this.starPoints.material.uniforms.density) {
+                    this.starPoints.material.uniforms.density.value = this.starDensity;
+                }
+            }
+            
+            triggerSupernova() {
+                // Find a suitable star for supernova
+                const candidates = [];
+                
+                for (let i = 0; i < this.starData.length; i++) {
+                    const star = this.starData[i];
+                    if ((star.type === 'blueGiant' || star.type === 'redGiant') && 
+                        star.age > 1777 && !star.isCompanion) {
+                        candidates.push({star: star, index: i});
+                    }
+                }
+                
+                if (candidates.length > 0) {
+                    const candidate = candidates[Math.floor(Math.random() * candidates.length)];
+                    this.explodeAsSupernova(candidate.star, candidate.index);
+                } else {
+                    // Create a star to explode
+                    this.createAndExplodeStar();
+                }
+            }
+            
+            explodeAsSupernova(star, index) {
+                // Visual effects for supernova
+                const supernovaIndicator = document.getElementById('supernova-indicator');
+                supernovaIndicator.style.background = 'radial-gradient(circle, rgba(255,100,0,0.9) 0%, rgba(255,200,0,0.7) 30%, rgba(255,255,200,0.5) 60%, transparent 80%)';
+                supernovaIndicator.style.opacity = '0.81';
+                
+                // Create expanding shockwave
+                const shockwaveGeometry = new THREE.SphereGeometry(1, 32, 32);
+                const shockwaveMaterial = new THREE.MeshBasicMaterial({
+                    color: 0xff6600,
+                    transparent: true,
+                    opacity: 0.98,
+                    wireframe: true
+                });
+                
+                const shockwave = new THREE.Mesh(shockwaveGeometry, shockwaveMaterial);
+                shockwave.position.copy(star.position);
+                this.scene.add(shockwave);
+                
+                // Update star to become a neutron star or white dwarf
+                let newType, newColor;
+                if (star.mass > 8) {
+                    newType = 'neutronStar';
+                    newColor = this.starTypes[newType].color;
+                } else {
+                    newType = 'whiteDwarf';
+                    newColor = this.starTypes[newType].color;
+                }
+                
+                // Update star data
+                star.type = newType;
+                star.color = newColor.clone();
+                this.adjustColorByTemperature(star.color, newType);
+                star.mass = this.starTypes[newType].mass;
+                star.luminosity = this.calculateLuminosity(newType);
+                star.size = this.starTypes[newType].size * (0.8 + Math.random() * 0.4);
+                
+                // Update point system
+                const colors = this.starAttributes.colors;
+                colors[index * 3] = star.color.r;
+                colors[index * 3 + 1] = star.color.g;
+                colors[index * 3 + 2] = star.color.b;
+                
+                const sizes = this.starAttributes.sizes;
+                sizes[index] = star.size * Math.sqrt(star.luminosity);
+                
+                this.starPoints.geometry.attributes.color.needsUpdate = true;
+                this.starPoints.geometry.attributes.size.needsUpdate = true;
+                
+                // Update counts
+                this.supernovaCount++;
+                document.getElementById('supernova-count').textContent = this.supernovaCount;
+                
+                // Show notification
+                this.showNotification(`SUPERNOVA! Formed a ${newType.replace(/([A-Z])/g, ' $1').toUpperCase()}`, 3000);
+                
+                // Animate shockwave
+                let shockwaveSize = 1;
+                let shockwaveOpacity = 0.8;
+                
+                const animateShockwave = () => {
+                    shockwaveSize += 3;
+                    shockwaveOpacity -= 0.03;
+                    
+                    shockwave.scale.set(shockwaveSize, shockwaveSize, shockwaveSize);
+                    shockwaveMaterial.opacity = shockwaveOpacity;
+                    
+                    if (shockwaveOpacity > 0) {
+                        requestAnimationFrame(animateShockwave);
+                    } else {
+                        this.scene.remove(shockwave);
+                        supernovaIndicator.style.opacity = '0';
+                    }
+                };
+                
+                animateShockwave();
+                
+                // Trigger star formation in nearby nebulas
+                this.triggerStarFormation(star.position);
+            }
+            
+            createAndExplodeStar() {
+                // Create a blue giant at a random position and explode it
+                const arm = this.spiralArms[Math.floor(Math.random() * this.spiralArms.length)];
+                const radius = 60 + Math.random() * 80;
+                const a = 5;
+                const b = arm.tightness;
+                const theta = arm.angleOffset + (1/b) * Math.log(radius/a);
+                
+                const x = Math.cos(theta) * radius;
+                const z = Math.sin(theta) * radius;
+                const y = (Math.random() - 0.5) * 3;
+                
+                const star = {
+                    position: new THREE.Vector3(x, y, z),
+                    color: this.starTypes['blueGiant'].color.clone(),
+                    size: this.starTypes['blueGiant'].size,
+                    type: 'blueGiant',
+                    luminosity: this.calculateLuminosity('blueGiant'),
+                    temperature: this.starTypes['blueGiant'].temperature,
+                    mass: 15 + Math.random() * 10,
+                    age: 50 + Math.random() * 50
+                };
+                
+                this.adjustColorByTemperature(star.color, 'blueGiant');
+                
+                // Add to star data
+                const index = this.starData.length;
+                this.starData.push(star);
+                
+                // Update point system would be more complex here
+                // For simplicity, we'll just trigger the supernova
+                setTimeout(() => {
+                    this.explodeAsSupernova(star, index);
+                }, 100);
+            }
+            
+            triggerStarFormation(position) {
+                // Increase star formation in nearby nebulas
+                this.nebulas.forEach(nebula => {
+                    const distance = nebula.position.distanceTo(position);
+                    if (distance < 40) {
+                        nebula.userData.starFormationRate *= 1.5;
+                        nebula.userData.lastStarFormation = 0;
+                        
+                        // Visual feedback - brighten nebula
+                        nebula.material.uniformsNeedUpdate = true;
+                    }
+                });
+            }
+            
+            formNewStarCluster() {
+                // Create a new star cluster in a random nebula
+                if (this.nebulas.length === 0) return;
+                
+                const nebula = this.nebulas[Math.floor(Math.random() * this.nebulas.length)];
+                const clusterStars = 20 + Math.floor(Math.random() * 31); // 20-50 stars
+                
+                const newStars = [];
+                
+                for (let i = 0; i < clusterStars; i++) {
+                    const offsetX = (Math.random() - 0.5) * 12;
+                    const offsetY = (Math.random() - 0.5) * 4;
+                    const offsetZ = (Math.random() - 0.5) * 12;
+                    
+                    // New stars are mostly blue giants and sun-like
+                    let starType;
+                    const rand = Math.random();
+                    if (rand < 0.2) starType = 'blueGiant';
+                    else if (rand < 0.5) starType = 'sunLike';
+                    else starType = 'redDwarf';
+                    
+                    const color = this.starTypes[starType].color.clone();
+                    this.adjustColorByTemperature(color, starType);
+                    
+                    newStars.push({
+                        position: new THREE.Vector3(
+                            nebula.position.x + offsetX,
+                            nebula.position.y + offsetY,
+                            nebula.position.z + offsetZ
+                        ),
+                        color: color,
+                        size: this.starTypes[starType].size * (0.9 + Math.random() * 0.3),
+                        type: starType,
+                        luminosity: this.calculateLuminosity(starType),
+                        temperature: this.starTypes[starType].temperature,
+                        mass: this.starTypes[starType].mass,
+                        age: Math.random() * 10, // Very young
+                        isNewCluster: true,
+                        clusterId: this.starClusters.length
+                    });
+                    
+                    this.starTypes[starType].count++;
+                }
+                
+                // Add to star data
+                const startIndex = this.starData.length;
+                this.starData.push(...newStars);
+                
+                // Update point system (simplified - would need to recreate geometry)
+                this.starFormationCount++;
+                document.getElementById('formation-count').textContent = this.starFormationCount;
+                
+                this.showNotification(`New star cluster formed with ${clusterStars} young stars!`, 3000);
+                
+                // Record the cluster
+                this.starClusters.push({
+                    position: nebula.position.clone(),
+                    radius: 12,
+                    age: 0,
+                    starCount: clusterStars
+                });
+            }
+            
+            resetView() {
+                this.camera.position.set(0, 80, 120);
+                this.controls.target.set(0, 0, 0);
+                document.getElementById('view-mode').value = 'full';
+                this.followedStar = null;
+            }
+            
+            showNotification(message, duration) {
+                const notification = document.getElementById('notification');
+                notification.textContent = message;
+                notification.style.opacity = '1';
+                
+                setTimeout(() => {
+                    notification.style.opacity = '0';
+                }, duration);
+            }
+            
+            animate() {
+                requestAnimationFrame(() => this.animate());
+                
+                // Update time
+                this.galaxyAge += 0.1 * this.timeScale;
+                this.galacticPhase += 0.001 * this.timeScale;
+                
+                document.getElementById('galaxy-age').textContent = `${this.galaxyAge.toFixed(1)} Myr`;
+                document.getElementById('galactic-phase').textContent = `${(this.galacticPhase * 180 / Math.PI % 360).toFixed(1)}°`;
+                
+                // Update nebula shaders
+                this.nebulas.forEach(nebula => {
+                    if (nebula.material.uniforms && nebula.material.uniforms.time) {
+                        nebula.material.uniforms.time.value += 0.01;
+                    }
+                    
+                    // Star formation in nebulas
+                    if (document.getElementById('auto-supernovae').checked) {
+                        nebula.userData.lastStarFormation += 0.1 * this.timeScale;
+                        if (nebula.userData.lastStarFormation > 100 / nebula.userData.starFormationRate) {
+                            if (Math.random() < 0.005) {
+                                this.formNewStarCluster();
+                            }
+                            nebula.userData.lastStarFormation = 0;
+                        }
+                    }
+                });
+                
+                // Update star positions (galactic rotation)
+                const positions = this.starAttributes.positions;
+                
+                for (let i = 0; i < this.starData.length; i++) {
+                    const star = this.starData[i];
+                    
+                    if (star.orbitRadius && !star.isInBulge && !star.isInHalo) {
+                        // Galactic rotation
+                        star.orbitAngle += star.orbitalSpeed * this.timeScale * 0.01;
+                        
+                        const x = Math.cos(star.orbitAngle) * star.orbitRadius;
+                        const z = Math.sin(star.orbitAngle) * star.orbitRadius;
+                        
+                        // Update position in buffer
+                        positions[i * 3] = x;
+                        positions[i * 3 + 2] = z;
+                        
+                        // Update star data
+                        star.position.x = x;
+                        star.position.z = z;
+                        
+                        // Binary system orbits
+                        if (star.hasCompanion && star.companionIndex !== undefined) {
+                            const companion = this.starData[star.companionIndex];
+                            if (companion) {
+                                companion.companionAngle += companion.companionOrbitalSpeed * this.timeScale;
+                                
+                                const offsetX = Math.cos(companion.companionAngle) * companion.companionDistance;
+                                const offsetZ = Math.sin(companion.companionAngle) * companion.companionDistance;
+                                
+                                const compX = x + offsetX;
+                                const compZ = z + offsetZ;
+                                const compY = star.position.y + Math.sin(companion.companionAngle * 2) * 0.1;
+                                
+                                positions[star.companionIndex * 3] = compX;
+                                positions[star.companionIndex * 3 + 1] = compY;
+                                positions[star.companionIndex * 3 + 2] = compZ;
+                                
+                                companion.position.x = compX;
+                                companion.position.y = compY;
+                                companion.position.z = compZ;
+                            }
+                        }
+                        
+                        // Star aging
+                        star.age += 0.1 * this.timeScale;
+                        
+                        // Random supernovae if auto mode is on
+                        if (document.getElementById('auto-supernovae').checked && 
+                            (star.type === 'blueGiant' || star.type === 'redGiant') &&
+                            star.age > 4761 && Math.random() < 0.00005 * this.timeScale) {
+                            this.explodeAsSupernova(star, i);
+                        }
+                    }
+                }
+                
+                // Update point system positions
+                if (this.starPoints && this.starPoints.geometry.attributes.position) {
+                    this.starPoints.geometry.attributes.position.needsUpdate = true;
+                }
+                
+                // Update orbital paths
+                this.orbitalPaths.forEach(path => {
+                    if (path.userData.starIndex !== undefined) {
+                        const star = this.starData[path.userData.starIndex];
+                        path.position.y = star.position.y;
+                    }
+                });
+                
+                // Follow star if in follow mode
+                if (this.followedStar && document.getElementById('view-mode').value === 'follow') {
+                    this.controls.target.copy(this.followedStar.position);
+                    this.camera.position.sub(this.controls.target);
+                    this.camera.position.setLength(30);
+                    this.camera.position.add(this.controls.target);
+                }
+                
+                // Rotate entire galaxy slowly
+                this.scene.rotation.y += this.rotationSpeed * this.timeScale;
+                
+                // Update controls
+                this.controls.update();
+                
+                // Render
+                this.renderer.render(this.scene, this.camera);
+                
+                // Update stats
+                this.stats.update();
+            }
+        }
+
+        // Initialize simulation when page loads
+        window.addEventListener('DOMContentLoaded', () => {
+            const simulation = new GalaxySimulation();
+            
+            // Make simulation globally accessible for debugging
+            window.galaxySimulation = simulation;
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,2654 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>شبیه‌ساز پیشرفته موشک با جلوه‌های سه‌بعدی</title>
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(to bottom, #0a0a2a, #1a1a3a);
+            color: #fff;
+            min-height: 100vh;
+            padding: 20px;
+            overflow-x: hidden;
+        }
+        
+        .container {
+            max-width: 2000px;
+            margin: 0 auto;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            border-bottom: 2px solid #2a5298;
+        }
+        
+        h1 {
+            font-size: 3rem;
+            background: linear-gradient(to right, #4facfe, #00f2fe, #ff00ff);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+            margin-bottom: 10px;
+            letter-spacing: 1px;
+        }
+        
+        .subtitle {
+            color: #a0d2ff;
+            font-size: 1.3rem;
+            max-width: 1000px;
+            margin: 0 auto;
+            line-height: 1.6;
+        }
+        
+        .game-container {
+            display: grid;
+            grid-template-columns: 450px 1fr;
+            gap: 30px;
+            height: calc(100vh - 200px);
+        }
+        
+        @media (max-width: 1400px) {
+            .game-container {
+                grid-template-columns: 1fr;
+                height: auto;
+            }
+        }
+        
+        .control-panel {
+            background: rgba(10, 15, 40, 0.95);
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(100, 150, 255, 0.2);
+            height: 100%;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .simulation-area {
+            background: rgba(5, 10, 30, 0.95);
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.7);
+            border: 1px solid rgba(100, 150, 255, 0.2);
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            position: relative;
+        }
+        
+        .panel-section {
+            margin-bottom: 25px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid rgba(100, 150, 255, 0.2);
+        }
+        
+        .panel-title {
+            font-size: 1.4rem;
+            margin-bottom: 15px;
+            color: #4facfe;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            text-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
+        }
+        
+        .preset-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .preset-card {
+            background: linear-gradient(145deg, rgba(40, 60, 120, 0.7), rgba(20, 40, 100, 0.7));
+            border-radius: 10px;
+            padding: 15px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .preset-card:hover {
+            transform: translateY(-5px);
+            border-color: #00f2fe;
+            box-shadow: 0 10px 20px rgba(0, 242, 254, 0.3);
+        }
+        
+        .preset-card.active {
+            border-color: #00f2fe;
+            background: linear-gradient(145deg, rgba(0, 242, 254, 0.2), rgba(40, 100, 200, 0.7));
+            box-shadow: 0 0 20px rgba(0, 242, 254, 0.5);
+        }
+        
+        .preset-icon {
+            font-size: 2rem;
+            margin-bottom: 10px;
+        }
+        
+        .preset-name {
+            font-weight: bold;
+            color: #a0d2ff;
+            margin-bottom: 5px;
+        }
+        
+        .stage-editor {
+            background: rgba(30, 45, 90, 0.5);
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+        }
+        
+        .stage-editor.active {
+            border-color: #00f2fe;
+            box-shadow: 0 0 15px rgba(0, 242, 254, 0.3);
+        }
+        
+        .stage-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .stage-title {
+            font-weight: bold;
+            color: #a0d2ff;
+            font-size: 1.1rem;
+        }
+        
+        .component-selector {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+        
+        .component-card {
+            background: rgba(40, 60, 120, 0.5);
+            border-radius: 8px;
+            padding: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .component-card:hover {
+            transform: translateY(-3px);
+            background: rgba(60, 100, 200, 0.5);
+        }
+        
+        .component-card.selected {
+            border-color: #00f2fe;
+            background: rgba(0, 242, 254, 0.2);
+            box-shadow: 0 0 10px rgba(0, 242, 254, 0.5);
+        }
+        
+        .component-name {
+            font-weight: bold;
+            font-size: 0.9rem;
+            color: #a0d2ff;
+            margin-bottom: 5px;
+        }
+        
+        .component-stats {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.8rem;
+            color: #c0e0ff;
+        }
+        
+        .booster-selector {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        .summary-panel {
+            background: linear-gradient(145deg, rgba(30, 45, 90, 0.8), rgba(20, 35, 80, 0.8));
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .summary-stats {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+        }
+        
+        .summary-stat {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .stat-label {
+            color: #a0d2ff;
+        }
+        
+        .stat-value {
+            color: #00f2fe;
+            font-weight: bold;
+            font-size: 1.1rem;
+        }
+        
+        .launch-button {
+            width: 100%;
+            padding: 20px;
+            background: linear-gradient(to right, #00b09b, #96c93d);
+            border: none;
+            border-radius: 10px;
+            color: white;
+            font-size: 1.3rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+        
+        .launch-button:hover:not(:disabled) {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 30px rgba(150, 201, 61, 0.4);
+        }
+        
+        .launch-button:disabled {
+            background: #555;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .simulation-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid rgba(100, 150, 255, 0.2);
+        }
+        
+        .simulation-title {
+            font-size: 1.8rem;
+            color: #4facfe;
+            text-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
+        }
+        
+        .camera-selector {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .camera-btn {
+            padding: 10px 20px;
+            background: rgba(40, 60, 120, 0.7);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .camera-btn:hover {
+            background: rgba(60, 100, 200, 0.7);
+        }
+        
+        .camera-btn.active {
+            background: #00f2fe;
+            color: #000;
+            font-weight: bold;
+            box-shadow: 0 0 15px rgba(0, 242, 254, 0.5);
+        }
+        
+        .canvas-container {
+            flex: 1;
+            background: #000;
+            border-radius: 10px;
+            overflow: hidden;
+            position: relative;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
+            border: 2px solid rgba(100, 150, 255, 0.3);
+        }
+        
+        #gameCanvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+        
+        .hud-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 10;
+        }
+        
+        .hud-element {
+            position: absolute;
+            background: rgba(0, 0, 0, 0.6);
+            border: 1px solid rgba(100, 150, 255, 0.3);
+            border-radius: 8px;
+            padding: 15px;
+            backdrop-filter: blur(5px);
+        }
+        
+        .hud-altitude {
+            top: 20px;
+            left: 20px;
+            width: 200px;
+        }
+        
+        .hud-velocity {
+            top: 20px;
+            right: 20px;
+            width: 200px;
+        }
+        
+        .hud-fuel {
+            bottom: 20px;
+            left: 20px;
+            width: 300px;
+        }
+        
+        .hud-stage {
+            bottom: 20px;
+            right: 20px;
+            width: 200px;
+        }
+        
+        .hud-center {
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            background: transparent;
+            border: none;
+        }
+        
+        .hud-title {
+            font-size: 1.2rem;
+            color: #4facfe;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
+        }
+        
+        .hud-value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #00f2fe;
+            text-shadow: 0 0 10px rgba(0, 242, 254, 0.7);
+        }
+        
+        .fuel-bar-container {
+            height: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            overflow: hidden;
+            margin-top: 10px;
+            position: relative;
+        }
+        
+        .fuel-bar {
+            height: 100%;
+            background: linear-gradient(to right, #00b09b, #96c93d);
+            border-radius: 10px;
+            width: 100%;
+            transition: width 0.5s ease;
+        }
+        
+        .fuel-bar.warning {
+            background: linear-gradient(to right, #ffc107, #ff8a00);
+        }
+        
+        .fuel-bar.critical {
+            background: linear-gradient(to right, #dc3545, #da1b60);
+            animation: pulse 1s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.7; }
+            100% { opacity: 1; }
+        }
+        
+        .stage-indicator {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        .stage-dot {
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            background: #444;
+            position: relative;
+            transition: all 0.3s ease;
+        }
+        
+        .stage-dot.active {
+            background: #00f2fe;
+            box-shadow: 0 0 10px #00f2fe;
+            animation: pulse 2s infinite;
+        }
+        
+        .stage-dot.separated {
+            background: #00b09b;
+        }
+        
+        .stage-dot.empty {
+            background: #dc3545;
+        }
+        
+        .telemetry-panel {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        .telemetry-box {
+            background: rgba(30, 45, 90, 0.7);
+            border-radius: 10px;
+            padding: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .telemetry-title {
+            color: #4facfe;
+            font-size: 1.1rem;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .telemetry-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+        
+        .telemetry-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .telemetry-label {
+            color: #a0d2ff;
+        }
+        
+        .telemetry-value {
+            color: #00f2fe;
+            font-weight: bold;
+        }
+        
+        .touch-controls {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin-top: 20px;
+            padding: 20px;
+            background: rgba(30, 45, 90, 0.5);
+            border-radius: 10px;
+            display: none;
+        }
+        
+        @media (max-width: 768px) {
+            .touch-controls {
+                display: flex;
+            }
+        }
+        
+        .touch-button {
+            padding: 25px 35px;
+            background: linear-gradient(145deg, rgba(60, 100, 200, 0.7), rgba(40, 80, 180, 0.7));
+            border-radius: 50%;
+            color: white;
+            font-weight: bold;
+            font-size: 1.8rem;
+            border: none;
+            cursor: pointer;
+            user-select: none;
+            touch-action: manipulation;
+            width: 90px;
+            height: 90px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            transition: all 0.2s ease;
+        }
+        
+        .touch-button:active {
+            transform: scale(0.95);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+        
+        .touch-button:disabled {
+            background: #555;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .message-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            backdrop-filter: blur(10px);
+        }
+        
+        .message-box {
+            background: linear-gradient(145deg, rgba(20, 30, 60, 0.95), rgba(10, 20, 50, 0.95));
+            border-radius: 15px;
+            padding: 40px;
+            max-width: 600px;
+            width: 90%;
+            text-align: center;
+            box-shadow: 0 0 50px rgba(0, 242, 254, 0.5);
+            border: 2px solid #00f2fe;
+            animation: glow 2s infinite alternate;
+        }
+        
+        @keyframes glow {
+            from { box-shadow: 0 0 30px rgba(0, 242, 254, 0.5); }
+            to { box-shadow: 0 0 60px rgba(0, 242, 254, 0.8); }
+        }
+        
+        .message-title {
+            font-size: 2.5rem;
+            color: #00f2fe;
+            margin-bottom: 20px;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+        }
+        
+        .message-text {
+            font-size: 1.3rem;
+            color: #a0d2ff;
+            margin-bottom: 30px;
+            line-height: 1.6;
+        }
+        
+        .message-button {
+            padding: 15px 40px;
+            background: linear-gradient(to right, #00b09b, #96c93d);
+            border: none;
+            border-radius: 10px;
+            color: white;
+            font-size: 1.3rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+        
+        .message-button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 25px rgba(150, 201, 61, 0.4);
+        }
+        
+        .performance-metrics {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 30px;
+            padding-top: 30px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .metric {
+            text-align: center;
+        }
+        
+        .metric-value {
+            font-size: 2rem;
+            color: #00f2fe;
+            font-weight: bold;
+            text-shadow: 0 0 10px rgba(0, 242, 254, 0.7);
+        }
+        
+        .metric-label {
+            font-size: 1rem;
+            color: #a0d2ff;
+            margin-top: 5px;
+        }
+        
+        .engine-controls {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        .throttle-slider {
+            width: 200px;
+            -webkit-appearance: none;
+            height: 10px;
+            border-radius: 5px;
+            background: linear-gradient(to right, #00b09b, #ffc107, #dc3545);
+            outline: none;
+        }
+        
+        .throttle-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 25px;
+            height: 25px;
+            border-radius: 50%;
+            background: #00f2fe;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(0, 242, 254, 0.7);
+        }
+        
+        .throttle-value {
+            font-size: 1.5rem;
+            color: #00f2fe;
+            font-weight: bold;
+            min-width: 60px;
+            text-align: center;
+        }
+        
+        .visualization-selector {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        .viz-btn {
+            padding: 8px 15px;
+            background: rgba(40, 60, 120, 0.7);
+            border: none;
+            border-radius: 5px;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .viz-btn:hover {
+            background: rgba(60, 100, 200, 0.7);
+        }
+        
+        .viz-btn.active {
+            background: #00f2fe;
+            color: #000;
+            font-weight: bold;
+        }
+        
+        .add-stage-btn {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(145deg, rgba(60, 100, 200, 0.5), rgba(40, 80, 180, 0.5));
+            border: 2px dashed rgba(100, 150, 255, 0.5);
+            border-radius: 10px;
+            color: white;
+            font-size: 1.1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 10px;
+        }
+        
+        .add-stage-btn:hover {
+            background: linear-gradient(145deg, rgba(80, 120, 220, 0.7), rgba(60, 100, 200, 0.7));
+            border-color: #00f2fe;
+        }
+        
+        .stage-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        .action-btn {
+            flex: 1;
+            padding: 8px;
+            background: rgba(60, 100, 200, 0.7);
+            border: none;
+            border-radius: 5px;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .action-btn:hover {
+            background: rgba(80, 120, 220, 0.9);
+        }
+        
+        .action-btn.delete {
+            background: rgba(220, 53, 69, 0.7);
+        }
+        
+        .action-btn.delete:hover {
+            background: rgba(220, 53, 69, 0.9);
+        }
+        
+        .orbit-visualizer {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            width: 300px;
+            height: 300px;
+            background: rgba(0, 0, 0, 0.7);
+            border-radius: 50%;
+            overflow: hidden;
+            border: 2px solid rgba(100, 150, 255, 0.3);
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.5);
+            z-index: 5;
+        }
+        
+        .earth-glow {
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 800px;
+            height: 800px;
+            background: radial-gradient(circle, rgba(64, 164, 255, 0.3) 0%, rgba(64, 164, 255, 0) 70%);
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 1;
+        }
+        
+        .particle-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 2;
+        }
+        
+        .starfield {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0;
+        }
+        
+        .debug-info {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.5);
+            color: #0f0;
+            font-family: monospace;
+            font-size: 12px;
+            padding: 10px;
+            border-radius: 5px;
+            z-index: 100;
+            display: none;
+        }
+        
+        .status-badge {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 0.9rem;
+            z-index: 10;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+        
+        .status-ready {
+            background: rgba(0, 176, 155, 0.3);
+            color: #00b09b;
+            border: 2px solid #00b09b;
+        }
+        
+        .status-flying {
+            background: rgba(0, 242, 254, 0.3);
+            color: #00f2fe;
+            border: 2px solid #00f2fe;
+            animation: pulse 2s infinite;
+        }
+        
+        .status-warning {
+            background: rgba(255, 193, 7, 0.3);
+            color: #ffc107;
+            border: 2px solid #ffc107;
+            animation: pulse 1s infinite;
+        }
+        
+        .status-critical {
+            background: rgba(220, 53, 69, 0.3);
+            color: #dc3545;
+            border: 2px solid #dc3545;
+            animation: pulse 0.5s infinite;
+        }
+        
+        .trajectory-line {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1;
+        }
+        
+        .atmosphere-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container" x-data="rocketSimulator()" x-init="init()">
+        <!-- پیام نتیجه -->
+        <div class="message-overlay" x-show="showResult" x-transition>
+            <div class="message-box">
+                <div class="message-title" x-text="resultTitle"></div>
+                <div class="message-text" x-text="resultText"></div>
+                <div class="performance-metrics">
+                    <div class="metric">
+                        <div class="metric-value" x-text="formatDistance(maxAltitude)"></div>
+                        <div class="metric-label">حداکثر ارتفاع</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-value" x-text="Math.round(maxVelocity) + ' m/s'"></div>
+                        <div class="metric-label">حداکثر سرعت</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-value" x-text="Math.round(flightTime) + ' ثانیه'"></div>
+                        <div class="metric-label">مدت پرواز</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-value" x-text="Math.round(efficiency) + '%'"></div>
+                        <div class="metric-label">کارایی</div>
+                    </div>
+                </div>
+                <button class="message-button" @click="closeResult()">ادامه</button>
+            </div>
+        </div>
+        
+        <header>
+            <h1>شبیه‌ساز موشک با جلوه‌های سه‌بعدی پیشرفته</h1>
+            <p class="subtitle">تجربه بصری غنی با شبیه‌سازی فیزیک واقعی و جلوه‌های بصری سه‌بعدی در کانواس دو بعدی</p>
+        </header>
+        
+        <div class="game-container">
+            <!-- پنل کنترل -->
+            <div class="control-panel">
+                <!-- پیکربندی‌های سریع -->
+                <div class="panel-section">
+                    <h2 class="panel-title">⚡ پیکربندی‌های سریع</h2>
+                    <div class="preset-grid">
+                        <div class="preset-card" :class="{ 'active': activePreset === 'falcon' }" @click="loadPreset('falcon')">
+                            <div class="preset-icon">🚀</div>
+                            <div class="preset-name">فالکن ۹</div>
+                            <div style="font-size: 0.8rem; color: #c0e0ff;">۲ مرحله + ۹ موتور</div>
+                        </div>
+                        <div class="preset-card" :class="{ 'active': activePreset === 'saturn' }" @click="loadPreset('saturn')">
+                            <div class="preset-icon">🪐</div>
+                            <div class="preset-name">زحل ۵</div>
+                            <div style="font-size: 0.8rem; color: #c0e0ff;">۳ مرحله + ۵ موتور</div>
+                        </div>
+                        <div class="preset-card" :class="{ 'active': activePreset === 'ion' }" @click="loadPreset('ion')">
+                            <div class="preset-icon">⚡</div>
+                            <div class="preset-name">موتور یونی</div>
+                            <div style="font-size: 0.8rem; color: #c0e0ff;">رانش کم، بازده بالا</div>
+                        </div>
+                        <div class="preset-card" :class="{ 'active': activePreset === 'heavy' }" @click="loadPreset('heavy')">
+                            <div class="preset-icon">🏋️</div>
+                            <div class="preset-name">سنگین‌وزن</div>
+                            <div style="font-size: 0.8rem; color: #c0e0ff;">۴ مرحله + ۱۲ موتور</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- طراحی مراحل -->
+                <div class="panel-section">
+                    <h2 class="panel-title">🚀 طراحی مراحل موشک</h2>
+                    
+                    <div x-show="stages.length === 0" style="text-align: center; padding: 20px; color: #a0d2ff;">
+                        یک پیکربندی سریع انتخاب کنید یا مرحله اضافه کنید
+                    </div>
+                    
+                    <template x-for="(stage, index) in stages" :key="index">
+                        <div class="stage-editor" :class="{ 'active': isStageActive(index) }">
+                            <div class="stage-header">
+                                <div class="stage-title" x-text="'مرحله ' + (stages.length - index) + (stage.name ? ': ' + stage.name : '')"></div>
+                                <div style="color: #00f2fe; font-size: 0.9rem;">Δv: <span x-text="calculateStageDeltaV(index).toFixed(0)"></span> m/s</div>
+                            </div>
+                            
+                            <!-- نام مرحله -->
+                            <input type="text" x-model="stage.name" placeholder="نام مرحله (اختیاری)" 
+                                   style="width: 100%; padding: 8px; margin-bottom: 10px; border-radius: 5px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.3); color: white;"
+                                   :disabled="isFlying">
+                            
+                            <!-- نوع سوخت -->
+                            <div style="margin-bottom: 10px;">
+                                <div style="color: #a0d2ff; margin-bottom: 5px; font-weight: bold;">سوخت</div>
+                                <div class="component-selector">
+                                    <template x-for="fuel in fuelTypes" :key="fuel.id">
+                                        <div class="component-card" :class="{ 'selected': stage.fuelType === fuel.id }"
+                                             @click="selectStageComponent(index, 'fuelType', fuel.id)"
+                                             :title="fuel.description">
+                                            <div class="component-name" x-text="fuel.name"></div>
+                                            <div class="component-stats">
+                                                <span>ایسپ: <span x-text="fuel.isp"></span></span>
+                                                <span x-text="fuel.type === 'solid' ? 'جامد' : 'مایع'"></span>
+                                            </div>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+                            
+                            <!-- نوع موتور -->
+                            <div style="margin-bottom: 10px;">
+                                <div style="color: #a0d2ff; margin-bottom: 5px; font-weight: bold;">موتور</div>
+                                <div class="component-selector">
+                                    <template x-for="motor in motorTypes" :key="motor.id">
+                                        <div class="component-card" :class="{ 'selected': stage.motorType === motor.id }"
+                                             @click="selectStageComponent(index, 'motorType', motor.id)"
+                                             :title="motor.description">
+                                            <div class="component-name" x-text="motor.name"></div>
+                                            <div class="component-stats">
+                                                <span><span x-text="(motor.thrust/1000).toFixed(0)"></span> kN</span>
+                                                <span><span x-text="motor.mass"></span> t</span>
+                                            </div>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+                            
+                            <!-- اندازه مخزن -->
+                            <div style="margin-bottom: 10px;">
+                                <div style="color: #a0d2ff; margin-bottom: 5px; font-weight: bold;">مخزن</div>
+                                <div class="component-selector">
+                                    <template x-for="tank in tankSizes" :key="tank.id">
+                                        <div class="component-card" :class="{ 'selected': stage.tankSize === tank.id }"
+                                             @click="selectStageComponent(index, 'tankSize', tank.id)"
+                                             :title="tank.description">
+                                            <div class="component-name" x-text="tank.name"></div>
+                                            <div class="component-stats">
+                                                <span><span x-text="tank.capacity"></span> t</span>
+                                                <span><span x-text="tank.mass"></span> t</span>
+                                            </div>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+                            
+                            <!-- کنترل‌های مرحله -->
+                            <div class="stage-actions">
+                                <button class="action-btn" @click="moveStageUp(index)" :disabled="index === stages.length - 1 || isFlying">▲ بالا</button>
+                                <button class="action-btn" @click="moveStageDown(index)" :disabled="index === 0 || isFlying">▼ پایین</button>
+                                <button class="action-btn delete" @click="removeStage(index)" :disabled="stages.length <= 1 || isFlying">✕ حذف</button>
+                            </div>
+                        </div>
+                    </template>
+                    
+                    <button class="add-stage-btn" @click="addStage()" :disabled="stages.length >= 5 || isFlying">
+                        + افزودن مرحله جدید
+                    </button>
+                </div>
+                
+                <!-- بوسترها -->
+                <div class="panel-section">
+                    <h2 class="panel-title">🔥 بوسترهای سوخت جامد</h2>
+                    <div class="booster-selector">
+                        <template x-for="booster in solidBoosters" :key="booster.id">
+                            <div class="component-card" :class="{ 'selected': selectedBoosterId === booster.id }"
+                                 @click="selectBooster(booster.id)" :title="booster.description">
+                                <div class="component-name" x-text="booster.name"></div>
+                                <div class="component-stats">
+                                    <span><span x-text="(booster.thrust/1000).toFixed(0)"></span> kN</span>
+                                    <span><span x-text="booster.burnTime"></span> s</span>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                    
+                    <div x-show="selectedBoosterId" style="margin-top: 15px;">
+                        <div style="color: #a0d2ff; margin-bottom: 5px;">تعداد بوسترها: <span style="color: #00f2fe; font-weight: bold;" x-text="boosterCount"></span></div>
+                        <div style="display: flex; gap: 10px; align-items: center;">
+                            <button @click="decreaseBoosterCount()" :disabled="boosterCount <= 0 || isFlying" 
+                                    style="padding: 8px 15px; background: rgba(220, 53, 69, 0.7); border: none; border-radius: 5px; color: white; cursor: pointer;">کاهش</button>
+                            <div style="flex: 1; height: 10px; background: rgba(255,255,255,0.1); border-radius: 5px; overflow: hidden;">
+                                <div style="height: 100%; background: linear-gradient(to right, #ff8a00, #ff4500); width: 100%;"></div>
+                            </div>
+                            <button @click="increaseBoosterCount()" :disabled="boosterCount >= 8 || isFlying"
+                                    style="padding: 8px 15px; background: rgba(0, 176, 155, 0.7); border: none; border-radius: 5px; color: white; cursor: pointer;">افزایش</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- خلاصه و پرتاب -->
+                <div class="summary-panel">
+                    <h2 class="panel-title">📊 خلاصه موشک</h2>
+                    <div class="summary-stats">
+                        <div class="summary-stat">
+                            <span class="stat-label">تعداد مراحل:</span>
+                            <span class="stat-value" x-text="stages.length"></span>
+                        </div>
+                        <div class="summary-stat">
+                            <span class="stat-label">جرم کل:</span>
+                            <span class="stat-value" x-text="calculateTotalMass().toFixed(1) + ' تن'"></span>
+                        </div>
+                        <div class="summary-stat">
+                            <span class="stat-label">Δv کل:</span>
+                            <span class="stat-value" :class="getDeltaVClass()" x-text="calculateTotalDeltaV().toLocaleString() + ' m/s'"></span>
+                        </div>
+                        <div class="summary-stat">
+                            <span class="stat-label">T/W Ratio:</span>
+                            <span class="stat-value" :class="getTWRClass()" x-text="calculateTWR().toFixed(2)"></span>
+                        </div>
+                    </div>
+                    
+                    <!-- کنترل گاز -->
+                    <div class="engine-controls" x-show="isFlying">
+                        <div style="color: #a0d2ff; font-weight: bold;">کنترل گاز:</div>
+                        <input type="range" min="30" max="150" x-model="throttlePercent" class="throttle-slider" @input="updateThrottle()">
+                        <div class="throttle-value" x-text="throttlePercent + '%'"></div>
+                    </div>
+                    
+                    <button class="launch-button" @click="launchRocket()" :disabled="isFlying || stages.length === 0">
+                        <span x-text="isFlying ? 'در حال پرواز...' : 'پرتاب موشک'"></span>
+                        <span x-show="!isFlying">🚀</span>
+                        <span x-show="isFlying">🔥</span>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- منطقه شبیه‌سازی -->
+            <div class="simulation-area">
+                <!-- هدر شبیه‌سازی -->
+                <div class="simulation-header">
+                    <div class="simulation-title">شبیه‌سازی پرواز</div>
+                    <div class="camera-selector">
+                        <button class="camera-btn" :class="{ 'active': cameraView === 'follow' }" @click="cameraView = 'follow'">
+                            👁️ دنبال‌کننده
+                        </button>
+                        <button class="camera-btn" :class="{ 'active': cameraView === 'cockpit' }" @click="cameraView = 'cockpit'">
+                            🎯 نمای خلبان
+                        </button>
+                        <button class="camera-btn" :class="{ 'active': cameraView === 'global' }" @click="cameraView = 'global'">
+                            🌍 نمای کلی
+                        </button>
+                        <button class="camera-btn" :class="{ 'active': cameraView === 'orbit' }" @click="cameraView = 'orbit'">
+                            🛰️ نمای مداری
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- کانواس و جلوه‌ها -->
+                <div class="canvas-container">
+                    <canvas id="gameCanvas"></canvas>
+                    
+                    <!-- جلوه‌های بصری -->
+                    <div class="earth-glow"></div>
+                    <div class="starfield" id="starfield"></div>
+                    <div class="particle-container" id="particles"></div>
+                    <div class="trajectory-line" id="trajectory"></div>
+                    <div class="atmosphere-layer" id="atmosphere"></div>
+                    
+                    <!-- HUD -->
+                    <div class="hud-overlay">
+                        <div class="status-badge" :class="getStatusClass()" x-text="statusText"></div>
+                        
+                        <div class="hud-element hud-altitude">
+                            <div class="hud-title">ارتفاع</div>
+                            <div class="hud-value" x-text="formatDistance(currentAltitude)"></div>
+                            <div class="fuel-bar-container">
+                                <div class="fuel-bar" :class="getFuelBarClass()" :style="`width: ${Math.min(100, (currentAltitude / 1000000) * 100)}%`"></div>
+                            </div>
+                        </div>
+                        
+                        <div class="hud-element hud-velocity">
+                            <div class="hud-title">سرعت</div>
+                            <div class="hud-value" x-text="Math.round(currentVelocity) + ' m/s'"></div>
+                            <div style="font-size: 0.9rem; color: #a0d2ff; margin-top: 5px;">
+                                <span x-show="currentVelocity > 7800">🚀 سرعت مداری</span>
+                                <span x-show="currentVelocity <= 7800 && currentVelocity > 5000">📈 در حال شتاب</span>
+                                <span x-show="currentVelocity <= 5000">📊 سرعت کم</span>
+                            </div>
+                        </div>
+                        
+                        <div class="hud-element hud-fuel">
+                            <div class="hud-title">سوخت مرحله فعلی</div>
+                            <div class="hud-value" x-text="Math.round(currentFuel) + '%'"></div>
+                            <div class="fuel-bar-container">
+                                <div class="fuel-bar" :class="getFuelBarClass()" :style="`width: ${currentFuel}%`"></div>
+                            </div>
+                            <div class="stage-indicator">
+                                <template x-for="(stage, index) in stages" :key="index">
+                                    <div class="stage-dot" :class="getStageDotClass(index)"></div>
+                                </template>
+                            </div>
+                        </div>
+                        
+                        <div class="hud-element hud-stage">
+                            <div class="hud-title">مرحله فعال</div>
+                            <div class="hud-value" x-text="currentStage + ' از ' + stages.length"></div>
+                            <div style="font-size: 0.9rem; color: #a0d2ff; margin-top: 10px;">
+                                زمان پرواز: <span x-text="Math.round(flightTime) + ' ثانیه'"></span>
+                            </div>
+                        </div>
+                        
+                        <div class="hud-element hud-center" x-show="isFlying && cameraView === 'cockpit'">
+                            <div style="color: #00f2fe; font-size: 2rem; margin-bottom: 10px;">+</div>
+                            <div style="color: #a0d2ff; font-size: 1.2rem;">نشانگر هدف</div>
+                        </div>
+                    </div>
+                    
+                    <!-- ویژوالایزر مدار -->
+                    <div class="orbit-visualizer" id="orbitViz"></div>
+                </div>
+                
+                <!-- کنترل‌های لمسی -->
+                <div class="touch-controls">
+                    <button class="touch-button" @touchstart="boostThrust()" @touchend="normalThrust()">⬆️</button>
+                    <button class="touch-button" @touchstart="reduceThrust()" @touchend="normalThrust()">⬇️</button>
+                    <button class="touch-button" @click="stageSeparation()" :disabled="!canSeparate">📤</button>
+                    <button class="touch-button" @click="toggleCamera()">👁️</button>
+                </div>
+                
+                <!-- پنل اطلاعات -->
+                <div class="telemetry-panel">
+                    <div class="telemetry-box">
+                        <div class="telemetry-title">📡 اطلاعات پرواز</div>
+                        <div class="telemetry-grid">
+                            <div class="telemetry-item">
+                                <span class="telemetry-label">شتاب:</span>
+                                <span class="telemetry-value" x-text="(currentAcceleration / 9.81).toFixed(2) + ' g'"></span>
+                            </div>
+                            <div class="telemetry-item">
+                                <span class="telemetry-label">فشار دینامیکی:</span>
+                                <span class="telemetry-value" x-text="Math.round(dynamicPressure) + ' kPa'"></span>
+                            </div>
+                            <div class="telemetry-item">
+                                <span class="telemetry-label">دمای بدنه:</span>
+                                <span class="telemetry-value" x-text="Math.round(hullTemperature) + ' °C'"></span>
+                            </div>
+                            <div class="telemetry-item">
+                                <span class="telemetry-label">جرم فعلی:</span>
+                                <span class="telemetry-value" x-text="Math.round(currentMass) + ' تن'"></span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="telemetry-box">
+                        <div class="telemetry-title">📊 آمار پرواز</div>
+                        <div class="telemetry-grid">
+                            <div class="telemetry-item">
+                                <span class="telemetry-label">حداکثر ارتفاع:</span>
+                                <span class="telemetry-value" x-text="formatDistance(maxAltitude)"></span>
+                            </div>
+                            <div class="telemetry-item">
+                                <span class="telemetry-label">حداکثر سرعت:</span>
+                                <span class="telemetry-value" x-text="Math.round(maxVelocity) + ' m/s'"></span>
+                            </div>
+                            <div class="telemetry-item">
+                                <span class="telemetry-label">حداکثر شتاب:</span>
+                                <span class="telemetry-value" x-text="maxG.toFixed(2) + ' g'"></span>
+                            </div>
+                            <div class="telemetry-item">
+                                <span class="telemetry-label">مراحل استفاده‌شده:</span>
+                                <span class="telemetry-value" x-text="stagesUsed + ' از ' + stages.length"></span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function rocketSimulator() {
+            return {
+                // وضعیت شبیه‌سازی
+                isFlying: false,
+                flightTime: 0,
+                showResult: false,
+                resultTitle: "",
+                resultText: "",
+                efficiency: 0,
+                
+                // پارامترهای پرواز
+                currentAltitude: 0,
+                currentVelocity: 0,
+                currentAcceleration: 0,
+                currentFuel: 100,
+                currentStage: 1,
+                currentMass: 0,
+                maxAltitude: 0,
+                maxVelocity: 0,
+                maxG: 0,
+                dynamicPressure: 0,
+                hullTemperature: 20,
+                throttle: 1.0,
+                throttlePercent: 100,
+                
+                // کنترل‌ها
+                isBoosting: false,
+                isReducing: false,
+                canSeparate: false,
+                statusText: "آماده برای پرتاب",
+                
+                // طراحی موشک
+                stages: [],
+                selectedBoosterId: null,
+                boosterCount: 0,
+                activePreset: null,
+                
+                // دوربین
+                cameraView: 'follow',
+                cameraOffset: 0,
+                cameraZoom: 1,
+                cameraAngle: 0,
+                
+                // فیزیک
+                gravity: 9.81,
+                earthRadius: 6371000,
+                time: 0,
+                lastTimestamp: 0,
+                
+                // کانواس و گرافیک
+                ctx: null,
+                canvas: null,
+                starfieldCtx: null,
+                particleCtx: null,
+                trajectoryCtx: null,
+                atmosphereCtx: null,
+                orbitCtx: null,
+                
+                // منابع
+                fuelTypes: [
+                    { id: 1, name: "RP-1/LOX", isp: 350, density: 0.81, type: "liquid", description: "کروسن/اکسیژن مایع - متداول و قابل اعتماد" },
+                    { id: 2, name: "LH2/LOX", isp: 450, density: 0.07, type: "liquid", description: "هیدروژن مایع/اکسیژن مایع - بازده بالا" },
+                    { id: 3, name: "سوخت جامد", isp: 280, density: 1.7, type: "solid", description: "سوخت جامد استاندارد - نیرومند و ساده" },
+                    { id: 4, name: "متان/LOX", isp: 380, density: 0.42, type: "liquid", description: "متان/اکسیژن مایع - مدرن و مناسب استفاده مجدد" },
+                    { id: 5, name: "هیپرگولیک", isp: 320, density: 1.2, type: "liquid", description: "خودآتشزا - بدون نیاز به سیستم احتراق" }
+                ],
+                
+                motorTypes: [
+                    { id: 1, name: "مرلین ۱D", thrust: 845000, mass: 0.5, description: "موتور فالکن ۹ - بازده بالا" },
+                    { id: 2, name: "رپتور", thrust: 2200000, mass: 1.5, description: "موتور استارشیپ - نیرومند" },
+                    { id: 3, name: "RD-180", thrust: 4150000, mass: 5.5, description: "موتور روسی - قدرت فوق‌العاده" },
+                    { id: 4, name: "موتور یونی", thrust: 5000, mass: 0.2, description: "رانش کم، بازده بسیار بالا" },
+                    { id: 5, name: "F-1", thrust: 7700000, mass: 8.4, description: "موتور زحل ۵ - قدرتمندترین موتور مایع" }
+                ],
+                
+                tankSizes: [
+                    { id: 1, name: "کوچک", capacity: 50, mass: 5.0, description: "برای مراحل فوقانی" },
+                    { id: 2, name: "متوسط", capacity: 200, mass: 15.0, description: "کاربرد عمومی" },
+                    { id: 3, name: "بزرگ", capacity: 500, mass: 30.0, description: "برای مراحل اولیه" },
+                    { id: 4, name: "فوق‌بزرگ", capacity: 1000, mass: 50.0, description: "برای پرتاب‌های سنگین" }
+                ],
+                
+                solidBoosters: [
+                    { id: 1, name: "بوستر SRB", thrust: 12000000, mass: 80.0, burnTime: 127, description: "بوستر سوخت جامد شاتل فضایی" },
+                    { id: 2, name: "بوستر فالکن", thrust: 7000000, mass: 25.0, burnTime: 180, description: "بوستر فالکن ۹" },
+                    { id: 3, name: "بوستر کوچک", thrust: 2000000, mass: 10.0, burnTime: 60, description: "بوستر کمکی" }
+                ],
+                
+                // ذرات و جلوه‌ها
+                particles: [],
+                stars: [],
+                trajectoryPoints: [],
+                
+                // مقداردهی اولیه
+                init() {
+                    this.setupCanvas();
+                    this.setupEventListeners();
+                    this.createStarfield();
+                    this.loadPreset('falcon');
+                    this.gameLoop();
+                },
+                
+                // راه‌اندازی کانواس
+                setupCanvas() {
+                    this.canvas = document.getElementById('gameCanvas');
+                    this.ctx = this.canvas.getContext('2d');
+                    
+                    // کانواس‌های اضافی برای جلوه‌ها
+                    this.setupStarfieldCanvas();
+                    this.setupParticleCanvas();
+                    this.setupTrajectoryCanvas();
+                    this.setupAtmosphereCanvas();
+                    this.setupOrbitCanvas();
+                    
+                    this.resizeCanvas();
+                },
+                
+                // تنظیم کانواس ستارگان
+                setupStarfieldCanvas() {
+                    const starfield = document.getElementById('starfield');
+                    this.starfieldCtx = starfield.getContext('2d');
+                    starfield.width = starfield.offsetWidth;
+                    starfield.height = starfield.offsetHeight;
+                },
+                
+                // تنظیم کانواس ذرات
+                setupParticleCanvas() {
+                    const particles = document.getElementById('particles');
+                    this.particleCtx = particles.getContext('2d');
+                    particles.width = particles.offsetWidth;
+                    particles.height = particles.offsetHeight;
+                },
+                
+                // تنظیم کانواس مسیر
+                setupTrajectoryCanvas() {
+                    const trajectory = document.getElementById('trajectory');
+                    this.trajectoryCtx = trajectory.getContext('2d');
+                    trajectory.width = trajectory.offsetWidth;
+                    trajectory.height = trajectory.offsetHeight;
+                },
+                
+                // تنظیم کانواس جو
+                setupAtmosphereCanvas() {
+                    const atmosphere = document.getElementById('atmosphere');
+                    this.atmosphereCtx = atmosphere.getContext('2d');
+                    atmosphere.width = atmosphere.offsetWidth;
+                    atmosphere.height = atmosphere.offsetHeight;
+                },
+                
+                // تنظیم کانواس مدار
+                setupOrbitCanvas() {
+                    const orbitViz = document.getElementById('orbitViz');
+                    this.orbitCtx = orbitViz.getContext('2d');
+                    orbitViz.width = orbitViz.offsetWidth;
+                    orbitViz.height = orbitViz.offsetHeight;
+                },
+                
+                // تغییر اندازه کانواس
+                resizeCanvas() {
+                    const container = this.canvas.parentElement;
+                    this.canvas.width = container.offsetWidth;
+                    this.canvas.height = container.offsetHeight;
+                    
+                    // بروزرسانی سایر کانواس‌ها
+                    const canvases = ['starfield', 'particles', 'trajectory', 'atmosphere'];
+                    canvases.forEach(id => {
+                        const element = document.getElementById(id);
+                        if (element) {
+                            element.width = element.offsetWidth;
+                            element.height = element.offsetHeight;
+                        }
+                    });
+                },
+                
+                // تنظیم رویدادها
+                setupEventListeners() {
+                    window.addEventListener('resize', () => this.resizeCanvas());
+                    window.addEventListener('keydown', (e) => this.handleKeyDown(e));
+                    window.addEventListener('keyup', (e) => this.handleKeyUp(e));
+                },
+                
+                // ایجاد زمینه ستارگان
+                createStarfield() {
+                    this.stars = [];
+                    const count = 1000;
+                    
+                    for (let i = 0; i < count; i++) {
+                        this.stars.push({
+                            x: Math.random() * this.canvas.width,
+                            y: Math.random() * this.canvas.height,
+                            size: Math.random() * 2 + 0.5,
+                            brightness: Math.random() * 0.5 + 0.5,
+                            twinkleSpeed: Math.random() * 0.02 + 0.01,
+                            twinkleOffset: Math.random() * Math.PI * 2
+                        });
+                    }
+                },
+                
+                // بارگذاری پیکربندی
+                loadPreset(preset) {
+                    this.activePreset = preset;
+                    this.stages = [];
+                    
+                    switch(preset) {
+                        case 'falcon':
+                            this.addStageWithConfig(0, "مرحله اول", 1, 1, 3, 9);
+                            this.addStageWithConfig(1, "مرحله دوم", 2, 1, 1, 1);
+                            this.selectedBoosterId = 2;
+                            this.boosterCount = 2;
+                            break;
+                            
+                        case 'saturn':
+                            this.addStageWithConfig(0, "مرحله اول", 1, 5, 4, 5);
+                            this.addStageWithConfig(1, "مرحله دوم", 1, 3, 3, 5);
+                            this.addStageWithConfig(2, "مرحله سوم", 2, 2, 1, 1);
+                            this.selectedBoosterId = null;
+                            this.boosterCount = 0;
+                            break;
+                            
+                        case 'ion':
+                            this.addStageWithConfig(0, "مرحله شیمیایی", 1, 1, 2, 1);
+                            this.addStageWithConfig(1, "مرحله یونی", 2, 4, 1, 4);
+                            this.selectedBoosterId = null;
+                            this.boosterCount = 0;
+                            break;
+                            
+                        case 'heavy':
+                            this.addStageWithConfig(0, "مرحله اول", 3, 3, 4, 12);
+                            this.addStageWithConfig(1, "مرحله دوم", 1, 2, 3, 4);
+                            this.addStageWithConfig(2, "مرحله سوم", 2, 1, 2, 1);
+                            this.addStageWithConfig(3, "مرحله چهارم", 2, 4, 1, 1);
+                            this.selectedBoosterId = 1;
+                            this.boosterCount = 2;
+                            break;
+                    }
+                    
+                    for (let i = 0; i < this.stages.length; i++) {
+                        this.updateStageMass(i);
+                    }
+                },
+                
+                // افزودن مرحله با پیکربندی
+                addStageWithConfig(index, name, fuelType, motorType, tankSize, engineCount) {
+                    if (index >= this.stages.length) {
+                        this.stages.push({
+                            id: this.stages.length + 1,
+                            name: name,
+                            fuelType: fuelType,
+                            motorType: motorType,
+                            tankSize: tankSize,
+                            engineCount: engineCount,
+                            fuelMass: 0,
+                            dryMass: 0,
+                            fuelRemaining: 100,
+                            isActive: false,
+                            isSeparated: false,
+                            burnTime: 0
+                        });
+                    } else {
+                        this.stages[index] = {
+                            ...this.stages[index],
+                            name: name,
+                            fuelType: fuelType,
+                            motorType: motorType,
+                            tankSize: tankSize,
+                            engineCount: engineCount
+                        };
+                    }
+                },
+                
+                // افزودن مرحله
+                addStage() {
+                    if (this.stages.length >= 5) return;
+                    
+                    const stageNumber = this.stages.length + 1;
+                    this.stages.push({
+                        id: stageNumber,
+                        name: `مرحله ${stageNumber}`,
+                        fuelType: 1,
+                        motorType: 2,
+                        tankSize: 2,
+                        engineCount: 1,
+                        fuelMass: 0,
+                        dryMass: 0,
+                        fuelRemaining: 100,
+                        isActive: false,
+                        isSeparated: false,
+                        burnTime: 0
+                    });
+                    
+                    this.updateStageMass(this.stages.length - 1);
+                },
+                
+                // حذف مرحله
+                removeStage(index) {
+                    if (this.stages.length <= 1) return;
+                    this.stages.splice(index, 1);
+                },
+                
+                // جابجایی مرحله
+                moveStageUp(index) {
+                    if (index === this.stages.length - 1) return;
+                    [this.stages[index], this.stages[index + 1]] = [this.stages[index + 1], this.stages[index]];
+                },
+                
+                moveStageDown(index) {
+                    if (index === 0) return;
+                    [this.stages[index], this.stages[index - 1]] = [this.stages[index - 1], this.stages[index]];
+                },
+                
+                // انتخاب اجزای مرحله
+                selectStageComponent(stageIndex, componentType, componentId) {
+                    this.stages[stageIndex][componentType] = componentId;
+                    this.updateStageMass(stageIndex);
+                },
+                
+                // انتخاب بوستر
+                selectBooster(boosterId) {
+                    this.selectedBoosterId = boosterId;
+                },
+                
+                // کنترل تعداد بوستر
+                increaseBoosterCount() {
+                    if (this.selectedBoosterId && this.boosterCount < 8) {
+                        this.boosterCount++;
+                    }
+                },
+                
+                decreaseBoosterCount() {
+                    if (this.selectedBoosterId && this.boosterCount > 0) {
+                        this.boosterCount--;
+                    }
+                },
+                
+                // بروزرسانی جرم مرحله
+                updateStageMass(stageIndex) {
+                    const stage = this.stages[stageIndex];
+                    const tank = this.getTank(stage.tankSize);
+                    const motor = this.getMotor(stage.motorType);
+                    const fuel = this.getFuel(stage.fuelType);
+                    
+                    stage.fuelMass = tank.capacity * 1000 * fuel.density;
+                    stage.dryMass = (tank.mass * 1000) + (motor.mass * 1000 * stage.engineCount) + (1000 * stage.engineCount);
+                },
+                
+                // دریافت منابع
+                getFuel(id) {
+                    return this.fuelTypes.find(f => f.id === id) || this.fuelTypes[0];
+                },
+                
+                getMotor(id) {
+                    return this.motorTypes.find(m => m.id === id) || this.motorTypes[0];
+                },
+                
+                getTank(id) {
+                    return this.tankSizes.find(t => t.id === id) || this.tankSizes[0];
+                },
+                
+                getBooster(id) {
+                    return this.solidBoosters.find(b => b.id === id) || this.solidBoosters[0];
+                },
+                
+                // محاسبات
+                calculateStageMass(stageIndex) {
+                    const stage = this.stages[stageIndex];
+                    return (stage.fuelMass + stage.dryMass) / 1000;
+                },
+                
+                calculateStageDeltaV(stageIndex) {
+                    const stage = this.stages[stageIndex];
+                    const fuel = this.getFuel(stage.fuelType);
+                    
+                    const isp = fuel.isp;
+                    const g0 = 9.81;
+                    const m0 = stage.fuelMass + stage.dryMass;
+                    const mf = stage.dryMass;
+                    
+                    if (mf <= 0) return 0;
+                    return isp * g0 * Math.log(m0 / mf);
+                },
+                
+                calculateTotalMass() {
+                    let total = 0;
+                    for (let i = 0; i < this.stages.length; i++) {
+                        total += this.calculateStageMass(i);
+                    }
+                    
+                    if (this.selectedBoosterId && this.boosterCount > 0) {
+                        const booster = this.getBooster(this.selectedBoosterId);
+                        total += booster.mass * this.boosterCount;
+                    }
+                    
+                    return total;
+                },
+                
+                calculateTotalDeltaV() {
+                    let totalDeltaV = 0;
+                    
+                    for (let i = 0; i < this.stages.length; i++) {
+                        const stage = this.stages[i];
+                        const fuel = this.getFuel(stage.fuelType);
+                        
+                        let currentMass = 0;
+                        for (let j = i; j < this.stages.length; j++) {
+                            const s = this.stages[j];
+                            currentMass += s.fuelMass + s.dryMass;
+                        }
+                        
+                        if (i === 0 && this.selectedBoosterId && this.boosterCount > 0) {
+                            const booster = this.getBooster(this.selectedBoosterId);
+                            currentMass += booster.mass * 1000 * this.boosterCount;
+                        }
+                        
+                        let finalMass = currentMass - stage.fuelMass;
+                        
+                        if (finalMass > 0) {
+                            const stageDeltaV = fuel.isp * 9.81 * Math.log(currentMass / finalMass);
+                            totalDeltaV += stageDeltaV;
+                        }
+                    }
+                    
+                    return totalDeltaV;
+                },
+                
+                calculateTWR() {
+                    if (this.stages.length === 0) return 0;
+                    
+                    const firstStage = this.stages[0];
+                    const motor = this.getMotor(firstStage.motorType);
+                    const totalMass = this.calculateTotalMass();
+                    
+                    let thrust = motor.thrust * firstStage.engineCount;
+                    
+                    if (this.selectedBoosterId && this.boosterCount > 0) {
+                        const booster = this.getBooster(this.selectedBoosterId);
+                        thrust += booster.thrust * this.boosterCount;
+                    }
+                    
+                    return (thrust / (totalMass * 1000 * 9.81));
+                },
+                
+                // کلاس‌های وضعیت
+                getDeltaVClass() {
+                    const deltaV = this.calculateTotalDeltaV();
+                    if (deltaV > 12000) return "good";
+                    if (deltaV > 8000) return "";
+                    return "warning";
+                },
+                
+                getTWRClass() {
+                    const twr = this.calculateTWR();
+                    if (twr > 1.5) return "good";
+                    if (twr > 1.2) return "";
+                    if (twr > 0.8) return "warning";
+                    return "error";
+                },
+                
+                getStatusClass() {
+                    if (!this.isFlying) return "status-ready";
+                    if (this.currentFuel < 10) return "status-critical";
+                    if (this.currentFuel < 30) return "status-warning";
+                    return "status-flying";
+                },
+                
+                getFuelBarClass() {
+                    if (this.currentFuel < 10) return "critical";
+                    if (this.currentFuel < 30) return "warning";
+                    return "";
+                },
+                
+                getStageDotClass(stageIndex) {
+                    const stage = this.stages[stageIndex];
+                    const stageNumber = this.stages.length - stageIndex;
+                    
+                    if (stage.isSeparated) return "separated";
+                    if (stageNumber === this.currentStage) return "active";
+                    if (stageNumber > this.currentStage) return "empty";
+                    return "";
+                },
+                
+                isStageActive(stageIndex) {
+                    const stageNumber = this.stages.length - stageIndex;
+                    return stageNumber === this.currentStage && this.isFlying;
+                },
+                
+                // کنترل گاز
+                updateThrottle() {
+                    this.throttle = this.throttlePercent / 100;
+                },
+                
+                boostThrust() {
+                    if (this.isFlying && this.currentFuel > 0) {
+                        this.isBoosting = true;
+                        this.isReducing = false;
+                        this.throttlePercent = Math.min(150, this.throttlePercent + 10);
+                        this.throttle = this.throttlePercent / 100;
+                    }
+                },
+                
+                reduceThrust() {
+                    if (this.isFlying && this.currentFuel > 0) {
+                        this.isReducing = true;
+                        this.isBoosting = false;
+                        this.throttlePercent = Math.max(30, this.throttlePercent - 10);
+                        this.throttle = this.throttlePercent / 100;
+                    }
+                },
+                
+                normalThrust() {
+                    this.isBoosting = false;
+                    this.isReducing = false;
+                },
+                
+                // پرتاب موشک
+                launchRocket() {
+                    if (this.stages.length === 0) return;
+                    
+                    this.isFlying = true;
+                    this.statusText = "در حال پرواز";
+                    
+                    for (let i = 0; i < this.stages.length; i++) {
+                        this.stages[i].isActive = (i === 0);
+                        this.stages[i].isSeparated = false;
+                        this.stages[i].fuelRemaining = 100;
+                        this.stages[i].burnTime = 0;
+                        this.updateStageMass(i);
+                    }
+                    
+                    this.currentAltitude = 0;
+                    this.currentVelocity = 0;
+                    this.currentAcceleration = 0;
+                    this.currentFuel = 100;
+                    this.currentStage = this.stages.length;
+                    this.currentMass = this.calculateTotalMass();
+                    this.maxAltitude = 0;
+                    this.maxVelocity = 0;
+                    this.maxG = 0;
+                    this.dynamicPressure = 0;
+                    this.hullTemperature = 20;
+                    this.flightTime = 0;
+                    this.time = 0;
+                    this.canSeparate = false;
+                    this.throttle = 1.0;
+                    this.throttlePercent = 100;
+                    
+                    this.particles = [];
+                    this.trajectoryPoints = [];
+                },
+                
+                // جداسازی مرحله
+                stageSeparation() {
+                    if (!this.canSeparate || this.currentStage <= 1) return;
+                    
+                    const currentStageIndex = this.stages.length - this.currentStage;
+                    const stage = this.stages[currentStageIndex];
+                    
+                    stage.isSeparated = true;
+                    stage.isActive = false;
+                    
+                    this.currentStage--;
+                    
+                    if (this.currentStage >= 1) {
+                        const nextStageIndex = this.stages.length - this.currentStage;
+                        this.stages[nextStageIndex].isActive = true;
+                    }
+                    
+                    this.canSeparate = false;
+                    this.throttle = 1.0;
+                    this.throttlePercent = 100;
+                    
+                    this.createExplosionEffect();
+                },
+                
+                // ایجاد جلوه انفجار
+                createExplosionEffect() {
+                    for (let i = 0; i < 50; i++) {
+                        this.particles.push({
+                            x: this.canvas.width / 2,
+                            y: this.getRocketY(),
+                            vx: (Math.random() - 0.5) * 10,
+                            vy: (Math.random() - 0.5) * 10,
+                            size: Math.random() * 5 + 2,
+                            color: `rgb(${Math.random() * 255}, ${Math.random() * 100}, 0)`,
+                            life: 1.0,
+                            decay: Math.random() * 0.02 + 0.01
+                        });
+                    }
+                },
+                
+                // حلقه بازی
+                gameLoop(timestamp = 0) {
+                    const deltaTime = timestamp - this.lastTimestamp || 0;
+                    this.lastTimestamp = timestamp;
+                    
+                    if (this.isFlying) {
+                        this.updatePhysics(deltaTime);
+                        this.updateCamera();
+                        this.updateParticles(deltaTime);
+                        this.updateTrajectory();
+                    }
+                    
+                    this.draw();
+                    
+                    requestAnimationFrame((ts) => this.gameLoop(ts));
+                },
+                
+                // بروزرسانی فیزیک
+                updatePhysics(deltaTime) {
+                    if (deltaTime > 100) return;
+                    
+                    const timeStep = Math.min(deltaTime / 1000, 0.1);
+                    this.time += timeStep;
+                    this.flightTime += timeStep;
+                    
+                    // بررسی مرحله فعال
+                    const activeStageIndex = this.stages.length - this.currentStage;
+                    if (activeStageIndex < 0 || activeStageIndex >= this.stages.length || !this.stages[activeStageIndex].isActive) {
+                        this.endFlight("هیچ مرحله فعالی وجود ندارد");
+                        return;
+                    }
+                    
+                    const stage = this.stages[activeStageIndex];
+                    const fuel = this.getFuel(stage.fuelType);
+                    const motor = this.getMotor(stage.motorType);
+                    
+                    // گرانش در ارتفاع فعلی
+                    const gravityAtAltitude = this.gravity * Math.pow(this.earthRadius / (this.earthRadius + this.currentAltitude), 2);
+                    
+                    // محاسبه رانش
+                    let thrust = motor.thrust * this.throttle * stage.engineCount;
+                    
+                    // افزودن بوسترها
+                    if (this.currentStage === this.stages.length && this.selectedBoosterId && this.boosterCount > 0 && stage.burnTime < 120) {
+                        const booster = this.getBooster(this.selectedBoosterId);
+                        thrust += booster.thrust * this.boosterCount * Math.max(0, 1 - (stage.burnTime / booster.burnTime));
+                        stage.burnTime += timeStep;
+                    }
+                    
+                    // محاسبه جرم فعلی
+                    this.currentMass = this.calculateCurrentMass();
+                    
+                    // محاسبه پسا
+                    const drag = this.calculateDrag();
+                    
+                    // محاسبه شتاب
+                    const netForce = thrust - (this.currentMass * 1000 * gravityAtAltitude) - drag;
+                    this.currentAcceleration = netForce / (this.currentMass * 1000);
+                    
+                    // بروزرسانی رکوردها
+                    const gForce = this.currentAcceleration / 9.81;
+                    if (gForce > this.maxG) this.maxG = gForce;
+                    
+                    // بروزرسانی سرعت و ارتفاع
+                    this.currentVelocity += this.currentAcceleration * timeStep;
+                    this.currentAltitude = Math.max(0, this.currentAltitude + this.currentVelocity * timeStep);
+                    
+                    // بروزرسانی رکوردها
+                    this.maxAltitude = Math.max(this.maxAltitude, this.currentAltitude);
+                    this.maxVelocity = Math.max(this.maxVelocity, this.currentVelocity);
+                    
+                    // بروزرسانی فشار دینامیکی و دما
+                    this.dynamicPressure = this.calculateDynamicPressure();
+                    this.hullTemperature = 20 + (this.dynamicPressure * 0.5) + (this.currentVelocity * 0.001);
+                    
+                    // مصرف سوخت
+                    if (stage.fuelMass > 0) {
+                        const fuelConsumptionRate = (motor.thrust * stage.engineCount / (fuel.isp * 9.81)) * timeStep;
+                        const fuelMassConsumed = fuelConsumptionRate * this.throttle;
+                        
+                        stage.fuelMass = Math.max(0, stage.fuelMass - fuelMassConsumed);
+                        const tankCapacity = this.getTank(stage.tankSize).capacity * 1000 * fuel.density;
+                        stage.fuelRemaining = (stage.fuelMass / tankCapacity) * 100;
+                        this.currentFuel = stage.fuelRemaining;
+                        
+                        // بررسی اتمام سوخت
+                        if (stage.fuelRemaining <= 0.1 && !stage.isSeparated) {
+                            this.canSeparate = true;
+                        }
+                    }
+                    
+                    // بررسی سقوط
+                    if (this.currentVelocity < -100 || (this.currentAltitude <= 0 && this.currentVelocity < 0)) {
+                        this.endFlight("موشک سقوط کرد! 💥");
+                        return;
+                    }
+                    
+                    // بررسی پایان سوخت
+                    if (this.currentStage <= 1 && stage.fuelRemaining <= 0.1 && !stage.isSeparated) {
+                        this.endFlight("سوخت تمام شد");
+                        return;
+                    }
+                },
+                
+                // محاسبه جرم فعلی
+                calculateCurrentMass() {
+                    let mass = 0;
+                    
+                    for (let i = 0; i < this.stages.length; i++) {
+                        const stage = this.stages[i];
+                        
+                        if (stage.isSeparated) continue;
+                        
+                        mass += stage.dryMass;
+                        
+                        if (i >= this.stages.length - this.currentStage || !stage.isActive) {
+                            mass += stage.fuelMass;
+                        }
+                    }
+                    
+                    if (this.currentStage === this.stages.length && this.selectedBoosterId && this.boosterCount > 0) {
+                        const booster = this.getBooster(this.selectedBoosterId);
+                        mass += booster.mass * 1000 * this.boosterCount * Math.max(0, 1 - (this.stages[0].burnTime / (booster.burnTime * 2)));
+                    }
+                    
+                    return mass / 1000;
+                },
+                
+                // محاسبه پسا
+                calculateDrag() {
+                    if (this.currentAltitude > 100000) return 0;
+                    
+                    const airDensity = 1.225 * Math.exp(-this.currentAltitude / 8500);
+                    const dragCoefficient = 0.5;
+                    const crossSection = 50;
+                    
+                    return 0.5 * airDensity * Math.pow(this.currentVelocity, 2) * dragCoefficient * crossSection;
+                },
+                
+                // محاسبه فشار دینامیکی
+                calculateDynamicPressure() {
+                    if (this.currentAltitude > 100000) return 0;
+                    
+                    const airDensity = 1.225 * Math.exp(-this.currentAltitude / 8500);
+                    return 0.5 * airDensity * Math.pow(this.currentVelocity, 2) / 1000;
+                },
+                
+                // بروزرسانی دوربین
+                updateCamera() {
+                    switch(this.cameraView) {
+                        case 'follow':
+                            this.cameraOffset = this.currentAltitude - 200;
+                            this.cameraZoom = 1.0;
+                            this.cameraAngle = 0;
+                            break;
+                        case 'cockpit':
+                            this.cameraOffset = this.currentAltitude - 50;
+                            this.cameraZoom = 2.0;
+                            this.cameraAngle = 0;
+                            break;
+                        case 'global':
+                            this.cameraOffset = 0;
+                            this.cameraZoom = Math.min(1.0, 500000 / Math.max(this.currentAltitude, 100000));
+                            this.cameraAngle = 0;
+                            break;
+                        case 'orbit':
+                            this.cameraOffset = this.currentAltitude * 0.8;
+                            this.cameraZoom = 0.3;
+                            this.cameraAngle = this.flightTime * 0.05;
+                            break;
+                    }
+                    
+                    this.cameraOffset = Math.max(0, this.cameraOffset);
+                },
+                
+                // بروزرسانی ذرات
+                updateParticles(deltaTime) {
+                    for (let i = this.particles.length - 1; i >= 0; i--) {
+                        const p = this.particles[i];
+                        
+                        p.x += p.vx;
+                        p.y += p.vy;
+                        p.life -= p.decay;
+                        
+                        if (p.life <= 0) {
+                            this.particles.splice(i, 1);
+                        }
+                    }
+                    
+                    // ایجاد ذرات جدید برای موتور
+                    if (this.isFlying && this.currentFuel > 0) {
+                        const activeStageIndex = this.stages.length - this.currentStage;
+                        if (activeStageIndex >= 0 && this.stages[activeStageIndex].isActive) {
+                            const stage = this.stages[activeStageIndex];
+                            const motor = this.getMotor(stage.motorType);
+                            
+                            const particleCount = Math.floor(this.throttle * 10);
+                            for (let i = 0; i < particleCount; i++) {
+                                this.particles.push({
+                                    x: this.canvas.width / 2 + (Math.random() - 0.5) * 20,
+                                    y: this.getRocketY() + 30,
+                                    vx: (Math.random() - 0.5) * 2,
+                                    vy: Math.random() * 10 + 5,
+                                    size: Math.random() * 3 + 1,
+                                    color: this.getFlameColor(stage.fuelType),
+                                    life: 1.0,
+                                    decay: Math.random() * 0.02 + 0.01
+                                });
+                            }
+                        }
+                    }
+                },
+                
+                // بروزرسانی مسیر
+                updateTrajectory() {
+                    this.trajectoryPoints.push({
+                        x: this.canvas.width / 2,
+                        y: this.getRocketY(),
+                        time: this.flightTime
+                    });
+                    
+                    if (this.trajectoryPoints.length > 100) {
+                        this.trajectoryPoints.shift();
+                    }
+                },
+                
+                // دریافت رنگ شعله
+                getFlameColor(fuelTypeId) {
+                    const fuel = this.getFuel(fuelTypeId);
+                    if (fuel.id === 3) return `rgb(255, ${Math.random() * 100 + 100}, 0)`;
+                    if (fuel.id === 2) return `rgb(255, 255, ${Math.random() * 100 + 150})`;
+                    return `rgb(255, ${Math.random() * 100 + 155}, 0)`;
+                },
+                
+                // دریافت موقعیت Y موشک
+                getRocketY() {
+                    return this.canvas.height + 100 - ((this.currentAltitude - this.cameraOffset) * 0.1 * this.cameraZoom);
+                },
+                
+                // پایان پرواز
+                endFlight(reason) {
+                    this.isFlying = false;
+                    this.statusText = "پرواز پایان یافت";
+                    
+                    // محاسبه کارایی
+                    this.efficiency = Math.min(100, (this.maxAltitude / 1000000) * 100);
+                    
+                    // نمایش نتیجه
+                    setTimeout(() => {
+                        this.showResult = true;
+                        this.resultTitle = "نتایج پرواز";
+                        this.resultText = `پرواز شما پس از ${Math.round(this.flightTime)} ثانیه به پایان رسید. ${reason}`;
+                    }, 2000);
+                },
+                
+                // بستن نتیجه
+                closeResult() {
+                    this.showResult = false;
+                },
+                
+                // کنترل کلیدها
+                handleKeyDown(e) {
+                    if (!this.isFlying) return;
+                    
+                    switch(e.key) {
+                        case "ArrowUp":
+                            this.boostThrust();
+                            break;
+                        case "ArrowDown":
+                            this.reduceThrust();
+                            break;
+                        case " ":
+                            if (this.canSeparate) {
+                                this.stageSeparation();
+                                e.preventDefault();
+                            }
+                            break;
+                        case "c":
+                        case "C":
+                            this.toggleCamera();
+                            break;
+                    }
+                },
+                
+                handleKeyUp(e) {
+                    if (!this.isFlying) return;
+                    
+                    if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+                        this.normalThrust();
+                    }
+                },
+                
+                // تغییر دوربین
+                toggleCamera() {
+                    const views = ['follow', 'cockpit', 'global', 'orbit'];
+                    const currentIndex = views.indexOf(this.cameraView);
+                    this.cameraView = views[(currentIndex + 1) % views.length];
+                },
+                
+                // رسم صحنه
+                draw() {
+                    this.clearCanvases();
+                    this.drawStarfield();
+                    this.drawEarth();
+                    this.drawAtmosphere();
+                    this.drawTrajectory();
+                    this.drawRocket();
+                    this.drawParticles();
+                    this.drawOrbit();
+                },
+                
+                // پاک کردن کانواس‌ها
+                clearCanvases() {
+                    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                    this.starfieldCtx.clearRect(0, 0, this.starfieldCtx.canvas.width, this.starfieldCtx.canvas.height);
+                    this.particleCtx.clearRect(0, 0, this.particleCtx.canvas.width, this.particleCtx.canvas.height);
+                    this.trajectoryCtx.clearRect(0, 0, this.trajectoryCtx.canvas.width, this.trajectoryCtx.canvas.height);
+                    this.atmosphereCtx.clearRect(0, 0, this.atmosphereCtx.canvas.width, this.atmosphereCtx.canvas.height);
+                },
+                
+                // رسم ستارگان
+                drawStarfield() {
+                    const ctx = this.starfieldCtx;
+                    const time = this.time;
+                    
+                    this.stars.forEach(star => {
+                        const brightness = star.brightness * (0.7 + 0.3 * Math.sin(time * star.twinkleSpeed + star.twinkleOffset));
+                        ctx.fillStyle = `rgba(255, 255, 255, ${brightness})`;
+                        ctx.beginPath();
+                        ctx.arc(star.x, star.y - (this.cameraOffset * 0.05), star.size, 0, Math.PI * 2);
+                        ctx.fill();
+                    });
+                },
+                
+                // رسم زمین
+                drawEarth() {
+                    const ctx = this.ctx;
+                    const width = this.canvas.width;
+                    const height = this.canvas.height;
+                    
+                    const earthY = height + 100 - (this.cameraOffset * 0.1 * this.cameraZoom);
+                    const earthRadius = 150 * this.cameraZoom;
+                    
+                    if (earthY + earthRadius > 0) {
+                        // درخشش زمین
+                        const glowGradient = ctx.createRadialGradient(
+                            width/2, earthY, earthRadius,
+                            width/2, earthY, earthRadius * 2
+                        );
+                        glowGradient.addColorStop(0, 'rgba(64, 164, 255, 0.5)');
+                        glowGradient.addColorStop(1, 'rgba(64, 164, 255, 0)');
+                        
+                        ctx.fillStyle = glowGradient;
+                        ctx.beginPath();
+                        ctx.arc(width/2, earthY, earthRadius * 2, 0, Math.PI * 2);
+                        ctx.fill();
+                        
+                        // زمین
+                        const earthGradient = ctx.createRadialGradient(
+                            width/2 - earthRadius/3, earthY - earthRadius/3, 0,
+                            width/2, earthY, earthRadius
+                        );
+                        earthGradient.addColorStop(0, '#1e90ff');
+                        earthGradient.addColorStop(0.7, '#1c86ee');
+                        earthGradient.addColorStop(1, '#104e8b');
+                        
+                        ctx.fillStyle = earthGradient;
+                        ctx.beginPath();
+                        ctx.arc(width/2, earthY, earthRadius, 0, Math.PI * 2);
+                        ctx.fill();
+                        
+                        // قاره‌ها با جلوه سه‌بعدی
+                        this.drawContinents(ctx, width/2, earthY, earthRadius);
+                    }
+                },
+                
+                // رسم قاره‌ها با جلوه سه‌بعدی
+                drawContinents(ctx, cx, cy, radius) {
+                    ctx.save();
+                    
+                    // آمریکای شمالی
+                    ctx.fillStyle = 'rgba(34, 139, 34, 0.4)';
+                    ctx.beginPath();
+                    ctx.ellipse(cx - radius/2, cy - radius/4, radius/3, radius/5, Math.PI/6, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    // آفریقا
+                    ctx.fillStyle = 'rgba(34, 139, 34, 0.4)';
+                    ctx.beginPath();
+                    ctx.ellipse(cx + radius/3, cy + radius/6, radius/4, radius/3, -Math.PI/4, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    // آسیا
+                    ctx.fillStyle = 'rgba(34, 139, 34, 0.4)';
+                    ctx.beginPath();
+                    ctx.ellipse(cx + radius/5, cy - radius/3, radius/3, radius/4, Math.PI/3, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    ctx.restore();
+                },
+                
+                // رسم جو
+                drawAtmosphere() {
+                    const ctx = this.atmosphereCtx;
+                    const width = ctx.canvas.width;
+                    const height = ctx.canvas.height;
+                    
+                    if (this.currentAltitude < 100000) {
+                        const atmosphereHeight = 100000;
+                        const alpha = Math.max(0, 0.3 * (1 - this.currentAltitude / atmosphereHeight));
+                        
+                        const gradient = ctx.createRadialGradient(
+                            width/2, height + 100, 150,
+                            width/2, height + 100, 450
+                        );
+                        gradient.addColorStop(0, `rgba(135, 206, 235, ${alpha})`);
+                        gradient.addColorStop(1, `rgba(135, 206, 235, 0)`);
+                        
+                        ctx.fillStyle = gradient;
+                        ctx.beginPath();
+                        ctx.arc(width/2, height + 100, 450, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                },
+                
+                // رسم مسیر
+                drawTrajectory() {
+                    const ctx = this.trajectoryCtx;
+                    
+                    if (this.trajectoryPoints.length > 1) {
+                        ctx.strokeStyle = 'rgba(0, 242, 254, 0.5)';
+                        ctx.lineWidth = 2;
+                        ctx.beginPath();
+                        
+                        this.trajectoryPoints.forEach((point, i) => {
+                            const alpha = i / this.trajectoryPoints.length;
+                            const y = point.y;
+                            
+                            if (i === 0) {
+                                ctx.moveTo(point.x, y);
+                            } else {
+                                ctx.lineTo(point.x, y);
+                            }
+                        });
+                        
+                        ctx.stroke();
+                        
+                        // نقاط مسیر
+                        this.trajectoryPoints.forEach((point, i) => {
+                            if (i % 10 === 0) {
+                                const alpha = i / this.trajectoryPoints.length;
+                                ctx.fillStyle = `rgba(0, 242, 254, ${alpha})`;
+                                ctx.beginPath();
+                                ctx.arc(point.x, point.y, 2, 0, Math.PI * 2);
+                                ctx.fill();
+                            }
+                        });
+                    }
+                },
+                
+                // رسم موشک با جلوه سه‌بعدی
+                drawRocket() {
+                    const ctx = this.ctx;
+                    const width = this.canvas.width;
+                    const height = this.canvas.height;
+                    
+                    const rocketX = width / 2;
+                    const rocketY = this.getRocketY();
+                    
+                    if (rocketY < -200 || rocketY > height + 200) return;
+                    
+                    const rocketWidth = 20 * this.cameraZoom;
+                    const rocketHeight = 80 * this.cameraZoom;
+                    
+                    // رسم مراحل
+                    for (let i = 0; i < this.stages.length; i++) {
+                        if (!this.stages[i].isSeparated) {
+                            this.drawStage3D(ctx, rocketX, rocketY, rocketWidth, rocketHeight, i);
+                        }
+                    }
+                    
+                    // رسم دماغه با جلوه سه‌بعدی
+                    this.drawNoseCone3D(ctx, rocketX, rocketY, rocketWidth, rocketHeight);
+                    
+                    // رسم شعله
+                    if (this.isFlying && this.currentFuel > 0) {
+                        this.drawExhaustFlame(ctx, rocketX, rocketY);
+                    }
+                    
+                    // رسم بوسترها
+                    if (this.selectedBoosterId && this.boosterCount > 0 && this.currentStage === this.stages.length) {
+                        this.drawBoosters3D(ctx, rocketX, rocketY, rocketWidth, rocketHeight);
+                    }
+                },
+                
+                // رسم مرحله با جلوه سه‌بعدی
+                drawStage3D(ctx, rocketX, rocketY, rocketWidth, rocketHeight, stageIndex) {
+                    const stage = this.stages[stageIndex];
+                    const isActive = (this.stages.length - stageIndex) === this.currentStage;
+                    
+                    const stageHeight = 40 * this.cameraZoom;
+                    const stageWidth = 25 * this.cameraZoom;
+                    const stageY = rocketY - (stageIndex * 10 * this.cameraZoom);
+                    
+                    // رنگ بر اساس وضعیت
+                    let stageColor;
+                    if (isActive && this.isFlying) {
+                        stageColor = '#00f2fe';
+                    } else if (stage.isSeparated) {
+                        stageColor = '#00b09b';
+                    } else if (stage.fuelRemaining < 30) {
+                        stageColor = '#ffc107';
+                    } else if (stage.fuelRemaining < 10) {
+                        stageColor = '#dc3545';
+                    } else {
+                        stageColor = '#666';
+                    }
+                    
+                    // بدنه با سایه برای جلوه سه‌بعدی
+                    const gradient = ctx.createLinearGradient(
+                        rocketX - stageWidth/2, stageY - stageHeight,
+                        rocketX + stageWidth/2, stageY - stageHeight
+                    );
+                    gradient.addColorStop(0, this.darkenColor(stageColor, 30));
+                    gradient.addColorStop(0.5, stageColor);
+                    gradient.addColorStop(1, this.darkenColor(stageColor, 30));
+                    
+                    ctx.fillStyle = gradient;
+                    ctx.fillRect(rocketX - stageWidth/2, stageY - stageHeight, stageWidth, stageHeight);
+                    
+                    // خطوط برجسته
+                    ctx.strokeStyle = this.lightenColor(stageColor, 20);
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.moveTo(rocketX - stageWidth/2, stageY - stageHeight);
+                    ctx.lineTo(rocketX - stageWidth/2, stageY);
+                    ctx.moveTo(rocketX + stageWidth/2, stageY - stageHeight);
+                    ctx.lineTo(rocketX + stageWidth/2, stageY);
+                    ctx.stroke();
+                    
+                    // موتورها
+                    if (stage.engineCount > 0) {
+                        const engineWidth = 8 * this.cameraZoom;
+                        const engineHeight = 10 * this.cameraZoom;
+                        const engineSpacing = stageWidth / (stage.engineCount + 1);
+                        
+                        for (let i = 1; i <= stage.engineCount; i++) {
+                            const engineX = rocketX - stageWidth/2 + engineSpacing * i;
+                            const engineY = stageY;
+                            
+                            const engineGradient = ctx.createLinearGradient(
+                                engineX - engineWidth/2, engineY,
+                                engineX - engineWidth/2, engineY + engineHeight
+                            );
+                            engineGradient.addColorStop(0, '#333');
+                            engineGradient.addColorStop(1, '#666');
+                            
+                            ctx.fillStyle = engineGradient;
+                            ctx.fillRect(engineX - engineWidth/2, engineY, engineWidth, engineHeight);
+                        }
+                    }
+                    
+                    // شماره مرحله
+                    ctx.fillStyle = '#ffffff';
+                    ctx.font = `${12 * this.cameraZoom}px Arial`;
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(this.stages.length - stageIndex, rocketX, stageY - stageHeight/2);
+                },
+                
+                // رسم دماغه سه‌بعدی
+                drawNoseCone3D(ctx, rocketX, rocketY, rocketWidth, rocketHeight) {
+                    const noseHeight = 30 * this.cameraZoom;
+                    const noseY = rocketY - rocketHeight - noseHeight;
+                    
+                    // گرادیانت برای جلوه سه‌بعدی
+                    const gradient = ctx.createLinearGradient(
+                        rocketX, noseY,
+                        rocketX, noseY + noseHeight
+                    );
+                    gradient.addColorStop(0, '#ff5555');
+                    gradient.addColorStop(1, '#cc0000');
+                    
+                    ctx.fillStyle = gradient;
+                    ctx.beginPath();
+                    ctx.moveTo(rocketX - rocketWidth/2, rocketY - rocketHeight);
+                    ctx.lineTo(rocketX + rocketWidth/2, rocketY - rocketHeight);
+                    ctx.lineTo(rocketX, noseY);
+                    ctx.closePath();
+                    ctx.fill();
+                    
+                    // خط برجسته
+                    ctx.strokeStyle = '#ff8888';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.moveTo(rocketX - rocketWidth/2, rocketY - rocketHeight);
+                    ctx.lineTo(rocketX, noseY);
+                    ctx.lineTo(rocketX + rocketWidth/2, rocketY - rocketHeight);
+                    ctx.stroke();
+                },
+                
+                // رسم شعله موتور
+                drawExhaustFlame(ctx, rocketX, rocketY) {
+                    const activeStageIndex = this.stages.length - this.currentStage;
+                    if (activeStageIndex >= 0 && this.stages[activeStageIndex].isActive) {
+                        const stage = this.stages[activeStageIndex];
+                        const motor = this.getMotor(stage.motorType);
+                        
+                        const flameHeight = 40 * this.cameraZoom * (motor.thrust / 7500000) * this.throttle * Math.min(1, stage.fuelRemaining / 30 + 0.7);
+                        const flameWidth = 15 * this.cameraZoom;
+                        
+                        // رنگ شعله بر اساس سوخت
+                        const flameColor = this.getFlameColor(stage.fuelType);
+                        
+                        // شعله اصلی
+                        const flameGradient = ctx.createLinearGradient(
+                            rocketX, rocketY,
+                            rocketX, rocketY + flameHeight
+                        );
+                        flameGradient.addColorStop(0, flameColor);
+                        flameGradient.addColorStop(0.3, '#ff4500');
+                        flameGradient.addColorStop(1, 'transparent');
+                        
+                        ctx.fillStyle = flameGradient;
+                        ctx.beginPath();
+                        ctx.ellipse(rocketX, rocketY, flameWidth/2, flameHeight/3, 0, 0, Math.PI * 2);
+                        ctx.fill();
+                        
+                        // هسته داغ شعله
+                        const coreGradient = ctx.createRadialGradient(
+                            rocketX, rocketY, 0,
+                            rocketX, rocketY, flameWidth/3
+                        );
+                        coreGradient.addColorStop(0, '#ffffff');
+                        coreGradient.addColorStop(1, 'transparent');
+                        
+                        ctx.fillStyle = coreGradient;
+                        ctx.beginPath();
+                        ctx.arc(rocketX, rocketY, flameWidth/3, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                },
+                
+                // رسم بوسترهای سه‌بعدی
+                drawBoosters3D(ctx, rocketX, rocketY, rocketWidth, rocketHeight) {
+                    const booster = this.getBooster(this.selectedBoosterId);
+                    const boosterHeight = 30 * this.cameraZoom;
+                    const boosterWidth = 12 * this.cameraZoom;
+                    
+                    for (let i = 0; i < Math.min(this.boosterCount, 4); i++) {
+                        const side = i % 2 === 0 ? -1 : 1;
+                        const position = Math.floor(i / 2);
+                        const offsetX = (rocketWidth + boosterWidth + 10) * side + (position * 20 * side * this.cameraZoom);
+                        const boosterY = rocketY - boosterHeight/2;
+                        
+                        // بدنه بوستر با گرادیانت
+                        const boosterGradient = ctx.createLinearGradient(
+                            rocketX + offsetX - boosterWidth/2, boosterY,
+                            rocketX + offsetX - boosterWidth/2, boosterY + boosterHeight
+                        );
+                        boosterGradient.addColorStop(0, '#ffaa00');
+                        boosterGradient.addColorStop(1, '#cc7700');
+                        
+                        ctx.fillStyle = boosterGradient;
+                        ctx.fillRect(rocketX + offsetX - boosterWidth/2, boosterY, boosterWidth, boosterHeight);
+                        
+                        // خطوط برجسته
+                        ctx.strokeStyle = '#ffcc00';
+                        ctx.lineWidth = 2;
+                        ctx.beginPath();
+                        ctx.moveTo(rocketX + offsetX - boosterWidth/2, boosterY);
+                        ctx.lineTo(rocketX + offsetX - boosterWidth/2, boosterY + boosterHeight);
+                        ctx.moveTo(rocketX + offsetX + boosterWidth/2, boosterY);
+                        ctx.lineTo(rocketX + offsetX + boosterWidth/2, boosterY + boosterHeight);
+                        ctx.stroke();
+                        
+                        // شعله بوستر
+                        if (this.isFlying && this.stages[0].burnTime < booster.burnTime) {
+                            const flameHeight = 20 * this.cameraZoom * (1 - this.stages[0].burnTime / booster.burnTime);
+                            const flameGradient = ctx.createLinearGradient(
+                                rocketX + offsetX, boosterY + boosterHeight,
+                                rocketX + offsetX, boosterY + boosterHeight + flameHeight
+                            );
+                            flameGradient.addColorStop(0, '#ff8c00');
+                            flameGradient.addColorStop(0.5, '#ff4500');
+                            flameGradient.addColorStop(1, 'transparent');
+                            
+                            ctx.fillStyle = flameGradient;
+                            ctx.beginPath();
+                            ctx.ellipse(rocketX + offsetX, boosterY + boosterHeight, boosterWidth/3, flameHeight/3, 0, 0, Math.PI * 2);
+                            ctx.fill();
+                        }
+                    }
+                },
+                
+                // رسم ذرات
+                drawParticles() {
+                    const ctx = this.particleCtx;
+                    
+                    this.particles.forEach(p => {
+                        ctx.globalAlpha = p.life;
+                        ctx.fillStyle = p.color;
+                        ctx.beginPath();
+                        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                        ctx.fill();
+                    });
+                    
+                    ctx.globalAlpha = 1.0;
+                },
+                
+                // رسم مدار
+                drawOrbit() {
+                    const ctx = this.orbitCtx;
+                    const width = ctx.canvas.width;
+                    const height = ctx.canvas.height;
+                    
+                    ctx.clearRect(0, 0, width, height);
+                    
+                    // زمین در مرکز
+                    const centerX = width / 2;
+                    const centerY = height / 2;
+                    const earthRadius = 30;
+                    
+                    // زمین
+                    ctx.fillStyle = '#1e90ff';
+                    ctx.beginPath();
+                    ctx.arc(centerX, centerY, earthRadius, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    // مدارها
+                    const orbits = [
+                        { radius: 50, color: 'rgba(0, 242, 254, 0.3)', label: 'LEO' },
+                        { radius: 80, color: 'rgba(255, 193, 7, 0.3)', label: 'MEO' },
+                        { radius: 120, color: 'rgba(0, 176, 155, 0.3)', label: 'GEO' }
+                    ];
+                    
+                    orbits.forEach(orbit => {
+                        ctx.strokeStyle = orbit.color;
+                        ctx.lineWidth = 1;
+                        ctx.beginPath();
+                        ctx.arc(centerX, centerY, orbit.radius, 0, Math.PI * 2);
+                        ctx.stroke();
+                        
+                        ctx.fillStyle = orbit.color;
+                        ctx.font = '10px Arial';
+                        ctx.textAlign = 'center';
+                        ctx.fillText(orbit.label, centerX + orbit.radius + 10, centerY);
+                    });
+                    
+                    // موقعیت موشک
+                    const orbitRadius = earthRadius + (this.currentAltitude / 1000000) * 100;
+                    const angle = this.flightTime * 0.1;
+                    const rocketX = centerX + orbitRadius * Math.cos(angle);
+                    const rocketY = centerY + orbitRadius * Math.sin(angle);
+                    
+                    // موشک
+                    ctx.fillStyle = '#00f2fe';
+                    ctx.beginPath();
+                    ctx.arc(rocketX, rocketY, 5, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    // خط مسیر
+                    ctx.strokeStyle = 'rgba(0, 242, 254, 0.5)';
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.arc(centerX, centerY, orbitRadius, 0, Math.PI * 2);
+                    ctx.stroke();
+                },
+                
+                // رنگ‌های کم‌رنگ و پررنگ
+                darkenColor(color, percent) {
+                    const num = parseInt(color.replace("#", ""), 16);
+                    const amt = Math.round(2.55 * percent);
+                    const R = (num >> 16) - amt;
+                    const G = (num >> 8 & 0x00FF) - amt;
+                    const B = (num & 0x0000FF) - amt;
+                    
+                    return "#" + (
+                        0x1000000 +
+                        (R < 255 ? R < 1 ? 0 : R : 255) * 0x10000 +
+                        (G < 255 ? G < 1 ? 0 : G : 255) * 0x100 +
+                        (B < 255 ? B < 1 ? 0 : B : 255)
+                    ).toString(16).slice(1);
+                },
+                
+                lightenColor(color, percent) {
+                    const num = parseInt(color.replace("#", ""), 16);
+                    const amt = Math.round(2.55 * percent);
+                    const R = (num >> 16) + amt;
+                    const G = (num >> 8 & 0x00FF) + amt;
+                    const B = (num & 0x0000FF) + amt;
+                    
+                    return "#" + (
+                        0x1000000 +
+                        (R > 255 ? 255 : R) * 0x10000 +
+                        (G > 255 ? 255 : G) * 0x100 +
+                        (B > 255 ? 255 : B)
+                    ).toString(16).slice(1);
+                },
+                
+                // فرمت فاصله
+                formatDistance(meters) {
+                    if (meters >= 1000000) {
+                        return (meters/1000000).toFixed(2) + ' Mm';
+                    } else if (meters >= 1000) {
+                        return (meters/1000).toFixed(1) + ' km';
+                    } else {
+                        return Math.round(meters) + ' m';
+                    }
+                }
+            };
+        }
+    </script>
+</body>
+</html>

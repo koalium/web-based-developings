@@ -1,0 +1,1752 @@
+<!DOCTYPE html>
+<html lang="en" x-data="nBodySimulation()" x-cloak>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>N-Body Gravitational Simulation with 3D Visualization</title>
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0a0a1a 0%, #1a1a2e 100%);
+            color: #e0e0ff;
+            min-height: 100vh;
+            padding: 20px;
+            overflow-x: hidden;
+        }
+        
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid rgba(100, 150, 255, 0.2);
+        }
+        
+        h1 {
+            font-size: 3rem;
+            background: linear-gradient(90deg, #ff6b6b 0%, #4ecdc4 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+            text-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+        
+        .subtitle {
+            font-size: 1.2rem;
+            color: #a0a0ff;
+            max-width: 1000px;
+            margin: 0 auto 20px;
+            line-height: 1.6;
+        }
+        
+        .main-simulation {
+            display: grid;
+            grid-template-columns: 3fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+        
+        @media (max-width: 1200px) {
+            .main-simulation {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .visualization-section {
+            background: rgba(10, 12, 40, 0.7);
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(100, 150, 255, 0.1);
+        }
+        
+        .canvas-container {
+            position: relative;
+            width: 100%;
+            height: 600px;
+            margin-bottom: 15px;
+        }
+        
+        #simulationCanvas {
+            background-color: rgba(5, 7, 25, 0.95);
+            border-radius: 10px;
+            width: 100%;
+            height: 100%;
+            box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.5);
+        }
+        
+        .canvas-title {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(100, 150, 255, 0.2);
+        }
+        
+        .canvas-title h2 {
+            font-size: 1.8rem;
+            color: #6ab7ff;
+            margin: 0;
+        }
+        
+        .controls-section {
+            display: flex;
+            flex-direction: column;
+            gap: 25px;
+        }
+        
+        .control-panel {
+            background: rgba(10, 12, 40, 0.7);
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(100, 150, 255, 0.1);
+        }
+        
+        h2 {
+            font-size: 1.5rem;
+            color: #6ab7ff;
+            margin-bottom: 15px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid rgba(100, 150, 255, 0.2);
+        }
+        
+        h3 {
+            font-size: 1.2rem;
+            color: #8bcbff;
+            margin-bottom: 10px;
+        }
+        
+        .slider-container {
+            margin-bottom: 15px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #b0d0ff;
+            font-weight: 500;
+        }
+        
+        input[type="range"] {
+            width: 100%;
+            height: 8px;
+            -webkit-appearance: none;
+            background: linear-gradient(90deg, rgba(255, 107, 107, 0.8) 0%, rgba(78, 205, 196, 0.8) 100%);
+            border-radius: 4px;
+            outline: none;
+        }
+        
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            background: #fff;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(79, 172, 254, 0.8);
+        }
+        
+        .value-display {
+            display: inline-block;
+            padding: 3px 10px;
+            background: rgba(79, 172, 254, 0.2);
+            border-radius: 4px;
+            font-family: monospace;
+            margin-left: 10px;
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+            flex-wrap: wrap;
+        }
+        
+        button {
+            padding: 12px 20px;
+            background: linear-gradient(90deg, #ff6b6b 0%, #4ecdc4 100%);
+            border: none;
+            border-radius: 8px;
+            color: #0c0e2a;
+            font-weight: bold;
+            cursor: pointer;
+            flex: 1;
+            min-width: 120px;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 15px rgba(255, 107, 107, 0.4);
+        }
+        
+        button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(255, 107, 107, 0.6);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        button.reset {
+            background: linear-gradient(90deg, #fe4f4f 0%, #fe9a00 100%);
+            box-shadow: 0 5px 15px rgba(254, 79, 79, 0.4);
+        }
+        
+        button.primary {
+            background: linear-gradient(90deg, #4facfe 0%, #00f2fe 100%);
+            box-shadow: 0 5px 15px rgba(79, 172, 254, 0.4);
+        }
+        
+        .body-controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+            max-height: 300px;
+            overflow-y: auto;
+            padding-right: 10px;
+        }
+        
+        .body-card {
+            background: rgba(20, 22, 50, 0.6);
+            border-radius: 10px;
+            padding: 15px;
+            border: 1px solid rgba(100, 150, 255, 0.2);
+            transition: all 0.3s ease;
+        }
+        
+        .body-card:hover {
+            border-color: #ff6b6b;
+            transform: translateY(-2px);
+        }
+        
+        .body-card.active {
+            border-color: #4ecdc4;
+            box-shadow: 0 0 15px rgba(78, 205, 196, 0.3);
+        }
+        
+        .body-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .body-name {
+            font-weight: bold;
+            color: #ffd166;
+            font-size: 1.1rem;
+        }
+        
+        .body-mass {
+            font-family: monospace;
+            background: rgba(255, 107, 107, 0.2);
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.9rem;
+        }
+        
+        .info-section {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 30px;
+        }
+        
+        .info-card {
+            background: rgba(10, 12, 40, 0.7);
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            border-left: 4px solid #ff6b6b;
+        }
+        
+        .data-display {
+            font-family: monospace;
+            background: rgba(5, 7, 25, 0.8);
+            padding: 12px;
+            border-radius: 8px;
+            margin-top: 10px;
+            font-size: 0.9rem;
+            border: 1px solid rgba(100, 150, 255, 0.2);
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        
+        .data-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px 0;
+            border-bottom: 1px dashed rgba(100, 150, 255, 0.1);
+        }
+        
+        .data-row:last-child {
+            border-bottom: none;
+        }
+        
+        .data-label {
+            color: #b0d0ff;
+        }
+        
+        .data-value {
+            color: #ffd166;
+            font-weight: bold;
+        }
+        
+        .physics-badge {
+            display: inline-block;
+            background: linear-gradient(90deg, #ff8a00 0%, #ffcc00 100%);
+            color: #0c0e2a;
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        
+        .visualization-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 15px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        
+        .toggle-group {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .toggle-btn {
+            padding: 8px 15px;
+            background: rgba(20, 22, 50, 0.8);
+            border: 1px solid rgba(100, 150, 255, 0.3);
+            border-radius: 6px;
+            color: #b0d0ff;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .toggle-btn.active {
+            background: linear-gradient(90deg, #4facfe 0%, #00f2fe 100%);
+            color: #0c0e2a;
+            border-color: transparent;
+        }
+        
+        .camera-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        .camera-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: rgba(20, 22, 50, 0.8);
+            border: 1px solid rgba(100, 150, 255, 0.3);
+            color: #b0d0ff;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            transition: all 0.3s ease;
+        }
+        
+        .camera-btn:hover {
+            background: rgba(79, 172, 254, 0.2);
+            transform: scale(1.1);
+        }
+        
+        .preset-buttons {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        .preset-btn {
+            padding: 10px;
+            background: rgba(20, 22, 50, 0.8);
+            border: 1px solid rgba(100, 150, 255, 0.3);
+            border-radius: 6px;
+            color: #b0d0ff;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+        }
+        
+        .preset-btn:hover {
+            background: rgba(78, 205, 196, 0.2);
+            border-color: #4ecdc4;
+        }
+        
+        .color-indicator {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+            vertical-align: middle;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+        }
+        
+        @media (max-width: 1200px) {
+            .main-simulation {
+                grid-template-columns: 1fr;
+            }
+            
+            .body-controls {
+                grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .button-group {
+                flex-direction: column;
+            }
+            
+            button {
+                min-width: 100%;
+            }
+            
+            .visualization-controls {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+        }
+        
+        [x-cloak] {
+            display: none !important;
+        }
+        
+        .stats-overlay {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid rgba(100, 150, 255, 0.3);
+            font-size: 0.9rem;
+            max-width: 300px;
+            backdrop-filter: blur(5px);
+        }
+        
+        .stats-title {
+            color: #4ecdc4;
+            font-weight: bold;
+            margin-bottom: 10px;
+            font-size: 1rem;
+        }
+        
+        .com-display {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 107, 107, 0.3);
+            font-size: 0.9rem;
+            backdrop-filter: blur(5px);
+        }
+        
+        .com-label {
+            color: #ff6b6b;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>N-Body Gravitational Simulation</h1>
+            <p class="subtitle">A precise 2D/3D visualization of multiple celestial bodies interacting through gravity. Each body has unique mass, orbital plane, rotation, and physical properties. Adjust parameters and watch complex orbital dynamics unfold.</p>
+        </header>
+        
+        <div class="main-simulation">
+            <div class="visualization-section">
+                <div class="canvas-title">
+                    <h2>3D Orbital Visualization</h2>
+                    <div class="visualization-controls">
+                        <div class="toggle-group">
+                            <div class="toggle-btn" @click="viewMode = '3D'" :class="{active: viewMode === '3D'}">3D View</div>
+                            <div class="toggle-btn" @click="viewMode = '2D'" :class="{active: viewMode === '2D'}">2D View</div>
+                            <div class="toggle-btn" @click="viewMode = 'top'" :class="{active: viewMode === 'top'}">Top View</div>
+                        </div>
+                        <div class="camera-controls">
+                            <div class="camera-btn" @click="rotateCamera('left')">◀</div>
+                            <div class="camera-btn" @click="rotateCamera('reset')">⟲</div>
+                            <div class="camera-btn" @click="rotateCamera('right')">▶</div>
+                            <div class="camera-btn" @click="zoomCamera('in')">+</div>
+                            <div class="camera-btn" @click="zoomCamera('out')">-</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="canvas-container">
+                    <canvas id="simulationCanvas" width="1200" height="600"></canvas>
+                    <div class="stats-overlay">
+                        <div class="stats-title">System Statistics</div>
+                        <div class="data-row">
+                            <span class="data-label">Total Energy:</span>
+                            <span class="data-value" x-text="totalEnergy.toExponential(2)"> J</span>
+                        </div>
+                        <div class="data-row">
+                            <span class="data-label">Angular Momentum:</span>
+                            <span class="data-value" x-text="angularMomentum.toExponential(2)"> kg·m²/s</span>
+                        </div>
+                        <div class="data-row">
+                            <span class="data-label">Center of Mass:</span>
+                            <span class="data-value" x-text="centerOfMass.toFixed(1)"> px</span>
+                        </div>
+                        <div class="data-row">
+                            <span class="data-label">Time Scale:</span>
+                            <span class="data-value" x-text="timeScale.toFixed(1)">x</span>
+                        </div>
+                        <div class="data-row">
+                            <span class="data-label">Bodies:</span>
+                            <span class="data-value" x-text="bodies.length"></span>
+                        </div>
+                    </div>
+                    <div class="com-display">
+                        <div class="com-label">Center of Mass</div>
+                        <div x-text="centerOfMassDetail"></div>
+                    </div>
+                </div>
+                <div class="button-group">
+                    <button @click="toggleSimulation" x-text="isRunning ? '⏸️ Pause' : '▶️ Play'"></button>
+                    <button @click="resetSimulation" class="reset">🔄 Reset</button>
+                    <button @click="clearTrails">🗑️ Clear Trails</button>
+                    <button @click="stepForward" :disabled="isRunning">⏭️ Step</button>
+                </div>
+            </div>
+            
+            <div class="controls-section">
+                <div class="control-panel">
+                    <h2>System Configuration</h2>
+                    
+                    <div class="slider-container">
+                        <label for="bodyCount">Number of Bodies: <span class="value-display" x-text="bodyCount"></span></label>
+                        <input type="range" id="bodyCount" min="2" max="10" step="1" x-model="bodyCount" @change="updateBodyCount">
+                    </div>
+                    
+                    <div class="slider-container">
+                        <label for="timeScale">Time Scale: <span class="value-display" x-text="timeScale.toFixed(1)">x</span></label>
+                        <input type="range" id="timeScale" min="0.1" max="10" step="0.1" x-model="timeScale">
+                    </div>
+                    
+                    <div class="slider-container">
+                        <label for="gravityConstant">Gravity Strength: <span class="value-display" x-text="gravityConstant.toFixed(2)">x</span></label>
+                        <input type="range" id="gravityConstant" min="0.1" max="2" step="0.05" x-model="gravityConstant">
+                    </div>
+                    
+                    <div class="preset-buttons">
+                        <div class="preset-btn" @click="loadSolarSystemPreset">Solar System</div>
+                        <div class="preset-btn" @click="loadBinaryStarPreset">Binary Stars</div>
+                        <div class="preset-btn" @click="loadChaoticPreset">Chaotic System</div>
+                        <div class="preset-btn" @click="loadStableOrbitsPreset">Stable Orbits</div>
+                    </div>
+                </div>
+                
+                <div class="control-panel">
+                    <h2>Body Properties</h2>
+                    <p style="color: #a0a0ff; margin-bottom: 15px; font-size: 0.9rem;">Click a body to select and edit its properties</p>
+                    
+                    <div class="body-controls">
+                        <template x-for="(body, index) in bodies" :key="body.id">
+                            <div class="body-card" :class="{active: selectedBodyId === body.id}" 
+                                 @click="selectedBodyId = body.id">
+                                <div class="body-header">
+                                    <div class="body-name">
+                                        <span class="color-indicator" :style="{backgroundColor: body.color}"></span>
+                                        <span x-text="body.name"></span>
+                                    </div>
+                                    <div class="body-mass" x-text="formatMass(body.mass)"></div>
+                                </div>
+                                <div style="font-size: 0.85rem; color: #b0d0ff;">
+                                    <div>Position: (<span x-text="body.position.x.toFixed(0)"></span>, <span x-text="body.position.y.toFixed(0)"></span>)</div>
+                                    <div>Velocity: <span x-text="body.velocity.magnitude.toFixed(1)"></span></div>
+                                    <div>Size: <span x-text="body.radius.toFixed(0)"></span> px</div>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                    
+                    <div x-show="selectedBody" style="margin-top: 20px;">
+                        <h3>Edit: <span x-text="selectedBody.name"></span></h3>
+                        
+                        <div class="slider-container">
+                            <label>Mass: <span class="value-display" x-text="formatMass(selectedBody.mass)"></span></label>
+                            <input type="range" min="1" max="1000" step="1" x-model="selectedBody.mass">
+                        </div>
+                        
+                        <div class="slider-container">
+                            <label>Radius: <span class="value-display" x-text="selectedBody.radius.toFixed(0)"> px</span></label>
+                            <input type="range" min="5" max="50" step="1" x-model="selectedBody.radius">
+                        </div>
+                        
+                        <div class="slider-container">
+                            <label>Rotation Speed: <span class="value-display" x-text="selectedBody.rotationSpeed.toFixed(1)">x</span></label>
+                            <input type="range" min="0" max="5" step="0.1" x-model="selectedBody.rotationSpeed">
+                        </div>
+                        
+                        <div class="slider-container">
+                            <label>Orbital Plane: <span class="value-display" x-text="selectedBody.orbitalPlane.toFixed(0)">°</span></label>
+                            <input type="range" min="-45" max="45" step="1" x-model="selectedBody.orbitalPlane">
+                        </div>
+                        
+                        <div class="button-group">
+                            <button @click="randomizeBody(selectedBody)" class="primary">Randomize</button>
+                            <button @click="deleteBody(selectedBody)" class="reset">Delete</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="control-panel">
+                    <h2>Visualization Settings</h2>
+                    
+                    <div class="slider-container">
+                        <label for="trailLength">Trail Length: <span class="value-display" x-text="trailLength"></span> points</label>
+                        <input type="range" id="trailLength" min="50" max="1000" step="50" x-model="trailLength">
+                    </div>
+                    
+                    <div class="slider-container">
+                        <label for="trailOpacity">Trail Opacity: <span class="value-display" x-text="trailOpacity.toFixed(1)"></span></label>
+                        <input type="range" id="trailOpacity" min="0.1" max="1" step="0.1" x-model="trailOpacity">
+                    </div>
+                    
+                    <div class="toggle-group" style="margin-top: 15px;">
+                        <div class="toggle-btn" @click="showTrails = !showTrails" :class="{active: showTrails}">Trails</div>
+                        <div class="toggle-btn" @click="showLabels = !showLabels" :class="{active: showLabels}">Labels</div>
+                        <div class="toggle-btn" @click="showGrid = !showGrid" :class="{active: showGrid}">Grid</div>
+                        <div class="toggle-btn" @click="showVectors = !showVectors" :class="{active: showVectors}">Vectors</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="info-section">
+            <div class="info-card">
+                <div class="physics-badge">N-BODY PHYSICS</div>
+                <h2>Gravitational Dynamics</h2>
+                <div class="data-display">
+                    <div class="data-row">
+                        <span class="data-label">Newton's Law of Gravitation:</span>
+                    </div>
+                    <div style="text-align: center; margin: 10px 0; font-family: monospace;">
+                        F = G × (m₁ × m₂) / r²
+                    </div>
+                    <div class="data-row">
+                        <span class="data-label">Force Calculation Complexity:</span>
+                        <span class="data-value" x-text="'O(n²) = ' + (bodies.length * bodies.length)"></span>
+                    </div>
+                    <div class="data-row">
+                        <span class="data-label">Integration Method:</span>
+                        <span class="data-value">Leapfrog Verlet</span>
+                    </div>
+                    <div class="data-row">
+                        <span class="data-label">Time Step (Δt):</span>
+                        <span class="data-value" x-text="timeStep.toFixed(4)"> s</span>
+                    </div>
+                    <div class="data-row">
+                        <span class="data-label">Energy Conservation:</span>
+                        <span class="data-value" x-text="(energyConservation*100).toFixed(2)">%</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="info-card">
+                <h2>Body Information</h2>
+                <div class="data-display">
+                    <template x-for="body in bodies" :key="body.id">
+                        <div class="data-row">
+                            <span class="data-label">
+                                <span class="color-indicator" :style="{backgroundColor: body.color, width: '10px', height: '10px'}"></span>
+                                <span x-text="body.name"></span>
+                            </span>
+                            <span class="data-value">
+                                <span x-text="formatMass(body.mass)"></span> |
+                                <span x-text="body.velocity.magnitude.toFixed(1)"></span> u/s
+                            </span>
+                        </div>
+                    </template>
+                </div>
+            </div>
+            
+            <div class="info-card">
+                <h2>3D Visualization Features</h2>
+                <div style="color: #b0d0ff; margin-top: 10px;">
+                    <ul style="padding-left: 20px;">
+                        <li>Perspective projection with camera controls</li>
+                        <li>Orbital planes with different inclinations</li>
+                        <li>Body rotation with axis visualization</li>
+                        <li>Real-time lighting and shadows</li>
+                        <li>Velocity and force vector displays</li>
+                        <li>Center of mass tracking</li>
+                        <li>Multiple view modes (3D, 2D, Top)</li>
+                    </ul>
+                </div>
+                <div class="data-display" style="margin-top: 15px;">
+                    <div class="data-row">
+                        <span class="data-label">Camera Position:</span>
+                        <span class="data-value" x-text="cameraPosition"></span>
+                    </div>
+                    <div class="data-row">
+                        <span class="data-label">Zoom Level:</span>
+                        <span class="data-value" x-text="zoomLevel.toFixed(1)">x</span>
+                    </div>
+                    <div class="data-row">
+                        <span class="data-label">Rotation:</span>
+                        <span class="data-value" x-text="cameraRotation.toFixed(0)">°</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function nBodySimulation() {
+            return {
+                // Simulation state
+                animationId: null,
+                isRunning: true,
+                time: 0,
+                timeStep: 0.01,
+                
+                // System parameters
+                bodyCount: 5,
+                timeScale: 1.0,
+                gravityConstant: 1.0,
+                G: 1.0, // Gravitational constant (normalized)
+                
+                // Bodies array
+                bodies: [],
+                nextBodyId: 1,
+                selectedBodyId: 1,
+                
+                // Visualization settings
+                viewMode: '3D', // '3D', '2D', 'top'
+                showTrails: true,
+                showLabels: true,
+                showGrid: true,
+                showVectors: true,
+                trailLength: 300,
+                trailOpacity: 0.7,
+                
+                // Camera settings
+                cameraRotation: 0,
+                cameraElevation: 30,
+                zoomLevel: 1.0,
+                cameraPosition: "Default",
+                
+                // Physics metrics
+                totalEnergy: 0,
+                angularMomentum: 0,
+                centerOfMass: {x: 0, y: 0, z: 0},
+                centerOfMassDetail: "Calculating...",
+                energyConservation: 1.0,
+                initialTotalEnergy: null,
+                
+                // Computed properties
+                get selectedBody() {
+                    return this.bodies.find(b => b.id === this.selectedBodyId);
+                },
+                
+                init() {
+                    this.initializeBodies();
+                    this.startSimulation();
+                    
+                    // Update body count when changed
+                    this.$watch('bodyCount', () => this.updateBodyCount());
+                    
+                    // Initialize camera
+                    this.cameraPosition = `Rot: ${this.cameraRotation}°, Elev: ${this.cameraElevation}°`;
+                },
+                
+                initializeBodies() {
+                    this.bodies = [];
+                    this.nextBodyId = 1;
+                    
+                    // Create central massive body (like a star)
+                    this.bodies.push(this.createBody({
+                        name: "Star",
+                        mass: 500,
+                        radius: 25,
+                        position: {x: 400, y: 300, z: 0},
+                        velocity: {x: 0, y: 0, z: 0},
+                        color: "#ffd166",
+                        rotationSpeed: 1.0,
+                        orbitalPlane: 0
+                    }));
+                    
+                    // Create orbiting bodies
+                    for (let i = 1; i < this.bodyCount; i++) {
+                        const angle = (i / (this.bodyCount - 1)) * Math.PI * 2;
+                        const distance = 80 + i * 60;
+                        
+                        // Calculate orbital velocity for stable orbit (v = sqrt(G*M/r))
+                        const centralMass = this.bodies[0].mass;
+                        const orbitalVelocity = Math.sqrt(this.G * centralMass / distance) * 0.8;
+                        
+                        // Different orbital planes for different bodies
+                        const orbitalPlane = (i - 1) * 15 - 30;
+                        
+                        this.bodies.push(this.createBody({
+                            name: `Planet ${i}`,
+                            mass: 1 + Math.random() * 20,
+                            radius: 8 + Math.random() * 12,
+                            position: {
+                                x: 400 + Math.cos(angle) * distance,
+                                y: 300 + Math.sin(angle) * distance,
+                                z: Math.sin(orbitalPlane * Math.PI / 180) * distance * 0.3
+                            },
+                            velocity: {
+                                x: -Math.sin(angle) * orbitalVelocity * (Math.random() * 0.4 + 0.8),
+                                y: Math.cos(angle) * orbitalVelocity * (Math.random() * 0.4 + 0.8),
+                                z: Math.cos(orbitalPlane * Math.PI / 180) * orbitalVelocity * 0.2
+                            },
+                            color: this.getRandomColor(),
+                            rotationSpeed: 0.5 + Math.random() * 2,
+                            orbitalPlane: orbitalPlane
+                        }));
+                    }
+                    
+                    this.selectedBodyId = this.bodies[0].id;
+                    this.calculateInitialEnergy();
+                },
+                
+                createBody(config) {
+                    const id = this.nextBodyId++;
+                    const velocity = config.velocity || {x: 0, y: 0, z: 0};
+                    
+                    return {
+                        id: id,
+                        name: config.name || `Body ${id}`,
+                        mass: config.mass || 10,
+                        radius: config.radius || 10,
+                        position: config.position || {x: 0, y: 0, z: 0},
+                        velocity: {
+                            x: velocity.x || 0,
+                            y: velocity.y || 0,
+                            z: velocity.z || 0,
+                            magnitude: Math.sqrt(velocity.x**2 + velocity.y**2 + velocity.z**2)
+                        },
+                        acceleration: {x: 0, y: 0, z: 0},
+                        color: config.color || this.getRandomColor(),
+                        rotation: 0,
+                        rotationSpeed: config.rotationSpeed || 1.0,
+                        orbitalPlane: config.orbitalPlane || 0,
+                        trail: [],
+                        trailColors: []
+                    };
+                },
+                
+                getRandomColor() {
+                    const colors = [
+                        "#4ecdc4", "#ff6b6b", "#ffe66d", "#9d4edd", 
+                        "#ff9a76", "#6a0572", "#06d6a0", "#118ab2",
+                        "#ef476f", "#ffd166"
+                    ];
+                    return colors[Math.floor(Math.random() * colors.length)];
+                },
+                
+                updateBodyCount() {
+                    const currentCount = this.bodies.length;
+                    
+                    if (this.bodyCount > currentCount) {
+                        // Add new bodies
+                        for (let i = currentCount; i < this.bodyCount; i++) {
+                            const angle = Math.random() * Math.PI * 2;
+                            const distance = 150 + Math.random() * 200;
+                            
+                            this.bodies.push(this.createBody({
+                                name: `Body ${i+1}`,
+                                mass: 1 + Math.random() * 30,
+                                radius: 5 + Math.random() * 15,
+                                position: {
+                                    x: 400 + Math.cos(angle) * distance,
+                                    y: 300 + Math.sin(angle) * distance,
+                                    z: (Math.random() - 0.5) * 100
+                                },
+                                velocity: {
+                                    x: (Math.random() - 0.5) * 2,
+                                    y: (Math.random() - 0.5) * 2,
+                                    z: (Math.random() - 0.5) * 1
+                                },
+                                color: this.getRandomColor(),
+                                rotationSpeed: 0.2 + Math.random() * 3,
+                                orbitalPlane: (Math.random() - 0.5) * 60
+                            }));
+                        }
+                    } else if (this.bodyCount < currentCount) {
+                        // Remove bodies (keep the first one - central body)
+                        this.bodies = this.bodies.slice(0, this.bodyCount);
+                        if (!this.bodies.find(b => b.id === this.selectedBodyId)) {
+                            this.selectedBodyId = this.bodies[0]?.id || 1;
+                        }
+                    }
+                    
+                    this.calculateInitialEnergy();
+                },
+                
+                startSimulation() {
+                    if (this.animationId) return;
+                    
+                    const canvas = document.getElementById('simulationCanvas');
+                    const ctx = canvas.getContext('2d');
+                    
+                    const animate = () => {
+                        if (this.isRunning) {
+                            this.updatePhysics();
+                            this.drawSimulation(ctx, canvas);
+                        }
+                        this.animationId = requestAnimationFrame(animate);
+                    };
+                    
+                    animate();
+                },
+                
+                updatePhysics() {
+                    // Calculate time step with scaling
+                    const dt = this.timeStep * this.timeScale;
+                    
+                    // Reset accelerations
+                    this.bodies.forEach(body => {
+                        body.acceleration = {x: 0, y: 0, z: 0};
+                    });
+                    
+                    // Calculate gravitational forces between all pairs of bodies
+                    for (let i = 0; i < this.bodies.length; i++) {
+                        for (let j = i + 1; j < this.bodies.length; j++) {
+                            const body1 = this.bodies[i];
+                            const body2 = this.bodies[j];
+                            
+                            // Calculate distance vector
+                            const dx = body2.position.x - body1.position.x;
+                            const dy = body2.position.y - body1.position.y;
+                            const dz = body2.position.z - body1.position.z;
+                            
+                            // Calculate distance squared and distance
+                            const distanceSq = dx*dx + dy*dy + dz*dz;
+                            const distance = Math.sqrt(distanceSq);
+                            
+                            // Avoid division by zero (collision handling)
+                            if (distance < 1) continue;
+                            
+                            // Calculate force magnitude (F = G * m1 * m2 / r^2)
+                            const force = this.G * this.gravityConstant * body1.mass * body2.mass / distanceSq;
+                            
+                            // Calculate force components
+                            const fx = force * dx / distance;
+                            const fy = force * dy / distance;
+                            const fz = force * dz / distance;
+                            
+                            // Apply forces to accelerations (a = F/m)
+                            body1.acceleration.x += fx / body1.mass;
+                            body1.acceleration.y += fy / body1.mass;
+                            body1.acceleration.z += fz / body1.mass;
+                            
+                            body2.acceleration.x -= fx / body2.mass;
+                            body2.acceleration.y -= fy / body2.mass;
+                            body2.acceleration.z -= fz / body2.mass;
+                        }
+                    }
+                    
+                    // Update positions and velocities using Leapfrog integration
+                    this.bodies.forEach(body => {
+                        // Update velocity (half step)
+                        body.velocity.x += body.acceleration.x * dt / 2;
+                        body.velocity.y += body.acceleration.y * dt / 2;
+                        body.velocity.z += body.acceleration.z * dt / 2;
+                        
+                        // Update position
+                        body.position.x += body.velocity.x * dt;
+                        body.position.y += body.velocity.y * dt;
+                        body.position.z += body.velocity.z * dt;
+                        
+                        // Update velocity (second half step)
+                        body.velocity.x += body.acceleration.x * dt / 2;
+                        body.velocity.y += body.acceleration.y * dt / 2;
+                        body.velocity.z += body.acceleration.z * dt / 2;
+                        
+                        // Update velocity magnitude
+                        body.velocity.magnitude = Math.sqrt(
+                            body.velocity.x**2 + body.velocity.y**2 + body.velocity.z**2
+                        );
+                        
+                        // Update rotation
+                        body.rotation += body.rotationSpeed * dt * 10;
+                        
+                        // Update trail
+                        if (this.showTrails) {
+                            body.trail.push({
+                                x: body.position.x,
+                                y: body.position.y,
+                                z: body.position.z
+                            });
+                            
+                            // Store color for trail segment
+                            body.trailColors.push(body.color);
+                            
+                            // Limit trail length
+                            if (body.trail.length > this.trailLength) {
+                                body.trail.shift();
+                                body.trailColors.shift();
+                            }
+                        }
+                    });
+                    
+                    // Update time
+                    this.time += dt;
+                    
+                    // Calculate system metrics
+                    this.calculateSystemMetrics();
+                },
+                
+                calculateSystemMetrics() {
+                    // Calculate center of mass
+                    let totalMass = 0;
+                    let comX = 0, comY = 0, comZ = 0;
+                    
+                    this.bodies.forEach(body => {
+                        totalMass += body.mass;
+                        comX += body.position.x * body.mass;
+                        comY += body.position.y * body.mass;
+                        comZ += body.position.z * body.mass;
+                    });
+                    
+                    this.centerOfMass = {
+                        x: comX / totalMass,
+                        y: comY / totalMass,
+                        z: comZ / totalMass
+                    };
+                    
+                    this.centerOfMassDetail = `(${this.centerOfMass.x.toFixed(1)}, ${this.centerOfMass.y.toFixed(1)}, ${this.centerOfMass.z.toFixed(1)})`;
+                    
+                    // Calculate total energy (kinetic + potential)
+                    let kinetic = 0;
+                    let potential = 0;
+                    
+                    for (let i = 0; i < this.bodies.length; i++) {
+                        const body = this.bodies[i];
+                        kinetic += 0.5 * body.mass * (body.velocity.magnitude ** 2);
+                        
+                        for (let j = i + 1; j < this.bodies.length; j++) {
+                            const other = this.bodies[j];
+                            const dx = body.position.x - other.position.x;
+                            const dy = body.position.y - other.position.y;
+                            const dz = body.position.z - other.position.z;
+                            const distance = Math.sqrt(dx*dx + dy*dy + dz*dz);
+                            
+                            if (distance > 0) {
+                                potential -= this.G * this.gravityConstant * body.mass * other.mass / distance;
+                            }
+                        }
+                    }
+                    
+                    this.totalEnergy = kinetic + potential;
+                    
+                    // Calculate energy conservation
+                    if (this.initialTotalEnergy === null) {
+                        this.initialTotalEnergy = this.totalEnergy;
+                    }
+                    this.energyConservation = Math.abs(1 - Math.abs((this.totalEnergy - this.initialTotalEnergy) / this.initialTotalEnergy));
+                    
+                    // Calculate angular momentum
+                    this.angularMomentum = 0;
+                    this.bodies.forEach(body => {
+                        // L = r × p (cross product of position and momentum)
+                        const px = body.position.x - this.centerOfMass.x;
+                        const py = body.position.y - this.centerOfMass.y;
+                        const pz = body.position.z - this.centerOfMass.z;
+                        
+                        // Momentum = mass * velocity
+                        const momentumX = body.mass * body.velocity.x;
+                        const momentumY = body.mass * body.velocity.y;
+                        const momentumZ = body.mass * body.velocity.z;
+                        
+                        // Cross product: r × p
+                        const Lx = py * momentumZ - pz * momentumY;
+                        const Ly = pz * momentumX - px * momentumZ;
+                        const Lz = px * momentumY - py * momentumX;
+                        
+                        const magnitude = Math.sqrt(Lx*Lx + Ly*Ly + Lz*Lz);
+                        this.angularMomentum += magnitude;
+                    });
+                },
+                
+                calculateInitialEnergy() {
+                    // Store initial energy for conservation calculation
+                    let kinetic = 0;
+                    let potential = 0;
+                    
+                    for (let i = 0; i < this.bodies.length; i++) {
+                        const body = this.bodies[i];
+                        kinetic += 0.5 * body.mass * (body.velocity.magnitude ** 2);
+                        
+                        for (let j = i + 1; j < this.bodies.length; j++) {
+                            const other = this.bodies[j];
+                            const dx = body.position.x - other.position.x;
+                            const dy = body.position.y - other.position.y;
+                            const dz = body.position.z - other.position.z;
+                            const distance = Math.sqrt(dx*dx + dy*dy + dz*dz);
+                            
+                            if (distance > 0) {
+                                potential -= this.G * this.gravityConstant * body.mass * other.mass / distance;
+                            }
+                        }
+                    }
+                    
+                    this.initialTotalEnergy = kinetic + potential;
+                },
+                
+                drawSimulation(ctx, canvas) {
+                    // Clear canvas with space gradient
+                    const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+                    gradient.addColorStop(0, "#050719");
+                    gradient.addColorStop(1, "#0a0c28");
+                    ctx.fillStyle = gradient;
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    
+                    // Draw grid if enabled
+                    if (this.showGrid) {
+                        this.drawGrid(ctx, canvas);
+                    }
+                    
+                    // Apply camera transformations based on view mode
+                    ctx.save();
+                    
+                    if (this.viewMode === '3D') {
+                        this.apply3DProjection(ctx, canvas);
+                    } else if (this.viewMode === 'top') {
+                        this.applyTopView(ctx, canvas);
+                    }
+                    // 2D view doesn't need special transformation
+                    
+                    // Draw center of mass
+                    this.drawCenterOfMass(ctx);
+                    
+                    // Draw trails first (so they appear behind bodies)
+                    if (this.showTrails) {
+                        this.drawTrails(ctx);
+                    }
+                    
+                    // Draw bodies
+                    this.bodies.forEach(body => {
+                        this.drawBody(ctx, body);
+                    });
+                    
+                    // Draw vectors if enabled
+                    if (this.showVectors) {
+                        this.bodies.forEach(body => {
+                            this.drawVectors(ctx, body);
+                        });
+                    }
+                    
+                    ctx.restore();
+                    
+                    // Draw labels on top (not affected by 3D transformations)
+                    if (this.showLabels) {
+                        this.drawLabels(ctx);
+                    }
+                },
+                
+                apply3DProjection(ctx, canvas) {
+                    // Center the view
+                    ctx.translate(canvas.width/2, canvas.height/2);
+                    ctx.scale(this.zoomLevel, this.zoomLevel);
+                    
+                    // Apply rotation for 3D effect
+                    const rotationRad = this.cameraRotation * Math.PI / 180;
+                    const elevationRad = this.cameraElevation * Math.PI / 180;
+                    
+                    // Apply 3D projection with perspective
+                    this.bodies.forEach(body => {
+                        // Simple 3D projection: x' = x*cos(θ) - y*sin(θ)
+                        // y' = x*sin(θ)*sin(φ) + y*cos(θ)*sin(φ) + z*cos(φ)
+                        
+                        const cosR = Math.cos(rotationRad);
+                        const sinR = Math.sin(rotationRad);
+                        const sinE = Math.sin(elevationRad);
+                        const cosE = Math.cos(elevationRad);
+                        
+                        // Store projected coordinates for drawing
+                        body.projected = {
+                            x: (body.position.x - 400) * cosR - (body.position.y - 300) * sinR,
+                            y: (body.position.x - 400) * sinR * sinE + (body.position.y - 300) * cosR * sinE + body.position.z * cosE,
+                            scale: 1 + body.position.z / 1000 // Simple perspective scaling
+                        };
+                    });
+                    
+                    // Update camera position display
+                    this.cameraPosition = `Rot: ${this.cameraRotation.toFixed(0)}°, Elev: ${this.cameraElevation.toFixed(0)}°`;
+                },
+                
+                applyTopView(ctx, canvas) {
+                    // Simple top-down view (ignore z-coordinate)
+                    ctx.translate(canvas.width/2, canvas.height/2);
+                    ctx.scale(this.zoomLevel, this.zoomLevel);
+                    
+                    this.bodies.forEach(body => {
+                        body.projected = {
+                            x: body.position.x - 400,
+                            y: body.position.y - 300,
+                            scale: 1
+                        };
+                    });
+                    
+                    this.cameraPosition = "Top View";
+                },
+                
+                drawGrid(ctx, canvas) {
+                    ctx.strokeStyle = "rgba(100, 120, 255, 0.1)";
+                    ctx.lineWidth = 0.5;
+                    
+                    const gridSize = 50;
+                    const offsetX = this.viewMode === '3D' ? 0 : 400;
+                    const offsetY = this.viewMode === '3D' ? 0 : 300;
+                    
+                    // Vertical lines
+                    for (let x = -400; x <= 400; x += gridSize) {
+                        ctx.beginPath();
+                        ctx.moveTo(x + offsetX, -300 + offsetY);
+                        ctx.lineTo(x + offsetX, 300 + offsetY);
+                        ctx.stroke();
+                    }
+                    
+                    // Horizontal lines
+                    for (let y = -300; y <= 300; y += gridSize) {
+                        ctx.beginPath();
+                        ctx.moveTo(-400 + offsetX, y + offsetY);
+                        ctx.lineTo(400 + offsetX, y + offsetY);
+                        ctx.stroke();
+                    }
+                    
+                    // Center axes
+                    ctx.strokeStyle = "rgba(100, 150, 255, 0.3)";
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.moveTo(offsetX, -300 + offsetY);
+                    ctx.lineTo(offsetX, 300 + offsetY);
+                    ctx.moveTo(-400 + offsetX, offsetY);
+                    ctx.lineTo(400 + offsetX, offsetY);
+                    ctx.stroke();
+                },
+                
+                drawCenterOfMass(ctx) {
+                    const com = this.centerOfMass;
+                    const offsetX = this.viewMode === '3D' ? 0 : 400;
+                    const offsetY = this.viewMode === '3D' ? 0 : 300;
+                    
+                    // Draw cross at center of mass
+                    ctx.strokeStyle = "#ff6b6b";
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.moveTo(com.x - 400 + offsetX - 10, com.y - 300 + offsetY);
+                    ctx.lineTo(com.x - 400 + offsetX + 10, com.y - 300 + offsetY);
+                    ctx.moveTo(com.x - 400 + offsetX, com.y - 300 + offsetY - 10);
+                    ctx.lineTo(com.x - 400 + offsetX, com.y - 300 + offsetY + 10);
+                    ctx.stroke();
+                    
+                    // Draw circle around center of mass
+                    ctx.beginPath();
+                    ctx.arc(com.x - 400 + offsetX, com.y - 300 + offsetY, 5, 0, Math.PI * 2);
+                    ctx.fillStyle = "rgba(255, 107, 107, 0.3)";
+                    ctx.fill();
+                },
+                
+                drawTrails(ctx) {
+                    this.bodies.forEach(body => {
+                        if (body.trail.length < 2) return;
+                        
+                        // Draw trail with fading effect
+                        for (let i = 1; i < body.trail.length; i++) {
+                            const point1 = body.trail[i-1];
+                            const point2 = body.trail[i];
+                            const color = body.trailColors[i];
+                            
+                            const alpha = (i / body.trail.length) * this.trailOpacity;
+                            
+                            // Project trail points for 3D view
+                            let x1, y1, x2, y2;
+                            
+                            if (this.viewMode === '3D') {
+                                const rotationRad = this.cameraRotation * Math.PI / 180;
+                                const elevationRad = this.cameraElevation * Math.PI / 180;
+                                const cosR = Math.cos(rotationRad);
+                                const sinR = Math.sin(rotationRad);
+                                const sinE = Math.sin(elevationRad);
+                                const cosE = Math.cos(elevationRad);
+                                
+                                x1 = (point1.x - 400) * cosR - (point1.y - 300) * sinR;
+                                y1 = (point1.x - 400) * sinR * sinE + (point1.y - 300) * cosR * sinE + point1.z * cosE;
+                                x2 = (point2.x - 400) * cosR - (point2.y - 300) * sinR;
+                                y2 = (point2.x - 400) * sinR * sinE + (point2.y - 300) * cosR * sinE + point2.z * cosE;
+                            } else {
+                                x1 = point1.x - 400;
+                                y1 = point1.y - 300;
+                                x2 = point2.x - 400;
+                                y2 = point2.y - 300;
+                            }
+                            
+                            ctx.beginPath();
+                            ctx.moveTo(x1, y1);
+                            ctx.lineTo(x2, y2);
+                            ctx.strokeStyle = this.hexToRgba(color, alpha);
+                            ctx.lineWidth = 1.5;
+                            ctx.stroke();
+                        }
+                    });
+                },
+                
+                drawBody(ctx, body) {
+                    const proj = body.projected || {x: body.position.x - 400, y: body.position.y - 300, scale: 1};
+                    const radius = body.radius * proj.scale;
+                    
+                    // Create 3D sphere effect with gradient
+                    const gradient = ctx.createRadialGradient(
+                        proj.x - radius/3, proj.y - radius/3, 0,
+                        proj.x, proj.y, radius
+                    );
+                    
+                    // Light source from top-left
+                    gradient.addColorStop(0, this.lightenColor(body.color, 0.7));
+                    gradient.addColorStop(0.7, body.color);
+                    gradient.addColorStop(1, this.darkenColor(body.color, 0.3));
+                    
+                    // Draw sphere
+                    ctx.beginPath();
+                    ctx.arc(proj.x, proj.y, radius, 0, Math.PI * 2);
+                    ctx.fillStyle = gradient;
+                    ctx.fill();
+                    
+                    // Draw sphere outline
+                    ctx.strokeStyle = this.lightenColor(body.color, 0.5);
+                    ctx.lineWidth = 1;
+                    ctx.stroke();
+                    
+                    // Draw rotation axis
+                    const axisLength = radius * 1.5;
+                    const axisAngle = body.rotation;
+                    
+                    ctx.beginPath();
+                    ctx.moveTo(
+                        proj.x + Math.cos(axisAngle) * axisLength,
+                        proj.y + Math.sin(axisAngle) * axisLength
+                    );
+                    ctx.lineTo(
+                        proj.x - Math.cos(axisAngle) * axisLength,
+                        proj.y - Math.sin(axisAngle) * axisLength
+                    );
+                    ctx.strokeStyle = "rgba(255, 255, 255, 0.5)";
+                    ctx.lineWidth = 1;
+                    ctx.stroke();
+                    
+                    // Draw orbital plane indicator (for 3D view)
+                    if (this.viewMode === '3D' && Math.abs(body.orbitalPlane) > 1) {
+                        ctx.beginPath();
+                        ctx.arc(proj.x, proj.y, radius * 2, 0, Math.PI * 2);
+                        ctx.strokeStyle = this.hexToRgba(body.color, 0.3);
+                        ctx.setLineDash([5, 5]);
+                        ctx.lineWidth = 1;
+                        ctx.stroke();
+                        ctx.setLineDash([]);
+                    }
+                    
+                    // Store projected position for label drawing
+                    body.projectedPos = {x: proj.x, y: proj.y};
+                },
+                
+                drawVectors(ctx, body) {
+                    const proj = body.projected || {x: body.position.x - 400, y: body.position.y - 300, scale: 1};
+                    
+                    // Draw velocity vector
+                    const velScale = 5;
+                    ctx.beginPath();
+                    ctx.moveTo(proj.x, proj.y);
+                    ctx.lineTo(
+                        proj.x + body.velocity.x * velScale,
+                        proj.y + body.velocity.y * velScale
+                    );
+                    ctx.strokeStyle = "#4ecdc4";
+                    ctx.lineWidth = 1.5;
+                    ctx.stroke();
+                    
+                    // Draw acceleration vector
+                    const accScale = 100;
+                    ctx.beginPath();
+                    ctx.moveTo(proj.x, proj.y);
+                    ctx.lineTo(
+                        proj.x + body.acceleration.x * accScale,
+                        proj.y + body.acceleration.y * accScale
+                    );
+                    ctx.strokeStyle = "#ff6b6b";
+                    ctx.lineWidth = 1.5;
+                    ctx.stroke();
+                    
+                    // Draw vector arrows
+                    this.drawArrow(ctx, 
+                        proj.x, proj.y,
+                        proj.x + body.velocity.x * velScale,
+                        proj.y + body.velocity.y * velScale,
+                        "#4ecdc4"
+                    );
+                    
+                    this.drawArrow(ctx,
+                        proj.x, proj.y,
+                        proj.x + body.acceleration.x * accScale,
+                        proj.y + body.acceleration.y * accScale,
+                        "#ff6b6b"
+                    );
+                },
+                
+                drawArrow(ctx, fromX, fromY, toX, toY, color) {
+                    const headLength = 10;
+                    const angle = Math.atan2(toY - fromY, toX - fromX);
+                    
+                    ctx.save();
+                    ctx.translate(toX, toY);
+                    ctx.rotate(angle);
+                    
+                    ctx.beginPath();
+                    ctx.moveTo(0, 0);
+                    ctx.lineTo(-headLength, headLength/2);
+                    ctx.lineTo(-headLength, -headLength/2);
+                    ctx.closePath();
+                    ctx.fillStyle = color;
+                    ctx.fill();
+                    
+                    ctx.restore();
+                },
+                
+                drawLabels(ctx) {
+                    this.bodies.forEach(body => {
+                        if (!body.projectedPos) return;
+                        
+                        const x = body.projectedPos.x + (this.viewMode === '3D' ? 600 : 400);
+                        const y = body.projectedPos.y + (this.viewMode === '3D' ? 300 : 300);
+                        
+                        // Draw name label
+                        ctx.fillStyle = "#ffffff";
+                        ctx.font = "bold 14px Arial";
+                        ctx.textAlign = "center";
+                        ctx.fillText(body.name, x, y - body.radius - 10);
+                        
+                        // Draw mass label
+                        ctx.fillStyle = "#b0d0ff";
+                        ctx.font = "12px Arial";
+                        ctx.fillText(this.formatMass(body.mass), x, y + body.radius + 20);
+                    });
+                },
+                
+                // Utility functions
+                hexToRgba(hex, alpha) {
+                    const r = parseInt(hex.slice(1, 3), 16);
+                    const g = parseInt(hex.slice(3, 5), 16);
+                    const b = parseInt(hex.slice(5, 7), 16);
+                    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+                },
+                
+                lightenColor(color, factor) {
+                    const r = parseInt(color.slice(1, 3), 16);
+                    const g = parseInt(color.slice(3, 5), 16);
+                    const b = parseInt(color.slice(5, 7), 16);
+                    
+                    return `rgb(${Math.min(255, r + 255*factor)}, ${Math.min(255, g + 255*factor)}, ${Math.min(255, b + 255*factor)})`;
+                },
+                
+                darkenColor(color, factor) {
+                    const r = parseInt(color.slice(1, 3), 16);
+                    const g = parseInt(color.slice(3, 5), 16);
+                    const b = parseInt(color.slice(5, 7), 16);
+                    
+                    return `rgb(${Math.max(0, r - 255*factor)}, ${Math.max(0, g - 255*factor)}, ${Math.max(0, b - 255*factor)})`;
+                },
+                
+                formatMass(mass) {
+                    if (mass >= 1000) {
+                        return `${(mass/1000).toFixed(1)}k`;
+                    }
+                    return mass.toFixed(0);
+                },
+                
+                // Control functions
+                toggleSimulation() {
+                    this.isRunning = !this.isRunning;
+                },
+                
+                stepForward() {
+                    if (this.isRunning) return;
+                    this.updatePhysics();
+                    const canvas = document.getElementById('simulationCanvas');
+                    const ctx = canvas.getContext('2d');
+                    this.drawSimulation(ctx, canvas);
+                },
+                
+                resetSimulation() {
+                    this.time = 0;
+                    this.bodies.forEach(body => {
+                        body.trail = [];
+                        body.trailColors = [];
+                    });
+                    this.calculateInitialEnergy();
+                },
+                
+                clearTrails() {
+                    this.bodies.forEach(body => {
+                        body.trail = [];
+                        body.trailColors = [];
+                    });
+                },
+                
+                rotateCamera(direction) {
+                    if (direction === 'left') {
+                        this.cameraRotation -= 15;
+                    } else if (direction === 'right') {
+                        this.cameraRotation += 15;
+                    } else if (direction === 'reset') {
+                        this.cameraRotation = 0;
+                        this.cameraElevation = 30;
+                        this.zoomLevel = 1.0;
+                    }
+                    
+                    // Normalize rotation
+                    this.cameraRotation = this.cameraRotation % 360;
+                },
+                
+                zoomCamera(action) {
+                    if (action === 'in') {
+                        this.zoomLevel = Math.min(3, this.zoomLevel * 1.2);
+                    } else if (action === 'out') {
+                        this.zoomLevel = Math.max(0.3, this.zoomLevel / 1.2);
+                    }
+                },
+                
+                randomizeBody(body) {
+                    body.mass = 1 + Math.random() * 100;
+                    body.radius = 5 + Math.random() * 25;
+                    body.rotationSpeed = 0.1 + Math.random() * 4;
+                    body.orbitalPlane = (Math.random() - 0.5) * 90;
+                    body.color = this.getRandomColor();
+                    this.calculateInitialEnergy();
+                },
+                
+                deleteBody(body) {
+                    if (this.bodies.length <= 2) return; // Keep at least 2 bodies
+                    
+                    this.bodies = this.bodies.filter(b => b.id !== body.id);
+                    this.bodyCount = this.bodies.length;
+                    
+                    if (this.selectedBodyId === body.id) {
+                        this.selectedBodyId = this.bodies[0]?.id || 1;
+                    }
+                    
+                    this.calculateInitialEnergy();
+                },
+                
+                // Preset configurations
+                loadSolarSystemPreset() {
+                    this.bodyCount = 6;
+                    this.bodies = [];
+                    
+                    // Sun
+                    this.bodies.push(this.createBody({
+                        name: "Sun",
+                        mass: 1000,
+                        radius: 30,
+                        position: {x: 400, y: 300, z: 0},
+                        velocity: {x: 0, y: 0, z: 0},
+                        color: "#ffd166",
+                        rotationSpeed: 0.5,
+                        orbitalPlane: 0
+                    }));
+                    
+                    // Planets with different orbital planes
+                    const planets = [
+                        {name: "Mercury", distance: 80, velocity: 8.5, size: 8, color: "#8c7853", plane: 7},
+                        {name: "Venus", distance: 120, velocity: 7.2, size: 12, color: "#e39e54", plane: 3.4},
+                        {name: "Earth", distance: 160, velocity: 6.3, size: 13, color: "#4ecdc4", plane: 0},
+                        {name: "Mars", distance: 200, velocity: 5.7, size: 10, color: "#ff6b6b", plane: 1.8},
+                        {name: "Jupiter", distance: 280, velocity: 4.2, size: 25, color: "#ff9a76", plane: 1.3}
+                    ];
+                    
+                    planets.forEach((planet, i) => {
+                        const angle = (i / planets.length) * Math.PI * 2;
+                        this.bodies.push(this.createBody({
+                            name: planet.name,
+                            mass: planet.size * 2,
+                            radius: planet.size,
+                            position: {
+                                x: 400 + Math.cos(angle) * planet.distance,
+                                y: 300 + Math.sin(angle) * planet.distance,
+                                z: Math.sin(planet.plane * Math.PI / 180) * planet.distance * 0.1
+                            },
+                            velocity: {
+                                x: -Math.sin(angle) * planet.velocity,
+                                y: Math.cos(angle) * planet.velocity,
+                                z: Math.cos(planet.plane * Math.PI / 180) * planet.velocity * 0.05
+                            },
+                            color: planet.color,
+                            rotationSpeed: 0.5 + Math.random() * 2,
+                            orbitalPlane: planet.plane
+                        }));
+                    });
+                    
+                    this.selectedBodyId = this.bodies[0].id;
+                    this.calculateInitialEnergy();
+                },
+                
+                loadBinaryStarPreset() {
+                    this.bodyCount = 4;
+                    this.bodies = [];
+                    
+                    // Two massive stars orbiting each other
+                    this.bodies.push(this.createBody({
+                        name: "Star A",
+                        mass: 800,
+                        radius: 25,
+                        position: {x: 300, y: 300, z: 0},
+                        velocity: {x: 0, y: 2.5, z: 0},
+                        color: "#4facfe",
+                        rotationSpeed: 1.2,
+                        orbitalPlane: 0
+                    }));
+                    
+                    this.bodies.push(this.createBody({
+                        name: "Star B",
+                        mass: 600,
+                        radius: 22,
+                        position: {x: 500, y: 300, z: 0},
+                        velocity: {x: 0, y: -3.2, z: 0},
+                        color: "#ff6b6b",
+                        rotationSpeed: 0.8,
+                        orbitalPlane: 10
+                    }));
+                    
+                    // Planets orbiting the binary system
+                    this.bodies.push(this.createBody({
+                        name: "Planet 1",
+                        mass: 10,
+                        radius: 12,
+                        position: {x: 400, y: 150, z: 20},
+                        velocity: {x: 5.5, y: 0, z: 0.5},
+                        color: "#4ecdc4",
+                        rotationSpeed: 1.5,
+                        orbitalPlane: 15
+                    }));
+                    
+                    this.bodies.push(this.createBody({
+                        name: "Planet 2",
+                        mass: 8,
+                        radius: 10,
+                        position: {x: 400, y: 450, z: -15},
+                        velocity: {x: -4.8, y: 0, z: -0.3},
+                        color: "#ffe66d",
+                        rotationSpeed: 2.0,
+                        orbitalPlane: -20
+                    }));
+                    
+                    this.selectedBodyId = this.bodies[0].id;
+                    this.calculateInitialEnergy();
+                },
+                
+                loadChaoticPreset() {
+                    this.bodyCount = 8;
+                    this.bodies = [];
+                    
+                    // Create a chaotic system with random parameters
+                    for (let i = 0; i < this.bodyCount; i++) {
+                        const angle = Math.random() * Math.PI * 2;
+                        const distance = 100 + Math.random() * 250;
+                        
+                        this.bodies.push(this.createBody({
+                            name: `Body ${i+1}`,
+                            mass: 10 + Math.random() * 200,
+                            radius: 8 + Math.random() * 20,
+                            position: {
+                                x: 400 + Math.cos(angle) * distance,
+                                y: 300 + Math.sin(angle) * distance,
+                                z: (Math.random() - 0.5) * 100
+                            },
+                            velocity: {
+                                x: (Math.random() - 0.5) * 8,
+                                y: (Math.random() - 0.5) * 8,
+                                z: (Math.random() - 0.5) * 3
+                            },
+                            color: this.getRandomColor(),
+                            rotationSpeed: 0.1 + Math.random() * 4,
+                            orbitalPlane: (Math.random() - 0.5) * 60
+                        }));
+                    }
+                    
+                    this.selectedBodyId = this.bodies[0].id;
+                    this.calculateInitialEnergy();
+                },
+                
+                loadStableOrbitsPreset() {
+                    this.bodyCount = 7;
+                    this.bodies = [];
+                    
+                    // Central massive body
+                    this.bodies.push(this.createBody({
+                        name: "Central Star",
+                        mass: 1200,
+                        radius: 28,
+                        position: {x: 400, y: 300, z: 0},
+                        velocity: {x: 0, y: 0, z: 0},
+                        color: "#ffd166",
+                        rotationSpeed: 0.7,
+                        orbitalPlane: 0
+                    }));
+                    
+                    // Stable orbiting bodies at different resonance ratios
+                    const resonances = [1/2, 2/3, 1, 3/2, 2, 5/2];
+                    
+                    resonances.forEach((resonance, i) => {
+                        const distance = 100 + i * 50;
+                        const orbitalVelocity = Math.sqrt(this.G * 1200 / distance) * resonance;
+                        const orbitalPlane = i * 10 - 25;
+                        
+                        this.bodies.push(this.createBody({
+                            name: `Orbiter ${i+1}`,
+                            mass: 5 + i * 5,
+                            radius: 8 + i * 2,
+                            position: {
+                                x: 400 + distance,
+                                y: 300,
+                                z: Math.sin(orbitalPlane * Math.PI / 180) * distance * 0.2
+                            },
+                            velocity: {
+                                x: 0,
+                                y: orbitalVelocity,
+                                z: Math.cos(orbitalPlane * Math.PI / 180) * orbitalVelocity * 0.1
+                            },
+                            color: this.getRandomColor(),
+                            rotationSpeed: 0.5 + Math.random() * 2,
+                            orbitalPlane: orbitalPlane
+                        }));
+                    });
+                    
+                    this.selectedBodyId = this.bodies[0].id;
+                    this.calculateInitialEnergy();
+                }
+            };
+        }
+    </script>
+</body>
+</html>

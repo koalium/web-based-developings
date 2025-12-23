@@ -1,0 +1,1861 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>1000MW Gas Power Plant Simulation</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --primary: #4a9eff;
+            --secondary: #0c2461;
+            --success: #4cd964;
+            --warning: #ffcc00;
+            --danger: #ff3b30;
+            --dark: #1a1a2e;
+            --light: #f8f9fa;
+            --surface: rgba(30, 40, 70, 0.9);
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #0c2461 0%, #1e3799 100%);
+            color: var(--light);
+            min-height: 100vh;
+            overflow-x: hidden;
+            touch-action: manipulation;
+        }
+        
+        /* Mobile-first container */
+        .mobile-container {
+            width: 100%;
+            max-width: 100vw;
+            min-height: 100vh;
+            padding: 0;
+            position: relative;
+        }
+        
+        /* Header with mobile optimization */
+        .mobile-header {
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(10px);
+            padding: 15px 20px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .hamburger-menu {
+            width: 40px;
+            height: 40px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 5px;
+            cursor: pointer;
+        }
+        
+        .hamburger-menu span {
+            display: block;
+            width: 25px;
+            height: 3px;
+            background: var(--light);
+            border-radius: 3px;
+            transition: 0.3s;
+        }
+        
+        .app-title {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: var(--primary);
+            text-align: center;
+        }
+        
+        .header-actions {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .header-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+        
+        /* Status indicators for mobile */
+        .mobile-status {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .status-chip {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 12px;
+            padding: 10px;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        
+        .status-label {
+            font-size: 0.75rem;
+            opacity: 0.8;
+            margin-bottom: 5px;
+        }
+        
+        .status-value {
+            font-size: 1rem;
+            font-weight: 700;
+        }
+        
+        /* Main content area */
+        .main-content {
+            padding: 15px;
+            padding-bottom: 90px; /* Space for bottom nav */
+        }
+        
+        /* Mobile-friendly card design */
+        .mobile-card {
+            background: var(--surface);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+        }
+        
+        .card-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .card-title i {
+            color: var(--primary);
+        }
+        
+        /* Turbine visualization for mobile */
+        .turbine-mobile-view {
+            display: flex;
+            overflow-x: auto;
+            scroll-snap-type: x mandatory;
+            gap: 15px;
+            padding: 10px 0;
+            margin: 0 -15px;
+            padding-left: 15px;
+            -webkit-overflow-scrolling: touch;
+        }
+        
+        .turbine-mobile-view::-webkit-scrollbar {
+            display: none;
+        }
+        
+        .turbine-slide {
+            flex: 0 0 85%;
+            scroll-snap-align: start;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 15px;
+            padding: 15px;
+            position: relative;
+        }
+        
+        .turbine-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .turbine-name {
+            font-weight: 600;
+            font-size: 1.1rem;
+        }
+        
+        .turbine-status {
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+        
+        .status-off { background: rgba(255, 59, 48, 0.2); color: var(--danger); }
+        .status-starting { background: rgba(255, 149, 0, 0.2); color: #ff9500; }
+        .status-running { background: rgba(74, 158, 255, 0.2); color: var(--primary); }
+        .status-sync { background: rgba(255, 204, 0, 0.2); color: var(--warning); }
+        .status-online { background: rgba(76, 217, 100, 0.2); color: var(--success); }
+        
+        .turbine-canvas-container {
+            width: 100%;
+            height: 180px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            overflow: hidden;
+            margin-bottom: 15px;
+        }
+        
+        .turbine-canvas {
+            width: 100%;
+            height: 100%;
+        }
+        
+        .turbine-stats {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+        
+        .stat-item {
+            text-align: center;
+        }
+        
+        .stat-label {
+            font-size: 0.75rem;
+            opacity: 0.8;
+        }
+        
+        .stat-value {
+            font-size: 1rem;
+            font-weight: 600;
+        }
+        
+        /* Touch-optimized controls */
+        .touch-controls {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin-top: 10px;
+        }
+        
+        .touch-btn {
+            height: 60px;
+            border-radius: 15px;
+            background: linear-gradient(135deg, var(--primary) 0%, #2d5aa0 100%);
+            color: white;
+            border: none;
+            font-size: 0.95rem;
+            font-weight: 600;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            cursor: pointer;
+            transition: all 0.2s;
+            touch-action: manipulation;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .touch-btn:active {
+            transform: scale(0.97);
+            opacity: 0.9;
+        }
+        
+        .touch-btn i {
+            font-size: 1.2rem;
+        }
+        
+        .touch-btn.disabled {
+            background: linear-gradient(135deg, #555 0%, #333 100%);
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .touch-btn.danger {
+            background: linear-gradient(135deg, var(--danger) 0%, #c0392b 100%);
+        }
+        
+        .touch-btn.success {
+            background: linear-gradient(135deg, var(--success) 0%, #2ecc71 100%);
+        }
+        
+        .touch-btn.warning {
+            background: linear-gradient(135deg, var(--warning) 0%, #f39c12 100%);
+        }
+        
+        /* Swipe hint */
+        .swipe-hint {
+            text-align: center;
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 0.9rem;
+            margin-top: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        
+        .swipe-hint i {
+            animation: swipeHint 2s infinite;
+        }
+        
+        @keyframes swipeHint {
+            0%, 100% { transform: translateX(0); }
+            50% { transform: translateX(10px); }
+        }
+        
+        /* Mobile graphs */
+        .mobile-graphs {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 15px;
+        }
+        
+        .graph-container {
+            height: 200px;
+            width: 100%;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 15px;
+            padding: 15px;
+        }
+        
+        /* Touch slider */
+        .touch-slider-container {
+            margin: 20px 0;
+        }
+        
+        .slider-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 15px;
+        }
+        
+        .slider-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary);
+        }
+        
+        .touch-slider {
+            width: 100%;
+            height: 60px;
+            position: relative;
+        }
+        
+        .slider-track {
+            position: absolute;
+            top: 50%;
+            left: 20px;
+            right: 20px;
+            height: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 5px;
+            transform: translateY(-50%);
+        }
+        
+        .slider-fill {
+            position: absolute;
+            top: 50%;
+            left: 20px;
+            height: 10px;
+            background: linear-gradient(90deg, var(--primary) 0%, #2d5aa0 100%);
+            border-radius: 5px;
+            transform: translateY(-50%);
+        }
+        
+        .slider-thumb {
+            position: absolute;
+            top: 50%;
+            width: 50px;
+            height: 50px;
+            background: white;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            cursor: grab;
+            touch-action: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            color: var(--secondary);
+        }
+        
+        .slider-thumb:active {
+            cursor: grabbing;
+            transform: translate(-50%, -50%) scale(1.1);
+        }
+        
+        .slider-marks {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 25px;
+            padding: 0 15px;
+        }
+        
+        .slider-mark {
+            font-size: 0.8rem;
+            opacity: 0.7;
+        }
+        
+        /* Bottom navigation for mobile */
+        .mobile-nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: rgba(0, 0, 0, 0.9);
+            backdrop-filter: blur(20px);
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            justify-content: space-around;
+            padding: 10px 0;
+            z-index: 1000;
+        }
+        
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+            padding: 10px 15px;
+            border-radius: 15px;
+            cursor: pointer;
+            transition: all 0.2s;
+            min-width: 70px;
+        }
+        
+        .nav-item.active {
+            background: rgba(74, 158, 255, 0.2);
+        }
+        
+        .nav-item:active {
+            background: rgba(255, 255, 255, 0.1);
+        }
+        
+        .nav-icon {
+            font-size: 1.2rem;
+        }
+        
+        .nav-label {
+            font-size: 0.8rem;
+        }
+        
+        /* Modal for mobile */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(5px);
+            z-index: 2000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s;
+        }
+        
+        .modal-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        .modal-content {
+            background: var(--surface);
+            border-radius: 25px;
+            width: 100%;
+            max-width: 400px;
+            max-height: 80vh;
+            overflow-y: auto;
+            padding: 25px;
+            transform: translateY(20px);
+            transition: transform 0.3s;
+        }
+        
+        .modal-overlay.active .modal-content {
+            transform: translateY(0);
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .modal-title {
+            font-size: 1.3rem;
+            font-weight: 700;
+        }
+        
+        .modal-close {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+        }
+        
+        /* Tutorial steps */
+        .tutorial-step {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 15px;
+        }
+        
+        .step-number {
+            display: inline-block;
+            width: 30px;
+            height: 30px;
+            background: var(--primary);
+            color: white;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 30px;
+            font-weight: 700;
+            margin-right: 10px;
+        }
+        
+        .step-title {
+            font-weight: 600;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+        }
+        
+        .step-desc {
+            font-size: 0.95rem;
+            opacity: 0.9;
+            line-height: 1.5;
+        }
+        
+        /* Alert notifications */
+        .alert-toast {
+            position: fixed;
+            top: 100px;
+            right: 20px;
+            background: var(--surface);
+            border-radius: 15px;
+            padding: 15px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            transform: translateX(400px);
+            transition: transform 0.3s;
+            z-index: 1500;
+            max-width: 300px;
+        }
+        
+        .alert-toast.show {
+            transform: translateX(0);
+        }
+        
+        .alert-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+        }
+        
+        .alert-icon.info { background: rgba(74, 158, 255, 0.2); color: var(--primary); }
+        .alert-icon.warning { background: rgba(255, 204, 0, 0.2); color: var(--warning); }
+        .alert-icon.success { background: rgba(76, 217, 100, 0.2); color: var(--success); }
+        .alert-icon.danger { background: rgba(255, 59, 48, 0.2); color: var(--danger); }
+        
+        /* Progress indicator */
+        .progress-container {
+            margin: 20px 0;
+        }
+        
+        .progress-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+        
+        .progress-bar {
+            height: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary) 0%, #2d5aa0 100%);
+            border-radius: 5px;
+            width: 0%;
+            transition: width 0.5s;
+        }
+        
+        /* Responsive adjustments for larger screens */
+        @media (min-width: 768px) {
+            .mobile-container {
+                max-width: 768px;
+                margin: 0 auto;
+                padding: 20px;
+            }
+            
+            .touch-controls {
+                grid-template-columns: repeat(4, 1fr);
+            }
+            
+            .mobile-graphs {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .turbine-slide {
+                flex: 0 0 45%;
+            }
+        }
+        
+        @media (min-width: 1024px) {
+            .mobile-container {
+                max-width: 1024px;
+            }
+            
+            .turbine-slide {
+                flex: 0 0 30%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="mobile-container">
+        <!-- Mobile Header -->
+        <header class="mobile-header">
+            <div class="header-top">
+                <div class="hamburger-menu" id="menu-btn">
+                    <span></span>
+                    <span></span>
+                    <span></span>
+                </div>
+                <div class="app-title">Power Plant Control</div>
+                <div class="header-actions">
+                    <div class="header-btn" id="help-btn">
+                        <i class="fas fa-question-circle"></i>
+                    </div>
+                    <div class="header-btn" id="alerts-btn">
+                        <i class="fas fa-bell"></i>
+                        <span class="alert-badge" id="alert-count">0</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mobile-status">
+                <div class="status-chip">
+                    <div class="status-label">PLANT STATUS</div>
+                    <div class="status-value" id="mobile-plant-status">OFFLINE</div>
+                </div>
+                <div class="status-chip">
+                    <div class="status-label">OUTPUT</div>
+                    <div class="status-value" id="mobile-output">0 MW</div>
+                </div>
+                <div class="status-chip">
+                    <div class="status-label">FREQUENCY</div>
+                    <div class="status-value" id="mobile-frequency">50.00 Hz</div>
+                </div>
+            </div>
+        </header>
+        
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Turbine Visualization Section -->
+            <section class="mobile-card">
+                <div class="card-title">
+                    <i class="fas fa-tachometer-alt"></i>
+                    <span>Turbine Control</span>
+                </div>
+                
+                <div class="turbine-mobile-view" id="turbine-carousel">
+                    <!-- Turbine slides will be inserted here by JavaScript -->
+                </div>
+                
+                <div class="swipe-hint">
+                    <i class="fas fa-arrow-left"></i>
+                    <span>Swipe to view all turbines</span>
+                    <i class="fas fa-arrow-right"></i>
+                </div>
+                
+                <!-- Progress indicator -->
+                <div class="progress-container">
+                    <div class="progress-label">
+                        <span>Startup Progress</span>
+                        <span id="progress-percent">0%</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progress-fill"></div>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- Touch Controls Section -->
+            <section class="mobile-card">
+                <div class="card-title">
+                    <i class="fas fa-sliders-h"></i>
+                    <span>Quick Controls</span>
+                </div>
+                
+                <div class="touch-controls">
+                    <button class="touch-btn" id="mobile-start-t1">
+                        <i class="fas fa-play"></i>
+                        <span>Start T1</span>
+                    </button>
+                    <button class="touch-btn disabled" id="mobile-start-t2" disabled>
+                        <i class="fas fa-play"></i>
+                        <span>Start T2</span>
+                    </button>
+                    <button class="touch-btn warning disabled" id="mobile-sync-t1" disabled>
+                        <i class="fas fa-sync-alt"></i>
+                        <span>Sync T1</span>
+                    </button>
+                    <button class="touch-btn warning disabled" id="mobile-sync-t2" disabled>
+                        <i class="fas fa-sync-alt"></i>
+                        <span>Sync T2</span>
+                    </button>
+                    <button class="touch-btn success disabled" id="mobile-connect" disabled>
+                        <i class="fas fa-plug"></i>
+                        <span>Connect Grid</span>
+                    </button>
+                    <button class="touch-btn" id="mobile-auto-start">
+                        <i class="fas fa-bolt"></i>
+                        <span>Auto Start</span>
+                    </button>
+                    <button class="touch-btn danger" id="mobile-emergency">
+                        <i class="fas fa-stop-circle"></i>
+                        <span>Emergency Stop</span>
+                    </button>
+                    <button class="touch-btn" id="mobile-reset">
+                        <i class="fas fa-redo"></i>
+                        <span>Reset All</span>
+                    </button>
+                </div>
+            </section>
+            
+            <!-- Load Control Section -->
+            <section class="mobile-card">
+                <div class="card-title">
+                    <i class="fas fa-chart-line"></i>
+                    <span>Load Control</span>
+                </div>
+                
+                <div class="touch-slider-container">
+                    <div class="slider-header">
+                        <div>Load Demand</div>
+                        <div class="slider-value" id="slider-value">0 MW</div>
+                    </div>
+                    
+                    <div class="touch-slider" id="touch-slider">
+                        <div class="slider-track"></div>
+                        <div class="slider-fill" id="slider-fill"></div>
+                        <div class="slider-thumb" id="slider-thumb">
+                            <i class="fas fa-bolt"></i>
+                        </div>
+                    </div>
+                    
+                    <div class="slider-marks">
+                        <div class="slider-mark">0 MW</div>
+                        <div class="slider-mark">250 MW</div>
+                        <div class="slider-mark">500 MW</div>
+                        <div class="slider-mark">750 MW</div>
+                        <div class="slider-mark">1000 MW</div>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- Graphs Section -->
+            <section class="mobile-card">
+                <div class="card-title">
+                    <i class="fas fa-chart-bar"></i>
+                    <span>Performance Monitor</span>
+                </div>
+                
+                <div class="mobile-graphs">
+                    <div class="graph-container">
+                        <canvas id="mobile-power-chart"></canvas>
+                    </div>
+                    <div class="graph-container">
+                        <canvas id="mobile-frequency-chart"></canvas>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- Alerts Section -->
+            <section class="mobile-card">
+                <div class="card-title">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <span>System Alerts</span>
+                </div>
+                
+                <div class="alerts-container" id="mobile-alerts">
+                    <div class="alert-item">
+                        <div class="alert-icon info">
+                            <i class="fas fa-info-circle"></i>
+                        </div>
+                        <div class="alert-text">
+                            <div class="alert-title">Plant is offline</div>
+                            <div class="alert-desc">Start turbines to begin operation</div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+        
+        <!-- Bottom Navigation -->
+        <nav class="mobile-nav">
+            <div class="nav-item active" data-screen="control">
+                <div class="nav-icon"><i class="fas fa-gamepad"></i></div>
+                <div class="nav-label">Control</div>
+            </div>
+            <div class="nav-item" data-screen="monitor">
+                <div class="nav-icon"><i class="fas fa-chart-line"></i></div>
+                <div class="nav-label">Monitor</div>
+            </div>
+            <div class="nav-item" data-screen="turbines">
+                <div class="nav-icon"><i class="fas fa-cogs"></i></div>
+                <div class="nav-label">Turbines</div>
+            </div>
+            <div class="nav-item" data-screen="settings">
+                <div class="nav-icon"><i class="fas fa-cog"></i></div>
+                <div class="nav-label">Settings</div>
+            </div>
+        </nav>
+        
+        <!-- Modals -->
+        
+        <!-- Help/Tutorial Modal -->
+        <div class="modal-overlay" id="help-modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <div class="modal-title">Power Plant Tutorial</div>
+                    <div class="modal-close" id="close-help">
+                        <i class="fas fa-times"></i>
+                    </div>
+                </div>
+                
+                <div class="tutorial-step">
+                    <div class="step-title">
+                        <span class="step-number">1</span>
+                        Start Turbines
+                    </div>
+                    <div class="step-desc">
+                        Tap "Start T1" to begin ignition sequence. Turbines must be started in order (T1 → T2 → T3 → T4).
+                    </div>
+                </div>
+                
+                <div class="tutorial-step">
+                    <div class="step-title">
+                        <span class="step-number">2</span>
+                        Synchronize Generators
+                    </div>
+                    <div class="step-desc">
+                        Once turbines reach operational speed, tap "Sync" buttons to match frequency and voltage with the grid.
+                    </div>
+                </div>
+                
+                <div class="tutorial-step">
+                    <div class="step-title">
+                        <span class="step-number">3</span>
+                        Connect to Grid
+                    </div>
+                    <div class="step-desc">
+                        After at least two turbines are synchronized, tap "Connect Grid" to supply power to the electrical grid.
+                    </div>
+                </div>
+                
+                <div class="tutorial-step">
+                    <div class="step-title">
+                        <span class="step-number">4</span>
+                        Adjust Load
+                    </div>
+                    <div class="step-desc">
+                        Drag the load slider to meet power demand. Monitor system frequency to ensure stability.
+                    </div>
+                </div>
+                
+                <button class="touch-btn success" style="width: 100%; margin-top: 20px;" id="start-tutorial">
+                    <i class="fas fa-play-circle"></i>
+                    <span>Start Guided Tutorial</span>
+                </button>
+            </div>
+        </div>
+        
+        <!-- Alerts Modal -->
+        <div class="modal-overlay" id="alerts-modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <div class="modal-title">System Alerts</div>
+                    <div class="modal-close" id="close-alerts">
+                        <i class="fas fa-times"></i>
+                    </div>
+                </div>
+                
+                <div class="alerts-list" id="alerts-list">
+                    <!-- Alerts will be populated here -->
+                </div>
+            </div>
+        </div>
+        
+        <!-- Alert Toast -->
+        <div class="alert-toast" id="alert-toast">
+            <div class="alert-icon info">
+                <i class="fas fa-info-circle"></i>
+            </div>
+            <div class="alert-text">
+                <div class="alert-title" id="toast-title">Information</div>
+                <div class="alert-desc" id="toast-desc">This is a notification</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Mobile-optimized Power Plant Simulation
+        const plantState = {
+            status: "OFFLINE",
+            totalOutput: 0,
+            gridFrequency: 50.0,
+            systemVoltage: 0,
+            turbinesOnline: 0,
+            loadDemand: 0,
+            gridConnected: false,
+            turbines: [
+                { id: 1, status: "OFF", output: 0, speed: 0, frequency: 0, voltage: 0, temperature: 25, synchronized: false },
+                { id: 2, status: "OFF", output: 0, speed: 0, frequency: 0, voltage: 0, temperature: 25, synchronized: false },
+                { id: 3, status: "OFF", output: 0, speed: 0, frequency: 0, voltage: 0, temperature: 25, synchronized: false },
+                { id: 4, status: "OFF", output: 0, speed: 0, frequency: 0, voltage: 0, temperature: 25, synchronized: false }
+            ],
+            alerts: [],
+            tutorialActive: false,
+            currentTutorialStep: 0
+        };
+
+        // DOM Elements
+        const mobilePlantStatus = document.getElementById('mobile-plant-status');
+        const mobileOutput = document.getElementById('mobile-output');
+        const mobileFrequency = document.getElementById('mobile-frequency');
+        const turbineCarousel = document.getElementById('turbine-carousel');
+        const progressFill = document.getElementById('progress-fill');
+        const progressPercent = document.getElementById('progress-percent');
+        const alertCount = document.getElementById('alert-count');
+        const sliderValue = document.getElementById('slider-value');
+        const sliderFill = document.getElementById('slider-fill');
+        const sliderThumb = document.getElementById('slider-thumb');
+        const touchSlider = document.getElementById('touch-slider');
+        const alertToast = document.getElementById('alert-toast');
+        const toastTitle = document.getElementById('toast-title');
+        const toastDesc = document.getElementById('toast-desc');
+
+        // Mobile Control Buttons
+        const mobileStartButtons = [
+            document.getElementById('mobile-start-t1'),
+            document.getElementById('mobile-start-t2')
+        ];
+        
+        const mobileSyncButtons = [
+            document.getElementById('mobile-sync-t1'),
+            document.getElementById('mobile-sync-t2')
+        ];
+        
+        const mobileConnectBtn = document.getElementById('mobile-connect');
+        const mobileEmergencyBtn = document.getElementById('mobile-emergency');
+        const mobileAutoStartBtn = document.getElementById('mobile-auto-start');
+        const mobileResetBtn = document.getElementById('mobile-reset');
+        const startTutorialBtn = document.getElementById('start-tutorial');
+
+        // Modals
+        const helpModal = document.getElementById('help-modal');
+        const alertsModal = document.getElementById('alerts-modal');
+        const helpBtn = document.getElementById('help-btn');
+        const alertsBtn = document.getElementById('alerts-btn');
+        const closeHelp = document.getElementById('close-help');
+        const closeAlerts = document.getElementById('close-alerts');
+        const menuBtn = document.getElementById('menu-btn');
+
+        // Charts
+        let mobilePowerChart, mobileFrequencyChart;
+
+        // Touch slider state
+        let isDragging = false;
+        let sliderWidth = 0;
+        let sliderLeft = 0;
+
+        // Initialize the mobile simulation
+        function initMobileSimulation() {
+            // Initialize UI
+            createTurbineSlides();
+            initMobileCharts();
+            setupEventListeners();
+            initTouchSlider();
+            updateUI();
+            
+            // Start simulation loop
+            setInterval(updateSimulation, 100);
+            
+            // Start rendering
+            setInterval(renderTurbines, 50);
+            
+            // Show welcome message
+            setTimeout(() => {
+                showToast("Welcome!", "Start turbines to begin power generation simulation", "info");
+                addAlert("Plant is offline. Start turbines to begin operation.", "info");
+            }, 1000);
+        }
+
+        // Create turbine slides for carousel
+        function createTurbineSlides() {
+            turbineCarousel.innerHTML = '';
+            
+            plantState.turbines.forEach(turbine => {
+                const slide = document.createElement('div');
+                slide.className = 'turbine-slide';
+                slide.innerHTML = `
+                    <div class="turbine-header">
+                        <div class="turbine-name">Turbine ${turbine.id}</div>
+                        <div class="turbine-status status-off" id="turbine-status-${turbine.id}">OFF</div>
+                    </div>
+                    <div class="turbine-canvas-container">
+                        <canvas class="turbine-canvas" id="mobile-turbine-${turbine.id}" width="300" height="180"></canvas>
+                    </div>
+                    <div class="turbine-stats">
+                        <div class="stat-item">
+                            <div class="stat-label">Output</div>
+                            <div class="stat-value" id="turbine-output-${turbine.id}">0 MW</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">Speed</div>
+                            <div class="stat-value" id="turbine-speed-${turbine.id}">0 RPM</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">Temp</div>
+                            <div class="stat-value" id="turbine-temp-${turbine.id}">25°C</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-label">Voltage</div>
+                            <div class="stat-value" id="turbine-voltage-${turbine.id}">0 kV</div>
+                        </div>
+                    </div>
+                `;
+                turbineCarousel.appendChild(slide);
+            });
+        }
+
+        // Initialize mobile-optimized charts
+        function initMobileCharts() {
+            const powerCtx = document.getElementById('mobile-power-chart').getContext('2d');
+            const frequencyCtx = document.getElementById('mobile-frequency-chart').getContext('2d');
+            
+            // Power chart
+            mobilePowerChart = new Chart(powerCtx, {
+                type: 'line',
+                data: {
+                    labels: Array(10).fill(''),
+                    datasets: [
+                        {
+                            label: 'Output',
+                            data: Array(10).fill(0),
+                            borderColor: '#4cd964',
+                            backgroundColor: 'rgba(76, 217, 100, 0.1)',
+                            fill: true,
+                            tension: 0.4,
+                            borderWidth: 2
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        x: { display: false },
+                        y: {
+                            grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                            ticks: { color: '#aaa', font: { size: 10 } },
+                            min: 0,
+                            max: 1000
+                        }
+                    }
+                }
+            });
+            
+            // Frequency chart
+            mobileFrequencyChart = new Chart(frequencyCtx, {
+                type: 'line',
+                data: {
+                    labels: Array(10).fill(''),
+                    datasets: [
+                        {
+                            label: 'Frequency',
+                            data: Array(10).fill(50.0),
+                            borderColor: '#ffcc00',
+                            backgroundColor: 'rgba(255, 204, 0, 0.1)',
+                            fill: true,
+                            tension: 0.4,
+                            borderWidth: 2
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        x: { display: false },
+                        y: {
+                            grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                            ticks: { color: '#aaa', font: { size: 10 } },
+                            min: 49.5,
+                            max: 50.5
+                        }
+                    }
+                }
+            });
+        }
+
+        // Setup event listeners for mobile
+        function setupEventListeners() {
+            // Mobile control buttons
+            mobileStartButtons.forEach((btn, index) => {
+                btn.addEventListener('click', () => startTurbine(index));
+            });
+            
+            mobileSyncButtons.forEach((btn, index) => {
+                btn.addEventListener('click', () => synchronizeTurbine(index));
+            });
+            
+            mobileConnectBtn.addEventListener('click', connectToGrid);
+            mobileEmergencyBtn.addEventListener('click', emergencyStop);
+            mobileAutoStartBtn.addEventListener('click', autoStartSequence);
+            mobileResetBtn.addEventListener('click', resetPlant);
+            startTutorialBtn.addEventListener('click', startTutorial);
+            
+            // Modal controls
+            helpBtn.addEventListener('click', () => showModal('help'));
+            alertsBtn.addEventListener('click', () => showModal('alerts'));
+            menuBtn.addEventListener('click', () => showModal('help'));
+            closeHelp.addEventListener('click', () => hideModal('help'));
+            closeAlerts.addEventListener('click', () => hideModal('alerts'));
+            
+            // Bottom navigation
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.addEventListener('click', function() {
+                    // Remove active class from all
+                    document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+                    // Add to clicked
+                    this.classList.add('active');
+                    
+                    // Handle screen switching
+                    const screen = this.getAttribute('data-screen');
+                    switchScreen(screen);
+                });
+            });
+            
+            // Touch slider events
+            sliderThumb.addEventListener('touchstart', startDrag);
+            sliderThumb.addEventListener('mousedown', startDrag);
+            
+            // Prevent context menu on long press
+            document.addEventListener('contextmenu', e => e.preventDefault());
+            
+            // Handle window resize
+            window.addEventListener('resize', initTouchSlider);
+            
+            // Close modal on overlay click
+            document.querySelectorAll('.modal-overlay').forEach(modal => {
+                modal.addEventListener('click', function(e) {
+                    if (e.target === this) {
+                        this.classList.remove('active');
+                    }
+                });
+            });
+        }
+
+        // Initialize touch slider
+        function initTouchSlider() {
+            const sliderRect = touchSlider.getBoundingClientRect();
+            sliderWidth = sliderRect.width - 40; // 20px padding on each side
+            sliderLeft = sliderRect.left + 20;
+            
+            updateSlider(plantState.loadDemand);
+        }
+
+        // Start dragging the slider
+        function startDrag(e) {
+            e.preventDefault();
+            isDragging = true;
+            document.addEventListener('touchmove', drag);
+            document.addEventListener('mousemove', drag);
+            document.addEventListener('touchend', stopDrag);
+            document.addEventListener('mouseup', stopDrag);
+            
+            // Add active class
+            sliderThumb.classList.add('active');
+        }
+
+        // Drag slider
+        function drag(e) {
+            if (!isDragging) return;
+            
+            let clientX;
+            if (e.type.includes('touch')) {
+                clientX = e.touches[0].clientX;
+            } else {
+                clientX = e.clientX;
+            }
+            
+            // Calculate position
+            let position = clientX - sliderLeft;
+            position = Math.max(0, Math.min(position, sliderWidth));
+            
+            // Calculate value (0-1000 MW)
+            const value = Math.round((position / sliderWidth) * 1000);
+            plantState.loadDemand = value;
+            
+            updateSlider(value);
+        }
+
+        // Stop dragging
+        function stopDrag() {
+            isDragging = false;
+            document.removeEventListener('touchmove', drag);
+            document.removeEventListener('mousemove', drag);
+            document.removeEventListener('touchend', stopDrag);
+            document.removeEventListener('mouseup', stopDrag);
+            
+            // Remove active class
+            sliderThumb.classList.remove('active');
+            
+            // Show alert if trying to set load while plant not ready
+            if (plantState.loadDemand > 0 && !plantState.gridConnected) {
+                showToast("Warning", "Plant must be connected to grid to supply load", "warning");
+            }
+        }
+
+        // Update slider visual
+        function updateSlider(value) {
+            const percent = (value / 1000) * 100;
+            const position = (percent / 100) * sliderWidth;
+            
+            sliderFill.style.width = `${percent}%`;
+            sliderThumb.style.left = `${position + 20}px`;
+            sliderValue.textContent = `${value} MW`;
+        }
+
+        // Start a turbine
+        function startTurbine(index) {
+            const turbine = plantState.turbines[index];
+            
+            if (turbine.status !== "OFF") return;
+            
+            // Update state
+            turbine.status = "STARTING";
+            plantState.status = "STARTING";
+            
+            // Enable next controls
+            if (index === 0) {
+                mobileStartButtons[1].classList.remove('disabled');
+                mobileStartButtons[1].disabled = false;
+                mobileSyncButtons[0].classList.remove('disabled');
+                mobileSyncButtons[0].disabled = false;
+            }
+            
+            // Show alert
+            showToast("Turbine Starting", `Turbine ${index + 1} ignition sequence initiated`, "info");
+            addAlert(`Turbine ${index + 1} starting up`, "info");
+            
+            // Update progress
+            updateProgress();
+            
+            // Update UI
+            updateUI();
+        }
+
+        // Synchronize a turbine
+        function synchronizeTurbine(index) {
+            const turbine = plantState.turbines[index];
+            
+            if (turbine.status !== "STARTING" && turbine.status !== "RUNNING") return;
+            
+            // Update state
+            turbine.status = "SYNCHRONIZING";
+            turbine.synchronized = true;
+            plantState.turbinesOnline++;
+            
+            // Enable next controls
+            if (index === 0) {
+                mobileSyncButtons[1].classList.remove('disabled');
+                mobileSyncButtons[1].disabled = false;
+            }
+            
+            // Enable grid connection if at least 2 turbines are synchronized
+            if (plantState.turbinesOnline >= 2) {
+                mobileConnectBtn.classList.remove('disabled');
+                mobileConnectBtn.disabled = false;
+            }
+            
+            // Show alert
+            showToast("Synchronizing", `Turbine ${index + 1} matching grid parameters`, "warning");
+            addAlert(`Turbine ${index + 1} synchronizing with grid`, "warning");
+            
+            // Update progress
+            updateProgress();
+            
+            updateUI();
+        }
+
+        // Connect to grid
+        function connectToGrid() {
+            plantState.gridConnected = true;
+            plantState.status = "ONLINE";
+            plantState.systemVoltage = 400;
+            
+            // Show alert
+            showToast("Grid Connected", "Plant is now supplying power to the grid", "success");
+            addAlert("Plant connected to power grid", "success");
+            
+            // Update progress
+            updateProgress();
+            
+            updateUI();
+        }
+
+        // Emergency stop
+        function emergencyStop() {
+            // Reset all turbines
+            plantState.turbines.forEach(turbine => {
+                turbine.status = "OFF";
+                turbine.output = 0;
+                turbine.speed = 0;
+                turbine.frequency = 0;
+                turbine.voltage = 0;
+                turbine.temperature = 25;
+                turbine.synchronized = false;
+            });
+            
+            // Reset plant state
+            plantState.status = "OFFLINE";
+            plantState.totalOutput = 0;
+            plantState.systemVoltage = 0;
+            plantState.turbinesOnline = 0;
+            plantState.gridConnected = false;
+            plantState.loadDemand = 0;
+            
+            // Reset controls
+            mobileStartButtons.forEach((btn, i) => {
+                if (i > 0) {
+                    btn.classList.add('disabled');
+                    btn.disabled = true;
+                }
+            });
+            
+            mobileSyncButtons.forEach(btn => {
+                btn.classList.add('disabled');
+                btn.disabled = true;
+            });
+            
+            mobileConnectBtn.classList.add('disabled');
+            mobileConnectBtn.disabled = true;
+            
+            // Reset slider
+            updateSlider(0);
+            
+            // Show alert
+            showToast("Emergency Stop", "All turbines shutting down", "danger");
+            addAlert("EMERGENCY STOP ACTIVATED", "danger");
+            
+            // Update progress
+            updateProgress();
+            
+            updateUI();
+        }
+
+        // Auto start sequence
+        function autoStartSequence() {
+            if (plantState.status !== "OFFLINE") return;
+            
+            showToast("Auto Start", "Starting automatic startup sequence", "info");
+            
+            // Start all turbines with delays
+            setTimeout(() => startTurbine(0), 500);
+            setTimeout(() => startTurbine(1), 2000);
+            setTimeout(() => synchronizeTurbine(0), 4000);
+            setTimeout(() => synchronizeTurbine(1), 6000);
+            setTimeout(() => connectToGrid(), 8000);
+            setTimeout(() => {
+                plantState.loadDemand = 500;
+                updateSlider(500);
+            }, 10000);
+        }
+
+        // Reset plant
+        function resetPlant() {
+            emergencyStop();
+            showToast("System Reset", "All systems have been reset", "info");
+        }
+
+        // Start tutorial
+        function startTutorial() {
+            plantState.tutorialActive = true;
+            plantState.currentTutorialStep = 0;
+            
+            hideModal('help');
+            showToast("Tutorial Started", "Follow the steps to learn plant operation", "info");
+            
+            // Start first step
+            nextTutorialStep();
+        }
+
+        // Next tutorial step
+        function nextTutorialStep() {
+            if (!plantState.tutorialActive) return;
+            
+            const steps = [
+                { action: () => startTurbine(0), message: "Tap 'Start T1' to begin" },
+                { action: () => synchronizeTurbine(0), message: "Now tap 'Sync T1' to synchronize" },
+                { action: () => startTurbine(1), message: "Tap 'Start T2' to start second turbine" },
+                { action: () => synchronizeTurbine(1), message: "Tap 'Sync T2' to synchronize" },
+                { action: () => connectToGrid(), message: "Tap 'Connect Grid' to supply power" },
+                { action: () => {
+                    plantState.loadDemand = 300;
+                    updateSlider(300);
+                }, message: "Drag the slider to set load demand" }
+            ];
+            
+            if (plantState.currentTutorialStep < steps.length) {
+                const step = steps[plantState.currentTutorialStep];
+                showToast("Tutorial", step.message, "info");
+                
+                // Highlight the relevant button
+                highlightControl(plantState.currentTutorialStep);
+                
+                plantState.currentTutorialStep++;
+            } else {
+                plantState.tutorialActive = false;
+                showToast("Tutorial Complete", "You've successfully operated the power plant!", "success");
+            }
+        }
+
+        // Highlight a control for tutorial
+        function highlightControl(stepIndex) {
+            // Remove all highlights
+            document.querySelectorAll('.touch-btn').forEach(btn => {
+                btn.style.boxShadow = 'none';
+            });
+            
+            // Add highlight based on step
+            const buttons = [
+                mobileStartButtons[0],
+                mobileSyncButtons[0],
+                mobileStartButtons[1],
+                mobileSyncButtons[1],
+                mobileConnectBtn,
+                null // Slider
+            ];
+            
+            if (stepIndex < buttons.length && buttons[stepIndex]) {
+                buttons[stepIndex].style.boxShadow = '0 0 0 3px rgba(255, 204, 0, 0.5)';
+                
+                // Auto click after delay for tutorial
+                if (plantState.tutorialActive) {
+                    setTimeout(() => {
+                        buttons[stepIndex].click();
+                        setTimeout(nextTutorialStep, 1500);
+                    }, 2000);
+                }
+            }
+        }
+
+        // Update simulation state
+        function updateSimulation() {
+            // Update each turbine
+            plantState.turbines.forEach(turbine => {
+                switch (turbine.status) {
+                    case "STARTING":
+                        turbine.speed = Math.min(3000, turbine.speed + 30);
+                        turbine.temperature = Math.min(600, turbine.temperature + 8);
+                        turbine.voltage = Math.min(400, turbine.voltage + 10);
+                        
+                        if (turbine.speed >= 3000) {
+                            turbine.status = "RUNNING";
+                            turbine.frequency = 49.8 + Math.random() * 0.4;
+                        }
+                        break;
+                        
+                    case "RUNNING":
+                        turbine.speed = 3000 + (Math.random() * 20 - 10);
+                        turbine.temperature = 550 + (Math.random() * 50 - 25);
+                        turbine.frequency = 49.8 + Math.random() * 0.4;
+                        turbine.voltage = 400;
+                        break;
+                        
+                    case "SYNCHRONIZING":
+                        turbine.frequency = approachValue(turbine.frequency, plantState.gridFrequency, 0.08);
+                        turbine.voltage = approachValue(turbine.voltage, 400, 8);
+                        turbine.temperature = 580 + (Math.random() * 40 - 20);
+                        
+                        if (Math.abs(turbine.frequency - plantState.gridFrequency) < 0.05 && turbine.voltage > 395) {
+                            turbine.status = "ONLINE";
+                        }
+                        break;
+                        
+                    case "ONLINE":
+                        const targetOutput = plantState.loadDemand / Math.max(1, plantState.turbinesOnline);
+                        turbine.output = approachValue(turbine.output, targetOutput, 3);
+                        turbine.temperature = 600 + (turbine.output / 250) * 25;
+                        turbine.frequency = plantState.gridFrequency + (Math.random() * 0.1 - 0.05);
+                        break;
+                        
+                    case "OFF":
+                        turbine.speed = Math.max(0, turbine.speed - 40);
+                        turbine.temperature = Math.max(25, turbine.temperature - 12);
+                        turbine.output = Math.max(0, turbine.output - 8);
+                        turbine.voltage = Math.max(0, turbine.voltage - 25);
+                        break;
+                }
+            });
+            
+            // Update grid frequency
+            if (plantState.gridConnected) {
+                const powerDifference = plantState.totalOutput - plantState.loadDemand;
+                plantState.gridFrequency = 50.0 - (powerDifference / 1000) * 0.1;
+                plantState.gridFrequency += (Math.random() * 0.05 - 0.025);
+                plantState.gridFrequency = Math.max(49.7, Math.min(50.3, plantState.gridFrequency));
+            }
+            
+            // Calculate total output
+            plantState.totalOutput = plantState.turbines.reduce((sum, turbine) => sum + turbine.output, 0);
+            
+            // Update charts
+            updateMobileCharts();
+            
+            // Update UI
+            updateUI();
+        }
+
+        // Helper function for value approach
+        function approachValue(current, target, step) {
+            if (current < target) {
+                return Math.min(current + step, target);
+            } else if (current > target) {
+                return Math.max(current - step, target);
+            }
+            return current;
+        }
+
+        // Update mobile UI
+        function updateUI() {
+            // Update status
+            mobilePlantStatus.textContent = plantState.status;
+            mobileOutput.textContent = `${Math.round(plantState.totalOutput)} MW`;
+            mobileFrequency.textContent = `${plantState.gridFrequency.toFixed(2)} Hz`;
+            
+            // Update status color
+            mobilePlantStatus.className = 'status-value';
+            if (plantState.status === "ONLINE" || plantState.status === "GRID_CONNECTED") {
+                mobilePlantStatus.style.color = 'var(--success)';
+            } else if (plantState.status === "STARTING" || plantState.status === "SYNCHRONIZING") {
+                mobilePlantStatus.style.color = 'var(--warning)';
+            } else {
+                mobilePlantStatus.style.color = 'var(--danger)';
+            }
+            
+            // Update turbine displays
+            plantState.turbines.forEach(turbine => {
+                const statusEl = document.getElementById(`turbine-status-${turbine.id}`);
+                const outputEl = document.getElementById(`turbine-output-${turbine.id}`);
+                const speedEl = document.getElementById(`turbine-speed-${turbine.id}`);
+                const tempEl = document.getElementById(`turbine-temp-${turbine.id}`);
+                const voltageEl = document.getElementById(`turbine-voltage-${turbine.id}`);
+                
+                if (statusEl) {
+                    statusEl.textContent = turbine.status;
+                    statusEl.className = 'turbine-status';
+                    
+                    switch(turbine.status) {
+                        case "OFF": statusEl.classList.add('status-off'); break;
+                        case "STARTING": statusEl.classList.add('status-starting'); break;
+                        case "RUNNING": statusEl.classList.add('status-running'); break;
+                        case "SYNCHRONIZING": statusEl.classList.add('status-sync'); break;
+                        case "ONLINE": statusEl.classList.add('status-online'); break;
+                    }
+                }
+                
+                if (outputEl) outputEl.textContent = `${Math.round(turbine.output)} MW`;
+                if (speedEl) speedEl.textContent = `${Math.round(turbine.speed)} RPM`;
+                if (tempEl) tempEl.textContent = `${Math.round(turbine.temperature)}°C`;
+                if (voltageEl) voltageEl.textContent = `${Math.round(turbine.voltage)} kV`;
+            });
+        }
+
+        // Update progress indicator
+        function updateProgress() {
+            let progress = 0;
+            
+            // Count steps completed
+            if (plantState.turbines[0].status !== "OFF") progress += 25;
+            if (plantState.turbines[0].synchronized) progress += 25;
+            if (plantState.turbines[1].status !== "OFF") progress += 15;
+            if (plantState.turbines[1].synchronized) progress += 15;
+            if (plantState.gridConnected) progress += 20;
+            
+            progressFill.style.width = `${progress}%`;
+            progressPercent.textContent = `${progress}%`;
+        }
+
+        // Update mobile charts
+        function updateMobileCharts() {
+            // Power chart
+            mobilePowerChart.data.labels.push('');
+            mobilePowerChart.data.labels.shift();
+            mobilePowerChart.data.datasets[0].data.push(plantState.totalOutput);
+            mobilePowerChart.data.datasets[0].data.shift();
+            mobilePowerChart.update('none');
+            
+            // Frequency chart
+            mobileFrequencyChart.data.labels.push('');
+            mobileFrequencyChart.data.labels.shift();
+            mobileFrequencyChart.data.datasets[0].data.push(plantState.gridFrequency);
+            mobileFrequencyChart.data.datasets[0].data.shift();
+            mobileFrequencyChart.update('none');
+        }
+
+        // Render turbine animations
+        function renderTurbines() {
+            plantState.turbines.forEach(turbine => {
+                const canvas = document.getElementById(`mobile-turbine-${turbine.id}`);
+                if (!canvas) return;
+                
+                const ctx = canvas.getContext('2d');
+                const width = canvas.width;
+                const height = canvas.height;
+                
+                // Clear canvas
+                ctx.clearRect(0, 0, width, height);
+                
+                // Draw turbine base
+                ctx.fillStyle = '#333';
+                ctx.fillRect(width * 0.3, height * 0.7, width * 0.4, height * 0.2);
+                
+                // Draw turbine body
+                const bodyGradient = ctx.createLinearGradient(width * 0.35, height * 0.3, width * 0.65, height * 0.7);
+                bodyGradient.addColorStop(0, '#555');
+                bodyGradient.addColorStop(1, '#222');
+                ctx.fillStyle = bodyGradient;
+                ctx.fillRect(width * 0.35, height * 0.3, width * 0.3, height * 0.4);
+                
+                // Draw rotating blades
+                ctx.save();
+                ctx.translate(width * 0.5, height * 0.5);
+                
+                // Rotate based on speed
+                if (turbine.status !== "OFF") {
+                    const rotationSpeed = turbine.speed / 3000;
+                    ctx.rotate(Date.now() / 1000 * rotationSpeed);
+                }
+                
+                // Draw 3 blades
+                for (let i = 0; i < 3; i++) {
+                    ctx.rotate((Math.PI * 2) / 3);
+                    ctx.fillStyle = turbine.status === "OFF" ? '#666' : '#4a9eff';
+                    ctx.fillRect(-5, -height * 0.3, 10, height * 0.3);
+                }
+                ctx.restore();
+                
+                // Draw exhaust heat
+                if (turbine.temperature > 100) {
+                    const heatIntensity = Math.min(1, turbine.temperature / 700);
+                    const exhaustGradient = ctx.createLinearGradient(width * 0.5, height * 0.7, width * 0.5, height * 0.9);
+                    exhaustGradient.addColorStop(0, `rgba(255, ${100 + (155 * (1 - heatIntensity))}, 0, 0.8)`);
+                    exhaustGradient.addColorStop(1, 'rgba(255, 100, 0, 0)');
+                    
+                    ctx.fillStyle = exhaustGradient;
+                    ctx.beginPath();
+                    ctx.ellipse(width * 0.5, height * 0.75, width * 0.15, height * 0.05, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            });
+        }
+
+        // Show toast notification
+        function showToast(title, message, type = "info") {
+            toastTitle.textContent = title;
+            toastDesc.textContent = message;
+            
+            // Set type
+            const icon = alertToast.querySelector('.alert-icon');
+            icon.className = 'alert-icon ' + type;
+            icon.innerHTML = `<i class="fas fa-${type === 'info' ? 'info-circle' : type === 'warning' ? 'exclamation-triangle' : type === 'success' ? 'check-circle' : 'exclamation-circle'}"></i>`;
+            
+            // Show toast
+            alertToast.classList.add('show');
+            
+            // Auto hide after 3 seconds
+            setTimeout(() => {
+                alertToast.classList.remove('show');
+            }, 3000);
+        }
+
+        // Add alert to system
+        function addAlert(message, type = "info") {
+            const alert = {
+                id: Date.now(),
+                message,
+                type,
+                time: new Date().toLocaleTimeString(),
+                read: false
+            };
+            
+            plantState.alerts.unshift(alert);
+            
+            // Keep only last 10 alerts
+            if (plantState.alerts.length > 10) {
+                plantState.alerts.pop();
+            }
+            
+            // Update alert count
+            const unreadCount = plantState.alerts.filter(a => !a.read).length;
+            alertCount.textContent = unreadCount;
+            if (unreadCount > 0) {
+                alertCount.style.display = 'block';
+            } else {
+                alertCount.style.display = 'none';
+            }
+            
+            // Update alerts display
+            updateAlertsDisplay();
+        }
+
+        // Update alerts display
+        function updateAlertsDisplay() {
+            const container = document.getElementById('mobile-alerts');
+            const list = document.getElementById('alerts-list');
+            
+            if (container) {
+                // Update mobile alerts
+                container.innerHTML = '';
+                
+                plantState.alerts.slice(0, 3).forEach(alert => {
+                    const alertEl = document.createElement('div');
+                    alertEl.className = 'alert-item';
+                    alertEl.innerHTML = `
+                        <div class="alert-icon ${alert.type}">
+                            <i class="fas fa-${alert.type === 'info' ? 'info-circle' : alert.type === 'warning' ? 'exclamation-triangle' : alert.type === 'success' ? 'check-circle' : 'exclamation-circle'}"></i>
+                        </div>
+                        <div class="alert-text">
+                            <div class="alert-title">${alert.type.toUpperCase()}</div>
+                            <div class="alert-desc">${alert.message}</div>
+                        </div>
+                    `;
+                    container.appendChild(alertEl);
+                });
+            }
+            
+            if (list) {
+                // Update modal alerts list
+                list.innerHTML = '';
+                
+                plantState.alerts.forEach(alert => {
+                    const alertEl = document.createElement('div');
+                    alertEl.className = 'alert-item';
+                    alertEl.innerHTML = `
+                        <div class="alert-icon ${alert.type}">
+                            <i class="fas fa-${alert.type === 'info' ? 'info-circle' : alert.type === 'warning' ? 'exclamation-triangle' : alert.type === 'success' ? 'check-circle' : 'exclamation-circle'}"></i>
+                        </div>
+                        <div class="alert-text">
+                            <div class="alert-title">${alert.type.toUpperCase()} - ${alert.time}</div>
+                            <div class="alert-desc">${alert.message}</div>
+                        </div>
+                    `;
+                    list.appendChild(alertEl);
+                });
+            }
+        }
+
+        // Show modal
+        function showModal(modal) {
+            if (modal === 'help') {
+                helpModal.classList.add('active');
+            } else if (modal === 'alerts') {
+                // Mark alerts as read
+                plantState.alerts.forEach(alert => alert.read = true);
+                alertCount.textContent = '0';
+                alertCount.style.display = 'none';
+                
+                alertsModal.classList.add('active');
+            }
+        }
+
+        // Hide modal
+        function hideModal(modal) {
+            if (modal === 'help') {
+                helpModal.classList.remove('active');
+            } else if (modal === 'alerts') {
+                alertsModal.classList.remove('active');
+            }
+        }
+
+        // Switch screen (for bottom nav)
+        function switchScreen(screen) {
+            // In a more complex app, this would show different screens
+            // For now, just scroll to relevant section
+            let element;
+            switch(screen) {
+                case 'control':
+                    element = document.querySelector('.main-content');
+                    break;
+                case 'monitor':
+                    element = document.querySelector('.mobile-card:nth-child(4)');
+                    break;
+                case 'turbines':
+                    element = document.querySelector('.mobile-card:nth-child(1)');
+                    break;
+                case 'settings':
+                    showModal('help');
+                    return;
+            }
+            
+            if (element) {
+                element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        }
+
+        // Initialize on load
+        window.addEventListener('DOMContentLoaded', initMobileSimulation);
+        window.addEventListener('load', initTouchSlider);
+    </script>
+</body>
+</html>

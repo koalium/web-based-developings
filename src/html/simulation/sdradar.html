@@ -1,0 +1,1264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Passive Wi-Fi Radar - Real-World Simulation</title>
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --primary: #00ff88;
+            --secondary: #0088ff;
+            --danger: #ff4444;
+            --warning: #ffaa00;
+            --info: #00ccff;
+            --bg: #0a0a14;
+            --card-bg: #151522;
+            --text: #e0e0ff;
+            --grid: rgba(0, 255, 136, 0.1);
+            --radar-green: #00ff88;
+            --radar-glow: rgba(0, 255, 136, 0.3);
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Courier New', monospace;
+            background: 
+                radial-gradient(ellipse at 20% 20%, #0a0a14 0%, #000000 70%),
+                radial-gradient(ellipse at 80% 80%, #001122 0%, #000000 70%);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 0;
+            overflow-x: hidden;
+            letter-spacing: 0.5px;
+        }
+        
+        .main-container {
+            display: grid;
+            grid-template-columns: 300px 1fr 400px;
+            grid-template-rows: 100px 1fr 250px;
+            gap: 2px;
+            height: 100vh;
+            padding: 2px;
+            background: linear-gradient(45deg, #001122, #002244);
+        }
+        
+        /* Header Section */
+        .header {
+            grid-column: 1 / 4;
+            background: linear-gradient(90deg, #001122, #002244);
+            border-bottom: 2px solid var(--primary);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 20px;
+            box-shadow: 0 0 30px rgba(0, 255, 136, 0.2);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(90deg, 
+                transparent, 
+                var(--primary),
+                transparent);
+            animation: headerScan 3s linear infinite;
+        }
+        
+        @keyframes headerScan {
+            to { left: 100%; }
+        }
+        
+        .system-title {
+            font-size: 1.8rem;
+            font-weight: bold;
+            background: linear-gradient(90deg, var(--primary), var(--info));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
+        }
+        
+        .status-indicators {
+            display: flex;
+            gap: 20px;
+        }
+        
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.9rem;
+        }
+        
+        .status-led {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            animation: ledPulse 2s infinite;
+        }
+        
+        .led-green { background: var(--primary); box-shadow: 0 0 10px var(--primary); }
+        .led-red { background: var(--danger); box-shadow: 0 0 10px var(--danger); }
+        .led-blue { background: var(--info); box-shadow: 0 0 10px var(--info); }
+        
+        @keyframes ledPulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        /* Left Panel - System Controls */
+        .left-panel {
+            background: rgba(10, 15, 25, 0.95);
+            border-right: 1px solid rgba(0, 255, 136, 0.2);
+            display: flex;
+            flex-direction: column;
+            padding: 15px;
+        }
+        
+        .control-section {
+            margin-bottom: 25px;
+            border-bottom: 1px solid rgba(0, 255, 136, 0.1);
+            padding-bottom: 15px;
+        }
+        
+        .control-title {
+            color: var(--primary);
+            font-size: 0.9rem;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .control-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 8px 0;
+            padding: 5px;
+            background: rgba(0, 40, 80, 0.3);
+            border-radius: 3px;
+        }
+        
+        .knob-container {
+            position: relative;
+            width: 40px;
+            height: 40px;
+        }
+        
+        .knob {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            background: conic-gradient(from 0deg, #001122, #0088ff, #00ff88);
+            position: relative;
+            cursor: pointer;
+        }
+        
+        .knob-indicator {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 3px;
+            height: 15px;
+            background: white;
+            transform-origin: bottom center;
+            transform: translateX(-50%) rotate(45deg);
+        }
+        
+        /* Main Radar Display */
+        .radar-display {
+            background: 
+                radial-gradient(circle at center, 
+                    transparent 0%, 
+                    rgba(0, 20, 40, 0.8) 70%,
+                    rgba(0, 10, 20, 0.95) 100%),
+                repeating-radial-gradient(
+                    circle at 50% 50%,
+                    transparent 0,
+                    transparent 1px,
+                    rgba(0, 255, 136, 0.03) 2px,
+                    rgba(0, 255, 136, 0.03) 3px
+                );
+            position: relative;
+            overflow: hidden;
+            border: 1px solid rgba(0, 255, 136, 0.2);
+        }
+        
+        .radar-grid {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 90%;
+            height: 90%;
+        }
+        
+        .range-ring {
+            position: absolute;
+            border: 1px solid rgba(0, 255, 136, 0.15);
+            border-radius: 50%;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+        
+        .range-ring:nth-child(1) { width: 200px; height: 200px; }
+        .range-ring:nth-child(2) { width: 400px; height: 400px; }
+        .range-ring:nth-child(3) { width: 600px; height: 600px; }
+        
+        .azimuth-lines {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 100%;
+            height: 100%;
+            transform: translate(-50%, -50%);
+        }
+        
+        .azimuth-line {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 700px;
+            height: 1px;
+            background: rgba(0, 255, 136, 0.1);
+            transform-origin: left center;
+        }
+        
+        .radar-sweep {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 700px;
+            height: 700px;
+            transform-origin: left center;
+            animation: radarSweep 4s linear infinite;
+        }
+        
+        @keyframes radarSweep {
+            from { transform: translate(-50%, -50%) rotate(0deg); }
+            to { transform: translate(-50%, -50%) rotate(360deg); }
+        }
+        
+        .sweep-arm {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 350px;
+            height: 2px;
+            background: linear-gradient(90deg, 
+                transparent 0%, 
+                var(--primary) 20%,
+                var(--primary) 80%,
+                transparent 100%);
+            filter: drop-shadow(0 0 5px var(--primary));
+        }
+        
+        .target-blip {
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            filter: 
+                drop-shadow(0 0 3px currentColor)
+                drop-shadow(0 0 6px currentColor);
+            transition: all 0.3s ease;
+            z-index: 10;
+        }
+        
+        .blip-pulse {
+            animation: blipPulse 2s infinite;
+        }
+        
+        @keyframes blipPulse {
+            0% { box-shadow: 0 0 0 0 rgba(0, 255, 136, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(0, 255, 136, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(0, 255, 136, 0); }
+        }
+        
+        .target-trail {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            background: currentColor;
+            opacity: 0.5;
+            border-radius: 50%;
+        }
+        
+        /* Right Panel - Target Data */
+        .right-panel {
+            background: rgba(5, 10, 20, 0.95);
+            border-left: 1px solid rgba(0, 255, 136, 0.2);
+            display: flex;
+            flex-direction: column;
+            padding: 15px;
+        }
+        
+        .target-display {
+            flex: 1;
+            overflow-y: auto;
+            margin-bottom: 15px;
+        }
+        
+        .target-card {
+            background: linear-gradient(145deg, rgba(0, 40, 80, 0.3), rgba(0, 20, 40, 0.5));
+            border: 1px solid rgba(0, 255, 136, 0.2);
+            border-radius: 5px;
+            padding: 15px;
+            margin-bottom: 10px;
+            position: relative;
+            transition: all 0.3s ease;
+        }
+        
+        .target-card:hover {
+            border-color: var(--primary);
+            box-shadow: 0 0 15px rgba(0, 255, 136, 0.2);
+            transform: translateX(-5px);
+        }
+        
+        .target-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            padding-bottom: 5px;
+            border-bottom: 1px solid rgba(0, 255, 136, 0.1);
+        }
+        
+        .target-id {
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            color: var(--primary);
+            font-size: 1.1rem;
+        }
+        
+        .target-type {
+            padding: 2px 8px;
+            border-radius: 3px;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .type-drone { background: rgba(0, 136, 255, 0.2); color: var(--info); }
+        .type-plane { background: rgba(0, 255, 136, 0.2); color: var(--primary); }
+        .type-helicopter { background: rgba(255, 170, 0, 0.2); color: var(--warning); }
+        
+        .target-params {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+            margin: 10px 0;
+        }
+        
+        .param-item {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .param-label {
+            font-size: 0.8rem;
+            color: #88aaff;
+            margin-bottom: 2px;
+        }
+        
+        .param-value {
+            font-family: 'Courier New', monospace;
+            font-size: 1rem;
+            color: white;
+            font-weight: bold;
+        }
+        
+        /* Signal Analysis Display */
+        .analysis-panel {
+            grid-column: 1 / 4;
+            background: rgba(5, 10, 20, 0.95);
+            border-top: 1px solid rgba(0, 255, 136, 0.2);
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 2px;
+            padding: 10px;
+        }
+        
+        .analysis-card {
+            background: linear-gradient(145deg, rgba(0, 20, 40, 0.5), rgba(0, 10, 25, 0.7));
+            border: 1px solid rgba(0, 255, 136, 0.1);
+            border-radius: 3px;
+            padding: 10px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .analysis-title {
+            color: var(--primary);
+            font-size: 0.9rem;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .spectrum-display {
+            height: 100px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .spectrum-line {
+            position: absolute;
+            bottom: 0;
+            width: 2px;
+            background: linear-gradient(to top, transparent, var(--info), #00ff88);
+            transition: height 0.1s ease;
+        }
+        
+        /* Doppler Display */
+        .doppler-display {
+            height: 80px;
+            position: relative;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+        
+        .doppler-wave {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background: repeating-linear-gradient(
+                90deg,
+                transparent,
+                transparent 10px,
+                rgba(0, 255, 136, 0.1) 10px,
+                rgba(0, 255, 136, 0.1) 20px
+            );
+            animation: waveScroll 2s linear infinite;
+        }
+        
+        @keyframes waveScroll {
+            from { transform: translateX(0); }
+            to { transform: translateX(-20px); }
+        }
+        
+        /* Phase Display */
+        .phase-display {
+            height: 80px;
+            position: relative;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 3px;
+        }
+        
+        .phase-dot {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: var(--primary);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+        }
+        
+        /* Alert System */
+        .alert-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 0, 0, 0.1);
+            backdrop-filter: blur(2px);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: alertPulse 1s infinite;
+        }
+        
+        @keyframes alertPulse {
+            0%, 100% { opacity: 0.1; }
+            50% { opacity: 0.3; }
+        }
+        
+        .alert-box {
+            background: linear-gradient(145deg, #220000, #440000);
+            border: 2px solid var(--danger);
+            border-radius: 10px;
+            padding: 30px;
+            text-align: center;
+            box-shadow: 
+                0 0 50px rgba(255, 0, 0, 0.5),
+                inset 0 0 20px rgba(255, 0, 0, 0.2);
+            animation: alertShake 0.5s infinite;
+        }
+        
+        @keyframes alertShake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+        
+        /* Realistic Effects */
+        .scanlines {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            background: linear-gradient(
+                to bottom,
+                transparent 50%,
+                rgba(0, 0, 0, 0.1) 50%
+            );
+            background-size: 100% 4px;
+            z-index: 100;
+            opacity: 0.3;
+        }
+        
+        .crt-effect {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            background: 
+                radial-gradient(
+                    ellipse at center,
+                    rgba(0, 255, 136, 0.05) 0%,
+                    transparent 70%
+                );
+            z-index: 99;
+        }
+        
+        /* Real-time Data Stream */
+        .data-stream {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            width: 300px;
+            height: 100px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 1px solid rgba(0, 255, 136, 0.3);
+            border-radius: 5px;
+            padding: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.8rem;
+            overflow: hidden;
+        }
+        
+        .stream-line {
+            color: #88ff88;
+            margin: 2px 0;
+            white-space: nowrap;
+            animation: streamScroll 20s linear infinite;
+        }
+        
+        @keyframes streamScroll {
+            from { transform: translateY(100%); }
+            to { transform: translateY(-100%); }
+        }
+    </style>
+</head>
+<body>
+    <div class="scanlines"></div>
+    <div class="crt-effect"></div>
+    
+    <div class="main-container" x-data="advancedRadarSystem()">
+        <!-- Header -->
+        <div class="header">
+            <div class="system-title">PASSIVE Wi-Fi RADAR SYSTEM</div>
+            <div class="status-indicators">
+                <div class="status-item">
+                    <div class="status-led led-green"></div>
+                    <span>SYSTEM: ACTIVE</span>
+                </div>
+                <div class="status-item">
+                    <div class="status-led led-blue"></div>
+                    <span x-text="`TARGETS: ${targets.length}`"></span>
+                </div>
+                <div class="status-item">
+                    <div class="status-led" :class="system.antiJammingActive ? 'led-green' : 'led-red'"></div>
+                    <span x-text="`A/J: ${system.antiJammingActive ? 'ACTIVE' : 'STANDBY'}`"></span>
+                </div>
+                <div class="status-item">
+                    <div class="status-led led-green"></div>
+                    <span x-text="`SNR: ${system.snr.toFixed(1)} dB`"></span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Left Control Panel -->
+        <div class="left-panel">
+            <div class="control-section">
+                <div class="control-title">RADAR CONTROLS</div>
+                <div class="control-row">
+                    <span>RANGE SCALE</span>
+                    <div class="knob-container">
+                        <div class="knob" @mousedown="startKnobDrag($event, 'range')">
+                            <div class="knob-indicator"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="control-row">
+                    <span>GAIN CONTROL</span>
+                    <div class="knob-container">
+                        <div class="knob" @mousedown="startKnobDrag($event, 'gain')">
+                            <div class="knob-indicator"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="control-row">
+                    <span>FILTER BW</span>
+                    <div class="knob-container">
+                        <div class="knob" @mousedown="startKnobDrag($event, 'bw')">
+                            <div class="knob-indicator"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="control-section">
+                <div class="control-title">PROCESSING MODE</div>
+                <div class="mode-selector">
+                    <div class="mode-option" 
+                         :class="{'active': processingMode === 'surveillance'}"
+                         @click="processingMode = 'surveillance'">
+                        SURVEILLANCE
+                    </div>
+                    <div class="mode-option" 
+                         :class="{'active': processingMode === 'tracking'}"
+                         @click="processingMode = 'tracking'">
+                        TRACKING
+                    </div>
+                    <div class="mode-option" 
+                         :class="{'active': processingMode === 'classification'}"
+                         @click="processingMode = 'classification'">
+                        CLASSIFICATION
+                    </div>
+                </div>
+            </div>
+            
+            <div class="control-section">
+                <div class="control-title">ARRAY CONTROL</div>
+                <div class="control-row">
+                    <span>BEAM AZIMUTH</span>
+                    <span class="param-value" x-text="`${system.beamAzimuth.toFixed(1)}°`"></span>
+                </div>
+                <div class="control-row">
+                    <span>BEAM ELEVATION</span>
+                    <span class="param-value" x-text="`${system.beamElevation.toFixed(1)}°`"></span>
+                </div>
+                <div class="control-row">
+                    <span>NULL STEERING</span>
+                    <span class="param-value" x-text="system.nullSteering ? 'ON' : 'OFF'"></span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Main Radar Display -->
+        <div class="radar-display" id="radarDisplay">
+            <!-- Radar Grid -->
+            <div class="radar-grid">
+                <div class="range-ring"></div>
+                <div class="range-ring"></div>
+                <div class="range-ring"></div>
+                
+                <div class="azimuth-lines">
+                    <div class="azimuth-line" style="transform: rotate(0deg);"></div>
+                    <div class="azimuth-line" style="transform: rotate(45deg);"></div>
+                    <div class="azimuth-line" style="transform: rotate(90deg);"></div>
+                    <div class="azimuth-line" style="transform: rotate(135deg);"></div>
+                    <div class="azimuth-line" style="transform: rotate(180deg);"></div>
+                    <div class="azimuth-line" style="transform: rotate(225deg);"></div>
+                    <div class="azimuth-line" style="transform: rotate(270deg);"></div>
+                    <div class="azimuth-line" style="transform: rotate(315deg);"></div>
+                </div>
+                
+                <!-- Radar Sweep -->
+                <div class="radar-sweep">
+                    <div class="sweep-arm"></div>
+                </div>
+                
+                <!-- Target Blips -->
+                <template x-for="target in targets" :key="target.id">
+                    <div class="target-blip blip-pulse"
+                         :style="`
+                            left: ${50 + target.range * Math.cos(target.azimuth * Math.PI / 180) * 0.9}%;
+                            top: ${50 - target.range * Math.sin(target.azimuth * Math.PI / 180) * 0.9}%;
+                            background: ${target.color};
+                            border: 2px solid ${target.color};
+                         `">
+                         
+                        <!-- Target Trail -->
+                        <div class="target-trail"
+                             :style="`
+                                left: ${50 + (target.range - 0.1) * Math.cos(target.azimuth * Math.PI / 180) * 0.9}%;
+                                top: ${50 - (target.range - 0.1) * Math.sin(target.azimuth * Math.PI / 180) * 0.9}%;
+                                color: ${target.color};
+                             `"></div>
+                    </div>
+                </template>
+            </div>
+        </div>
+        
+        <!-- Right Target Panel -->
+        <div class="right-panel">
+            <div class="control-title">TARGET TRACKING</div>
+            <div class="target-display">
+                <template x-for="target in targets" :key="target.id">
+                    <div class="target-card" @mouseenter="hoveredTarget = target" @mouseleave="hoveredTarget = null">
+                        <div class="target-header">
+                            <div class="target-id" x-text="target.id"></div>
+                            <div class="target-type" :class="`type-${target.type}`" 
+                                 x-text="target.type.toUpperCase()"></div>
+                        </div>
+                        
+                        <div class="target-params">
+                            <div class="param-item">
+                                <div class="param-label">RANGE</div>
+                                <div class="param-value" x-text="`${target.range.toFixed(2)} km`"></div>
+                            </div>
+                            <div class="param-item">
+                                <div class="param-label">AZIMUTH</div>
+                                <div class="param-value" x-text="`${target.azimuth.toFixed(1)}°`"></div>
+                            </div>
+                            <div class="param-item">
+                                <div class="param-label">SPEED</div>
+                                <div class="param-value" x-text="`${target.speed.toFixed(0)} kts`"></div>
+                            </div>
+                            <div class="param-item">
+                                <div class="param-label">ALTITUDE</div>
+                                <div class="param-value" x-text="`${target.altitude.toFixed(0)} ft`"></div>
+                            </div>
+                        </div>
+                        
+                        <div class="target-params">
+                            <div class="param-item">
+                                <div class="param-label">DOPPLER</div>
+                                <div class="param-value" 
+                                     :style="`color: ${target.doppler > 0 ? '#00ff88' : '#ff4444'}`"
+                                     x-text="`${target.doppler > 0 ? '+' : ''}${target.doppler.toFixed(0)} Hz`"></div>
+                            </div>
+                            <div class="param-item">
+                                <div class="param-label">RCS</div>
+                                <div class="param-value" x-text="`${target.rcs.toFixed(3)} m²`"></div>
+                            </div>
+                            <div class="param-item">
+                                <div class="param-label">THREAT</div>
+                                <div class="param-value" 
+                                     :style="`color: ${getThreatColor(target.threatLevel)}`"
+                                     x-text="target.threatLevel.toUpperCase()"></div>
+                            </div>
+                            <div class="param-item">
+                                <div class="param-label">CONFIDENCE</div>
+                                <div class="param-value" x-text="`${target.confidence}%`"></div>
+                            </div>
+                        </div>
+                    </div>
+                </template>
+            </div>
+        </div>
+        
+        <!-- Bottom Analysis Panel -->
+        <div class="analysis-panel">
+            <!-- Frequency Spectrum -->
+            <div class="analysis-card">
+                <div class="analysis-title">FREQUENCY SPECTRUM</div>
+                <div class="spectrum-display" id="spectrumDisplay"></div>
+            </div>
+            
+            <!-- Doppler Analysis -->
+            <div class="analysis-card">
+                <div class="analysis-title">DOPPLER ANALYSIS</div>
+                <div class="doppler-display">
+                    <div class="doppler-wave"></div>
+                    <div class="doppler-indicator" 
+                         :style="`left: ${dopplerPosition}%; background: ${dopplerColor};`"></div>
+                </div>
+                <div class="doppler-readout" x-text="`Δf = ${dopplerShift.toFixed(0)} Hz`"></div>
+            </div>
+            
+            <!-- Phase Analysis -->
+            <div class="analysis-card">
+                <div class="analysis-title">PHASE CORRELATION</div>
+                <div class="phase-display" id="phaseDisplay"></div>
+                <div class="phase-readout" x-text="`Φ = ${phaseAngle.toFixed(1)}°`"></div>
+            </div>
+            
+            <!-- Signal Quality -->
+            <div class="analysis-card">
+                <div class="analysis-title">SIGNAL QUALITY</div>
+                <div class="quality-metrics">
+                    <div class="metric-row">
+                        <span>SNR:</span>
+                        <span x-text="`${system.snr.toFixed(1)} dB`"></span>
+                    </div>
+                    <div class="metric-row">
+                        <span>CNR:</span>
+                        <span x-text="`${system.cnr.toFixed(1)} dB`"></span>
+                    </div>
+                    <div class="metric-row">
+                        <span>INTERFERENCE:</span>
+                        <span x-text="`${system.interference.toFixed(1)}%`"></span>
+                    </div>
+                    <div class="metric-row">
+                        <span>UPDATE RATE:</span>
+                        <span x-text="`${system.updateRate} Hz`"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Alert Overlay -->
+        <template x-if="alert.active">
+            <div class="alert-overlay">
+                <div class="alert-box">
+                    <div class="alert-title" x-text="alert.type"></div>
+                    <div class="alert-message" x-text="alert.message"></div>
+                    <div class="alert-target" x-text="`TARGET: ${alert.target}`"></div>
+                    <button @click="alert.active = false" class="btn-ack">ACKNOWLEDGE</button>
+                </div>
+            </div>
+        </template>
+        
+        <!-- Data Stream -->
+        <div class="data-stream">
+            <div class="stream-line" x-text="dataStream[0]"></div>
+            <div class="stream-line" x-text="dataStream[1]"></div>
+            <div class="stream-line" x-text="dataStream[2]"></div>
+            <div class="stream-line" x-text="dataStream[3]"></div>
+            <div class="stream-line" x-text="dataStream[4]"></div>
+        </div>
+    </div>
+
+    <script>
+        function advancedRadarSystem() {
+            return {
+                // System State
+                system: {
+                    snr: 24.5,
+                    cnr: 18.2,
+                    interference: 12.3,
+                    updateRate: 30,
+                    antiJammingActive: true,
+                    beamAzimuth: 45.0,
+                    beamElevation: 30.0,
+                    nullSteering: true,
+                    processingLoad: 65
+                },
+                
+                // Processing Mode
+                processingMode: 'tracking',
+                
+                // Targets Data
+                targets: [
+                    {
+                        id: 'TGT-001',
+                        type: 'drone',
+                        color: '#00ccff',
+                        range: 3.2,
+                        azimuth: 45.0,
+                        speed: 42.5,
+                        altitude: 1250,
+                        doppler: 1250,
+                        rcs: 0.015,
+                        threatLevel: 'medium',
+                        confidence: 92,
+                        maneuverPattern: 'hover',
+                        emitterSignature: 'quadcopter',
+                        trackHistory: []
+                    },
+                    {
+                        id: 'TGT-002',
+                        type: 'plane',
+                        color: '#00ff88',
+                        range: 25.8,
+                        azimuth: 120.5,
+                        speed: 425.0,
+                        altitude: 35000,
+                        doppler: -8250,
+                        rcs: 8.5,
+                        threatLevel: 'low',
+                        confidence: 98,
+                        maneuverPattern: 'linear',
+                        emitterSignature: 'commercial',
+                        trackHistory: []
+                    },
+                    {
+                        id: 'TGT-003',
+                        type: 'helicopter',
+                        color: '#ffaa00',
+                        range: 8.3,
+                        azimuth: 300.2,
+                        speed: 125.0,
+                        altitude: 3200,
+                        doppler: 2850,
+                        rcs: 2.3,
+                        threatLevel: 'medium',
+                        confidence: 87,
+                        maneuverPattern: 'orbital',
+                        emitterSignature: 'military',
+                        trackHistory: []
+                    }
+                ],
+                
+                // Analysis Data
+                dopplerShift: 1250,
+                dopplerPosition: 50,
+                dopplerColor: '#00ff88',
+                phaseAngle: 45.0,
+                
+                // Alert System
+                alert: {
+                    active: false,
+                    type: '',
+                    message: '',
+                    target: ''
+                },
+                
+                // Data Stream
+                dataStream: [
+                    'SYSTEM: PASSIVE ARRAY ACTIVE',
+                    'PROCESSING: MUSIC ALGORITHM',
+                    'BEAMFORMING: ADAPTIVE MVDR',
+                    'TRACKING: 3 TARGETS ACTIVE',
+                    'STATUS: ALL SYSTEMS NOMINAL'
+                ],
+                
+                // Hover state
+                hoveredTarget: null,
+                
+                // Animation frames
+                animationFrame: null,
+                
+                init() {
+                    this.initializeDisplays();
+                    this.startAnimation();
+                    this.updateDataStream();
+                    
+                    // Start with a simulated alert
+                    setTimeout(() => {
+                        this.triggerAlert(
+                            'NEW TARGET DETECTED',
+                            'UNIDENTIFIED DRONE IN RESTRICTED AIRSPACE',
+                            'TGT-004'
+                        );
+                    }, 3000);
+                },
+                
+                initializeDisplays() {
+                    this.createSpectrumDisplay();
+                    this.createPhaseDisplay();
+                },
+                
+                createSpectrumDisplay() {
+                    const container = document.getElementById('spectrumDisplay');
+                    container.innerHTML = '';
+                    
+                    for (let i = 0; i < 64; i++) {
+                        const bar = document.createElement('div');
+                        bar.className = 'spectrum-line';
+                        bar.style.left = `${i * (100 / 64)}%`;
+                        bar.style.height = `${20 + Math.random() * 60}%`;
+                        container.appendChild(bar);
+                    }
+                },
+                
+                createPhaseDisplay() {
+                    const container = document.getElementById('phaseDisplay');
+                    container.innerHTML = '';
+                    
+                    const centerX = 150;
+                    const centerY = 40;
+                    const radius = 35;
+                    
+                    for (let i = 0; i < 360; i += 10) {
+                        const angle = (i * Math.PI) / 180;
+                        const x = centerX + radius * Math.cos(angle);
+                        const y = centerY + radius * Math.sin(angle);
+                        
+                        const dot = document.createElement('div');
+                        dot.className = 'phase-dot';
+                        dot.style.left = `${x}px`;
+                        dot.style.top = `${y}px`;
+                        dot.style.opacity = 0.5 + Math.random() * 0.5;
+                        container.appendChild(dot);
+                    }
+                },
+                
+                startAnimation() {
+                    const animate = () => {
+                        this.updateTargets();
+                        this.updateSystemMetrics();
+                        this.updateAnalysisDisplays();
+                        this.updateDopplerDisplay();
+                        
+                        this.animationFrame = requestAnimationFrame(animate);
+                    };
+                    
+                    animate();
+                },
+                
+                updateTargets() {
+                    this.targets.forEach(target => {
+                        // Update target motion based on type
+                        this.updateTargetMotion(target);
+                        
+                        // Update Doppler shift
+                        this.updateTargetDoppler(target);
+                        
+                        // Update track history
+                        this.updateTrackHistory(target);
+                        
+                        // Random chance for maneuver
+                        if (Math.random() < 0.01) {
+                            this.executeManeuver(target);
+                        }
+                    });
+                },
+                
+                updateTargetMotion(target) {
+                    const motionPatterns = {
+                        drone: () => {
+                            // Hovering with small random movements
+                            target.range += (Math.random() - 0.5) * 0.05;
+                            target.azimuth += (Math.random() - 0.5) * 0.5;
+                            target.altitude += (Math.random() - 0.5) * 50;
+                        },
+                        plane: () => {
+                            // Linear motion with gradual turn
+                            target.range -= 0.02; // Approaching
+                            target.azimuth += 0.1; // Turning right
+                            target.speed = 425 + (Math.random() - 0.5) * 10;
+                        },
+                        helicopter: () => {
+                            // Orbital motion
+                            target.range += (Math.random() - 0.5) * 0.01;
+                            target.azimuth += 0.2; // Continuous orbit
+                            target.altitude = 3200 + Math.sin(Date.now() / 5000) * 200;
+                        }
+                    };
+                    
+                    if (motionPatterns[target.type]) {
+                        motionPatterns[target.type]();
+                    }
+                    
+                    // Keep values in realistic ranges
+                    target.range = Math.max(0.5, Math.min(50, target.range));
+                    target.azimuth = (target.azimuth + 360) % 360;
+                    target.altitude = Math.max(100, Math.min(50000, target.altitude));
+                },
+                
+                updateTargetDoppler(target) {
+                    // Calculate Doppler shift based on radial velocity
+                    const lambda = 0.1224; // Wavelength for 2.45 GHz
+                    const radialVelocity = target.speed * Math.cos(target.azimuth * Math.PI / 180);
+                    target.doppler = (2 * radialVelocity) / lambda;
+                    
+                    // Add some noise
+                    target.doppler += (Math.random() - 0.5) * 50;
+                },
+                
+                updateTrackHistory(target) {
+                    if (!target.trackHistory) target.trackHistory = [];
+                    
+                    target.trackHistory.push({
+                        range: target.range,
+                        azimuth: target.azimuth,
+                        time: Date.now()
+                    });
+                    
+                    // Keep only recent history
+                    if (target.trackHistory.length > 20) {
+                        target.trackHistory = target.trackHistory.slice(-20);
+                    }
+                },
+                
+                executeManeuver(target) {
+                    const maneuvers = {
+                        drone: ['climb', 'descend', 'hover', 'orbit'],
+                        plane: ['turn', 'climb', 'descend', 'accelerate'],
+                        helicopter: ['hover', 'orbit', 'transit', 'landing']
+                    };
+                    
+                    if (maneuvers[target.type]) {
+                        target.maneuverPattern = maneuvers[target.type][
+                            Math.floor(Math.random() * maneuvers[target.type].length)
+                        ];
+                        
+                        // Update confidence based on maneuver detection
+                        target.confidence = Math.max(70, Math.min(99, 
+                            target.confidence + (Math.random() - 0.5) * 10));
+                    }
+                },
+                
+                updateSystemMetrics() {
+                    // Update SNR with realistic fluctuations
+                    this.system.snr = 24 + Math.sin(Date.now() / 10000) * 2 + Math.random();
+                    this.system.cnr = 18 + Math.sin(Date.now() / 12000) * 1.5 + Math.random();
+                    
+                    // Update interference level
+                    this.system.interference = 10 + Math.sin(Date.now() / 8000) * 5 + Math.random() * 2;
+                    
+                    // Update processing load
+                    this.system.processingLoad = 60 + Math.sin(Date.now() / 5000) * 10 + Math.random() * 5;
+                    
+                    // Update beam steering
+                    this.system.beamAzimuth = (this.system.beamAzimuth + 0.05) % 360;
+                    this.system.beamElevation = 30 + Math.sin(Date.now() / 7000) * 10;
+                },
+                
+                updateAnalysisDisplays() {
+                    // Update spectrum display
+                    const spectrumBars = document.querySelectorAll('.spectrum-line');
+                    spectrumBars.forEach((bar, i) => {
+                        const baseHeight = 20;
+                        const targetPeaks = this.targets.length;
+                        const peakHeight = 60;
+                        
+                        let height = baseHeight;
+                        
+                        // Add peaks for each target
+                        this.targets.forEach((target, idx) => {
+                            const peakPosition = (idx + 1) * (64 / (targetPeaks + 1));
+                            const distance = Math.abs(i - peakPosition);
+                            height += Math.exp(-distance / 3) * peakHeight * (0.5 + Math.random() * 0.5);
+                        });
+                        
+                        // Add noise
+                        height += Math.random() * 10;
+                        
+                        // Add radar sweep effect
+                        const sweepPos = (Date.now() / 40) % 64;
+                        const sweepDistance = Math.abs(i - sweepPos);
+                        if (sweepDistance < 3) {
+                            height += 30 * (1 - sweepDistance / 3);
+                        }
+                        
+                        bar.style.height = `${height}%`;
+                        bar.style.background = `linear-gradient(to top, 
+                            transparent, 
+                            rgba(0, 204, 255, ${0.3 + Math.random() * 0.3}), 
+                            rgba(0, 255, 136, ${0.5 + Math.random() * 0.5}))`;
+                    });
+                },
+                
+                updateDopplerDisplay() {
+                    // Calculate average Doppler shift
+                    const avgDoppler = this.targets.reduce((sum, t) => sum + t.doppler, 0) / this.targets.length;
+                    this.dopplerShift = avgDoppler;
+                    
+                    // Update position indicator
+                    this.dopplerPosition = 50 + (avgDoppler / 10000) * 25;
+                    
+                    // Update color based on sign
+                    this.dopplerColor = avgDoppler > 0 ? '#00ff88' : '#ff4444';
+                    
+                    // Update phase angle
+                    this.phaseAngle = (this.phaseAngle + 0.5) % 360;
+                },
+                
+                updateDataStream() {
+                    setInterval(() => {
+                        const messages = [
+                            `TIME: ${new Date().toLocaleTimeString()}`,
+                            `TARGETS: ${this.targets.length} ACTIVE`,
+                            `PROC MODE: ${this.processingMode.toUpperCase()}`,
+                            `BEAM: ${this.system.beamAzimuth.toFixed(1)}°/${this.system.beamElevation.toFixed(1)}°`,
+                            `SNR: ${this.system.snr.toFixed(1)} dB CNR: ${this.system.cnr.toFixed(1)} dB`,
+                            `UPDATE: ${this.system.updateRate} Hz LOAD: ${this.system.processingLoad.toFixed(0)}%`,
+                            `A/J: ${this.system.antiJammingActive ? 'ACTIVE' : 'STANDBY'}`,
+                            `NULL STEERING: ${this.system.nullSteering ? 'ENABLED' : 'DISABLED'}`,
+                            'FFT PROCESSING: 1024 POINTS',
+                            'MUSIC RESOLUTION: 0.5°',
+                            'RANGE RES: 10m DOPPLER RES: 50Hz'
+                        ];
+                        
+                        // Rotate messages
+                        const newMessage = messages[Math.floor(Math.random() * messages.length)];
+                        this.dataStream.unshift(newMessage);
+                        if (this.dataStream.length > 5) {
+                            this.dataStream.pop();
+                        }
+                    }, 2000);
+                },
+                
+                startKnobDrag(event, type) {
+                    const startX = event.clientX;
+                    const startValue = type === 'range' ? 50 : 
+                                     type === 'gain' ? 75 : 
+                                     type === 'bw' ? 60 : 50;
+                    
+                    const onMouseMove = (moveEvent) => {
+                        const deltaX = moveEvent.clientX - startX;
+                        const newValue = Math.max(0, Math.min(100, startValue + deltaX));
+                        
+                        // Update system based on knob type
+                        switch(type) {
+                            case 'range':
+                                this.system.updateRate = 10 + newValue * 0.5;
+                                break;
+                            case 'gain':
+                                this.system.snr = 15 + newValue * 0.5;
+                                break;
+                            case 'bw':
+                                this.system.interference = newValue * 0.5;
+                                break;
+                        }
+                    };
+                    
+                    const onMouseUp = () => {
+                        document.removeEventListener('mousemove', onMouseMove);
+                        document.removeEventListener('mouseup', onMouseUp);
+                    };
+                    
+                    document.addEventListener('mousemove', onMouseMove);
+                    document.addEventListener('mouseup', onMouseUp);
+                },
+                
+                triggerAlert(type, message, target) {
+                    this.alert = {
+                        active: true,
+                        type: type,
+                        message: message,
+                        target: target
+                    };
+                    
+                    // Auto-clear after 10 seconds
+                    setTimeout(() => {
+                        this.alert.active = false;
+                    }, 10000);
+                },
+                
+                getThreatColor(level) {
+                    switch(level.toLowerCase()) {
+                        case 'high': return '#ff4444';
+                        case 'medium': return '#ffaa00';
+                        case 'low': return '#00ff88';
+                        default: return '#888888';
+                    }
+                },
+                
+                // Cleanup
+                beforeDestroy() {
+                    if (this.animationFrame) {
+                        cancelAnimationFrame(this.animationFrame);
+                    }
+                }
+            }
+        }
+    </script>
+</body>
+</html>

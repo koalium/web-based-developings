@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Wire Cage Visualization with Animations</title>
+    <style>
+        body { margin: 0; }
+        canvas { display: block; }
+        #gui { position: absolute; top: 10px; right: 10px; }
+    </style>
+</head>
+<body>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.7.7/dat.gui.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+
+<script>
+let scene, camera, renderer, controls;
+let verticalWires = [], spiralWire;
+let animationState = { 
+    verticalPlaced: 0,
+    spiralProgress: 0,
+    weldingPoints: []
+};
+let params = {
+    cylinderDiameter: 2,
+    verticalCount: 12,
+    verticalDiameter: 0.1,
+    verticalLength: 10,
+    spiralDiameter: 0.08,
+    spiralSpace: 0.5,
+    materialType: 'steel',
+    background: '#111111',
+    animationSpeed: 1,
+    resetAnimation: () => resetAnimation()
+};
+
+init();
+animate();
+
+function init() {
+    // Scene setup
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color(params.background);
+    camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+    renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
+
+    // Lights
+    const ambientLight = new THREE.AmbientLight(0x404040);
+    scene.add(ambientLight);
+    
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    directionalLight.position.set(1, 1, 1);
+    scene.add(directionalLight);
+
+    // Controls
+    controls = new THREE.OrbitControls(camera, renderer.domElement);
+    camera.position.set(0, params.verticalLength/2, 10);
+    controls.update();
+
+    // GUI
+    const gui = new dat.GUI();
+    gui.add(params, 'cylinderDiameter', 1, 5).onChange(resetAnimation);
+    gui.add(params, 'verticalCount', 4, 36).step(1).onChange(resetAnimation);
+    gui.add(params, 'verticalDiameter', 0.05, 0.3).onChange(resetAnimation);
+    gui.add(params, 'verticalLength', 5, 20).onChange(resetAnimation);
+    gui.add(params, 'spiralDiameter', 0.05, 0.3).onChange(resetAnimation);
+    gui.add(params, 'spiralSpace', 0.2, 1).onChange(resetAnimation);
+    gui.addColor(params, 'background').onChange(val => scene.background = new THREE.Color(val));
+    gui.add(params, 'materialType', ['steel', 'carbon', 'ss', 'inconel']).onChange(updateMaterials);
+    gui.add(params, 'animationSpeed', 0.5, 3);
+    gui.add(params, 'resetAnimation');
+
+    resetAnimation();
+}
+
+function createVerticalWires() {
+    verticalWires.forEach(wire => scene.remove(wire));
+    verticalWires = [];
+
+    const radius = params.cylinderDiameter / 2;
+    const angleStep = (Math.PI * 2) / params.verticalCount;
+
+    for(let i = 0; i < params.verticalCount; i++) {
+        const angle = angleStep * i;
+        const x = Math.cos(angle) * radius;
+        const z = Math.sin(angle) * radius;
+
+        const geometry = new THREE.CylinderGeometry(
+            params.verticalDiameter/2, 
+            params.verticalDiameter/2, 
+            0.1  // Start with very small height
+        );
+        const material = new THREE.MeshStandardMaterial({ 
+            color: 0x888888,
+            metalness: 0.7,
+            roughness: 0.3
+        });
+        const wire = new THREE.Mesh(geometry, material);
+        wire.position.set(x, 0.05, z); // Start at bottom
+        wire.userData.targetHeight = params.verticalLength;
+        wire.userData.targetY = params.verticalLength/2;
+        wire.visible = false; // Start invisible
+        verticalWires.push(wire);
+        scene.add(wire);
+    }
+}
+
+function createSpiral() {
+    if(spiralWire) scene.remove(spiralWire);
+    
+    const radius = params.cylinderDiameter / 2 + params.verticalDiameter/2;
+    const segments = Math.floor(params.verticalLength / params.spiralSpace * 100);
+    const points = [];
+    
+    for(let i = 0; i < segments; i++) {
+        points.push(new THREE.Vector3(0, 0, 0)); // Start with zero-length spiral
+    }
+
+    const geometry = new THREE.BufferGeometry().setFromPoints(points);
+    const material = new THREE.LineBasicMaterial({ 
+        color: 0xaaaaaa,
+        linewidth: 2
+    });
+    spiralWire = new THREE.Line(geometry, material);
+    spiralWire.visible = false;
+    scene.add(spiralWire);
+}
+
+function updateMaterials() {
+    const materialProps = {
+        steel: { color: 0x888888, metalness: 0.7, roughness: 0.3 },
+        carbon: { color: 0x333333, metalness: 0.5, roughness: 0.6 },
+        ss: { color: 0xcccccc, metalness: 0.9, roughness: 0.1 },
+        inconel: { color: 0x554422, metalness: 0.8, roughness: 0.4 }
+    };
+
+    verticalWires.forEach(wire => {
+        wire.material = new THREE.MeshStandardMaterial(materialProps[params.materialType]);
+    });
+}
+
+function resetAnimation() {
+    animationState = { 
+        verticalPlaced: 0,
+        spiralProgress: 0,
+        weldingPoints: []
+    };
+    createVerticalWires();
+    createSpiral();
+    updateMaterials();
+    
+    // Start camera at half height
+    camera.position.set(0, params.verticalLength/2, 10);
+    controls.target.set(0, params.verticalLength/2, 0);
+    controls.update();
+}
+
+function createWeldingFlash(position) {
+    const flashGeometry = new THREE.SphereGeometry(0.2, 16, 16);
+    const flashMaterial = new THREE.MeshBasicMaterial({
+        color: 0xffff00,
+        transparent: true,
+        opacity: 1
+    });
+    const flash = new THREE.Mesh(flashGeometry, flashMaterial);
+    flash.position.copy(position);
+    flash.userData.lifetime = 0.3;
+    scene.add(flash);
+    animationState.weldingPoints.push(flash);
+}
+
+function animate() {
+    requestAnimationFrame(animate);
+    
+    // Animate vertical wires placement
+    if (animationState.verticalPlaced < params.verticalCount) {
+        const wire = verticalWires[animationState.verticalPlaced];
+        
+        if (!wire.visible) {
+            wire.visible = true;
+        } else {
+            // Grow wire height
+            const currentHeight = wire.geometry.parameters.height;
+            const newHeight = Math.min(
+                currentHeight + 0.5 * params.animationSpeed, 
+                wire.userData.targetHeight
+            );
+            
+            // Update wire geometry
+            wire.geometry.dispose();
+            wire.geometry = new THREE.CylinderGeometry(
+                params.verticalDiameter/2, 
+                params.verticalDiameter/2, 
+                newHeight
+            );
+            
+            // Position wire correctly
+            wire.position.y = newHeight/2;
+            
+            // Check if wire is fully grown
+            if (newHeight >= wire.userData.targetHeight) {
+                // Create welding flash at top and bottom
+                createWeldingFlash(new THREE.Vector3(
+                    wire.position.x,
+                    0,
+                    wire.position.z
+                ));
+                createWeldingFlash(new THREE.Vector3(
+                    wire.position.x,
+                    params.verticalLength,
+                    wire.position.z
+                ));
+                
+                animationState.verticalPlaced++;
+            }
+        }
+    } 
+    // Animate spiral wire winding
+    else if (animationState.spiralProgress < 1) {
+        if (!spiralWire.visible) {
+            spiralWire.visible = true;
+        }
+        
+        const radius = params.cylinderDiameter / 2 + params.verticalDiameter/2;
+        const segments = spiralWire.geometry.attributes.position.count;
+        const progress = animationState.spiralProgress;
+        const points = [];
+        
+        // Update spiral progress
+        animationState.spiralProgress = Math.min(
+            progress + 0.005 * params.animationSpeed, 
+            1
+        );
+        
+        // Generate new spiral points
+        for(let i = 0; i < segments; i++) {
+            const segmentProgress = Math.min(i / segments, animationState.spiralProgress);
+            const angle = (i / 10) * Math.PI;
+            const y = segmentProgress * params.verticalLength;
+            const x = Math.cos(angle) * radius;
+            const z = Math.sin(angle) * radius;
+            points.push(new THREE.Vector3(x, y, z));
+            
+            // Create welding flashes at connection points
+            if (i % Math.floor(segments / (params.verticalCount * 2)) === 0 && 
+                segmentProgress === animationState.spiralProgress) {
+                createWeldingFlash(new THREE.Vector3(x, y, z));
+            }
+        }
+        
+        // Update spiral geometry
+        spiralWire.geometry.dispose();
+        spiralWire.geometry = new THREE.BufferGeometry().setFromPoints(points);
+        
+        // Zoom out camera when spiral starts
+        if (animationState.spiralProgress < 0.1) {
+            const zoomProgress = animationState.spiralProgress * 10;
+            camera.position.z = 10 + 5 * zoomProgress;
+            controls.target.y = params.verticalLength/2 - 2 * zoomProgress;
+            controls.update();
+        }
+    }
+    
+    // Animate welding flashes
+    for (let i = animationState.weldingPoints.length - 1; i >= 0; i--) {
+        const flash = animationState.weldingPoints[i];
+        flash.userData.lifetime -= 0.016 * params.animationSpeed;
+        
+        if (flash.userData.lifetime <= 0) {
+            scene.remove(flash);
+            animationState.weldingPoints.splice(i, 1);
+        } else {
+            flash.scale.setScalar(1 + (1 - flash.userData.lifetime) * 2);
+            flash.material.opacity = flash.userData.lifetime / 0.3;
+        }
+    }
+    
+    controls.update();
+    renderer.render(scene, camera);
+}
+
+window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+});
+</script>
+</body>
+</html>

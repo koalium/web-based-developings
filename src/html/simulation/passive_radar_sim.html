@@ -1,0 +1,983 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Wi-Fi Radar Medical Monitoring - Live Patient Visualization</title>
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --secondary: #7c3aed;
+            --danger: #dc2626;
+            --success: #16a34a;
+            --warning: #d97706;
+            --info: #0ea5e9;
+            --bg: #0f172a;
+            --card-bg: #1e293b;
+            --text: #f8fafc;
+            --grid: rgba(255, 255, 255, 0.1);
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, var(--bg) 0%, #1e1b4b 100%);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 10px;
+            overflow-x: hidden;
+        }
+        
+        .container {
+            max-width: 95vw;
+            margin: 0 auto;
+        }
+        
+        /* Enhanced Header */
+        .main-header {
+            background: linear-gradient(135deg, var(--card-bg) 0%, #312e81 100%);
+            border-radius: 20px;
+            padding: 25px;
+            margin-bottom: 25px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+            border: 1px solid var(--grid);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .main-header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--primary), var(--secondary), var(--info));
+        }
+        
+        h1 {
+            font-size: 2.8rem;
+            margin-bottom: 10px;
+            background: linear-gradient(90deg, var(--primary), var(--secondary), var(--info));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-align: center;
+        }
+        
+        /* Enhanced 3D Environment */
+        .environment-3d {
+            width: 100%;
+            height: 500px;
+            background: 
+                radial-gradient(circle at 20% 20%, rgba(37, 99, 235, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(124, 58, 237, 0.1) 0%, transparent 50%),
+                linear-gradient(45deg, rgba(0, 0, 0, 0.3) 0%, transparent 100%);
+            border-radius: 20px;
+            position: relative;
+            overflow: hidden;
+            border: 2px solid var(--grid);
+            margin-bottom: 25px;
+        }
+        
+        .room-boundary {
+            position: absolute;
+            top: 10%;
+            left: 10%;
+            width: 80%;
+            height: 80%;
+            border: 2px dashed var(--grid);
+            border-radius: 15px;
+            pointer-events: none;
+        }
+        
+        .antenna-cluster {
+            position: absolute;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            gap: 6px;
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.6);
+            border-radius: 15px;
+            border: 2px solid var(--primary);
+            backdrop-filter: blur(10px);
+        }
+        
+        .antenna-node {
+            width: 14px;
+            height: 14px;
+            background: var(--primary);
+            border-radius: 50%;
+            transition: all 0.3s ease;
+            box-shadow: 0 0 10px var(--primary);
+            position: relative;
+        }
+        
+        .antenna-node.active {
+            background: var(--success);
+            box-shadow: 0 0 20px var(--success);
+            animation: antennaPulse 2s infinite;
+        }
+        
+        @keyframes antennaPulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.2); opacity: 0.8; }
+        }
+        
+        /* Patient Avatars with Live Animation */
+        .patient-avatar {
+            position: absolute;
+            width: 80px;
+            height: 120px;
+            transition: all 2s ease-in-out;
+            filter: drop-shadow(0 5px 15px rgba(0, 0, 0, 0.5));
+        }
+        
+        .patient-body {
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+        
+        .patient-head {
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: 2px solid;
+        }
+        
+        .patient-torso {
+            position: absolute;
+            top: 38px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 50px;
+            height: 50px;
+            border-radius: 10px;
+            border: 2px solid;
+        }
+        
+        .breathing-animation {
+            animation: breathe 3s ease-in-out infinite;
+        }
+        
+        .heartbeat-animation {
+            animation: heartbeat 1.2s ease-in-out infinite;
+        }
+        
+        @keyframes breathe {
+            0%, 100% { transform: translateX(-50%) scaleY(1); }
+            50% { transform: translateX(-50%) scaleY(1.05); }
+        }
+        
+        @keyframes heartbeat {
+            0%, 100% { transform: translateX(-50%) scale(1); }
+            50% { transform: translateX(-50%) scale(1.02); }
+        }
+        
+        .vital-waves {
+            position: absolute;
+            top: -30px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 100px;
+            height: 30px;
+            pointer-events: none;
+        }
+        
+        .wave-path {
+            fill: none;
+            stroke-width: 2;
+            animation: waveMove 2s linear infinite;
+        }
+        
+        @keyframes waveMove {
+            0% { transform: translateX(-100px); }
+            100% { transform: translateX(100px); }
+        }
+        
+        /* Enhanced Dashboard Grid */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 20px;
+            margin-bottom: 25px;
+        }
+        
+        .card {
+            background: var(--card-bg);
+            border-radius: 20px;
+            padding: 25px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--grid);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+        }
+        
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+        }
+        
+        /* Patient Status Cards */
+        .patient-card {
+            background: linear-gradient(135deg, var(--card-bg) 0%, rgba(30, 41, 59, 0.8) 100%);
+            border-left: 5px solid;
+            transition: all 0.3s ease;
+        }
+        
+        .patient-card.critical {
+            animation: criticalPulse 2s infinite;
+            border-left-color: var(--danger) !important;
+        }
+        
+        @keyframes criticalPulse {
+            0%, 100% { box-shadow: 0 0 0 rgba(220, 38, 38, 0); }
+            50% { box-shadow: 0 0 30px rgba(220, 38, 38, 0.5); }
+        }
+        
+        .patient-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--grid);
+        }
+        
+        .patient-stats {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+        }
+        
+        .stat-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            transition: all 0.3s ease;
+        }
+        
+        .stat-item:hover {
+            background: rgba(0, 0, 0, 0.5);
+            transform: translateY(-2px);
+        }
+        
+        .stat-value {
+            font-size: 1.4rem;
+            font-weight: bold;
+            margin: 5px 0;
+        }
+        
+        .stat-trend {
+            font-size: 0.8rem;
+            padding: 2px 8px;
+            border-radius: 10px;
+            background: var(--success);
+        }
+        
+        .trend-up { background: var(--danger); }
+        .trend-down { background: var(--success); }
+        .trend-stable { background: var(--info); }
+        
+        /* Medical Device Visualization */
+        .medical-devices {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .device-card {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid var(--grid);
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+        
+        .device-card.active {
+            border-color: var(--success);
+            box-shadow: 0 0 20px rgba(22, 163, 74, 0.3);
+        }
+        
+        .device-icon {
+            font-size: 2rem;
+            margin-bottom: 10px;
+        }
+        
+        /* Emergency Alert System */
+        .emergency-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(220, 38, 38, 0.1);
+            backdrop-filter: blur(5px);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: emergencyFlash 1s infinite;
+        }
+        
+        @keyframes emergencyFlash {
+            0%, 100% { opacity: 0.3; }
+            50% { opacity: 0.7; }
+        }
+        
+        .emergency-modal {
+            background: var(--danger);
+            color: white;
+            padding: 40px;
+            border-radius: 20px;
+            text-align: center;
+            box-shadow: 0 0 50px rgba(220, 38, 38, 0.8);
+            animation: modalPulse 0.5s infinite alternate;
+        }
+        
+        @keyframes modalPulse {
+            from { transform: scale(1); }
+            to { transform: scale(1.05); }
+        }
+        
+        /* Control Panel */
+        .control-panel {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 15px;
+            margin: 20px 0;
+        }
+        
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 10px;
+            background: var(--primary);
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(37, 99, 235, 0.4);
+        }
+        
+        .btn-success { background: var(--success); }
+        .btn-danger { background: var(--danger); }
+        .btn-warning { background: var(--warning); }
+        
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .environment-3d {
+                height: 400px;
+            }
+            
+            h1 {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container" x-data="advancedMedicalRadar()">
+        <!-- Enhanced Header -->
+        <header class="main-header">
+            <h1>Wi-Fi Radar Medical Monitoring System</h1>
+            <p class="subtitle">Real-time Non-contact Patient Monitoring • 8×8 Phased Array • Multi-Patient Tracking</p>
+            
+            <div class="system-status">
+                <div class="status-indicators">
+                    <span class="status-item active">Radar: Online</span>
+                    <span class="status-item active">Signal: Strong</span>
+                    <span class="status-item" x-text="`Patients: ${patients.length}`"></span>
+                    <span class="status-item" x-text="`Alerts: ${activeAlerts}`"></span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main 3D Environment -->
+        <div class="environment-3d">
+            <div class="room-boundary"></div>
+            
+            <!-- Antenna Array -->
+            <div class="antenna-cluster">
+                <template x-for="(row, i) in antennaArray" :key="i">
+                    <template x-for="(antenna, j) in row" :key="j">
+                        <div class="antenna-node" :class="{'active': antenna.active}"></div>
+                    </template>
+                </template>
+            </div>
+            
+            <!-- Dynamic Patient Avatars -->
+            <template x-for="patient in patients" :key="patient.id">
+                <div class="patient-avatar" :style="`left: ${patient.position.x}%; top: ${patient.position.y}%;`">
+                    <div class="patient-body">
+                        <!-- Patient Head -->
+                        <div class="patient-head breathing-animation" :style="`border-color: ${patient.color}; background: ${patient.color}20;`"></div>
+                        
+                        <!-- Patient Torso with heartbeat -->
+                        <div class="patient-torso heartbeat-animation" :style="`border-color: ${patient.color}; background: ${patient.color}30;`"></div>
+                        
+                        <!-- Vital Signs Waves -->
+                        <div class="vital-waves">
+                            <svg width="100" height="30">
+                                <path class="wave-path" :stroke="patient.color" 
+                                      :d="generateWavePath(patient.heartRate, patient.respirationRate)"></path>
+                            </svg>
+                        </div>
+                        
+                        <!-- Patient Info Badge -->
+                        <div class="patient-badge" :style="`background: ${patient.color};`">
+                            <span x-text="patient.name"></span>
+                            <br>
+                            <small x-text="`${patient.heartRate} BPM`"></small>
+                        </div>
+                    </div>
+                    
+                    <!-- Activity Trail -->
+                    <div class="activity-trail">
+                        <template x-for="(trail, index) in patient.activityTrail" :key="index">
+                            <div class="trail-dot" :style="`left: ${trail.x}%; top: ${trail.y}%; background: ${patient.color}; opacity: ${0.3 - index * 0.05}`"></div>
+                        </template>
+                    </div>
+                </div>
+            </template>
+            
+            <!-- Signal Propagation Waves -->
+            <div class="signal-waves">
+                <template x-for="patient in patients" :key="'wave-' + patient.id">
+                    <div class="signal-wave" :style="`left: ${patient.position.x}%; top: ${patient.position.y}%; border-color: ${patient.color};`"></div>
+                </template>
+            </div>
+        </div>
+
+        <!-- Enhanced Control Panel -->
+        <div class="control-panel">
+            <div class="control-group">
+                <button class="btn" @click="startSimulation">Start Monitoring</button>
+                <button class="btn btn-warning" @click="stopSimulation">Pause System</button>
+            </div>
+            
+            <div class="control-group">
+                <button class="btn btn-success" @click="addPatient">Add Patient</button>
+                <button class="btn btn-danger" @click="triggerEmergency">Test Emergency</button>
+            </div>
+            
+            <div class="control-group">
+                <label>Environment Complexity</label>
+                <input type="range" min="1" max="10" x-model="environmentComplexity">
+            </div>
+            
+            <div class="control-group">
+                <label>Motion Sensitivity</label>
+                <input type="range" min="1" max="100" x-model="motionSensitivity">
+            </div>
+        </div>
+
+        <!-- Patient Monitoring Dashboard -->
+        <div class="dashboard-grid">
+            <template x-for="patient in patients" :key="patient.id">
+                <div class="card patient-card" :class="{'critical': patient.status === 'Critical'}" 
+                     :style="`border-left-color: ${patient.color};`">
+                    
+                    <div class="patient-header">
+                        <h3 x-text="patient.name"></h3>
+                        <div class="patient-status" :style="`color: ${getStatusColor(patient.status)}`">
+                            <span x-text="patient.status"></span>
+                            <div class="status-dot" :style="`background: ${getStatusColor(patient.status)}`"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="patient-stats">
+                        <div class="stat-item">
+                            <span class="stat-label">Heart Rate</span>
+                            <div class="stat-value" x-text="patient.heartRate" 
+                                 :style="`color: ${getHeartRateColor(patient.heartRate)}`"></div>
+                            <span class="stat-trend" :class="`trend-${patient.heartRateTrend}`" 
+                                  x-text="patient.heartRateTrend"></span>
+                        </div>
+                        
+                        <div class="stat-item">
+                            <span class="stat-label">Respiration</span>
+                            <div class="stat-value" x-text="patient.respirationRate"></div>
+                            <span class="stat-trend" :class="`trend-${patient.respirationTrend}`"
+                                  x-text="patient.respirationTrend"></span>
+                        </div>
+                        
+                        <div class="stat-item">
+                            <span class="stat-label">Movement</span>
+                            <div class="stat-value" x-text="`${patient.movementLevel}%`"></div>
+                            <div class="movement-bar">
+                                <div class="movement-fill" :style="`width: ${patient.movementLevel}%; background: ${patient.color};`"></div>
+                            </div>
+                        </div>
+                        
+                        <div class="stat-item">
+                            <span class="stat-label">Signal Quality</span>
+                            <div class="stat-value" x-text="`${patient.signalQuality}%`"></div>
+                            <div class="quality-indicator" :class="`quality-${getQualityLevel(patient.signalQuality)}`"></div>
+                        </div>
+                    </div>
+                    
+                    <!-- Medical Devices -->
+                    <div class="medical-devices">
+                        <div class="device-card" :class="{'active': patient.heartMonitor}">
+                            <div class="device-icon">❤️</div>
+                            <span>Cardiac Monitor</span>
+                        </div>
+                        <div class="device-card" :class="{'active': patient.respMonitor}">
+                            <div class="device-icon">🌬️</div>
+                            <span>Respiratory Monitor</span>
+                        </div>
+                        <div class="device-card" :class="{'active': patient.motionTracker}">
+                            <div class="device-icon">📡</div>
+                            <span>Motion Tracker</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Activity Log -->
+                    <div class="activity-log">
+                        <h4>Recent Activity</h4>
+                        <div class="log-entries">
+                            <template x-for="activity in patient.recentActivities" :key="activity.timestamp">
+                                <div class="log-entry">
+                                    <span x-text="activity.time"></span>
+                                    <span x-text="activity.event" :style="`color: ${getActivityColor(activity.type)}`"></span>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+            </template>
+        </div>
+
+        <!-- Emergency Overlay -->
+        <template x-if="emergencyAlert">
+            <div class="emergency-overlay">
+                <div class="emergency-modal">
+                    <div class="emergency-icon" style="font-size: 4rem;">🚨</div>
+                    <h2 x-text="emergencyAlert.type"></h2>
+                    <p x-text="emergencyAlert.message"></p>
+                    <p><strong x-text="`Patient: ${emergencyAlert.patient}`"></strong></p>
+                    <button class="btn btn-danger" @click="emergencyAlert = null">Acknowledge Alert</button>
+                </div>
+            </div>
+        </template>
+    </div>
+
+    <script>
+        function advancedMedicalRadar() {
+            return {
+                // System State
+                isRunning: false,
+                simulationInterval: null,
+                activeAlerts: 0,
+                environmentComplexity: 5,
+                motionSensitivity: 75,
+                
+                // Antenna Array
+                antennaArray: [],
+                
+                // Patients with Enhanced Data
+                patients: [
+                    {
+                        id: 1,
+                        name: 'John C. (ICU-1)',
+                        heartRate: 72,
+                        respirationRate: 16,
+                        movementLevel: 15,
+                        signalQuality: 92,
+                        status: 'Stable',
+                        color: '#3b82f6',
+                        position: { x: 25, y: 35 },
+                        heartRateTrend: 'stable',
+                        respirationTrend: 'stable',
+                        heartMonitor: true,
+                        respMonitor: true,
+                        motionTracker: true,
+                        activityTrail: [],
+                        recentActivities: [
+                            { timestamp: Date.now(), time: '2:30 PM', event: 'Normal breathing pattern', type: 'respiratory' },
+                            { timestamp: Date.now() - 60000, time: '2:29 PM', event: 'Regular heart rhythm', type: 'cardiac' }
+                        ]
+                    },
+                    {
+                        id: 2,
+                        name: 'Maria S. (Ward-A)',
+                        heartRate: 68,
+                        respirationRate: 14,
+                        movementLevel: 45,
+                        signalQuality: 88,
+                        status: 'Active',
+                        color: '#8b5cf6',
+                        position: { x: 60, y: 25 },
+                        heartRateTrend: 'down',
+                        respirationTrend: 'stable',
+                        heartMonitor: true,
+                        respMonitor: true,
+                        motionTracker: true,
+                        activityTrail: [],
+                        recentActivities: [
+                            { timestamp: Date.now(), time: '2:31 PM', event: 'Increased movement detected', type: 'motion' },
+                            { timestamp: Date.now() - 120000, time: '2:29 PM', event: 'Position changed', type: 'motion' }
+                        ]
+                    },
+                    {
+                        id: 3,
+                        name: 'Robert K. (ER-3)',
+                        heartRate: 85,
+                        respirationRate: 18,
+                        movementLevel: 8,
+                        signalQuality: 79,
+                        status: 'Elevated',
+                        color: '#10b981',
+                        position: { x: 45, y: 60 },
+                        heartRateTrend: 'up',
+                        respirationTrend: 'up',
+                        heartMonitor: true,
+                        respMonitor: true,
+                        motionTracker: true,
+                        activityTrail: [],
+                        recentActivities: [
+                            { timestamp: Date.now(), time: '2:32 PM', event: 'Elevated heart rate', type: 'cardiac' },
+                            { timestamp: Date.now() - 180000, time: '2:29 PM', event: 'Rapid breathing', type: 'respiratory' }
+                        ]
+                    }
+                ],
+                
+                // Emergency Alert System
+                emergencyAlert: null,
+                
+                init() {
+                    this.initializeAntennaArray();
+                    this.startSimulation();
+                },
+                
+                initializeAntennaArray() {
+                    for (let i = 0; i < 8; i++) {
+                        let row = [];
+                        for (let j = 0; j < 8; j++) {
+                            row.push({
+                                active: Math.random() > 0.3,
+                                phase: Math.random() * Math.PI * 2,
+                                amplitude: 0.7 + Math.random() * 0.3
+                            });
+                        }
+                        this.antennaArray.push(row);
+                    }
+                },
+                
+                generateWavePath(heartRate, respirationRate) {
+                    const points = [];
+                    for (let i = 0; i < 100; i++) {
+                        const x = i;
+                        const y = 15 + 
+                            Math.sin(i * 0.3) * 5 + // Heart rate component
+                            Math.sin(i * 0.1) * 3;   // Respiration component
+                        points.push(`${x},${y}`);
+                    }
+                    return `M ${points.join(' L ')}`;
+                },
+                
+                startSimulation() {
+                    this.isRunning = true;
+                    
+                    this.simulationInterval = setInterval(() => {
+                        // Update antenna activity
+                        this.updateAntennaActivity();
+                        
+                        // Update patient data and positions
+                        this.updatePatients();
+                        
+                        // Check for emergencies
+                        this.checkMedicalEmergencies();
+                        
+                    }, 100);
+                },
+                
+                updateAntennaActivity() {
+                    this.antennaArray.forEach(row => {
+                        row.forEach(antenna => {
+                            antenna.active = Math.random() > 0.4;
+                            antenna.phase += (Math.random() - 0.5) * 0.2;
+                        });
+                    });
+                },
+                
+                updatePatients() {
+                    this.patients.forEach(patient => {
+                        // Update vital signs with realistic patterns
+                        this.updateVitalSigns(patient);
+                        
+                        // Update position with natural movement
+                        this.updatePatientPosition(patient);
+                        
+                        // Update activity trail
+                        this.updateActivityTrail(patient);
+                        
+                        // Add random activities
+                        if (Math.random() < 0.1) {
+                            this.addPatientActivity(patient);
+                        }
+                    });
+                },
+                
+                updateVitalSigns(patient) {
+                    // Heart rate variations
+                    const hrVariation = (Math.random() - 0.5) * 3;
+                    patient.heartRate = Math.max(40, Math.min(120, patient.heartRate + hrVariation));
+                    
+                    // Respiration variations
+                    const rrVariation = (Math.random() - 0.5) * 1.5;
+                    patient.respirationRate = Math.max(8, Math.min(25, patient.respirationRate + rrVariation));
+                    
+                    // Movement level
+                    patient.movementLevel = Math.max(0, Math.min(100, 
+                        patient.movementLevel + (Math.random() - 0.5) * 10));
+                    
+                    // Update trends
+                    patient.heartRateTrend = this.calculateTrend(patient.heartRate, hrVariation);
+                    patient.respirationTrend = this.calculateTrend(patient.respirationRate, rrVariation);
+                    
+                    // Signal quality fluctuations
+                    patient.signalQuality = Math.max(50, Math.min(100, 
+                        patient.signalQuality + (Math.random() - 0.5) * 5));
+                },
+                
+                updatePatientPosition(patient) {
+                    // Natural movement based on patient status
+                    let movementIntensity = 0;
+                    
+                    switch(patient.status) {
+                        case 'Active':
+                            movementIntensity = 0.8;
+                            break;
+                        case 'Resting':
+                            movementIntensity = 0.2;
+                            break;
+                        case 'Critical':
+                            movementIntensity = 0.1;
+                            break;
+                        default:
+                            movementIntensity = 0.5;
+                    }
+                    
+                    // Apply movement with boundaries
+                    patient.position.x += (Math.random() - 0.5) * movementIntensity;
+                    patient.position.y += (Math.random() - 0.5) * movementIntensity * 0.5;
+                    
+                    // Keep within room boundaries
+                    patient.position.x = Math.max(10, Math.min(90, patient.position.x));
+                    patient.position.y = Math.max(10, Math.min(90, patient.position.y));
+                },
+                
+                updateActivityTrail(patient) {
+                    // Add current position to trail
+                    patient.activityTrail.unshift({
+                        x: patient.position.x,
+                        y: patient.position.y,
+                        timestamp: Date.now()
+                    });
+                    
+                    // Keep only recent positions
+                    if (patient.activityTrail.length > 10) {
+                        patient.activityTrail = patient.activityTrail.slice(0, 10);
+                    }
+                },
+                
+                addPatientActivity(patient) {
+                    const activities = [
+                        { type: 'cardiac', events: ['Normal sinus rhythm', 'Slight HR variation', 'Regular pattern'] },
+                        { type: 'respiratory', events: ['Normal breathing', 'Deep breath', 'Slight variation'] },
+                        { type: 'motion', events: ['Position adjusted', 'Limb movement', 'Restless'] }
+                    ];
+                    
+                    const activityType = activities[Math.floor(Math.random() * activities.length)];
+                    const event = activityType.events[Math.floor(Math.random() * activityType.events.length)];
+                    
+                    patient.recentActivities.unshift({
+                        timestamp: Date.now(),
+                        time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
+                        event: event,
+                        type: activityType.type
+                    });
+                    
+                    // Keep only recent activities
+                    if (patient.recentActivities.length > 5) {
+                        patient.recentActivities = patient.recentActivities.slice(0, 5);
+                    }
+                },
+                
+                calculateTrend(currentValue, change) {
+                    if (change > 0.5) return 'up';
+                    if (change < -0.5) return 'down';
+                    return 'stable';
+                },
+                
+                checkMedicalEmergencies() {
+                    this.patients.forEach(patient => {
+                        // Check for critical conditions
+                        if (patient.heartRate < 40 || patient.heartRate > 120) {
+                            this.triggerEmergency(patient, 'Cardiac Emergency', 
+                                `Heart rate ${patient.heartRate} BPM detected`);
+                        }
+                        
+                        if (patient.respirationRate < 8 || patient.respirationRate > 25) {
+                            this.triggerEmergency(patient, 'Respiratory Emergency',
+                                `Respiration rate ${patient.respirationRate} BPM detected`);
+                        }
+                        
+                        if (patient.movementLevel < 5 && patient.status !== 'Critical') {
+                            this.triggerEmergency(patient, 'Motion Alert',
+                                'Unusually low movement detected');
+                        }
+                    });
+                },
+                
+                triggerEmergency(patient, type, message) {
+                    if (!this.emergencyAlert) {
+                        this.emergencyAlert = {
+                            type: type,
+                            message: message,
+                            patient: patient.name,
+                            timestamp: Date.now()
+                        };
+                        
+                        patient.status = 'Critical';
+                        this.activeAlerts++;
+                    }
+                },
+                
+                addPatient() {
+                    const colors = ['#3b82f6', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444', '#ec4899'];
+                    const statuses = ['Stable', 'Active', 'Resting', 'Monitoring'];
+                    
+                    const newPatient = {
+                        id: this.patients.length + 1,
+                        name: `Patient ${this.patients.length + 1}`,
+                        heartRate: Math.floor(Math.random() * 40) + 60,
+                        respirationRate: Math.floor(Math.random() * 10) + 12,
+                        movementLevel: Math.floor(Math.random() * 50) + 10,
+                        signalQuality: Math.floor(Math.random() * 30) + 70,
+                        status: statuses[Math.floor(Math.random() * statuses.length)],
+                        color: colors[this.patients.length % colors.length],
+                        position: {
+                            x: Math.random() * 60 + 20,
+                            y: Math.random() * 60 + 20
+                        },
+                        heartRateTrend: 'stable',
+                        respirationTrend: 'stable',
+                        heartMonitor: true,
+                        respMonitor: true,
+                        motionTracker: true,
+                        activityTrail: [],
+                        recentActivities: []
+                    };
+                    
+                    this.patients.push(newPatient);
+                },
+                
+                getStatusColor(status) {
+                    switch(status) {
+                        case 'Stable': return '#10b981';
+                        case 'Active': return '#3b82f6';
+                        case 'Resting': return '#8b5cf6';
+                        case 'Elevated': return '#f59e0b';
+                        case 'Critical': return '#ef4444';
+                        default: return '#6b7280';
+                    }
+                },
+                
+                getHeartRateColor(hr) {
+                    if (hr < 50) return '#f59e0b';
+                    if (hr < 60) return '#eab308';
+                    if (hr > 100) return '#ef4444';
+                    if (hr > 90) return '#f97316';
+                    return '#10b981';
+                },
+                
+                getQualityLevel(quality) {
+                    if (quality >= 90) return 'excellent';
+                    if (quality >= 80) return 'good';
+                    if (quality >= 70) return 'fair';
+                    return 'poor';
+                },
+                
+                getActivityColor(type) {
+                    switch(type) {
+                        case 'cardiac': return '#ef4444';
+                        case 'respiratory': return '#0ea5e9';
+                        case 'motion': return '#10b981';
+                        default: return '#6b7280';
+                    }
+                },
+                
+                stopSimulation() {
+                    this.isRunning = false;
+                    clearInterval(this.simulationInterval);
+                },
+                
+                triggerEmergency() {
+                    const patient = this.patients[Math.floor(Math.random() * this.patients.length)];
+                    const emergencies = [
+                        { type: 'Cardiac Arrest', message: 'No heartbeat detected' },
+                        { type: 'Respiratory Failure', message: 'Breathing has stopped' },
+                        { type: 'Patient Fall', message: 'Sudden movement pattern detected' }
+                    ];
+                    
+                    const emergency = emergencies[Math.floor(Math.random() * emergencies.length)];
+                    this.triggerEmergency(patient, emergency.type, emergency.message);
+                }
+            }
+        }
+    </script>
+</body>
+</html>

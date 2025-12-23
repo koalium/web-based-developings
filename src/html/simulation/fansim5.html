@@ -1,0 +1,2672 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Advanced 3D Fan Simulation with Enhanced Mobile UX</title>
+    
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Three.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    
+    <!-- Improved Camera Controls -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/TrackballControls.min.js"></script>
+    
+    <!-- Stats.js for performance monitoring -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stats.js/r17/Stats.min.js"></script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: none;
+        }
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            overflow: hidden;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            height: 100vh;
+            width: 100vw;
+        }
+        
+        #scene-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+        
+        /* Enhanced Touch Zone Styles */
+        .touch-zone {
+            position: absolute;
+            z-index: 20;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            border: 3px solid rgba(255, 255, 255, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            color: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            user-select: none;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+        
+        .touch-zone::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(145deg, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.05) 100%);
+            z-index: -1;
+        }
+        
+        .touch-zone::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+            transition: left 0.7s ease;
+        }
+        
+        .touch-zone.active {
+            border-width: 4px;
+            transform: scale(0.96);
+            box-shadow: 0 25px 80px rgba(59, 130, 246, 0.4);
+            z-index: 25;
+        }
+        
+        .touch-zone.active::after {
+            left: 100%;
+        }
+        
+        .touch-zone.sliding {
+            border-color: rgba(16, 185, 129, 0.8) !important;
+            box-shadow: 0 25px 80px rgba(16, 185, 129, 0.3);
+        }
+        
+        #zone-up {
+            top: 0;
+            left: 25%;
+            width: 50%;
+            height: 25%;
+            border-radius: 0 0 30px 30px;
+            border-top: none;
+            background: linear-gradient(180deg, rgba(239, 68, 68, 0.4) 0%, rgba(239, 68, 68, 0.1) 100%);
+        }
+        
+        #zone-down {
+            bottom: 0;
+            left: 25%;
+            width: 50%;
+            height: 25%;
+            border-radius: 30px 30px 0 0;
+            border-bottom: none;
+            background: linear-gradient(0deg, rgba(34, 197, 94, 0.4) 0%, rgba(34, 197, 94, 0.1) 100%);
+        }
+        
+        #zone-left {
+            top: 25%;
+            left: 0;
+            width: 25%;
+            height: 50%;
+            border-radius: 0 30px 30px 0;
+            border-left: none;
+            background: linear-gradient(90deg, rgba(249, 115, 22, 0.4) 0%, rgba(249, 115, 22, 0.1) 100%);
+        }
+        
+        #zone-right {
+            top: 25%;
+            right: 0;
+            width: 25%;
+            height: 50%;
+            border-radius: 30px 0 0 30px;
+            border-right: none;
+            background: linear-gradient(270deg, rgba(59, 130, 246, 0.4) 0%, rgba(59, 130, 246, 0.1) 100%);
+        }
+        
+        .zone-label {
+            font-size: 1.75rem;
+            text-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
+            letter-spacing: 0.15em;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            padding: 20px;
+        }
+        
+        .zone-subtitle {
+            font-size: 0.875rem;
+            opacity: 0.9;
+            font-weight: 600;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 4px 12px;
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+        }
+        
+        /* Loading Overlay */
+        #loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: opacity 0.5s ease;
+        }
+        
+        .spinner {
+            width: 80px;
+            height: 80px;
+            border: 6px solid rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            border-top-color: #3b82f6;
+            animation: spin 1.5s cubic-bezier(0.68, -0.55, 0.27, 1.55) infinite;
+            margin-bottom: 30px;
+            position: relative;
+        }
+        
+        .spinner::after {
+            content: '';
+            position: absolute;
+            top: -6px;
+            left: -6px;
+            right: -6px;
+            bottom: -6px;
+            border: 6px solid transparent;
+            border-radius: 50%;
+            border-top-color: #8b5cf6;
+            animation: spin 2s cubic-bezier(0.68, -0.55, 0.27, 1.55) infinite reverse;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        /* Touch Indicators */
+        .touch-indicator {
+            position: absolute;
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(239, 68, 68, 0.95) 0%, rgba(239, 68, 68, 0.4) 70%);
+            border: 4px solid rgba(255, 255, 255, 0.95);
+            pointer-events: none;
+            z-index: 999;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 0 30px rgba(239, 68, 68, 0.8);
+            animation: touchPulse 0.6s ease-out;
+        }
+        
+        .touch-trail {
+            position: absolute;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(59, 130, 246, 0.7) 0%, rgba(59, 130, 246, 0.2) 70%);
+            pointer-events: none;
+            z-index: 998;
+            transform: translate(-50%, -50%);
+            animation: trailFade 1.2s forwards;
+        }
+        
+        @keyframes touchPulse {
+            0% { transform: translate(-50%, -50%) scale(0.3); opacity: 0.3; }
+            50% { transform: translate(-50%, -50%) scale(1.2); opacity: 1; }
+            100% { transform: translate(-50%, -50%) scale(1); opacity: 0.8; }
+        }
+        
+        @keyframes trailFade {
+            0% { opacity: 0.8; transform: translate(-50%, -50%) scale(1); }
+            100% { opacity: 0; transform: translate(-50%, -50%) scale(0.3); }
+        }
+        
+        /* Mobile Optimization */
+        @media (max-width: 768px) {
+            .zone-label {
+                font-size: 1.25rem;
+                padding: 15px;
+            }
+            
+            .zone-subtitle {
+                font-size: 0.75rem;
+                padding: 3px 10px;
+            }
+            
+            #control-panel, #physics-panel, #analytics-panel {
+                width: 95% !important;
+                left: 2.5% !important;
+                right: 2.5% !important;
+            }
+            
+            #control-panel {
+                top: 10px !important;
+            }
+            
+            #physics-panel {
+                top: 330px !important;
+            }
+            
+            #analytics-panel {
+                bottom: 10px !important;
+                height: auto !important;
+                max-height: 40vh;
+                overflow-y: auto;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .zone-label {
+                font-size: 1rem;
+                padding: 10px;
+            }
+            
+            .touch-zone {
+                border-width: 2px;
+            }
+            
+            .touch-zone.active {
+                border-width: 3px;
+            }
+        }
+        
+        /* Performance Monitor */
+        .performance-monitor {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(20px);
+            padding: 12px 16px;
+            border-radius: 12px;
+            font-size: 0.875rem;
+            color: #10b981;
+            z-index: 100;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            min-width: 120px;
+        }
+        
+        .performance-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #10b981;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        /* Loading Bar */
+        .progress-container {
+            width: 320px;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+            margin-top: 30px;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #3b82f6, #8b5cf6, #ec4899);
+            border-radius: 3px;
+            transition: width 0.4s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .progress-bar::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+            animation: shimmer 2s infinite;
+        }
+        
+        @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+        
+        /* Camera Controls Overlay */
+        .camera-controls {
+            position: absolute;
+            bottom: 80px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(20px);
+            border-radius: 16px;
+            padding: 16px;
+            z-index: 90;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            box-shadow: 0 15px 50px rgba(0, 0, 0, 0.4);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            min-width: 200px;
+        }
+        
+        .control-button {
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 20px;
+        }
+        
+        .control-button:hover {
+            background: rgba(255, 255, 255, 0.2);
+            border-color: rgba(255, 255, 255, 0.4);
+            transform: scale(1.05);
+        }
+        
+        .control-button.active {
+            background: rgba(59, 130, 246, 0.4);
+            border-color: #3b82f6;
+        }
+        
+        /* Airflow Visualization */
+        .airflow-particle {
+            position: absolute;
+            background: radial-gradient(circle, rgba(96, 165, 250, 0.8) 0%, rgba(59, 130, 246, 0.3) 70%);
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 5;
+            filter: blur(1px);
+        }
+        
+        /* Floating Action Buttons */
+        .fab {
+            position: absolute;
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 10px 30px rgba(59, 130, 246, 0.4);
+            z-index: 90;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            border: none;
+            font-size: 24px;
+        }
+        
+        .fab:hover {
+            transform: scale(1.1) rotate(90deg);
+            box-shadow: 0 15px 40px rgba(59, 130, 246, 0.6);
+        }
+        
+        #fab-settings {
+            top: 20px;
+            right: 20px;
+        }
+        
+        #fab-help {
+            top: 90px;
+            right: 20px;
+            background: linear-gradient(135deg, #10b981, #059669);
+        }
+        
+        /* Stats.js Panel */
+        #stats {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 100;
+        }
+        
+        /* Smooth Scrollbar for Analytics */
+        #analytics-panel::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        #analytics-panel::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+        }
+        
+        #analytics-panel::-webkit-scrollbar-thumb {
+            background: rgba(59, 130, 246, 0.5);
+            border-radius: 3px;
+        }
+        
+        /* Haptic Feedback Simulation */
+        .haptic-pulse {
+            animation: hapticPulse 0.15s ease-out;
+        }
+        
+        @keyframes hapticPulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(0.97); }
+            100% { transform: scale(1); }
+        }
+    </style>
+    
+    <!-- Tailwind Configuration -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            50: '#eff6ff',
+                            100: '#dbeafe',
+                            200: '#bfdbfe',
+                            300: '#93c5fd',
+                            400: '#60a5fa',
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                            700: '#1d4ed8',
+                            800: '#1e40af',
+                            900: '#1e3a8a',
+                        },
+                        secondary: {
+                            50: '#f0fdf4',
+                            100: '#dcfce7',
+                            200: '#bbf7d0',
+                            300: '#86efac',
+                            400: '#4ade80',
+                            500: '#22c55e',
+                            600: '#16a34a',
+                            700: '#15803d',
+                            800: '#166534',
+                            900: '#14532d',
+                        },
+                        dark: {
+                            50: '#f8fafc',
+                            100: '#f1f5f9',
+                            200: '#e2e8f0',
+                            300: '#cbd5e1',
+                            400: '#94a3b8',
+                            500: '#64748b',
+                            600: '#475569',
+                            700: '#334155',
+                            800: '#1e293b',
+                            900: '#0f172a',
+                        }
+                    },
+                    animation: {
+                        'float': 'float 3s ease-in-out infinite',
+                        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                        'bounce-slow': 'bounce 2s infinite',
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-gray-900 text-white">
+    <!-- Loading Screen -->
+    <div id="loading">
+        <div class="spinner"></div>
+        <h1 class="text-4xl font-bold mb-3 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 bg-clip-text text-transparent">
+            Advanced Fan Simulation
+        </h1>
+        <p class="text-gray-400 mb-8 text-center px-4">Initializing aerodynamic physics engine with enhanced camera controls...</p>
+        <div class="progress-container">
+            <div id="loading-progress" class="progress-bar" style="width: 0%"></div>
+        </div>
+        <div id="loading-status" class="mt-4 text-sm text-gray-400">Loading 3D engine...</div>
+        <div class="mt-6 text-xs text-gray-500">Optimized for mobile touchscreen devices</div>
+    </div>
+
+    <!-- Three.js Scene -->
+    <div id="scene-container"></div>
+
+    <!-- Stats.js Panel -->
+    <div id="stats"></div>
+
+    <!-- Touch Zones -->
+    <div class="touch-zone" id="zone-up">
+        <div class="zone-label">
+            <span>↑ UP</span>
+            <span class="zone-subtitle">Increase RPM</span>
+        </div>
+    </div>
+    <div class="touch-zone" id="zone-down">
+        <div class="zone-label">
+            <span>↓ DOWN</span>
+            <span class="zone-subtitle">Decrease RPM</span>
+        </div>
+    </div>
+    <div class="touch-zone" id="zone-left">
+        <div class="zone-label">
+            <span>← LEFT</span>
+            <span class="zone-subtitle">Decrease Angle</span>
+        </div>
+    </div>
+    <div class="touch-zone" id="zone-right">
+        <div class="zone-label">
+            <span>→ RIGHT</span>
+            <span class="zone-subtitle">Increase Angle</span>
+        </div>
+    </div>
+
+    <!-- Main Control Panel -->
+    <div id="control-panel" class="absolute top-4 left-4 z-30">
+        <div class="bg-gray-900/95 backdrop-blur-2xl rounded-2xl shadow-2xl p-6 w-96 border border-gray-800">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-2xl font-bold text-white flex items-center gap-3">
+                    <svg class="w-7 h-7 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                    </svg>
+                    Fan Controls
+                </h2>
+                <div class="flex items-center gap-2">
+                    <div class="w-3 h-3 rounded-full bg-green-500 animate-pulse"></div>
+                    <span class="text-sm text-gray-400">Connected</span>
+                </div>
+            </div>
+            
+            <div class="space-y-6">
+                <!-- RPM Control -->
+                <div class="bg-gray-800/50 rounded-xl p-4">
+                    <div class="flex justify-between items-center mb-4">
+                        <div>
+                            <label class="text-sm font-medium text-gray-300">Rotation Speed</label>
+                            <div class="text-xs text-gray-500">0 - 1500 RPM</div>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span id="rpm-value" class="text-3xl font-bold text-blue-400">1000</span>
+                            <span class="text-sm text-gray-400">RPM</span>
+                        </div>
+                    </div>
+                    <div class="relative">
+                        <input type="range" id="rpm-slider" min="0" max="1500" value="1000" step="1"
+                               class="w-full h-3 bg-gray-700 rounded-full appearance-none cursor-pointer 
+                                      [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:h-6 
+                                      [&::-webkit-slider-thumb]:w-6 [&::-webkit-slider-thumb]:rounded-full 
+                                      [&::-webkit-slider-thumb]:bg-blue-500 [&::-webkit-slider-thumb]:border-3 
+                                      [&::-webkit-slider-thumb]:border-white [&::-webkit-slider-thumb]:shadow-lg">
+                        <div class="flex justify-between text-xs text-gray-500 mt-2 px-1">
+                            <span>0</span>
+                            <span>750</span>
+                            <span>1500</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Configuration Grid -->
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="bg-gray-800/50 rounded-xl p-4">
+                        <label class="block text-sm font-medium text-gray-300 mb-3">Blade Count</label>
+                        <div class="flex items-center justify-between">
+                            <button id="blades-minus" class="w-12 h-12 bg-gray-700 rounded-xl flex items-center justify-center 
+                                 hover:bg-gray-600 transition-all duration-200 active:scale-95">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"/>
+                                </svg>
+                            </button>
+                            <div class="text-center">
+                                <div id="blades-value" class="text-3xl font-bold">5</div>
+                                <div class="text-xs text-gray-400 mt-1">blades</div>
+                            </div>
+                            <button id="blades-plus" class="w-12 h-12 bg-gray-700 rounded-xl flex items-center justify-center 
+                                 hover:bg-gray-600 transition-all duration-200 active:scale-95">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-gray-800/50 rounded-xl p-4">
+                        <label class="block text-sm font-medium text-gray-300 mb-3">Blade Length</label>
+                        <div class="flex items-center justify-between">
+                            <button id="length-minus" class="w-12 h-12 bg-gray-700 rounded-xl flex items-center justify-center 
+                                 hover:bg-gray-600 transition-all duration-200 active:scale-95">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"/>
+                                </svg>
+                            </button>
+                            <div class="text-center">
+                                <div id="length-value" class="text-3xl font-bold">60</div>
+                                <div class="text-xs text-gray-400 mt-1">cm</div>
+                            </div>
+                            <button id="length-plus" class="w-12 h-12 bg-gray-700 rounded-xl flex items-center justify-center 
+                                 hover:bg-gray-600 transition-all duration-200 active:scale-95">
+                                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Angle of Attack -->
+                <div class="bg-gray-800/50 rounded-xl p-4">
+                    <div class="flex justify-between items-center mb-4">
+                        <div>
+                            <label class="text-sm font-medium text-gray-300">Angle of Attack</label>
+                            <div class="text-xs text-gray-500">5° - 35°</div>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span id="angle-value" class="text-3xl font-bold text-green-400">20</span>
+                            <span class="text-sm text-gray-400">°</span>
+                        </div>
+                    </div>
+                    <input type="range" id="angle-slider" min="5" max="35" value="20" step="0.1"
+                           class="w-full h-3 bg-gray-700 rounded-full appearance-none cursor-pointer 
+                                  [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:h-6 
+                                  [&::-webkit-slider-thumb]:w-6 [&::-webkit-slider-thumb]:rounded-full 
+                                  [&::-webkit-slider-thumb]:bg-green-500 [&::-webkit-slider-thumb]:border-3 
+                                  [&::-webkit-slider-thumb]:border-white [&::-webkit-slider-thumb]:shadow-lg">
+                    <div class="flex justify-between text-xs text-gray-500 mt-2 px-1">
+                        <span>5°</span>
+                        <span>20°</span>
+                        <span>35°</span>
+                    </div>
+                </div>
+                
+                <!-- Quick Actions -->
+                <div class="bg-gray-800/50 rounded-xl p-4">
+                    <label class="block text-sm font-medium text-gray-300 mb-3">Quick Actions</label>
+                    <div class="grid grid-cols-3 gap-2">
+                        <button id="preset-low" class="py-2 px-3 bg-blue-500/20 hover:bg-blue-500/30 rounded-lg 
+                             text-blue-400 text-sm font-medium transition-colors active:scale-95">
+                            Low
+                        </button>
+                        <button id="preset-medium" class="py-2 px-3 bg-green-500/20 hover:bg-green-500/30 rounded-lg 
+                             text-green-400 text-sm font-medium transition-colors active:scale-95">
+                            Medium
+                        </button>
+                        <button id="preset-high" class="py-2 px-3 bg-red-500/20 hover:bg-red-500/30 rounded-lg 
+                             text-red-400 text-sm font-medium transition-colors active:scale-95">
+                            High
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Physics Panel -->
+    <div id="physics-panel" class="absolute top-4 right-4 z-30">
+        <div class="bg-gray-900/95 backdrop-blur-2xl rounded-2xl shadow-2xl p-6 w-96 border border-gray-800">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-2xl font-bold text-white flex items-center gap-3">
+                    <svg class="w-7 h-7 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/>
+                    </svg>
+                    Aerodynamic Physics
+                </h2>
+                <div class="text-xs text-gray-400 bg-gray-800/50 px-3 py-1 rounded-full">
+                    Real-time
+                </div>
+            </div>
+            
+            <div class="space-y-4">
+                <!-- Performance Metrics Grid -->
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="bg-gradient-to-br from-gray-800/50 to-gray-900/50 rounded-xl p-4 border border-gray-700/50">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-sm text-gray-400">Air Flow Rate</span>
+                            <svg class="w-5 h-5 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                            </svg>
+                        </div>
+                        <div class="text-2xl font-bold text-cyan-400" id="airflow-rate">125.6</div>
+                        <div class="text-xs text-gray-500">m³/min</div>
+                    </div>
+                    
+                    <div class="bg-gradient-to-br from-gray-800/50 to-gray-900/50 rounded-xl p-4 border border-gray-700/50">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-sm text-gray-400">Power Consumption</span>
+                            <svg class="w-5 h-5 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                            </svg>
+                        </div>
+                        <div class="text-2xl font-bold text-yellow-400" id="power-consumption">245</div>
+                        <div class="text-xs text-gray-500">Watts</div>
+                    </div>
+                </div>
+                
+                <!-- Detailed Metrics -->
+                <div class="bg-gradient-to-br from-gray-800/50 to-gray-900/50 rounded-xl p-4 border border-gray-700/50">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-sm text-gray-400">Static Pressure</span>
+                        <svg class="w-5 h-5 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                        </svg>
+                    </div>
+                    <div class="text-2xl font-bold text-orange-400" id="static-pressure">85.2</div>
+                    <div class="text-xs text-gray-500">Pascals</div>
+                    <div class="mt-3">
+                        <div class="flex justify-between text-xs text-gray-400 mb-1">
+                            <span>Pressure Level</span>
+                            <span id="pressure-level">Medium</span>
+                        </div>
+                        <div class="w-full bg-gray-800 rounded-full h-2">
+                            <div id="pressure-bar" class="bg-gradient-to-r from-orange-500 to-red-500 h-2 rounded-full" style="width: 60%"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Efficiency -->
+                <div class="bg-gradient-to-br from-gray-800/50 to-gray-900/50 rounded-xl p-4 border border-gray-700/50">
+                    <div class="flex items-center justify-between mb-4">
+                        <span class="text-sm text-gray-400">System Efficiency</span>
+                        <div class="flex items-center gap-2">
+                            <span class="text-lg font-bold text-green-400" id="efficiency">72.5%</span>
+                            <svg class="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                            </svg>
+                        </div>
+                    </div>
+                    <div class="w-full bg-gray-800 rounded-full h-3">
+                        <div id="efficiency-bar" class="bg-gradient-to-r from-green-500 to-emerald-400 h-3 rounded-full" style="width: 72.5%"></div>
+                    </div>
+                    <div class="flex justify-between text-xs text-gray-500 mt-2">
+                        <span>Poor</span>
+                        <span>Optimal</span>
+                        <span>Excellent</span>
+                    </div>
+                </div>
+                
+                <!-- Current Parameters -->
+                <div class="pt-4 border-t border-gray-800">
+                    <div class="text-sm text-gray-400 mb-3">Current Parameters</div>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="flex items-center justify-between p-2 bg-gray-800/30 rounded-lg">
+                            <span class="text-gray-400 text-sm">RPM:</span>
+                            <span class="font-medium text-blue-300" id="current-rpm">1000</span>
+                        </div>
+                        <div class="flex items-center justify-between p-2 bg-gray-800/30 rounded-lg">
+                            <span class="text-gray-400 text-sm">Blade Angle:</span>
+                            <span class="font-medium text-green-300" id="current-angle">20°</span>
+                        </div>
+                        <div class="flex items-center justify-between p-2 bg-gray-800/30 rounded-lg">
+                            <span class="text-gray-400 text-sm">Blade Count:</span>
+                            <span class="font-medium text-purple-300" id="current-blades">5</span>
+                        </div>
+                        <div class="flex items-center justify-between p-2 bg-gray-800/30 rounded-lg">
+                            <span class="text-gray-400 text-sm">Length:</span>
+                            <span class="font-medium text-cyan-300" id="current-length">60 cm</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Touch Analytics Panel -->
+    <div id="analytics-panel" class="absolute bottom-4 left-4 z-30">
+        <div class="bg-gray-900/95 backdrop-blur-2xl rounded-2xl shadow-2xl p-6 w-96 border border-gray-800">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-2xl font-bold text-white flex items-center gap-3">
+                    <svg class="w-7 h-7 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+                    </svg>
+                    Touch Analytics
+                </h2>
+                <div class="text-xs text-gray-400 bg-gray-800/50 px-3 py-1 rounded-full">
+                    Live Tracking
+                </div>
+            </div>
+            
+            <div class="space-y-4">
+                <!-- Active Zones -->
+                <div>
+                    <div class="text-sm text-gray-400 mb-3">Active Zones</div>
+                    <div class="grid grid-cols-4 gap-3">
+                        <div id="zone-indicator-up" class="h-20 rounded-xl bg-gray-800/50 flex flex-col items-center justify-center border-2 border-gray-700 transition-all duration-200">
+                            <div class="text-2xl font-bold mb-1">↑</div>
+                            <div class="text-xs text-gray-400">UP</div>
+                        </div>
+                        <div id="zone-indicator-down" class="h-20 rounded-xl bg-gray-800/50 flex flex-col items-center justify-center border-2 border-gray-700 transition-all duration-200">
+                            <div class="text-2xl font-bold mb-1">↓</div>
+                            <div class="text-xs text-gray-400">DOWN</div>
+                        </div>
+                        <div id="zone-indicator-left" class="h-20 rounded-xl bg-gray-800/50 flex flex-col items-center justify-center border-2 border-gray-700 transition-all duration-200">
+                            <div class="text-2xl font-bold mb-1">←</div>
+                            <div class="text-xs text-gray-400">LEFT</div>
+                        </div>
+                        <div id="zone-indicator-right" class="h-20 rounded-xl bg-gray-800/50 flex flex-col items-center justify-center border-2 border-gray-700 transition-all duration-200">
+                            <div class="text-2xl font-bold mb-1">→</div>
+                            <div class="text-xs text-gray-400">RIGHT</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Touch Metrics Grid -->
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="bg-gradient-to-br from-gray-800/50 to-gray-900/50 rounded-xl p-4 border border-gray-700/50">
+                        <div class="text-sm text-gray-400 mb-2">Position (x, y)</div>
+                        <div class="text-xl font-mono font-bold text-white" id="touch-position">-</div>
+                    </div>
+                    
+                    <div class="bg-gradient-to-br from-gray-800/50 to-gray-900/50 rounded-xl p-4 border border-gray-700/50">
+                        <div class="text-sm text-gray-400 mb-2">Displacement</div>
+                        <div class="text-xl font-mono font-bold text-white" id="touch-displacement">0 px</div>
+                    </div>
+                    
+                    <div class="bg-gradient-to-br from-gray-800/50 to-gray-900/50 rounded-xl p-4 border border-gray-700/50">
+                        <div class="text-sm text-gray-400 mb-2">Velocity</div>
+                        <div class="text-xl font-mono font-bold text-white" id="touch-velocity">0 px/ms</div>
+                    </div>
+                    
+                    <div class="bg-gradient-to-br from-gray-800/50 to-gray-900/50 rounded-xl p-4 border border-gray-700/50">
+                        <div class="text-sm text-gray-400 mb-2">Time Δ</div>
+                        <div class="text-xl font-mono font-bold text-white" id="touch-delta">0 ms</div>
+                    </div>
+                </div>
+                
+                <!-- Detailed Analytics -->
+                <div class="bg-gradient-to-br from-gray-800/50 to-gray-900/50 rounded-xl p-4 border border-gray-700/50">
+                    <div class="text-sm text-gray-400 mb-3">Touch Details</div>
+                    <div class="space-y-3">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                                <div class="w-2 h-2 rounded-full bg-green-500"></div>
+                                <span class="text-gray-400">Active Touches:</span>
+                            </div>
+                            <span class="font-medium text-green-400" id="active-touches">0</span>
+                        </div>
+                        
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                                <div class="w-2 h-2 rounded-full bg-blue-500"></div>
+                                <span class="text-gray-400">Touch Duration:</span>
+                            </div>
+                            <span class="font-medium" id="touch-duration">0 ms</span>
+                        </div>
+                        
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                                <div class="w-2 h-2 rounded-full bg-purple-500"></div>
+                                <span class="text-gray-400">Current Zone:</span>
+                            </div>
+                            <span class="font-medium text-purple-400" id="current-zone">-</span>
+                        </div>
+                        
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center gap-2">
+                                <div class="w-2 h-2 rounded-full bg-yellow-500"></div>
+                                <span class="text-gray-400">Interaction Mode:</span>
+                            </div>
+                            <span class="font-medium text-yellow-400" id="interaction-mode">Touch</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Camera State -->
+                <div class="bg-gradient-to-br from-gray-800/50 to-gray-900/50 rounded-xl p-4 border border-gray-700/50">
+                    <div class="text-sm text-gray-400 mb-3">Camera State</div>
+                    <div class="space-y-2">
+                        <div class="flex items-center justify-between">
+                            <span class="text-gray-400">Position:</span>
+                            <span class="font-mono text-sm" id="camera-position">0, 0, 0</span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-gray-400">Zoom Level:</span>
+                            <span class="font-mono text-sm" id="camera-zoom">1.0x</span>
+                        </div>
+                        <div class="flex items-center justify-between">
+                            <span class="text-gray-400">Rotation:</span>
+                            <span class="font-mono text-sm" id="camera-rotation">0°, 0°</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Performance Monitor -->
+    <div class="performance-monitor" id="performance-monitor">
+        <div class="performance-indicator"></div>
+        <div>
+            <div class="flex items-center gap-2">
+                <span id="fps-counter">60</span> FPS
+                <span class="text-gray-400">|</span>
+                <span id="memory-usage">-</span> MB
+            </div>
+            <div class="text-xs text-gray-400 mt-1" id="render-time">- ms</div>
+        </div>
+    </div>
+
+    <!-- Camera Controls Overlay -->
+    <div class="camera-controls" id="camera-controls">
+        <div class="text-sm text-gray-400 mb-2">Camera Controls</div>
+        <div class="grid grid-cols-3 gap-3">
+            <button id="camera-reset" class="control-button" title="Reset Camera">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                </svg>
+            </button>
+            <button id="camera-front" class="control-button" title="Front View">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                </svg>
+            </button>
+            <button id="camera-top" class="control-button" title="Top View">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/>
+                </svg>
+            </button>
+            <button id="camera-left" class="control-button" title="Left View">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+                </svg>
+            </button>
+            <button id="camera-right" class="control-button" title="Right View">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/>
+                </svg>
+            </button>
+            <button id="camera-iso" class="control-button active" title="Isometric View">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5v-4m0 4h-4m4 0l-5-5"/>
+                </svg>
+            </button>
+        </div>
+        <div class="text-xs text-gray-400 mt-3">
+            <div>• Drag: Rotate</div>
+            <div>• Pinch: Zoom</div>
+            <div>• Two-finger drag: Pan</div>
+        </div>
+    </div>
+
+    <!-- Floating Action Buttons -->
+    <button id="fab-settings" class="fab" title="Settings">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+        </svg>
+    </button>
+
+    <button id="fab-help" class="fab" title="Help">
+        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+        </svg>
+    </button>
+
+    <!-- Touch Visualization Container -->
+    <div id="touch-visualization"></div>
+
+    <!-- Modal for Settings -->
+    <div id="settings-modal" class="fixed inset-0 z-50 hidden flex items-center justify-center">
+        <div class="absolute inset-0 bg-black/70 backdrop-blur-sm"></div>
+        <div class="relative bg-gray-900/95 backdrop-blur-2xl rounded-3xl shadow-2xl p-8 w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-2xl font-bold text-white">Settings</h2>
+                <button id="close-settings" class="text-gray-400 hover:text-white">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="space-y-6">
+                <div>
+                    <h3 class="text-lg font-semibold text-white mb-3">Graphics Quality</h3>
+                    <div class="space-y-3">
+                        <label class="flex items-center justify-between p-3 bg-gray-800/50 rounded-xl">
+                            <span class="text-gray-300">High Quality</span>
+                            <input type="radio" name="quality" value="high" checked class="w-5 h-5 text-blue-500">
+                        </label>
+                        <label class="flex items-center justify-between p-3 bg-gray-800/50 rounded-xl">
+                            <span class="text-gray-300">Medium Quality</span>
+                            <input type="radio" name="quality" value="medium" class="w-5 h-5 text-blue-500">
+                        </label>
+                        <label class="flex items-center justify-between p-3 bg-gray-800/50 rounded-xl">
+                            <span class="text-gray-300">Performance Mode</span>
+                            <input type="radio" name="quality" value="low" class="w-5 h-5 text-blue-500">
+                        </label>
+                    </div>
+                </div>
+                
+                <div>
+                    <h3 class="text-lg font-semibold text-white mb-3">Touch Sensitivity</h3>
+                    <div class="space-y-2">
+                        <input type="range" min="1" max="10" value="5" class="w-full">
+                        <div class="flex justify-between text-sm text-gray-400">
+                            <span>Low</span>
+                            <span>Medium</span>
+                            <span>High</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div>
+                    <h3 class="text-lg font-semibold text-white mb-3">Visual Effects</h3>
+                    <div class="space-y-3">
+                        <label class="flex items-center justify-between p-3 bg-gray-800/50 rounded-xl">
+                            <span class="text-gray-300">Show Airflow Particles</span>
+                            <input type="checkbox" checked class="w-5 h-5 rounded text-blue-500">
+                        </label>
+                        <label class="flex items-center justify-between p-3 bg-gray-800/50 rounded-xl">
+                            <span class="text-gray-300">Show Touch Indicators</span>
+                            <input type="checkbox" checked class="w-5 h-5 rounded text-blue-500">
+                        </label>
+                        <label class="flex items-center justify-between p-3 bg-gray-800/50 rounded-xl">
+                            <span class="text-gray-300">Enable Shadows</span>
+                            <input type="checkbox" checked class="w-5 h-5 rounded text-blue-500">
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ============================================
+        // ENHANCED GLOBAL VARIABLES AND INITIALIZATION
+        // ============================================
+        let scene, camera, renderer, controls, stats;
+        let fanGroup, bladesGroup, motorGroup, hub, airflowParticles = [];
+        let fanRotationSpeed = 0;
+        let targetFanSpeed = 1000;
+        let currentBladeAngle = 20;
+        let currentCameraMode = 'iso'; // 'iso', 'front', 'top', 'left', 'right'
+        
+        // Enhanced touch tracking with mobile optimization
+        const touchZones = {
+            up: { 
+                active: false, 
+                startTime: 0, 
+                startPos: { x: 0, y: 0 }, 
+                currentPos: { x: 0, y: 0 },
+                touchId: null,
+                velocity: 0,
+                displacement: 0,
+                history: [],
+                maxHistorySize: 10
+            },
+            down: { 
+                active: false, 
+                startTime: 0, 
+                startPos: { x: 0, y: 0 }, 
+                currentPos: { x: 0, y: 0 },
+                touchId: null,
+                velocity: 0,
+                displacement: 0,
+                history: [],
+                maxHistorySize: 10
+            },
+            left: { 
+                active: false, 
+                startTime: 0, 
+                startPos: { x: 0, y: 0 }, 
+                currentPos: { x: 0, y: 0 },
+                touchId: null,
+                velocity: 0,
+                displacement: 0,
+                history: [],
+                maxHistorySize: 10
+            },
+            right: { 
+                active: false, 
+                startTime: 0, 
+                startPos: { x: 0, y: 0 }, 
+                currentPos: { x: 0, y: 0 },
+                touchId: null,
+                velocity: 0,
+                displacement: 0,
+                history: [],
+                maxHistorySize: 10
+            }
+        };
+        
+        // Multi-touch tracking with improved mobile support
+        const activeTouches = new Map();
+        const touchHistory = new Map();
+        const touchVisualizations = new Map();
+        const touchTrails = [];
+        
+        // Performance tracking
+        let frameCount = 0;
+        let lastFpsUpdate = Date.now();
+        let currentFps = 60;
+        let renderTimes = [];
+        let memoryUsage = 0;
+        
+        // Camera state tracking
+        const cameraState = {
+            position: { x: 0, y: 0, z: 0 },
+            rotation: { x: 0, y: 0 },
+            zoom: 1.0,
+            target: { x: 0, y: 25, z: 0 },
+            isAnimating: false,
+            animationStart: null,
+            animationDuration: 1000,
+            startState: null,
+            endState: null
+        };
+        
+        // Enhanced fan parameters with mobile adjustments
+        const fanParams = {
+            rpm: 1000,
+            bladeCount: 5,
+            bladeLength: 60,
+            bladeWidth: 15,
+            bladeThickness: 4,
+            hubDiameter: 25,
+            hubThickness: 15,
+            motorDiameter: 40,
+            motorLength: 50,
+            shaftDiameter: 5,
+            maxRPM: 1500,
+            bladeAngle: 20,
+            minAngle: 5,
+            maxAngle: 35,
+            // Mobile-specific adjustments
+            mobileScale: window.innerWidth < 768 ? 0.8 : 1.0,
+            touchSensitivity: window.innerWidth < 768 ? 0.7 : 1.0
+        };
+        
+        // Enhanced aerodynamic constants
+        const AERODYNAMICS = {
+            airDensity: 1.225,
+            efficiencyFactor: 0.85,
+            powerCoefficient: 0.4,
+            thrustCoefficient: 0.7,
+            dragCoefficient: 0.05,
+            bladeEfficiencyCurve: [
+                { angle: 5, efficiency: 0.4 },
+                { angle: 10, efficiency: 0.6 },
+                { angle: 15, efficiency: 0.75 },
+                { angle: 20, efficiency: 0.85 },
+                { angle: 25, efficiency: 0.8 },
+                { angle: 30, efficiency: 0.7 },
+                { angle: 35, efficiency: 0.5 }
+            ]
+        };
+        
+        // Background options with enhanced mobile support
+        const backgrounds = {
+            sky: { color: 0x87CEEB, fog: 0x87CEEB, intensity: 1.0 },
+            night: { color: 0x0A0A2A, fog: 0x0A0A2A, intensity: 0.7 },
+            darkblue: { color: 0x001F3F, fog: 0x001F3F, intensity: 0.8 },
+            olive: { color: 0x556B2F, fog: 0x556B2F, intensity: 0.9 },
+            green: { color: 0x006400, fog: 0x006400, intensity: 0.9 }
+        };
+        
+        // Mobile device detection and adjustments
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        const isTablet = window.innerWidth >= 768 && window.innerWidth <= 1024;
+        
+        // ============================================
+        // ENHANCED INITIALIZATION WITH MOBILE OPTIMIZATION
+        // ============================================
+        
+        async function init() {
+            updateLoadingProgress(5, "Detecting device capabilities...");
+            
+            // Apply mobile-specific adjustments
+            if (isMobile) {
+                fanParams.mobileScale = 0.7;
+                fanParams.touchSensitivity = 0.8;
+                document.body.classList.add('mobile-device');
+            }
+            
+            if (isTablet) {
+                fanParams.mobileScale = 0.9;
+                fanParams.touchSensitivity = 0.9;
+            }
+            
+            updateLoadingProgress(15, "Initializing enhanced 3D engine...");
+            
+            // Create scene with adaptive settings
+            scene = new THREE.Scene();
+            const currentBg = backgrounds.sky;
+            scene.background = new THREE.Color(currentBg.color);
+            scene.fog = new THREE.Fog(currentBg.fog, 100, 800);
+            
+            updateLoadingProgress(25, "Setting up adaptive camera...");
+            
+            // Create camera with mobile-optimized settings
+            const aspect = window.innerWidth / window.innerHeight;
+            const fov = isMobile ? 40 : 35; // Wider FOV for mobile
+            camera = new THREE.PerspectiveCamera(fov, aspect, 0.1, 5000);
+            
+            // Set initial camera position based on device
+            const initialDistance = isMobile ? 250 : 300;
+            camera.position.set(initialDistance, 200, initialDistance);
+            camera.lookAt(cameraState.target);
+            
+            updateLoadingProgress(35, "Creating renderer with device optimization...");
+            
+            // Create optimized renderer
+            renderer = new THREE.WebGLRenderer({ 
+                antialias: !isMobile, // Disable antialiasing on mobile for performance
+                alpha: false,
+                powerPreference: isMobile ? "low-power" : "high-performance",
+                precision: isMobile ? "mediump" : "highp",
+                stencil: !isMobile,
+                depth: true
+            });
+            
+            // Set renderer size with pixel ratio optimization
+            const pixelRatio = isMobile ? Math.min(1.5, window.devicePixelRatio) : Math.min(2, window.devicePixelRatio);
+            renderer.setPixelRatio(pixelRatio);
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            
+            // Enable features based on device capability
+            renderer.shadowMap.enabled = !isMobile;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            renderer.outputEncoding = THREE.sRGBEncoding;
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer.toneMappingExposure = isMobile ? 1.0 : 1.2;
+            
+            // Enable logarithmic depth buffer for better depth precision
+            renderer.logarithmicDepthBuffer = !isMobile;
+            
+            document.getElementById('scene-container').appendChild(renderer.domElement);
+            
+            updateLoadingProgress(45, "Initializing camera controls...");
+            
+            // Initialize OrbitControls with mobile optimization
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.screenSpacePanning = true;
+            controls.minDistance = 50;
+            controls.maxDistance = 800;
+            controls.maxPolarAngle = Math.PI / 2;
+            controls.enablePan = true;
+            controls.enableZoom = true;
+            controls.enableRotate = true;
+            
+            // Mobile-specific control adjustments
+            if (isMobile) {
+                controls.rotateSpeed = 0.5;
+                controls.zoomSpeed = 0.5;
+                controls.panSpeed = 0.5;
+                controls.maxDistance = 600;
+            }
+            
+            updateLoadingProgress(55, "Creating adaptive lighting...");
+            
+            // Setup adaptive lighting
+            setupAdaptiveLighting();
+            
+            updateLoadingProgress(70, "Building detailed fan model...");
+            
+            // Create detailed fan model
+            createEnhancedFanModel();
+            
+            updateLoadingProgress(85, "Initializing touch system...");
+            
+            // Setup enhanced event listeners
+            setupEnhancedEventListeners();
+            
+            updateLoadingProgress(92, "Initializing performance monitoring...");
+            
+            // Initialize Stats.js
+            stats = new Stats();
+            stats.showPanel(0); // 0: fps, 1: ms, 2: mb, 3+: custom
+            stats.dom.style.position = 'absolute';
+            stats.dom.style.left = '20px';
+            stats.dom.style.top = '20px';
+            stats.dom.style.zIndex = '100';
+            document.getElementById('stats').appendChild(stats.dom);
+            
+            updateLoadingProgress(96, "Starting physics simulation...");
+            
+            // Initialize airflow simulation
+            initEnhancedAirflowSimulation();
+            
+            updateLoadingProgress(100, "Simulation ready!");
+            
+            // Hide loading screen with delay
+            setTimeout(() => {
+                document.getElementById('loading').style.opacity = '0';
+                setTimeout(() => {
+                    document.getElementById('loading').style.display = 'none';
+                    // Trigger haptic feedback simulation on mobile
+                    if (isMobile) {
+                        simulateHapticFeedback('success');
+                    }
+                }, 500);
+            }, 800);
+            
+            // Start animation loop
+            animate();
+        }
+        
+        function updateLoadingProgress(percent, message) {
+            document.getElementById('loading-progress').style.width = `${percent}%`;
+            document.getElementById('loading-status').textContent = message;
+        }
+        
+        // ============================================
+        // ENHANCED CAMERA SYSTEM WITH SMOOTH TRANSITIONS
+        // ============================================
+        
+        function setupCameraView(mode) {
+            if (cameraState.isAnimating) return;
+            
+            currentCameraMode = mode;
+            cameraState.isAnimating = true;
+            cameraState.animationStart = Date.now();
+            cameraState.startState = {
+                position: camera.position.clone(),
+                target: controls.target.clone(),
+                zoom: camera.zoom
+            };
+            
+            // Set end state based on mode
+            switch(mode) {
+                case 'iso':
+                    cameraState.endState = {
+                        position: new THREE.Vector3(300, 200, 300),
+                        target: new THREE.Vector3(0, 25, 0),
+                        zoom: 1.0
+                    };
+                    break;
+                case 'front':
+                    cameraState.endState = {
+                        position: new THREE.Vector3(0, 25, 400),
+                        target: new THREE.Vector3(0, 25, 0),
+                        zoom: 1.0
+                    };
+                    break;
+                case 'top':
+                    cameraState.endState = {
+                        position: new THREE.Vector3(0, 400, 0.1),
+                        target: new THREE.Vector3(0, 25, 0),
+                        zoom: 1.5
+                    };
+                    break;
+                case 'left':
+                    cameraState.endState = {
+                        position: new THREE.Vector3(-400, 25, 0),
+                        target: new THREE.Vector3(0, 25, 0),
+                        zoom: 1.0
+                    };
+                    break;
+                case 'right':
+                    cameraState.endState = {
+                        position: new THREE.Vector3(400, 25, 0),
+                        target: new THREE.Vector3(0, 25, 0),
+                        zoom: 1.0
+                    };
+                    break;
+            }
+            
+            // Update button states
+            document.querySelectorAll('.control-button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            document.getElementById(`camera-${mode}`).classList.add('active');
+        }
+        
+        function updateCameraAnimation() {
+            if (!cameraState.isAnimating) return;
+            
+            const elapsed = Date.now() - cameraState.animationStart;
+            const progress = Math.min(elapsed / cameraState.animationDuration, 1);
+            
+            // Use smooth step interpolation
+            const smoothProgress = progress * progress * (3 - 2 * progress);
+            
+            // Interpolate position
+            const newPosition = new THREE.Vector3().lerpVectors(
+                cameraState.startState.position,
+                cameraState.endState.position,
+                smoothProgress
+            );
+            
+            // Interpolate target
+            const newTarget = new THREE.Vector3().lerpVectors(
+                cameraState.startState.target,
+                cameraState.endState.target,
+                smoothProgress
+            );
+            
+            // Interpolate zoom
+            const newZoom = THREE.MathUtils.lerp(
+                cameraState.startState.zoom,
+                cameraState.endState.zoom,
+                smoothProgress
+            );
+            
+            // Apply interpolated values
+            camera.position.copy(newPosition);
+            controls.target.copy(newTarget);
+            camera.zoom = newZoom;
+            camera.updateProjectionMatrix();
+            
+            // Update camera state display
+            updateCameraStateDisplay();
+            
+            // Check if animation is complete
+            if (progress >= 1) {
+                cameraState.isAnimating = false;
+                cameraState.startState = null;
+                cameraState.endState = null;
+            }
+        }
+        
+        function updateCameraStateDisplay() {
+            const pos = camera.position;
+            const target = controls.target;
+            
+            // Calculate camera rotation angles
+            const direction = new THREE.Vector3().subVectors(target, pos).normalize();
+            const rotationX = Math.atan2(direction.y, Math.sqrt(direction.x * direction.x + direction.z * direction.z));
+            const rotationY = Math.atan2(direction.x, direction.z);
+            
+            // Update display
+            document.getElementById('camera-position').textContent = 
+                `${Math.round(pos.x)}, ${Math.round(pos.y)}, ${Math.round(pos.z)}`;
+            document.getElementById('camera-zoom').textContent = 
+                `${camera.zoom.toFixed(1)}x`;
+            document.getElementById('camera-rotation').textContent = 
+                `${(rotationX * 180 / Math.PI).toFixed(1)}°, ${(rotationY * 180 / Math.PI).toFixed(1)}°`;
+            
+            // Store in cameraState
+            cameraState.position = { x: pos.x, y: pos.y, z: pos.z };
+            cameraState.rotation = { x: rotationX, y: rotationY };
+            cameraState.zoom = camera.zoom;
+        }
+        
+        function resetCamera() {
+            setupCameraView('iso');
+            if (isMobile) {
+                simulateHapticFeedback('light');
+            }
+        }
+        
+        // ============================================
+        // ENHANCED TOUCH SYSTEM WITH MOBILE OPTIMIZATION
+        // ============================================
+        
+        function setupEnhancedEventListeners() {
+            // Touch zone event listeners with mobile optimization
+            ['up', 'down', 'left', 'right'].forEach(zone => {
+                const zoneElement = document.getElementById(`zone-${zone}`);
+                
+                // Enhanced touch events with passive listeners for better performance
+                zoneElement.addEventListener('touchstart', (e) => handleEnhancedTouchStart(e, zone), { passive: false });
+                zoneElement.addEventListener('touchmove', (e) => handleEnhancedTouchMove(e, zone), { passive: false });
+                zoneElement.addEventListener('touchend', (e) => handleEnhancedTouchEnd(e, zone), { passive: false });
+                zoneElement.addEventListener('touchcancel', (e) => handleEnhancedTouchEnd(e, zone), { passive: false });
+                
+                // Enhanced mouse events for desktop
+                zoneElement.addEventListener('mousedown', (e) => handleEnhancedMouseDown(e, zone));
+                zoneElement.addEventListener('mousemove', (e) => handleEnhancedMouseMove(e, zone));
+                zoneElement.addEventListener('mouseup', (e) => handleEnhancedMouseUp(e, zone));
+                zoneElement.addEventListener('mouseleave', (e) => handleEnhancedMouseUp(e, zone));
+                
+                // Add click feedback for mobile
+                zoneElement.addEventListener('click', () => {
+                    if (isMobile) {
+                        simulateHapticFeedback('light');
+                    }
+                });
+            });
+            
+            // Enhanced UI Controls
+            setupEnhancedUIControls();
+            
+            // Camera control buttons
+            document.getElementById('camera-reset').addEventListener('click', resetCamera);
+            document.getElementById('camera-front').addEventListener('click', () => setupCameraView('front'));
+            document.getElementById('camera-top').addEventListener('click', () => setupCameraView('top'));
+            document.getElementById('camera-left').addEventListener('click', () => setupCameraView('left'));
+            document.getElementById('camera-right').addEventListener('click', () => setupCameraView('right'));
+            document.getElementById('camera-iso').addEventListener('click', () => setupCameraView('iso'));
+            
+            // Floating action buttons
+            document.getElementById('fab-settings').addEventListener('click', () => {
+                document.getElementById('settings-modal').classList.remove('hidden');
+                if (isMobile) simulateHapticFeedback('medium');
+            });
+            
+            document.getElementById('fab-help').addEventListener('click', () => {
+                alert('Touch the quarter-screen zones to control the fan:\n\n↑ UP: Increase RPM\n↓ DOWN: Decrease RPM\n← LEFT: Decrease blade angle\n→ RIGHT: Increase blade angle\n\nUse gestures on the main area to control the camera.');
+                if (isMobile) simulateHapticFeedback('medium');
+            });
+            
+            document.getElementById('close-settings').addEventListener('click', () => {
+                document.getElementById('settings-modal').classList.add('hidden');
+            });
+            
+            // Close modal when clicking outside
+            document.getElementById('settings-modal').addEventListener('click', (e) => {
+                if (e.target.id === 'settings-modal') {
+                    document.getElementById('settings-modal').classList.add('hidden');
+                }
+            });
+            
+            // Preset buttons
+            document.getElementById('preset-low').addEventListener('click', () => {
+                fanParams.rpm = 500;
+                currentBladeAngle = 10;
+                updateUI();
+                updateAerodynamicDisplay();
+                if (isMobile) simulateHapticFeedback('light');
+            });
+            
+            document.getElementById('preset-medium').addEventListener('click', () => {
+                fanParams.rpm = 1000;
+                currentBladeAngle = 20;
+                updateUI();
+                updateAerodynamicDisplay();
+                if (isMobile) simulateHapticFeedback('light');
+            });
+            
+            document.getElementById('preset-high').addEventListener('click', () => {
+                fanParams.rpm = 1500;
+                currentBladeAngle = 30;
+                updateUI();
+                updateAerodynamicDisplay();
+                if (isMobile) simulateHapticFeedback('medium');
+            });
+            
+            // Enhanced window resize with debouncing
+            let resizeTimeout;
+            window.addEventListener('resize', () => {
+                clearTimeout(resizeTimeout);
+                resizeTimeout = setTimeout(onEnhancedWindowResize, 250);
+            });
+            
+            // Performance monitoring
+            setInterval(updateEnhancedPerformanceMetrics, 1000);
+            
+            // Memory usage monitoring (if available)
+            if (performance.memory) {
+                setInterval(() => {
+                    memoryUsage = Math.round(performance.memory.usedJSHeapSize / 1048576);
+                    document.getElementById('memory-usage').textContent = memoryUsage;
+                }, 5000);
+            }
+            
+            // Add orientation change handling for mobile
+            window.addEventListener('orientationchange', () => {
+                setTimeout(onEnhancedWindowResize, 100);
+            });
+            
+            // Prevent default touch behaviors
+            document.addEventListener('touchmove', (e) => {
+                if (e.touches.length > 1) {
+                    e.preventDefault(); // Prevent pinch zoom default
+                }
+            }, { passive: false });
+            
+            // Add context menu prevention
+            document.addEventListener('contextmenu', (e) => e.preventDefault());
+        }
+        
+        function handleEnhancedTouchStart(e, zone) {
+            e.preventDefault();
+            const touch = e.touches[0];
+            
+            // Get touch position relative to zone
+            const rect = e.target.getBoundingClientRect();
+            const x = touch.clientX - rect.left;
+            const y = touch.clientY - rect.top;
+            
+            // Initialize enhanced touch tracking
+            const zoneData = touchZones[zone];
+            zoneData.active = true;
+            zoneData.startTime = Date.now();
+            zoneData.startPos = { x, y };
+            zoneData.currentPos = { x, y };
+            zoneData.touchId = touch.identifier;
+            zoneData.velocity = 0;
+            zoneData.displacement = 0;
+            zoneData.history = [{
+                x, y,
+                time: Date.now(),
+                velocity: 0
+            }];
+            
+            // Create enhanced touch visualization
+            createEnhancedTouchVisualization(touch.clientX, touch.clientY, touch.identifier);
+            
+            // Update UI with animation
+            updateZoneIndicator(zone, true);
+            updateFanControl(zone, true);
+            updateTouchAnalytics();
+            
+            // Add haptic feedback on mobile
+            if (isMobile && navigator.vibrate) {
+                navigator.vibrate(10);
+            }
+            
+            // Add active class with animation
+            const zoneElement = document.getElementById(`zone-${zone}`);
+            zoneElement.classList.add('active', 'haptic-pulse');
+            setTimeout(() => {
+                zoneElement.classList.remove('haptic-pulse');
+            }, 150);
+        }
+        
+        function handleEnhancedTouchMove(e, zone) {
+            e.preventDefault();
+            
+            const zoneData = touchZones[zone];
+            if (!zoneData.active || zoneData.touchId === null) return;
+            
+            // Find the correct touch
+            for (let i = 0; i < e.touches.length; i++) {
+                const touch = e.touches[i];
+                if (touch.identifier === zoneData.touchId) {
+                    const rect = e.target.getBoundingClientRect();
+                    const x = touch.clientX - rect.left;
+                    const y = touch.clientY - rect.top;
+                    const currentTime = Date.now();
+                    
+                    // Calculate enhanced metrics
+                    const dx = x - zoneData.startPos.x;
+                    const dy = y - zoneData.startPos.y;
+                    const displacement = Math.sqrt(dx * dx + dy * dy);
+                    
+                    // Calculate velocity with moving average for smoothness
+                    const prevPos = zoneData.currentPos;
+                    const dxt = x - prevPos.x;
+                    const dyt = y - prevPos.y;
+                    const dtInstant = currentTime - zoneData.startTime;
+                    
+                    // Add to history
+                    zoneData.history.push({
+                        x, y,
+                        time: currentTime,
+                        velocity: dtInstant > 0 ? displacement / dtInstant : 0
+                    });
+                    
+                    // Keep history size limited
+                    if (zoneData.history.length > zoneData.maxHistorySize) {
+                        zoneData.history.shift();
+                    }
+                    
+                    // Calculate smoothed velocity
+                    const smoothedVelocity = zoneData.history.reduce((sum, point) => sum + point.velocity, 0) / zoneData.history.length;
+                    
+                    // Update zone data
+                    zoneData.currentPos = { x, y };
+                    zoneData.displacement = displacement;
+                    zoneData.velocity = smoothedVelocity;
+                    
+                    // Update touch visualization
+                    updateEnhancedTouchVisualization(touch.clientX, touch.clientY, touch.identifier);
+                    
+                    // Update analytics display with enhanced metrics
+                    updateEnhancedTouchMetrics(x, y, displacement, smoothedVelocity, dtInstant, dxt, dyt);
+                    
+                    // Add sliding class if significant movement
+                    if (displacement > 15) {
+                        document.getElementById(`zone-${zone}`).classList.add('sliding');
+                    }
+                    
+                    // Update fan control with enhanced sensitivity
+                    if (displacement > 10) {
+                        updateEnhancedFanControl(zone, dx, dy, displacement, smoothedVelocity);
+                    }
+                    
+                    break;
+                }
+            }
+        }
+        
+        function handleEnhancedTouchEnd(e, zone) {
+            e.preventDefault();
+            
+            const zoneData = touchZones[zone];
+            zoneData.active = false;
+            
+            // Calculate final metrics
+            const touchDuration = Date.now() - zoneData.startTime;
+            document.getElementById('touch-duration').textContent = `${touchDuration} ms`;
+            
+            // Remove touch visualization with animation
+            if (zoneData.touchId !== null) {
+                removeEnhancedTouchVisualization(zoneData.touchId);
+            }
+            
+            // Update UI
+            updateZoneIndicator(zone, false);
+            updateFanControl(zone, false);
+            
+            // Remove active classes with animation
+            const zoneElement = document.getElementById(`zone-${zone}`);
+            zoneElement.classList.remove('active', 'sliding');
+            
+            // Reset zone data
+            zoneData.touchId = null;
+            zoneData.velocity = 0;
+            zoneData.displacement = 0;
+            zoneData.history = [];
+            
+            updateTouchAnalytics();
+            
+            // Add release haptic feedback on mobile
+            if (isMobile && navigator.vibrate) {
+                navigator.vibrate(5);
+            }
+        }
+        
+        // Enhanced mouse handlers for desktop
+        function handleEnhancedMouseDown(e, zone) {
+            e.preventDefault();
+            
+            const rect = e.target.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            const zoneData = touchZones[zone];
+            zoneData.active = true;
+            zoneData.startTime = Date.now();
+            zoneData.startPos = { x, y };
+            zoneData.currentPos = { x, y };
+            zoneData.touchId = 'mouse';
+            zoneData.history = [{
+                x, y,
+                time: Date.now(),
+                velocity: 0
+            }];
+            
+            createEnhancedTouchVisualization(e.clientX, e.clientY, 'mouse');
+            updateZoneIndicator(zone, true);
+            updateFanControl(zone, true);
+            document.getElementById(`zone-${zone}`).classList.add('active');
+        }
+        
+        function handleEnhancedMouseMove(e, zone) {
+            if (!touchZones[zone].active) return;
+            e.preventDefault();
+            
+            const rect = e.target.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            const currentTime = Date.now();
+            const zoneData = touchZones[zone];
+            
+            const dx = x - zoneData.startPos.x;
+            const dy = y - zoneData.startPos.y;
+            const displacement = Math.sqrt(dx * dx + dy * dy);
+            const dt = currentTime - zoneData.startTime;
+            
+            // Add to history
+            zoneData.history.push({
+                x, y,
+                time: currentTime,
+                velocity: dt > 0 ? displacement / dt : 0
+            });
+            
+            if (zoneData.history.length > zoneData.maxHistorySize) {
+                zoneData.history.shift();
+            }
+            
+            const smoothedVelocity = zoneData.history.reduce((sum, point) => sum + point.velocity, 0) / zoneData.history.length;
+            
+            const prevPos = zoneData.currentPos;
+            const dxt = x - prevPos.x;
+            const dyt = y - prevPos.y;
+            
+            zoneData.currentPos = { x, y };
+            zoneData.displacement = displacement;
+            zoneData.velocity = smoothedVelocity;
+            
+            updateEnhancedTouchVisualization(e.clientX, e.clientY, 'mouse');
+            updateEnhancedTouchMetrics(x, y, displacement, smoothedVelocity, dt, dxt, dyt);
+            
+            if (displacement > 15) {
+                document.getElementById(`zone-${zone}`).classList.add('sliding');
+                updateEnhancedFanControl(zone, dx, dy, displacement, smoothedVelocity);
+            }
+        }
+        
+        function handleEnhancedMouseUp(e, zone) {
+            e.preventDefault();
+            
+            const zoneData = touchZones[zone];
+            zoneData.active = false;
+            
+            const touchDuration = Date.now() - zoneData.startTime;
+            document.getElementById('touch-duration').textContent = `${touchDuration} ms`;
+            
+            removeEnhancedTouchVisualization('mouse');
+            updateZoneIndicator(zone, false);
+            updateFanControl(zone, false);
+            document.getElementById(`zone-${zone}`).classList.remove('active', 'sliding');
+            
+            zoneData.touchId = null;
+            zoneData.velocity = 0;
+            zoneData.displacement = 0;
+            zoneData.history = [];
+        }
+        
+        function updateEnhancedFanControl(zone, dx, dy, displacement, velocity) {
+            // Enhanced control with velocity-based sensitivity
+            const baseSensitivity = fanParams.touchSensitivity;
+            const velocityFactor = 1 + (velocity * 0.01); // Increase sensitivity with velocity
+            const sensitivity = baseSensitivity * velocityFactor;
+            
+            // Apply control based on zone and movement
+            let rpmChange = 0;
+            let angleChange = 0;
+            
+            switch(zone) {
+                case 'up':
+                    rpmChange = displacement * sensitivity * 0.2;
+                    break;
+                case 'down':
+                    rpmChange = -displacement * sensitivity * 0.2;
+                    break;
+                case 'left':
+                    angleChange = -displacement * sensitivity * 0.05;
+                    break;
+                case 'right':
+                    angleChange = displacement * sensitivity * 0.05;
+                    break;
+            }
+            
+            // Apply changes with bounds checking
+            if (rpmChange !== 0) {
+                fanParams.rpm = Math.max(0, Math.min(1500, fanParams.rpm + rpmChange));
+            }
+            
+            if (angleChange !== 0) {
+                currentBladeAngle = Math.max(5, Math.min(35, currentBladeAngle + angleChange));
+            }
+            
+            updateUI();
+            updateAerodynamicDisplay();
+            
+            // Update sliders to match
+            document.getElementById('rpm-slider').value = fanParams.rpm;
+            document.getElementById('angle-slider').value = currentBladeAngle;
+        }
+        
+        function updateEnhancedTouchMetrics(x, y, displacement, velocity, deltaTime, dx, dy) {
+            // Enhanced metrics display with formatting
+            document.getElementById('touch-position').textContent = 
+                `${Math.round(x)}, ${Math.round(y)}`;
+            document.getElementById('touch-displacement').textContent = 
+                `${displacement.toFixed(1)} px`;
+            document.getElementById('touch-velocity').textContent = 
+                `${velocity.toFixed(2)} px/ms`;
+            document.getElementById('touch-delta').textContent = 
+                `${deltaTime} ms`;
+            
+            // Update current zone display
+            document.getElementById('current-zone').textContent = 
+                Object.entries(touchZones).find(([_, data]) => data.active)?.[0].toUpperCase() || '-';
+        }
+        
+        function createEnhancedTouchVisualization(x, y, id) {
+            // Create enhanced touch indicator
+            const indicator = document.createElement('div');
+            indicator.className = 'touch-indicator';
+            indicator.id = `touch-${id}`;
+            indicator.style.left = `${x}px`;
+            indicator.style.top = `${y}px`;
+            
+            // Add size variation based on touch pressure (simulated)
+            const size = 48 + Math.random() * 16;
+            indicator.style.width = `${size}px`;
+            indicator.style.height = `${size}px`;
+            
+            document.getElementById('touch-visualization').appendChild(indicator);
+            touchVisualizations.set(id, indicator);
+            
+            // Create enhanced trail
+            const trail = document.createElement('div');
+            trail.className = 'touch-trail';
+            trail.style.left = `${x}px`;
+            trail.style.top = `${y}px`;
+            const trailSize = 16 + Math.random() * 8;
+            trail.style.width = `${trailSize}px`;
+            trail.style.height = `${trailSize}px`;
+            
+            document.getElementById('touch-visualization').appendChild(trail);
+            touchTrails.push({ element: trail, createdAt: Date.now() });
+        }
+        
+        function updateEnhancedTouchVisualization(x, y, id) {
+            const indicator = touchVisualizations.get(id);
+            if (indicator) {
+                indicator.style.left = `${x}px`;
+                indicator.style.top = `${y}px`;
+                
+                // Create new trail periodically during movement
+                if (Date.now() % 50 < 10) { // Every ~50ms
+                    const trail = document.createElement('div');
+                    trail.className = 'touch-trail';
+                    trail.style.left = `${x}px`;
+                    trail.style.top = `${y}px`;
+                    const trailSize = 8 + Math.random() * 8;
+                    trail.style.width = `${trailSize}px`;
+                    trail.style.height = `${trailSize}px`;
+                    
+                    document.getElementById('touch-visualization').appendChild(trail);
+                    touchTrails.push({ element: trail, createdAt: Date.now() });
+                }
+            }
+        }
+        
+        function removeEnhancedTouchVisualization(id) {
+            const indicator = touchVisualizations.get(id);
+            if (indicator) {
+                // Fade out animation
+                indicator.style.transition = 'all 0.3s ease';
+                indicator.style.opacity = '0';
+                indicator.style.transform = 'translate(-50%, -50%) scale(0.5)';
+                setTimeout(() => {
+                    if (indicator.parentNode) {
+                        indicator.parentNode.removeChild(indicator);
+                    }
+                }, 300);
+                touchVisualizations.delete(id);
+            }
+            
+            // Clean up old trails
+            const now = Date.now();
+            for (let i = touchTrails.length - 1; i >= 0; i--) {
+                if (now - touchTrails[i].createdAt > 2000) { // Remove trails older than 2 seconds
+                    if (touchTrails[i].element.parentNode) {
+                        touchTrails[i].element.parentNode.removeChild(touchTrails[i].element);
+                    }
+                    touchTrails.splice(i, 1);
+                }
+            }
+        }
+        
+        function simulateHapticFeedback(type) {
+            if (!navigator.vibrate) return;
+            
+            const patterns = {
+                'light': [10],
+                'medium': [20],
+                'heavy': [30],
+                'success': [20, 40, 20],
+                'warning': [50, 100, 50]
+            };
+            
+            navigator.vibrate(patterns[type] || patterns.medium);
+        }
+        
+        // ============================================
+        // ENHANCED PHYSICS AND AERODYNAMICS
+        // ============================================
+        
+        function calculateEnhancedAerodynamicParameters() {
+            const scale = 0.01 * fanParams.mobileScale;
+            const rpm = fanParams.rpm;
+            const angleRad = currentBladeAngle * Math.PI / 180;
+            
+            // Enhanced aerodynamic calculations
+            const bladeArea = fanParams.bladeWidth * scale * fanParams.bladeLength * scale;
+            const totalArea = bladeArea * fanParams.bladeCount;
+            const angularVelocity = (rpm * 2 * Math.PI) / 60;
+            
+            // Find efficiency from curve
+            const efficiencyPoint = AERODYNAMICS.bladeEfficiencyCurve.find(p => 
+                Math.abs(p.angle - currentBladeAngle) <= 5
+            ) || AERODYNAMICS.bladeEfficiencyCurve[3];
+            const bladeEfficiency = efficiencyPoint.efficiency;
+            
+            // Enhanced lift and drag calculations
+            const Cl = 2 * Math.PI * Math.sin(angleRad) * Math.cos(angleRad) * bladeEfficiency;
+            const Cd = AERODYNAMICS.dragCoefficient + 0.12 * Math.pow(Math.sin(angleRad), 2) * (1 - bladeEfficiency);
+            
+            // Enhanced dynamic pressure with Reynolds number consideration
+            const tipSpeed = angularVelocity * fanParams.bladeLength * scale;
+            const reynoldsNumber = (tipSpeed * fanParams.bladeWidth * scale) / 1.5e-5;
+            const reFactor = Math.min(1.0, Math.log10(reynoldsNumber) / 6);
+            
+            const dynamicPressure = 0.5 * AERODYNAMICS.airDensity * Math.pow(tipSpeed, 2) * reFactor;
+            
+            // Calculate enhanced forces
+            const liftForce = Cl * dynamicPressure * totalArea;
+            const dragForce = Cd * dynamicPressure * totalArea;
+            
+            // Enhanced performance metrics
+            const airflowRate = liftForce * tipSpeed * AERODYNAMICS.efficiencyFactor * bladeEfficiency;
+            const powerRequired = dragForce * tipSpeed * (1 + (rpm - 1000) / 5000);
+            const staticPressure = liftForce / totalArea;
+            
+            // Calculate efficiency with enhanced formula
+            const theoreticalMax = 0.5 * AERODYNAMICS.airDensity * Math.PI * Math.pow(tipSpeed, 3) * Math.pow(fanParams.bladeLength * scale, 2);
+            const efficiency = Math.min(95, Math.max(0, (airflowRate / (theoreticalMax + 0.001)) * 100 * bladeEfficiency));
+            
+            return {
+                airflowRate: airflowRate * 60, // m³/min
+                powerConsumption: powerRequired,
+                staticPressure: staticPressure,
+                efficiency: efficiency,
+                liftCoefficient: Cl,
+                dragCoefficient: Cd,
+                tipSpeed: tipSpeed,
+                bladeEfficiency: bladeEfficiency,
+                reynoldsNumber: reynoldsNumber
+            };
+        }
+        
+        function updateAerodynamicDisplay() {
+            const aero = calculateEnhancedAerodynamicParameters();
+            
+            // Update display with enhanced formatting
+            document.getElementById('airflow-rate').textContent = aero.airflowRate.toFixed(1);
+            document.getElementById('power-consumption').textContent = Math.round(aero.powerConsumption);
+            document.getElementById('static-pressure').textContent = aero.staticPressure.toFixed(1);
+            document.getElementById('efficiency').textContent = aero.efficiency.toFixed(1) + '%';
+            document.getElementById('efficiency-bar').style.width = aero.efficiency.toFixed(1) + '%';
+            
+            // Update pressure bar
+            const pressurePercent = Math.min(100, (aero.staticPressure / 150) * 100);
+            document.getElementById('pressure-bar').style.width = pressurePercent + '%';
+            
+            // Update pressure level text
+            let pressureLevel = 'Low';
+            if (aero.staticPressure > 75) pressureLevel = 'High';
+            else if (aero.staticPressure > 50) pressureLevel = 'Medium';
+            document.getElementById('pressure-level').textContent = pressureLevel;
+        }
+        
+        function initEnhancedAirflowSimulation() {
+            // Create adaptive number of particles based on device
+            const particleCount = isMobile ? 30 : 50;
+            for (let i = 0; i < particleCount; i++) {
+                createEnhancedAirflowParticle();
+            }
+        }
+        
+        function createEnhancedAirflowParticle() {
+            const particle = document.createElement('div');
+            particle.className = 'airflow-particle';
+            
+            // Size based on device
+            const size = (isMobile ? 4 : 6) + Math.random() * 4;
+            particle.style.width = `${size}px`;
+            particle.style.height = `${size}px`;
+            
+            // Opacity based on device
+            particle.style.opacity = (isMobile ? 0.4 : 0.6) + Math.random() * 0.4;
+            
+            // Random starting position around fan
+            const angle = Math.random() * Math.PI * 2;
+            const distance = Math.random() * 150 + 100;
+            const x = window.innerWidth / 2 + Math.cos(angle) * distance;
+            const y = window.innerHeight / 2 + Math.sin(angle) * distance;
+            
+            particle.style.left = `${x}px`;
+            particle.style.top = `${y}px`;
+            
+            document.body.appendChild(particle);
+            airflowParticles.push({
+                element: particle,
+                x: x,
+                y: y,
+                vx: 0,
+                vy: 0,
+                life: 1,
+                size: size,
+                opacity: parseFloat(particle.style.opacity)
+            });
+        }
+        
+        function updateEnhancedAirflowParticles() {
+            const aero = calculateEnhancedAerodynamicParameters();
+            const airflowStrength = aero.airflowRate / 200;
+            
+            airflowParticles.forEach((particle, index) => {
+                // Calculate distance from fan center
+                const dx = particle.x - window.innerWidth / 2;
+                const dy = particle.y - window.innerHeight / 2;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                // Enhanced force calculation with turbulence
+                const force = airflowStrength * 100 / (distance + 100);
+                const angle = Math.atan2(dy, dx);
+                
+                // Add some turbulence
+                const turbulence = Math.sin(Date.now() * 0.001 + index) * 0.2;
+                
+                // Update velocity with enhanced physics
+                particle.vx += Math.cos(angle) * force * 0.1 + turbulence;
+                particle.vy += Math.sin(angle) * force * 0.1 + turbulence;
+                
+                // Enhanced damping
+                particle.vx *= 0.93;
+                particle.vy *= 0.93;
+                
+                // Update position
+                particle.x += particle.vx;
+                particle.y += particle.vy;
+                
+                // Update life with airflow influence
+                particle.life -= 0.003 * (1 + airflowStrength);
+                
+                // Update visual properties
+                particle.element.style.left = `${particle.x}px`;
+                particle.element.style.top = `${particle.y}px`;
+                particle.element.style.opacity = particle.life * particle.opacity;
+                
+                // Add scale animation based on life
+                const scale = 0.5 + particle.life * 0.5;
+                particle.element.style.transform = `scale(${scale})`;
+                
+                // Reset particle if needed
+                if (particle.life <= 0 || 
+                    particle.x < -200 || particle.x > window.innerWidth + 200 ||
+                    particle.y < -200 || particle.y > window.innerHeight + 200) {
+                    
+                    particle.element.remove();
+                    airflowParticles.splice(index, 1);
+                    createEnhancedAirflowParticle();
+                }
+            });
+        }
+        
+        // ============================================
+        // ENHANCED UI UPDATES AND UTILITIES
+        // ============================================
+        
+        function setupEnhancedUIControls() {
+            // Enhanced RPM Slider with real-time updates
+            const rpmSlider = document.getElementById('rpm-slider');
+            let rpmUpdateTimeout;
+            
+            rpmSlider.addEventListener('input', (e) => {
+                clearTimeout(rpmUpdateTimeout);
+                fanParams.rpm = parseInt(e.target.value);
+                
+                // Debounce UI updates for performance
+                rpmUpdateTimeout = setTimeout(() => {
+                    updateUI();
+                    updateAerodynamicDisplay();
+                }, 50);
+                
+                // Immediate visual feedback
+                document.getElementById('rpm-value').textContent = fanParams.rpm;
+            });
+            
+            // Enhanced control buttons with visual feedback
+            ['blades-plus', 'blades-minus', 'length-plus', 'length-minus'].forEach(id => {
+                document.getElementById(id).addEventListener('click', (e) => {
+                    e.currentTarget.classList.add('active:scale-95');
+                    
+                    switch(id) {
+                        case 'blades-plus':
+                            if (fanParams.bladeCount < 10) {
+                                fanParams.bladeCount++;
+                                updateBlades();
+                                updateAerodynamicDisplay();
+                                simulateHapticFeedback('light');
+                            }
+                            break;
+                        case 'blades-minus':
+                            if (fanParams.bladeCount > 3) {
+                                fanParams.bladeCount--;
+                                updateBlades();
+                                updateAerodynamicDisplay();
+                                simulateHapticFeedback('light');
+                            }
+                            break;
+                        case 'length-plus':
+                            if (fanParams.bladeLength < 80) {
+                                fanParams.bladeLength += 5;
+                                updateBlades();
+                                updateAerodynamicDisplay();
+                                simulateHapticFeedback('light');
+                            }
+                            break;
+                        case 'length-minus':
+                            if (fanParams.bladeLength > 40) {
+                                fanParams.bladeLength -= 5;
+                                updateBlades();
+                                updateAerodynamicDisplay();
+                                simulateHapticFeedback('light');
+                            }
+                            break;
+                    }
+                    
+                    setTimeout(() => {
+                        e.currentTarget.classList.remove('active:scale-95');
+                    }, 150);
+                });
+            });
+            
+            // Enhanced Angle Slider
+            const angleSlider = document.getElementById('angle-slider');
+            angleSlider.addEventListener('input', (e) => {
+                currentBladeAngle = parseFloat(e.target.value);
+                document.getElementById('angle-value').textContent = currentBladeAngle.toFixed(1);
+                
+                // Debounced updates
+                clearTimeout(rpmUpdateTimeout);
+                rpmUpdateTimeout = setTimeout(() => {
+                    updateBlades();
+                    updateAerodynamicDisplay();
+                }, 100);
+            });
+            
+            // Enhanced Background Buttons
+            document.querySelectorAll('[data-bg]').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const bg = e.currentTarget.dataset.bg;
+                    const bgConfig = backgrounds[bg];
+                    
+                    scene.background = new THREE.Color(bgConfig.color);
+                    scene.fog.color = new THREE.Color(bgConfig.fog);
+                    
+                    // Adjust lighting intensity based on background
+                    scene.traverse((child) => {
+                        if (child.isLight) {
+                            child.intensity *= bgConfig.intensity;
+                        }
+                    });
+                    
+                    // Update active state with animation
+                    document.querySelectorAll('[data-bg]').forEach(b => {
+                        b.classList.remove('ring-4', 'ring-blue-400', 'scale-105');
+                    });
+                    btn.classList.add('ring-4', 'ring-blue-400', 'scale-105');
+                    
+                    // Haptic feedback on mobile
+                    if (isMobile) simulateHapticFeedback('light');
+                    
+                    // Reset scale after animation
+                    setTimeout(() => {
+                        btn.classList.remove('scale-105');
+                    }, 300);
+                });
+            });
+            
+            // Set default active background
+            document.querySelector('[data-bg="sky"]').classList.add('ring-4', 'ring-blue-400');
+        }
+        
+        function updateUI() {
+            // Update control values with animation
+            animateValue('rpm-value', fanParams.rpm);
+            animateValue('blades-value', fanParams.bladeCount);
+            animateValue('length-value', fanParams.bladeLength);
+            animateValue('angle-value', currentBladeAngle.toFixed(1));
+            
+            // Update current parameters
+            document.getElementById('current-rpm').textContent = fanParams.rpm;
+            document.getElementById('current-angle').textContent = currentBladeAngle.toFixed(1) + '°';
+            document.getElementById('current-blades').textContent = fanParams.bladeCount;
+            document.getElementById('current-length').textContent = fanParams.bladeLength + ' cm';
+            
+            // Update sliders
+            document.getElementById('rpm-slider').value = fanParams.rpm;
+            document.getElementById('angle-slider').value = currentBladeAngle;
+        }
+        
+        function animateValue(elementId, targetValue) {
+            const element = document.getElementById(elementId);
+            const currentValue = parseFloat(element.textContent) || 0;
+            const delta = targetValue - currentValue;
+            
+            if (Math.abs(delta) < 0.1) {
+                element.textContent = targetValue;
+                return;
+            }
+            
+            // Smooth animation
+            const step = delta * 0.2;
+            element.textContent = (currentValue + step).toFixed(elementId === 'angle-value' ? 1 : 0);
+            
+            requestAnimationFrame(() => animateValue(elementId, targetValue));
+        }
+        
+        function updateZoneIndicator(zone, active) {
+            const indicator = document.getElementById(`zone-indicator-${zone}`);
+            if (active) {
+                indicator.classList.add('bg-green-500/30', 'border-green-400', 'text-white', 'scale-105');
+                indicator.classList.remove('bg-gray-800/50', 'border-gray-700');
+            } else {
+                indicator.classList.remove('bg-green-500/30', 'border-green-400', 'text-white', 'scale-105');
+                indicator.classList.add('bg-gray-800/50', 'border-gray-700');
+            }
+        }
+        
+        function updateTouchAnalytics() {
+            const activeZones = Object.values(touchZones).filter(z => z.active).length;
+            document.getElementById('active-touches').textContent = activeZones;
+            
+            // Update interaction mode
+            const mode = activeZones > 0 ? 'Touch Control' : 'Manual Control';
+            document.getElementById('interaction-mode').textContent = mode;
+        }
+        
+        function updateEnhancedPerformanceMetrics() {
+            const now = Date.now();
+            const elapsed = (now - lastFpsUpdate) / 1000;
+            const fps = Math.round(frameCount / elapsed);
+            
+            currentFps = fps;
+            frameCount = 0;
+            lastFpsUpdate = now;
+            
+            // Update FPS counter with color coding
+            const fpsElement = document.getElementById('fps-counter');
+            fpsElement.textContent = fps;
+            
+            if (fps < 30) {
+                fpsElement.style.color = '#ef4444';
+                document.querySelector('.performance-indicator').style.background = '#ef4444';
+            } else if (fps < 50) {
+                fpsElement.style.color = '#f59e0b';
+                document.querySelector('.performance-indicator').style.background = '#f59e0b';
+            } else {
+                fpsElement.style.color = '#10b981';
+                document.querySelector('.performance-indicator').style.background = '#10b981';
+            }
+            
+            // Calculate average render time
+            if (renderTimes.length > 0) {
+                const avgRenderTime = renderTimes.reduce((a, b) => a + b) / renderTimes.length;
+                document.getElementById('render-time').textContent = `${avgRenderTime.toFixed(1)} ms`;
+                renderTimes = [];
+            }
+        }
+        
+        // ============================================
+        // ENHANCED FAN MODEL CREATION (Optimized for mobile)
+        // ============================================
+        
+        function createEnhancedFanModel() {
+            fanGroup = new THREE.Group();
+            scene.add(fanGroup);
+            
+            // Create motor with adaptive detail level
+            createAdaptiveMotor();
+            
+            // Create hub
+            createEnhancedHub();
+            
+            // Create blades
+            createEnhancedBlades();
+            
+            // Position fan
+            fanGroup.position.y = 25;
+        }
+        
+        function createAdaptiveMotor() {
+            motorGroup = new THREE.Group();
+            fanGroup.add(motorGroup);
+            
+            const scale = 0.01 * fanParams.mobileScale;
+            
+            // Adaptive geometry detail based on device
+            const segments = isMobile ? 24 : 32;
+            const radialSegments = isMobile ? 4 : 8;
+            
+            // Create motor with adaptive materials
+            const motorGeometry = new THREE.CylinderGeometry(
+                fanParams.motorDiameter * scale / 2,
+                fanParams.motorDiameter * scale / 2,
+                fanParams.motorLength * scale,
+                segments, radialSegments, false
+            );
+            
+            const motorMaterial = new THREE.MeshPhysicalMaterial({
+                color: 0x333333,
+                roughness: isMobile ? 0.5 : 0.3,
+                metalness: isMobile ? 0.6 : 0.8,
+                clearcoat: isMobile ? 0.5 : 1.0,
+                clearcoatRoughness: 0.1
+            });
+            
+            const motorBody = new THREE.Mesh(motorGeometry, motorMaterial);
+            motorBody.castShadow = !isMobile;
+            motorBody.receiveShadow = !isMobile;
+            motorBody.position.y = -fanParams.motorLength * scale / 2;
+            motorGroup.add(motorBody);
+            
+            // Add simplified details for mobile
+            if (!isMobile) {
+                // Add detailed features only on desktop
+                createDetailedMotorFeatures(scale, segments);
+            }
+        }
+        
+        function createEnhancedHub() {
+            hub = new THREE.Group();
+            fanGroup.add(hub);
+            
+            const scale = 0.01 * fanParams.mobileScale;
+            
+            // Adaptive hub geometry
+            const segments = isMobile ? 24 : 32;
+            
+            const hubGeometry = new THREE.CylinderGeometry(
+                fanParams.hubDiameter * scale / 2,
+                fanParams.hubDiameter * scale / 2,
+                fanParams.hubThickness * scale,
+                segments, isMobile ? 4 : 8, false
+            );
+            
+            const hubMaterial = new THREE.MeshPhysicalMaterial({
+                color: 0x888888,
+                roughness: isMobile ? 0.5 : 0.4,
+                metalness: isMobile ? 0.6 : 0.8,
+                clearcoat: 0.5
+            });
+            
+            const hubBody = new THREE.Mesh(hubGeometry, hubMaterial);
+            hubBody.castShadow = !isMobile;
+            hubBody.receiveShadow = !isMobile;
+            hub.add(hubBody);
+            
+            // Add blade connection arms
+            createAdaptiveBladeArms(scale);
+        }
+        
+        function createEnhancedBlades() {
+            bladesGroup = new THREE.Group();
+            hub.add(bladesGroup);
+            
+            updateBlades();
+        }
+        
+        function updateBlades() {
+            // Remove existing blades
+            while(bladesGroup.children.length > 0) {
+                bladesGroup.remove(bladesGroup.children[0]);
+            }
+            
+            // Create adaptive number of blades based on device capability
+            const bladeDetail = isMobile ? 16 : 32;
+            
+            for (let i = 0; i < fanParams.bladeCount; i++) {
+                const blade = createAdaptiveBlade(bladeDetail);
+                const angle = (i / fanParams.bladeCount) * Math.PI * 2;
+                blade.rotation.y = angle;
+                bladesGroup.add(blade);
+            }
+            
+            updateUI();
+        }
+        
+        function createAdaptiveBlade(detail) {
+            const bladeGroup = new THREE.Group();
+            const scale = 0.01 * fanParams.mobileScale;
+            
+            // Simplified airfoil for mobile, detailed for desktop
+            const bladeGeometry = isMobile ? 
+                createSimpleBladeGeometry(scale) : 
+                createDetailedBladeGeometry(scale, detail);
+            
+            const bladeMaterial = new THREE.MeshPhysicalMaterial({
+                color: 0x1E88E5,
+                roughness: isMobile ? 0.4 : 0.3,
+                metalness: isMobile ? 0.5 : 0.7,
+                clearcoat: 0.5,
+                side: THREE.DoubleSide
+            });
+            
+            const bladeMesh = new THREE.Mesh(bladeGeometry, bladeMaterial);
+            bladeMesh.castShadow = !isMobile;
+            bladeMesh.receiveShadow = !isMobile;
+            
+            // Position blade
+            const bladePosition = (fanParams.hubDiameter / 2 + fanParams.bladeWidth / 2) * scale;
+            bladeMesh.position.z = bladePosition;
+            bladeMesh.rotation.x = currentBladeAngle * Math.PI / 180;
+            
+            bladeGroup.add(bladeMesh);
+            return bladeGroup;
+        }
+        
+        // ============================================
+        // ENHANCED WINDOW RESIZE HANDLING
+        // ============================================
+        
+        function onEnhancedWindowResize() {
+            // Update camera aspect ratio
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            
+            // Update renderer size with pixel ratio optimization
+            const pixelRatio = isMobile ? Math.min(1.5, window.devicePixelRatio) : Math.min(2, window.devicePixelRatio);
+            renderer.setPixelRatio(pixelRatio);
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            
+            // Update touch zones positioning
+            updateTouchZonesLayout();
+            
+            // Update airflow particles
+            repositionAirflowParticles();
+            
+            // Adjust mobile scale based on new screen size
+            const newIsMobile = window.innerWidth < 768;
+            if (newIsMobile !== isMobile) {
+                fanParams.mobileScale = newIsMobile ? 0.7 : 1.0;
+                fanParams.touchSensitivity = newIsMobile ? 0.8 : 1.0;
+            }
+        }
+        
+        function updateTouchZonesLayout() {
+            // Ensure touch zones are properly sized for new layout
+            const zones = ['up', 'down', 'left', 'right'];
+            zones.forEach(zone => {
+                const zoneElement = document.getElementById(`zone-${zone}`);
+                if (zoneElement) {
+                    // Reset any transform effects
+                    zoneElement.style.transform = '';
+                }
+            });
+        }
+        
+        function repositionAirflowParticles() {
+            // Reposition airflow particles based on new window size
+            airflowParticles.forEach(particle => {
+                // Keep particles within bounds
+                if (particle.x < 0) particle.x = 0;
+                if (particle.x > window.innerWidth) particle.x = window.innerWidth;
+                if (particle.y < 0) particle.y = 0;
+                if (particle.y > window.innerHeight) particle.y = window.innerHeight;
+                
+                particle.element.style.left = `${particle.x}px`;
+                particle.element.style.top = `${particle.y}px`;
+            });
+        }
+        
+        // ============================================
+        // ENHANCED ANIMATION LOOP
+        // ============================================
+        
+        function animate() {
+            frameCount++;
+            const renderStart = Date.now();
+            
+            requestAnimationFrame(animate);
+            
+            // Update camera animation
+            updateCameraAnimation();
+            
+            // Smooth fan rotation with enhanced physics
+            const acceleration = isMobile ? 0.06 : 0.08;
+            fanRotationSpeed += (fanParams.rpm - fanRotationSpeed) * acceleration;
+            
+            // Rotate blades with adaptive physics
+            if (bladesGroup) {
+                const rotationSpeed = (fanRotationSpeed / 60) * Math.PI * 2 / 60;
+                bladesGroup.rotation.y += rotationSpeed;
+                
+                // Add blade flex with adaptive intensity
+                const flexAmount = Math.min(isMobile ? 0.1 : 0.15, fanRotationSpeed / 4000);
+                bladesGroup.children.forEach((blade, i) => {
+                    const timeOffset = Date.now() * 0.001 + i;
+                    const flexX = Math.sin(timeOffset) * flexAmount * 0.5;
+                    const flexZ = Math.cos(timeOffset * 1.3) * flexAmount;
+                    
+                    // Apply adaptive deformation
+                    if (blade.children[0]) {
+                        blade.children[0].rotation.x = currentBladeAngle * Math.PI / 180 + flexX;
+                        blade.children[0].position.x = flexZ * 0.1;
+                    }
+                });
+            }
+            
+            // Motor vibration with adaptive intensity
+            if (motorGroup) {
+                const vibration = Math.min(isMobile ? 0.003 : 0.005, fanRotationSpeed / 300000);
+                motorGroup.position.y = -fanParams.motorLength * 0.01 * fanParams.mobileScale / 2 + 
+                    Math.sin(Date.now() * 0.01) * vibration * fanRotationSpeed;
+            }
+            
+            // Update controls
+            controls.update();
+            
+            // Update airflow particles
+            updateEnhancedAirflowParticles();
+            
+            // Update performance stats
+            stats.update();
+            
+            // Measure render time
+            const renderEnd = Date.now();
+            renderTimes.push(renderEnd - renderStart);
+            if (renderTimes.length > 60) renderTimes.shift(); // Keep last 60 frames
+            
+            // Render scene
+            renderer.render(scene, camera);
+        }
+        
+        // Initialize the application
+        window.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>

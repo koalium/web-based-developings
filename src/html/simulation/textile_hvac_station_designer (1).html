@@ -1,0 +1,1896 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AC Station Designer - Interactive Design Tool</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            color: white;
+            padding: 30px;
+        }
+        
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 5px;
+        }
+        
+        .header p {
+            opacity: 0.9;
+            font-size: 14px;
+        }
+        
+        .wizard-progress {
+            display: flex;
+            background: #f8f9fa;
+            padding: 20px 30px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+        
+        .wizard-step {
+            flex: 1;
+            text-align: center;
+            position: relative;
+            padding: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .wizard-step::before {
+            content: '';
+            position: absolute;
+            top: 20px;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: #e0e0e0;
+            z-index: 0;
+        }
+        
+        .wizard-step:first-child::before {
+            left: 50%;
+        }
+        
+        .wizard-step:last-child::before {
+            right: 50%;
+        }
+        
+        .wizard-step.completed::before {
+            background: #27ae60;
+        }
+        
+        .wizard-step.active::before {
+            background: #3498db;
+        }
+        
+        .step-number {
+            width: 40px;
+            height: 40px;
+            background: #e0e0e0;
+            color: #7f8c8d;
+            border-radius: 50%;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            position: relative;
+            z-index: 1;
+            margin-bottom: 8px;
+            transition: all 0.3s;
+        }
+        
+        .wizard-step.active .step-number {
+            background: #3498db;
+            color: white;
+            transform: scale(1.2);
+        }
+        
+        .wizard-step.completed .step-number {
+            background: #27ae60;
+            color: white;
+        }
+        
+        .step-title {
+            font-size: 13px;
+            font-weight: 500;
+            color: #7f8c8d;
+        }
+        
+        .wizard-step.active .step-title {
+            color: #3498db;
+            font-weight: 600;
+        }
+        
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 400px;
+            gap: 0;
+            min-height: 600px;
+        }
+        
+        .design-area {
+            padding: 30px;
+            overflow-y: auto;
+            max-height: calc(100vh - 260px);
+        }
+        
+        .guidance-panel {
+            background: #f8f9fa;
+            padding: 30px;
+            border-left: 2px solid #e0e0e0;
+            overflow-y: auto;
+            max-height: calc(100vh - 260px);
+        }
+        
+        .section {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+        
+        .section-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #2c3e50;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .section-title i {
+            color: #667eea;
+        }
+        
+        .help-icon {
+            cursor: help;
+            color: #3498db;
+            font-size: 18px;
+        }
+        
+        .input-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .input-group {
+            position: relative;
+        }
+        
+        .input-label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            color: #555;
+        }
+        
+        .label-tooltip {
+            cursor: help;
+            color: #3498db;
+            font-size: 12px;
+        }
+        
+        .input-wrapper {
+            position: relative;
+        }
+        
+        input[type="text"],
+        input[type="number"],
+        select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+        
+        input:focus,
+        select:focus {
+            border-color: #667eea;
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        input.warning {
+            border-color: #f39c12;
+        }
+        
+        input.error {
+            border-color: #e74c3c;
+        }
+        
+        input.success {
+            border-color: #27ae60;
+        }
+        
+        .input-unit {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 13px;
+            color: #7f8c8d;
+            pointer-events: none;
+        }
+        
+        .validation-message {
+            font-size: 12px;
+            margin-top: 5px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .validation-message.warning {
+            color: #f39c12;
+        }
+        
+        .validation-message.error {
+            color: #e74c3c;
+        }
+        
+        .validation-message.success {
+            color: #27ae60;
+        }
+        
+        .validation-message.info {
+            color: #3498db;
+        }
+        
+        .calculation-box {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 12px;
+            margin-top: 20px;
+        }
+        
+        .calc-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .calc-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.2);
+        }
+        
+        .calc-row:last-child {
+            border-bottom: none;
+        }
+        
+        .calc-label {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+        
+        .calc-value {
+            font-size: 18px;
+            font-weight: 600;
+        }
+        
+        .calc-formula {
+            font-size: 12px;
+            opacity: 0.7;
+            font-family: monospace;
+            margin-top: 5px;
+        }
+        
+        .guide-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .guide-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .guide-content {
+            font-size: 13px;
+            line-height: 1.6;
+            color: #555;
+        }
+        
+        .guide-content ul {
+            margin: 10px 0;
+            padding-left: 20px;
+        }
+        
+        .guide-content li {
+            margin: 5px 0;
+        }
+        
+        .alert-box {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            font-size: 13px;
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+        }
+        
+        .alert-box i {
+            font-size: 18px;
+            margin-top: 2px;
+        }
+        
+        .alert-info {
+            background: #e3f2fd;
+            border-left: 4px solid #2196f3;
+            color: #0d47a1;
+        }
+        
+        .alert-success {
+            background: #e8f5e9;
+            border-left: 4px solid #4caf50;
+            color: #1b5e20;
+        }
+        
+        .alert-warning {
+            background: #fff3e0;
+            border-left: 4px solid #ff9800;
+            color: #e65100;
+        }
+        
+        .alert-error {
+            background: #ffebee;
+            border-left: 4px solid #f44336;
+            color: #b71c1c;
+        }
+        
+        .space-list {
+            margin-top: 20px;
+        }
+        
+        .space-item {
+            background: #f8f9fa;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 10px;
+            transition: all 0.3s;
+        }
+        
+        .space-item:hover {
+            border-color: #667eea;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .space-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .space-name {
+            font-weight: 600;
+            font-size: 15px;
+        }
+        
+        .space-actions {
+            display: flex;
+            gap: 5px;
+        }
+        
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-secondary {
+            background: #95a5a6;
+            color: white;
+        }
+        
+        .btn-success {
+            background: #27ae60;
+            color: white;
+        }
+        
+        .btn-danger {
+            background: #e74c3c;
+            color: white;
+        }
+        
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+        
+        .btn-icon {
+            padding: 8px;
+            width: 32px;
+            height: 32px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            padding: 20px 30px;
+            background: #f8f9fa;
+            border-top: 2px solid #e0e0e0;
+        }
+        
+        .recommendation-card {
+            background: linear-gradient(135deg, #56ccf2 0%, #2f80ed 100%);
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            font-size: 13px;
+        }
+        
+        .recommendation-title {
+            font-weight: 600;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .range-indicator {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 10px;
+            font-size: 12px;
+        }
+        
+        .range-bar {
+            flex: 1;
+            height: 6px;
+            background: #e0e0e0;
+            border-radius: 3px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .range-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #27ae60 0%, #f39c12 50%, #e74c3c 100%);
+            border-radius: 3px;
+            transition: width 0.3s;
+        }
+        
+        .range-marker {
+            position: absolute;
+            top: -5px;
+            width: 4px;
+            height: 16px;
+            background: #2c3e50;
+            border-radius: 2px;
+            transition: left 0.3s;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .formula-box {
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            margin: 10px 0;
+            overflow-x: auto;
+        }
+        
+        .formula-box .var {
+            color: #3498db;
+        }
+        
+        .formula-box .op {
+            color: #e74c3c;
+        }
+        
+        .formula-box .num {
+            color: #27ae60;
+        }
+        
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .slide-in {
+            animation: slideIn 0.3s ease-out;
+        }
+        
+        .tooltip {
+            position: absolute;
+            background: rgba(0,0,0,0.9);
+            color: white;
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            max-width: 250px;
+            z-index: 1000;
+            display: none;
+            pointer-events: none;
+        }
+        
+        .tooltip::before {
+            content: '';
+            position: absolute;
+            top: -5px;
+            left: 10px;
+            width: 0;
+            height: 0;
+            border-left: 5px solid transparent;
+            border-right: 5px solid transparent;
+            border-bottom: 5px solid rgba(0,0,0,0.9);
+        }
+    </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1><i class="fas fa-cog"></i> AC Station Interactive Designer</h1>
+            <p>مصمم ایستگاه تهویه تعاملی | Design HVAC stations with real-time guidance and validation</p>
+        </div>
+        
+        <div class="wizard-progress">
+            <div class="wizard-step active" data-step="1" onclick="goToStep(1)">
+                <div class="step-number">1</div>
+                <div class="step-title">Basic Info</div>
+            </div>
+            <div class="wizard-step" data-step="2" onclick="goToStep(2)">
+                <div class="step-number">2</div>
+                <div class="step-title">Spaces</div>
+            </div>
+            <div class="wizard-step" data-step="3" onclick="goToStep(3)">
+                <div class="step-number">3</div>
+                <div class="step-title">Ducts & Vents</div>
+            </div>
+            <div class="wizard-step" data-step="4" onclick="goToStep(4)">
+                <div class="step-number">4</div>
+                <div class="step-title">Components</div>
+            </div>
+            <div class="wizard-step" data-step="5" onclick="goToStep(5)">
+                <div class="step-number">5</div>
+                <div class="step-title">Review</div>
+            </div>
+        </div>
+        
+        <div class="main-content">
+            <div class="design-area">
+                <!-- Step 1: Basic Information -->
+                <div id="step-1" class="tab-content active slide-in">
+                    <div class="section">
+                        <div class="section-header">
+                            <div class="section-title">
+                                <i class="fas fa-info-circle"></i>
+                                Station Identification
+                            </div>
+                        </div>
+                        
+                        <div class="input-grid">
+                            <div class="input-group">
+                                <div class="input-label">
+                                    Station Name
+                                    <i class="fas fa-question-circle label-tooltip" title="Unique identifier for this AC station"></i>
+                                </div>
+                                <input type="text" id="stationName" placeholder="e.g., AC_1, Spinning_Station" oninput="validateBasicInfo()">
+                            </div>
+                            
+                            <div class="input-group">
+                                <div class="input-label">
+                                    Process Type
+                                    <i class="fas fa-question-circle label-tooltip" title="Manufacturing process this station serves"></i>
+                                </div>
+                                <select id="processType" onchange="updateProcessRecommendations()">
+                                    <option value="">Select Process...</option>
+                                    <option value="spinning">Spinning</option>
+                                    <option value="weaving">Weaving</option>
+                                    <option value="finishing">Finishing</option>
+                                    <option value="dyeing">Dyeing</option>
+                                    <option value="storage">Storage</option>
+                                    <option value="other">Other</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="input-grid">
+                            <div class="input-group">
+                                <div class="input-label">
+                                    Design Temperature (°C)
+                                    <i class="fas fa-question-circle label-tooltip" title="Target indoor temperature"></i>
+                                </div>
+                                <div class="input-wrapper">
+                                    <input type="number" id="designTemp" value="27" step="0.1" min="15" max="35" oninput="validateBasicInfo()">
+                                    <span class="input-unit">°C</span>
+                                </div>
+                                <div class="validation-message" id="tempValidation"></div>
+                            </div>
+                            
+                            <div class="input-group">
+                                <div class="input-label">
+                                    Design Humidity (%)
+                                    <i class="fas fa-question-circle label-tooltip" title="Target relative humidity"></i>
+                                </div>
+                                <div class="input-wrapper">
+                                    <input type="number" id="designHumidity" value="68" step="1" min="30" max="90" oninput="validateBasicInfo()">
+                                    <span class="input-unit">%</span>
+                                </div>
+                                <div class="validation-message" id="humidityValidation"></div>
+                            </div>
+                        </div>
+                        
+                        <div id="processRecommendation"></div>
+                    </div>
+                </div>
+                
+                <!-- Step 2: Spaces -->
+                <div id="step-2" class="tab-content">
+                    <div class="section">
+                        <div class="section-header">
+                            <div class="section-title">
+                                <i class="fas fa-cube"></i>
+                                Define Spaces
+                            </div>
+                            <button class="btn btn-primary btn-sm" onclick="addSpace()">
+                                <i class="fas fa-plus"></i> Add Space
+                            </button>
+                        </div>
+                        
+                        <div class="alert-box alert-info">
+                            <i class="fas fa-lightbulb"></i>
+                            <div>
+                                <strong>Design Tip:</strong> Add all conditioned spaces served by this AC station. Each space requires dimensions and Air Changes per Hour (ACH). The total airflow will be calculated automatically.
+                            </div>
+                        </div>
+                        
+                        <div class="space-list" id="spaceList"></div>
+                        
+                        <div class="calculation-box" id="spacesCalculation" style="display:none;">
+                            <div class="calc-title">
+                                <i class="fas fa-calculator"></i>
+                                Total Airflow Calculation
+                            </div>
+                            <div class="calc-row">
+                                <div>
+                                    <div class="calc-label">Total AFH (Air Flow per Hour)</div>
+                                    <div class="calc-formula">Σ(Volume × ACH)</div>
+                                </div>
+                                <div class="calc-value" id="totalAFH">0 m³/h</div>
+                            </div>
+                            <div class="calc-row">
+                                <div>
+                                    <div class="calc-label">AFST (Air Flow per Second)</div>
+                                    <div class="calc-formula">AFH ÷ 3600</div>
+                                </div>
+                                <div class="calc-value" id="totalAFST">0.00 m³/s</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Step 3: Ducts & Vents -->
+                <div id="step-3" class="tab-content">
+                    <div class="section">
+                        <div class="section-header">
+                            <div class="section-title">
+                                <i class="fas fa-wind"></i>
+                                Feed Air System
+                            </div>
+                        </div>
+                        
+                        <h4 style="margin-bottom: 15px; color: #667eea;">Main Feed Duct</h4>
+                        <div class="input-grid">
+                            <div class="input-group">
+                                <div class="input-label">
+                                    Diameter (m)
+                                    <i class="fas fa-question-circle label-tooltip" title="Circular duct diameter"></i>
+                                </div>
+                                <div class="input-wrapper">
+                                    <input type="number" id="feedMainDiameter" value="1.5" step="0.1" min="0.5" max="3" oninput="calculateDucts()">
+                                    <span class="input-unit">m</span>
+                                </div>
+                                <div class="validation-message" id="feedMainValidation"></div>
+                            </div>
+                            
+                            <div class="input-group">
+                                <div class="input-label">Material</div>
+                                <select id="feedMainMaterial" onchange="calculateDucts()">
+                                    <option value="galvanize">Galvanized Steel</option>
+                                    <option value="stainless">Stainless Steel</option>
+                                    <option value="pvc">PVC</option>
+                                </select>
+                            </div>
+                            
+                            <div class="input-group">
+                                <div class="input-label">Count</div>
+                                <input type="number" id="feedMainCount" value="1" min="1" max="5" oninput="calculateDucts()">
+                            </div>
+                        </div>
+                        
+                        <h4 style="margin: 20px 0 15px; color: #667eea;">Feed Branches</h4>
+                        <div class="input-grid">
+                            <div class="input-group">
+                                <div class="input-label">Diameter (m)</div>
+                                <div class="input-wrapper">
+                                    <input type="number" id="feedBranchDiameter" value="1.0" step="0.1" min="0.3" max="2" oninput="calculateDucts()">
+                                    <span class="input-unit">m</span>
+                                </div>
+                            </div>
+                            
+                            <div class="input-group">
+                                <div class="input-label">Count</div>
+                                <input type="number" id="feedBranchCount" value="3" min="1" max="20" oninput="calculateDucts()">
+                            </div>
+                        </div>
+                        
+                        <h4 style="margin: 30px 0 15px; color: #2ecc71;">Feed Vents</h4>
+                        <div class="input-grid">
+                            <div class="input-group">
+                                <div class="input-label">
+                                    Vent Diameter (m)
+                                    <i class="fas fa-question-circle label-tooltip" title="Width of circular feed vents"></i>
+                                </div>
+                                <div class="input-wrapper">
+                                    <input type="number" id="feedVentDiameter" value="0.7" step="0.1" min="0.3" max="2" oninput="calculateVents()">
+                                    <span class="input-unit">m</span>
+                                </div>
+                            </div>
+                            
+                            <div class="input-group">
+                                <div class="input-label">
+                                    Length (m)
+                                    <i class="fas fa-question-circle label-tooltip" title="Default: 2 × Width"></i>
+                                </div>
+                                <div class="input-wrapper">
+                                    <input type="number" id="feedVentLength" value="1.4" step="0.1" min="0.5" max="5" oninput="calculateVents()">
+                                    <span class="input-unit">m</span>
+                                </div>
+                            </div>
+                            
+                            <div class="input-group">
+                                <div class="input-label">Number of Vents</div>
+                                <input type="number" id="feedVentNumber" value="10" min="1" max="100" oninput="calculateVents()">
+                            </div>
+                        </div>
+                        
+                        <div class="calculation-box" id="ventsCalculation">
+                            <div class="calc-title">
+                                <i class="fas fa-wind"></i>
+                                Air Velocity at Feed Vents
+                            </div>
+                            <div class="calc-row">
+                                <div>
+                                    <div class="calc-label">Total Cross Section</div>
+                                    <div class="calc-formula">Width × Length × Count</div>
+                                </div>
+                                <div class="calc-value" id="feedVentCS">0 m²</div>
+                            </div>
+                            <div class="calc-row">
+                                <div>
+                                    <div class="calc-label">Air Velocity</div>
+                                    <div class="calc-formula">AFST ÷ Cross Section</div>
+                                </div>
+                                <div class="calc-value" id="feedVentVelocity">0 m/s</div>
+                            </div>
+                            <div id="feedVentAdvice"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="section">
+                        <div class="section-header">
+                            <div class="section-title">
+                                <i class="fas fa-undo"></i>
+                                Return Air System
+                            </div>
+                        </div>
+                        
+                        <h4 style="margin-bottom: 15px; color: #e74c3c;">Main Return Duct</h4>
+                        <div class="input-grid">
+                            <div class="input-group">
+                                <div class="input-label">Width (m)</div>
+                                <div class="input-wrapper">
+                                    <input type="number" id="returnMainWidth" value="1.8" step="0.1" min="0.5" max="5" oninput="calculateDucts()">
+                                    <span class="input-unit">m</span>
+                                </div>
+                            </div>
+                            
+                            <div class="input-group">
+                                <div class="input-label">Height (m)</div>
+                                <div class="input-wrapper">
+                                    <input type="number" id="returnMainHeight" value="2.0" step="0.1" min="0.5" max="5" oninput="calculateDucts()">
+                                    <span class="input-unit">m</span>
+                                </div>
+                            </div>
+                            
+                            <div class="input-group">
+                                <div class="input-label">Count</div>
+                                <input type="number" id="returnMainCount" value="1" min="1" max="5" oninput="calculateDucts()">
+                            </div>
+                        </div>
+                        
+                        <h4 style="margin: 20px 0 15px; color: #e74c3c;">Return Vents</h4>
+                        <div class="input-grid">
+                            <div class="input-group">
+                                <div class="input-label">
+                                    Type
+                                    <i class="fas fa-question-circle label-tooltip" title="Narrow (5cm) or Wide (>50cm)"></i>
+                                </div>
+                                <select id="returnVentType" onchange="updateReturnVentDefaults()">
+                                    <option value="narrow">Narrow (5cm slots)</option>
+                                    <option value="wide">Wide (50cm+ openings)</option>
+                                </select>
+                            </div>
+                            
+                            <div class="input-group">
+                                <div class="input-label">Width (m)</div>
+                                <div class="input-wrapper">
+                                    <input type="number" id="returnVentWidth" value="0.05" step="0.01" min="0.05" max="2" oninput="calculateVents()">
+                                    <span class="input-unit">m</span>
+                                </div>
+                            </div>
+                            
+                            <div class="input-group">
+                                <div class="input-label">Length (m)</div>
+                                <div class="input-wrapper">
+                                    <input type="number" id="returnVentLength" value="1.0" step="0.1" min="0.5" max="5" oninput="calculateVents()">
+                                    <span class="input-unit">m</span>
+                                </div>
+                            </div>
+                            
+                            <div class="input-group">
+                                <div class="input-label">Number</div>
+                                <input type="number" id="returnVentNumber" value="20" min="1" max="200" oninput="calculateVents()">
+                            </div>
+                        </div>
+                        
+                        <div class="calculation-box">
+                            <div class="calc-title">
+                                <i class="fas fa-undo"></i>
+                                Return Vent Performance
+                            </div>
+                            <div class="calc-row">
+                                <div class="calc-label">Total Cross Section</div>
+                                <div class="calc-value" id="returnVentCS">0 m²</div>
+                            </div>
+                            <div class="calc-row">
+                                <div class="calc-label">Air Velocity (Target: ~3 m/s)</div>
+                                <div class="calc-value" id="returnVentVelocity">0 m/s</div>
+                            </div>
+                            <div id="returnVentAdvice"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Step 4: Components -->
+                <div id="step-4" class="tab-content">
+                    <div class="section">
+                        <div class="section-header">
+                            <div class="section-title">
+                                <i class="fas fa-filter"></i>
+                                Air Rotary Filter (ARF)
+                            </div>
+                        </div>
+                        
+                        <div class="alert-box alert-info">
+                            <i class="fas fa-info-circle"></i>
+                            <div>
+                                <strong>ARF Guidelines:</strong> Rotary filters remove dust and lint from air. Target velocity ≤ 1.22 m/s (optimal around 1.0 m/s). Each filter comes with dust fans, mechanisms, and collection bags.
+                            </div>
+                        </div>
+                        
+                        <div class="input-grid">
+                            <div class="input-group">
+                                <div class="input-label">
+                                    Diameter (m)
+                                    <i class="fas fa-question-circle label-tooltip" title="Standard sizes: 2.0, 2.5, 3.0 m"></i>
+                                </div>
+                                <select id="arfDiameter" onchange="calculateARF()">
+                                    <option value="2.0">2.0 m</option>
+                                    <option value="2.5" selected>2.5 m</option>
+                                    <option value="3.0">3.0 m</option>
+                                </select>
+                            </div>
+                            
+                            <div class="input-group">
+                                <div class="input-label">
+                                    Length (m)
+                                    <i class="fas fa-question-circle label-tooltip" title="Modular: 1.7, 3.4, 5.1 m"></i>
+                                </div>
+                                <select id="arfLength" onchange="calculateARF()">
+                                    <option value="1.7">1.7 m (1 module)</option>
+                                    <option value="3.4">3.4 m (2 modules)</option>
+                                    <option value="5.1" selected>5.1 m (3 modules)</option>
+                                </select>
+                            </div>
+                            
+                            <div class="input-group">
+                                <div class="input-label">Quantity</div>
+                                <input type="number" id="arfCount" value="2" min="1" max="10" oninput="calculateARF()">
+                            </div>
+                        </div>
+                        
+                        <div class="calculation-box">
+                            <div class="calc-title">
+                                <i class="fas fa-tachometer-alt"></i>
+                                ARF Performance
+                            </div>
+                            <div class="calc-row">
+                                <div>
+                                    <div class="calc-label">Single Filter Area</div>
+                                    <div class="calc-formula">π × Diameter × Length</div>
+                                </div>
+                                <div class="calc-value" id="arfSingleCS">0 m²</div>
+                            </div>
+                            <div class="calc-row">
+                                <div>
+                                    <div class="calc-label">Total Filter Area</div>
+                                    <div class="calc-formula">Single Area × Count</div>
+                                </div>
+                                <div class="calc-value" id="arfTotalCS">0 m²</div>
+                            </div>
+                            <div class="calc-row">
+                                <div>
+                                    <div class="calc-label">Air Velocity (Max 1.22 m/s)</div>
+                                    <div class="calc-formula">AFST ÷ Total Area</div>
+                                </div>
+                                <div class="calc-value" id="arfVelocity">0 m/s</div>
+                            </div>
+                            <div id="arfAdvice"></div>
+                        </div>
+                        
+                        <div class="alert-box alert-warning" style="margin-top: 15px;">
+                            <i class="fas fa-box"></i>
+                            <div>
+                                <strong>ARF Package Includes:</strong>
+                                <ul style="margin: 5px 0 0 0;">
+                                    <li>2 × Dust Fan (3.3kW centrifuge) per filter</li>
+                                    <li>Brushing headers (1 per 1.7m section)</li>
+                                    <li>Mechanism motor (0.25kW) + Gearbox (1kW)</li>
+                                    <li>2 Fixed + 2 Mobile dust collection bags</li>
+                                    <li>Clamps, fittings, flexible ducts</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="section">
+                        <div class="section-header">
+                            <div class="section-title">
+                                <i class="fas fa-water"></i>
+                                Air Washer System
+                            </div>
+                        </div>
+                        
+                        <div class="input-grid">
+                            <div class="input-group">
+                                <div class="input-label">
+                                    Height (m)
+                                    <i class="fas fa-question-circle label-tooltip" title="Chamber height"></i>
+                                </div>
+                                <div class="input-wrapper">
+                                    <input type="number" id="washerHeight" value="3.2" step="0.1" min="2" max="5" oninput="calculateWasher()">
+                                    <span class="input-unit">m</span>
+                                </div>
+                            </div>
+                            
+                            <div class="input-group">
+                                <div class="input-label">
+                                    Width (m)
+                                    <i class="fas fa-question-circle label-tooltip" title="Chamber width"></i>
+                                </div>
+                                <div class="input-wrapper">
+                                    <input type="number" id="washerWidth" value="5.1" step="0.1" min="2" max="10" oninput="calculateWasher()">
+                                    <span class="input-unit">m</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="calculation-box">
+                            <div class="calc-title">
+                                <i class="fas fa-droplet"></i>
+                                Air Washer Calculations
+                            </div>
+                            <div class="calc-row">
+                                <div>
+                                    <div class="calc-label">Air Velocity (Max 3.77 m/s)</div>
+                                    <div class="calc-formula">AFST ÷ (Width × Height)</div>
+                                </div>
+                                <div class="calc-value" id="washerVelocity">0 m/s</div>
+                            </div>
+                            <div class="calc-row">
+                                <div>
+                                    <div class="calc-label">Riser Count</div>
+                                    <div class="calc-formula">2 × (Width ÷ 0.304)</div>
+                                </div>
+                                <div class="calc-value" id="washerRisers">0</div>
+                            </div>
+                            <div class="calc-row">
+                                <div>
+                                    <div class="calc-label">Nozzle Count</div>
+                                    <div class="calc-formula">Risers × (Height-0.11) ÷ 0.076</div>
+                                </div>
+                                <div class="calc-value" id="washerNozzles">0</div>
+                            </div>
+                            <div class="calc-row">
+                                <div>
+                                    <div class="calc-label">Water Flow Rate</div>
+                                    <div class="calc-formula">Nozzles × 2.5 × 60 ÷ 1000</div>
+                                </div>
+                                <div class="calc-value" id="washerFlow">0 m³/h</div>
+                            </div>
+                            <div id="washerAdvice"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="section">
+                        <div class="section-header">
+                            <div class="section-title">
+                                <i class="fas fa-fan"></i>
+                                Axial Fans (LUWA Type)
+                            </div>
+                        </div>
+                        
+                        <h4 style="margin-bottom: 15px; color: #3498db;">Feed Fans</h4>
+                        <div class="input-grid">
+                            <div class="input-group">
+                                <div class="input-label">Fan Diameter</div>
+                                <select id="feedFanDiameter" onchange="updateFanOptions('feed')">
+                                    <option value="1120">1120 mm</option>
+                                    <option value="1400" selected>1400 mm</option>
+                                    <option value="1600">1600 mm</option>
+                                </select>
+                            </div>
+                            
+                            <div class="input-group">
+                                <div class="input-label">Blade Angle (°)</div>
+                                <select id="feedFanAngle" onchange="updateFanPower('feed')">
+                                    <option value="10">10°</option>
+                                    <option value="18">18°</option>
+                                    <option value="21" selected>21°</option>
+                                    <option value="23">23°</option>
+                                    <option value="26">26°</option>
+                                    <option value="29">29°</option>
+                                </select>
+                            </div>
+                            
+                            <div class="input-group">
+                                <div class="input-label">Motor Power</div>
+                                <div class="input-wrapper">
+                                    <input type="number" id="feedFanPower" value="22" min="1" max="200" readonly style="background: #f8f9fa;">
+                                    <span class="input-unit">kW</span>
+                                </div>
+                            </div>
+                            
+                            <div class="input-group">
+                                <div class="input-label">Quantity</div>
+                                <input type="number" id="feedFanCount" value="2" min="1" max="10" oninput="calculateFans()">
+                            </div>
+                        </div>
+                        
+                        <h4 style="margin: 20px 0 15px; color: #e74c3c;">Return Fans</h4>
+                        <div class="input-grid">
+                            <div class="input-group">
+                                <div class="input-label">Fan Diameter</div>
+                                <select id="returnFanDiameter" onchange="updateFanOptions('return')">
+                                    <option value="1120">1120 mm</option>
+                                    <option value="1400">1400 mm</option>
+                                    <option value="1600" selected>1600 mm</option>
+                                </select>
+                            </div>
+                            
+                            <div class="input-group">
+                                <div class="input-label">Blade Angle (°)</div>
+                                <select id="returnFanAngle" onchange="updateFanPower('return')">
+                                    <option value="10">10°</option>
+                                    <option value="15">15°</option>
+                                    <option value="18">18°</option>
+                                    <option value="20" selected>20°</option>
+                                    <option value="21">21°</option>
+                                    <option value="23">23°</option>
+                                    <option value="26">26°</option>
+                                    <option value="29">29°</option>
+                                </select>
+                            </div>
+                            
+                            <div class="input-group">
+                                <div class="input-label">Motor Power</div>
+                                <div class="input-wrapper">
+                                    <input type="number" id="returnFanPower" value="30" min="1" max="200" readonly style="background: #f8f9fa;">
+                                    <span class="input-unit">kW</span>
+                                </div>
+                            </div>
+                            
+                            <div class="input-group">
+                                <div class="input-label">Quantity</div>
+                                <input type="number" id="returnFanCount" value="2" min="1" max="10" oninput="calculateFans()">
+                            </div>
+                        </div>
+                        
+                        <div class="calculation-box">
+                            <div class="calc-title">
+                                <i class="fas fa-bolt"></i>
+                                Total Power Consumption
+                            </div>
+                            <div class="calc-row">
+                                <div class="calc-label">Feed Fans Total</div>
+                                <div class="calc-value" id="feedFanTotalPower">0 kW</div>
+                            </div>
+                            <div class="calc-row">
+                                <div class="calc-label">Return Fans Total</div>
+                                <div class="calc-value" id="returnFanTotalPower">0 kW</div>
+                            </div>
+                            <div class="calc-row">
+                                <div class="calc-label">Grand Total Power</div>
+                                <div class="calc-value" id="totalPower">0 kW</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Step 5: Review -->
+                <div id="step-5" class="tab-content">
+                    <div class="section">
+                        <div class="section-header">
+                            <div class="section-title">
+                                <i class="fas fa-clipboard-check"></i>
+                                Design Summary & Validation
+                            </div>
+                        </div>
+                        
+                        <div id="designSummary"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Guidance Panel -->
+            <div class="guidance-panel">
+                <div class="guide-card">
+                    <div class="guide-title">
+                        <i class="fas fa-book"></i>
+                        Current Step Guide
+                    </div>
+                    <div class="guide-content" id="currentGuide">
+                        <p><strong>Step 1: Basic Information</strong></p>
+                        <ul>
+                            <li>Choose a unique name for easy identification</li>
+                            <li>Select process type for automatic recommendations</li>
+                            <li>Set design conditions based on process requirements</li>
+                        </ul>
+                        <p><strong>Temperature Guidelines:</strong></p>
+                        <ul>
+                            <li>Spinning: 27-30°C, 65-70% RH</li>
+                            <li>Weaving: 24-27°C, 60-65% RH</li>
+                            <li>Finishing: 22-25°C, 55-60% RH</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <div class="guide-card">
+                    <div class="guide-title">
+                        <i class="fas fa-ruler"></i>
+                        Design Standards
+                    </div>
+                    <div class="guide-content">
+                        <p><strong>Air Changes per Hour (ACH):</strong></p>
+                        <ul>
+                            <li>Production areas: 30-40 ACH</li>
+                            <li>Storage: 15-20 ACH</li>
+                            <li>Quality control: 20-25 ACH</li>
+                        </ul>
+                        <p><strong>Velocity Limits:</strong></p>
+                        <ul>
+                            <li>Feed vents: 2-2.5 m/s (optimal 2.2 m/s)</li>
+                            <li>Return vents: 2.5-3.5 m/s (optimal 3.0 m/s)</li>
+                            <li>ARF: ≤1.22 m/s (optimal 1.0 m/s)</li>
+                            <li>Air Washer: ≤3.77 m/s (never exceed 4.0 m/s)</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <div id="dynamicGuidance"></div>
+            </div>
+        </div>
+        
+        <div class="action-buttons">
+            <button class="btn btn-secondary" id="prevBtn" onclick="previousStep()" style="display:none;">
+                <i class="fas fa-arrow-left"></i> Previous
+            </button>
+            <button class="btn btn-primary" id="nextBtn" onclick="nextStep()">
+                Next <i class="fas fa-arrow-right"></i>
+            </button>
+            <button class="btn btn-success" id="saveBtn" onclick="saveDesign()" style="display:none;">
+                <i class="fas fa-save"></i> Save Design
+            </button>
+        </div>
+    </div>
+    
+    <div class="tooltip" id="tooltip"></div>
+    
+    <script>
+        // Global state
+        let currentStep = 1;
+        let designData = {
+            stationName: '',
+            processType: '',
+            designTemp: 27,
+            designHumidity: 68,
+            spaces: [],
+            totalAFH: 0,
+            totalAFST: 0
+        };
+        
+        // Fan power lookup table
+        const fanPowerTable = {
+            1120: { 10: 5, 18: 10, 21: 12, 23: 15, 26: 18, 29: 22 },
+            1400: { 10: 8, 18: 18, 21: 22, 23: 30, 26: 30, 29: 37 },
+            1600: { 10: 12, 15: 18, 18: 30, 20: 30, 21: 37, 23: 45, 26: 50, 29: 55 }
+        };
+        
+        // Process recommendations
+        const processRecommendations = {
+            spinning: { temp: [27, 30], humidity: [65, 70], ach: 35 },
+            weaving: { temp: [24, 27], humidity: [60, 65], ach: 30 },
+            finishing: { temp: [22, 25], humidity: [55, 60], ach: 25 },
+            dyeing: { temp: [25, 28], humidity: [60, 70], ach: 40 },
+            storage: { temp: [20, 25], humidity: [50, 60], ach: 15 }
+        };
+        
+        // Wizard navigation
+        function goToStep(step) {
+            if (step < 1 || step > 5) return;
+            
+            // Hide all tabs
+            for (let i = 1; i <= 5; i++) {
+                document.getElementById(`step-${i}`).classList.remove('active');
+                document.querySelector(`[data-step="${i}"]`).classList.remove('active', 'completed');
+            }
+            
+            // Show current step
+            document.getElementById(`step-${step}`).classList.add('active');
+            document.querySelector(`[data-step="${step}"]`).classList.add('active');
+            
+            // Mark completed steps
+            for (let i = 1; i < step; i++) {
+                document.querySelector(`[data-step="${i}"]`).classList.add('completed');
+            }
+            
+            currentStep = step;
+            updateButtons();
+            updateGuidance();
+            
+            // Scroll to top
+            document.querySelector('.design-area').scrollTop = 0;
+        }
+        
+        function nextStep() {
+            if (currentStep < 5) {
+                goToStep(currentStep + 1);
+            }
+        }
+        
+        function previousStep() {
+            if (currentStep > 1) {
+                goToStep(currentStep - 1);
+            }
+        }
+        
+        function updateButtons() {
+            document.getElementById('prevBtn').style.display = currentStep > 1 ? 'inline-flex' : 'none';
+            document.getElementById('nextBtn').style.display = currentStep < 5 ? 'inline-flex' : 'none';
+            document.getElementById('saveBtn').style.display = currentStep === 5 ? 'inline-flex' : 'none';
+        }
+        
+        // Validation functions
+        function validateBasicInfo() {
+            const temp = parseFloat(document.getElementById('designTemp').value);
+            const humidity = parseFloat(document.getElementById('designHumidity').value);
+            
+            const tempValidation = document.getElementById('tempValidation');
+            const humidityValidation = document.getElementById('humidityValidation');
+            
+            // Temperature validation
+            if (temp < 20) {
+                tempValidation.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Too low - may cause condensation';
+                tempValidation.className = 'validation-message warning';
+                document.getElementById('designTemp').className = 'warning';
+            } else if (temp > 30) {
+                tempValidation.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Too high - uncomfortable for workers';
+                tempValidation.className = 'validation-message warning';
+                document.getElementById('designTemp').className = 'warning';
+            } else {
+                tempValidation.innerHTML = '<i class="fas fa-check-circle"></i> Optimal range';
+                tempValidation.className = 'validation-message success';
+                document.getElementById('designTemp').className = 'success';
+            }
+            
+            // Humidity validation
+            if (humidity < 50) {
+                humidityValidation.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Low - static electricity risk';
+                humidityValidation.className = 'validation-message warning';
+                document.getElementById('designHumidity').className = 'warning';
+            } else if (humidity > 75) {
+                humidityValidation.innerHTML = '<i class="fas fa-exclamation-triangle"></i> High - mold growth risk';
+                humidityValidation.className = 'validation-message warning';
+                document.getElementById('designHumidity').className = 'warning';
+            } else {
+                humidityValidation.innerHTML = '<i class="fas fa-check-circle"></i> Optimal range';
+                humidityValidation.className = 'validation-message success';
+                document.getElementById('designHumidity').className = 'success';
+            }
+        }
+        
+        function updateProcessRecommendations() {
+            const process = document.getElementById('processType').value;
+            const recDiv = document.getElementById('processRecommendation');
+            
+            if (!process || !processRecommendations[process]) {
+                recDiv.innerHTML = '';
+                return;
+            }
+            
+            const rec = processRecommendations[process];
+            recDiv.innerHTML = `
+                <div class="recommendation-card">
+                    <div class="recommendation-title">
+                        <i class="fas fa-lightbulb"></i>
+                        Recommended for ${process.charAt(0).toUpperCase() + process.slice(1)}
+                    </div>
+                    <div>
+                        <strong>Temperature:</strong> ${rec.temp[0]}°C - ${rec.temp[1]}°C<br>
+                        <strong>Humidity:</strong> ${rec.humidity[0]}% - ${rec.humidity[1]}%<br>
+                        <strong>Typical ACH:</strong> ${rec.ach}
+                    </div>
+                </div>
+            `;
+            
+            // Auto-fill if empty
+            if (!document.getElementById('designTemp').value) {
+                document.getElementById('designTemp').value = (rec.temp[0] + rec.temp[1]) / 2;
+            }
+            if (!document.getElementById('designHumidity').value) {
+                document.getElementById('designHumidity').value = (rec.humidity[0] + rec.humidity[1]) / 2;
+            }
+            
+            validateBasicInfo();
+        }
+        
+        // Space management
+        let spaceCounter = 0;
+        
+        function addSpace() {
+            spaceCounter++;
+            const process = document.getElementById('processType').value;
+            const defaultACH = processRecommendations[process]?.ach || 35;
+            
+            const spaceHTML = `
+                <div class="space-item" id="space-${spaceCounter}">
+                    <div class="space-header">
+                        <div class="space-name">Space ${spaceCounter}</div>
+                        <div class="space-actions">
+                            <button class="btn btn-danger btn-sm btn-icon" onclick="removeSpace(${spaceCounter})">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="input-grid">
+                        <div class="input-group">
+                            <div class="input-label">Name</div>
+                            <input type="text" id="space-name-${spaceCounter}" placeholder="e.g., Spinning Hall" oninput="calculateSpaces()">
+                        </div>
+                        <div class="input-group">
+                            <div class="input-label">Length (m)</div>
+                            <input type="number" id="space-length-${spaceCounter}" value="44" step="0.1" min="1" oninput="calculateSpaces()">
+                        </div>
+                        <div class="input-group">
+                            <div class="input-label">Width (m)</div>
+                            <input type="number" id="space-width-${spaceCounter}" value="21" step="0.1" min="1" oninput="calculateSpaces()">
+                        </div>
+                        <div class="input-group">
+                            <div class="input-label">Height (m)</div>
+                            <input type="number" id="space-height-${spaceCounter}" value="5" step="0.1" min="2" oninput="calculateSpaces()">
+                        </div>
+                        <div class="input-group">
+                            <div class="input-label">ACH</div>
+                            <input type="number" id="space-ach-${spaceCounter}" value="${defaultACH}" min="10" max="60" oninput="calculateSpaces()">
+                        </div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 10px; font-size: 13px;">
+                        <div>Area: <strong id="space-area-${spaceCounter}">0</strong> m²</div>
+                        <div>Volume: <strong id="space-volume-${spaceCounter}">0</strong> m³</div>
+                        <div>AFH: <strong id="space-afh-${spaceCounter}">0</strong> m³/h</div>
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('spaceList').insertAdjacentHTML('beforeend', spaceHTML);
+            calculateSpaces();
+        }
+        
+        function removeSpace(id) {
+            document.getElementById(`space-${id}`).remove();
+            calculateSpaces();
+        }
+        
+        function calculateSpaces() {
+            let totalAFH = 0;
+            const spaces = document.querySelectorAll('.space-item');
+            
+            spaces.forEach(space => {
+                const id = space.id.split('-')[1];
+                const length = parseFloat(document.getElementById(`space-length-${id}`)?.value || 0);
+                const width = parseFloat(document.getElementById(`space-width-${id}`)?.value || 0);
+                const height = parseFloat(document.getElementById(`space-height-${id}`)?.value || 0);
+                const ach = parseFloat(document.getElementById(`space-ach-${id}`)?.value || 0);
+                
+                const area = length * width;
+                const volume = area * height;
+                const afh = volume * ach;
+                
+                if (document.getElementById(`space-area-${id}`)) {
+                    document.getElementById(`space-area-${id}`).textContent = area.toFixed(2);
+                    document.getElementById(`space-volume-${id}`).textContent = volume.toFixed(2);
+                    document.getElementById(`space-afh-${id}`).textContent = afh.toFixed(0);
+                }
+                
+                totalAFH += afh;
+            });
+            
+            const totalAFST = totalAFH / 3600;
+            designData.totalAFH = totalAFH;
+            designData.totalAFST = totalAFST;
+            
+            if (totalAFH > 0) {
+                document.getElementById('spacesCalculation').style.display = 'block';
+                document.getElementById('totalAFH').textContent = totalAFH.toFixed(0) + ' m³/h';
+                document.getElementById('totalAFST').textContent = totalAFST.toFixed(3) + ' m³/s';
+            }
+            
+            // Recalculate all dependent values
+            calculateVents();
+            calculateARF();
+            calculateWasher();
+        }
+        
+        // Duct and vent calculations
+        function calculateDucts() {
+            // Future implementation
+        }
+        
+        function calculateVents() {
+            const afst = designData.totalAFST;
+            if (!afst) return;
+            
+            // Feed vents
+            const feedDiameter = parseFloat(document.getElementById('feedVentDiameter').value);
+            const feedLength = parseFloat(document.getElementById('feedVentLength').value);
+            const feedNumber = parseInt(document.getElementById('feedVentNumber').value);
+            
+            const feedCS = feedDiameter * feedLength * feedNumber;
+            const feedVelocity = feedCS > 0 ? afst / feedCS : 0;
+            
+            document.getElementById('feedVentCS').textContent = feedCS.toFixed(3) + ' m²';
+            document.getElementById('feedVentVelocity').textContent = feedVelocity.toFixed(2) + ' m/s';
+            
+            const feedAdvice = document.getElementById('feedVentAdvice');
+            if (feedVelocity > 4) {
+                feedAdvice.innerHTML = `
+                    <div class="alert-box alert-error" style="margin-top: 15px;">
+                        <i class="fas fa-times-circle"></i>
+                        <div><strong>Too Fast!</strong> Velocity ${feedVelocity.toFixed(2)} m/s > 4 m/s. Add breakers or increase vent count/size.</div>
+                    </div>
+                `;
+            } else if (feedVelocity > 2.5) {
+                feedAdvice.innerHTML = `
+                    <div class="alert-box alert-warning" style="margin-top: 15px;">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <div><strong>High Velocity:</strong> ${feedVelocity.toFixed(2)} m/s. Optimal is 2.0-2.5 m/s. Consider adding more vents.</div>
+                    </div>
+                `;
+            } else if (feedVelocity >= 2.0 && feedVelocity <= 2.5) {
+                feedAdvice.innerHTML = `
+                    <div class="alert-box alert-success" style="margin-top: 15px;">
+                        <i class="fas fa-check-circle"></i>
+                        <div><strong>Optimal!</strong> Velocity ${feedVelocity.toFixed(2)} m/s is in the ideal range (2.0-2.5 m/s).</div>
+                    </div>
+                `;
+            } else {
+                feedAdvice.innerHTML = `
+                    <div class="alert-box alert-info" style="margin-top: 15px;">
+                        <i class="fas fa-info-circle"></i>
+                        <div><strong>Low Velocity:</strong> ${feedVelocity.toFixed(2)} m/s. Consider reducing vent count/size for better throw.</div>
+                    </div>
+                `;
+            }
+            
+            // Return vents
+            const returnWidth = parseFloat(document.getElementById('returnVentWidth').value);
+            const returnLength = parseFloat(document.getElementById('returnVentLength').value);
+            const returnNumber = parseInt(document.getElementById('returnVentNumber').value);
+            
+            const returnCS = returnWidth * returnLength * returnNumber;
+            const returnVelocity = returnCS > 0 ? afst / returnCS : 0;
+            
+            document.getElementById('returnVentCS').textContent = returnCS.toFixed(3) + ' m²';
+            document.getElementById('returnVentVelocity').textContent = returnVelocity.toFixed(2) + ' m/s';
+            
+            const returnAdvice = document.getElementById('returnVentAdvice');
+            if (Math.abs(returnVelocity - 3.0) < 0.3) {
+                returnAdvice.innerHTML = `
+                    <div class="alert-box alert-success" style="margin-top: 15px;">
+                        <i class="fas fa-check-circle"></i>
+                        <div><strong>Optimal!</strong> Return velocity ${returnVelocity.toFixed(2)} m/s is close to target 3.0 m/s.</div>
+                    </div>
+                `;
+            } else if (returnVelocity > 3.5) {
+                returnAdvice.innerHTML = `
+                    <div class="alert-box alert-warning" style="margin-top: 15px;">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <div><strong>High:</strong> ${returnVelocity.toFixed(2)} m/s. Add more return vents to reduce velocity.</div>
+                    </div>
+                `;
+            } else {
+                returnAdvice.innerHTML = `
+                    <div class="alert-box alert-info" style="margin-top: 15px;">
+                        <i class="fas fa-info-circle"></i>
+                        <div>Return velocity: ${returnVelocity.toFixed(2)} m/s. Target is ~3.0 m/s.</div>
+                    </div>
+                `;
+            }
+        }
+        
+        function updateReturnVentDefaults() {
+            const type = document.getElementById('returnVentType').value;
+            if (type === 'narrow') {
+                document.getElementById('returnVentWidth').value = 0.05;
+            } else {
+                document.getElementById('returnVentWidth').value = 0.5;
+            }
+            calculateVents();
+        }
+        
+        // ARF calculations
+        function calculateARF() {
+            const afst = designData.totalAFST;
+            if (!afst) return;
+            
+            const diameter = parseFloat(document.getElementById('arfDiameter').value);
+            const length = parseFloat(document.getElementById('arfLength').value);
+            const count = parseInt(document.getElementById('arfCount').value);
+            
+            const singleCS = Math.PI * diameter * length;
+            const totalCS = singleCS * count;
+            const velocity = totalCS > 0 ? afst / totalCS : 0;
+            
+            document.getElementById('arfSingleCS').textContent = singleCS.toFixed(3) + ' m²';
+            document.getElementById('arfTotalCS').textContent = totalCS.toFixed(3) + ' m²';
+            document.getElementById('arfVelocity').textContent = velocity.toFixed(3) + ' m/s';
+            
+            const advice = document.getElementById('arfAdvice');
+            if (velocity > 1.22) {
+                advice.innerHTML = `
+                    <div class="alert-box alert-error" style="margin-top: 15px;">
+                        <i class="fas fa-times-circle"></i>
+                        <div><strong>Too Fast!</strong> ${velocity.toFixed(3)} m/s exceeds maximum 1.22 m/s. Add more filters or use larger size.</div>
+                    </div>
+                `;
+            } else if (velocity > 1.1) {
+                advice.innerHTML = `
+                    <div class="alert-box alert-warning" style="margin-top: 15px;">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <div><strong>Near Limit:</strong> ${velocity.toFixed(3)} m/s is close to max. Consider adding one more filter.</div>
+                    </div>
+                `;
+            } else if (velocity >= 0.9 && velocity <= 1.1) {
+                advice.innerHTML = `
+                    <div class="alert-box alert-success" style="margin-top: 15px;">
+                        <i class="fas fa-check-circle"></i>
+                        <div><strong>Perfect!</strong> ${velocity.toFixed(3)} m/s is in optimal range (0.9-1.1 m/s).</div>
+                    </div>
+                `;
+            } else {
+                advice.innerHTML = `
+                    <div class="alert-box alert-info" style="margin-top: 15px;">
+                        <i class="fas fa-info-circle"></i>
+                        <div><strong>Low Velocity:</strong> ${velocity.toFixed(3)} m/s. Filters are oversized but will work efficiently.</div>
+                    </div>
+                `;
+            }
+        }
+        
+        // Air washer calculations
+        function calculateWasher() {
+            const afst = designData.totalAFST;
+            if (!afst) return;
+            
+            const height = parseFloat(document.getElementById('washerHeight').value);
+            const width = parseFloat(document.getElementById('washerWidth').value);
+            
+            const cs = width * height;
+            const velocity = cs > 0 ? afst / cs : 0;
+            const risers = Math.round(2 * (width / 0.304));
+            const nozzles = Math.round(risers * ((height - 0.11) / 0.076));
+            const flow = (nozzles * 2.5 * 60) / 1000;
+            
+            document.getElementById('washerVelocity').textContent = velocity.toFixed(3) + ' m/s';
+            document.getElementById('washerRisers').textContent = risers;
+            document.getElementById('washerNozzles').textContent = nozzles;
+            document.getElementById('washerFlow').textContent = flow.toFixed(2) + ' m³/h';
+            
+            const advice = document.getElementById('washerAdvice');
+            if (velocity > 4.0) {
+                advice.innerHTML = `
+                    <div class="alert-box alert-error" style="margin-top: 15px;">
+                        <i class="fas fa-times-circle"></i>
+                        <div><strong>CRITICAL:</strong> ${velocity.toFixed(3)} m/s exceeds absolute maximum 4.0 m/s! Increase chamber size immediately.</div>
+                    </div>
+                `;
+            } else if (velocity > 3.77) {
+                advice.innerHTML = `
+                    <div class="alert-box alert-warning" style="margin-top: 15px;">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <div><strong>Too Fast:</strong> ${velocity.toFixed(3)} m/s exceeds recommended 3.77 m/s. Increase width or height.</div>
+                    </div>
+                `;
+            } else if (velocity >= 3.0 && velocity <= 3.77) {
+                advice.innerHTML = `
+                    <div class="alert-box alert-success" style="margin-top: 15px;">
+                        <i class="fas fa-check-circle"></i>
+                        <div><strong>Good:</strong> ${velocity.toFixed(3)} m/s is within acceptable range.</div>
+                    </div>
+                `;
+            } else {
+                advice.innerHTML = `
+                    <div class="alert-box alert-info" style="margin-top: 15px;">
+                        <i class="fas fa-info-circle"></i>
+                        <div><strong>Low Velocity:</strong> ${velocity.toFixed(3)} m/s. Chamber can be smaller to save cost.</div>
+                    </div>
+                `;
+            }
+        }
+        
+        // Fan management
+        function updateFanOptions(type) {
+            const diameter = document.getElementById(`${type}FanDiameter`).value;
+            const angleSelect = document.getElementById(`${type}FanAngle`);
+            
+            // Clear and repopulate angles based on diameter
+            angleSelect.innerHTML = '';
+            const angles = Object.keys(fanPowerTable[diameter]);
+            angles.forEach(angle => {
+                const option = document.createElement('option');
+                option.value = angle;
+                option.textContent = angle + '°';
+                angleSelect.appendChild(option);
+            });
+            
+            // Set default angle
+            if (type === 'feed') {
+                angleSelect.value = '21';
+            } else {
+                angleSelect.value = angles[Math.floor(angles.length / 2)];
+            }
+            
+            updateFanPower(type);
+        }
+        
+        function updateFanPower(type) {
+            const diameter = document.getElementById(`${type}FanDiameter`).value;
+            const angle = document.getElementById(`${type}FanAngle`).value;
+            
+            const power = fanPowerTable[diameter][angle] || 0;
+            document.getElementById(`${type}FanPower`).value = power;
+            
+            calculateFans();
+        }
+        
+        function calculateFans() {
+            const feedPower = parseFloat(document.getElementById('feedFanPower').value);
+            const feedCount = parseInt(document.getElementById('feedFanCount').value);
+            const returnPower = parseFloat(document.getElementById('returnFanPower').value);
+            const returnCount = parseInt(document.getElementById('returnFanCount').value);
+            
+            const feedTotal = feedPower * feedCount;
+            const returnTotal = returnPower * returnCount;
+            const total = feedTotal + returnTotal;
+            
+            document.getElementById('feedFanTotalPower').textContent = feedTotal + ' kW';
+            document.getElementById('returnFanTotalPower').textContent = returnTotal + ' kW';
+            document.getElementById('totalPower').textContent = total + ' kW';
+        }
+        
+        // Guidance updates
+        function updateGuidance() {
+            const guides = {
+                1: `
+                    <p><strong>Step 1: Basic Information</strong></p>
+                    <ul>
+                        <li>Choose a unique name for easy identification</li>
+                        <li>Select process type for automatic recommendations</li>
+                        <li>Set design conditions based on process requirements</li>
+                    </ul>
+                    <p><strong>Temperature Guidelines:</strong></p>
+                    <ul>
+                        <li>Spinning: 27-30°C, 65-70% RH</li>
+                        <li>Weaving: 24-27°C, 60-65% RH</li>
+                        <li>Finishing: 22-25°C, 55-60% RH</li>
+                    </ul>
+                `,
+                2: `
+                    <p><strong>Step 2: Define Spaces</strong></p>
+                    <ul>
+                        <li>Add all areas served by this station</li>
+                        <li>Measure length, width, height accurately</li>
+                        <li>ACH depends on process type and dust level</li>
+                    </ul>
+                    <p><strong>Key Formulas:</strong></p>
+                    <div class="formula-box">
+                        <span class="var">AFH</span> <span class="op">=</span> <span class="var">Volume</span> <span class="op">×</span> <span class="var">ACH</span><br>
+                        <span class="var">AFST</span> <span class="op">=</span> <span class="var">AFH</span> <span class="op">÷</span> <span class="num">3600</span>
+                    </div>
+                `,
+                3: `
+                    <p><strong>Step 3: Air Distribution</strong></p>
+                    <ul>
+                        <li>Size ducts for low pressure drop</li>
+                        <li>Feed vents: 2.2 m/s optimal</li>
+                        <li>Return vents: 3.0 m/s optimal</li>
+                    </ul>
+                    <p><strong>Important:</strong></p>
+                    <ul>
+                        <li>High velocity = noise & pressure drop</li>
+                        <li>Low velocity = poor air throw</li>
+                        <li>Add breakers if velocity > 4 m/s</li>
+                    </ul>
+                `,
+                4: `
+                    <p><strong>Step 4: Select Components</strong></p>
+                    <ul>
+                        <li>ARF removes dust and lint</li>
+                        <li>Air washer adds humidity</li>
+                        <li>Fans sized per LUWA curves</li>
+                    </ul>
+                    <p><strong>Velocity Limits:</strong></p>
+                    <ul>
+                        <li>ARF: Max 1.22 m/s</li>
+                        <li>Air Washer: Max 3.77 m/s (never > 4.0)</li>
+                    </ul>
+                `,
+                5: `
+                    <p><strong>Step 5: Review & Save</strong></p>
+                    <ul>
+                        <li>Check all calculations</li>
+                        <li>Verify velocities are in range</li>
+                        <li>Review power consumption</li>
+                        <li>Save design for reports</li>
+                    </ul>
+                `
+            };
+            
+            document.getElementById('currentGuide').innerHTML = guides[currentStep];
+        }
+        
+        // Save design
+        function saveDesign() {
+            // Collect all data
+            designData.stationName = document.getElementById('stationName').value;
+            designData.processType = document.getElementById('processType').value;
+            designData.designTemp = parseFloat(document.getElementById('designTemp').value);
+            designData.designHumidity = parseFloat(document.getElementById('designHumidity').value);
+            
+            // Show success
+            alert('Design saved successfully!\n\nStation: ' + designData.stationName + '\nAirflow: ' + designData.totalAFST.toFixed(3) + ' m³/s');
+            
+            // In real app, send to database
+            console.log('Design Data:', designData);
+        }
+        
+        // Initialize
+        validateBasicInfo();
+        updateButtons();
+        
+        // Tooltips
+        document.querySelectorAll('.label-tooltip').forEach(icon => {
+            icon.addEventListener('mouseenter', function(e) {
+                const tooltip = document.getElementById('tooltip');
+                tooltip.textContent = this.getAttribute('title');
+                tooltip.style.display = 'block';
+                tooltip.style.left = e.pageX + 10 + 'px';
+                tooltip.style.top = e.pageY + 10 + 'px';
+            });
+            
+            icon.addEventListener('mouseleave', function() {
+                document.getElementById('tooltip').style.display = 'none';
+            });
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,1257 @@
+<!DOCTYPE html>
+<html lang="en" x-data="orbitSimulation()" x-cloak>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Elliptical Orbit Simulation with Energy Analysis</title>
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0c0e2a 0%, #1a1b3a 100%);
+            color: #e0e0ff;
+            min-height: 100vh;
+            padding: 20px;
+            overflow-x: hidden;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid rgba(100, 150, 255, 0.2);
+        }
+        
+        h1 {
+            font-size: 2.8rem;
+            background: linear-gradient(90deg, #4facfe 0%, #00f2fe 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 10px;
+            text-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+        
+        .subtitle {
+            font-size: 1.2rem;
+            color: #a0a0ff;
+            max-width: 1000px;
+            margin: 0 auto 20px;
+            line-height: 1.6;
+        }
+        
+        .simulation-container {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+        
+        @media (max-width: 1200px) {
+            .simulation-container {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .canvas-section {
+            background: rgba(10, 12, 40, 0.6);
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(100, 150, 255, 0.1);
+        }
+        
+        .canvas-wrapper {
+            position: relative;
+            width: 100%;
+            height: 500px;
+            margin-bottom: 15px;
+        }
+        
+        #orbitCanvas {
+            background-color: rgba(5, 7, 25, 0.9);
+            border-radius: 10px;
+            width: 100%;
+            height: 100%;
+            box-shadow: inset 0 0 30px rgba(0, 0, 0, 0.5);
+        }
+        
+        .energy-canvas-wrapper {
+            position: relative;
+            width: 100%;
+            height: 300px;
+            margin-top: 30px;
+        }
+        
+        #energyCanvas {
+            background-color: rgba(5, 7, 25, 0.9);
+            border-radius: 10px;
+            width: 100%;
+            height: 100%;
+            box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.5);
+        }
+        
+        .canvas-title {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid rgba(100, 150, 255, 0.2);
+        }
+        
+        .canvas-title h2 {
+            font-size: 1.5rem;
+            color: #6ab7ff;
+            margin: 0;
+        }
+        
+        .controls-section {
+            background: rgba(10, 12, 40, 0.6);
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(100, 150, 255, 0.1);
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .control-group {
+            margin-bottom: 25px;
+        }
+        
+        h2 {
+            font-size: 1.5rem;
+            color: #6ab7ff;
+            margin-bottom: 15px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid rgba(100, 150, 255, 0.2);
+        }
+        
+        h3 {
+            font-size: 1.2rem;
+            color: #8bcbff;
+            margin-bottom: 10px;
+        }
+        
+        .slider-container {
+            margin-bottom: 15px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #b0d0ff;
+        }
+        
+        input[type="range"] {
+            width: 100%;
+            height: 8px;
+            -webkit-appearance: none;
+            background: linear-gradient(90deg, rgba(79, 172, 254, 0.8) 0%, rgba(0, 242, 254, 0.8) 100%);
+            border-radius: 4px;
+            outline: none;
+        }
+        
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            background: #fff;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(79, 172, 254, 0.8);
+        }
+        
+        .value-display {
+            display: inline-block;
+            padding: 3px 10px;
+            background: rgba(79, 172, 254, 0.2);
+            border-radius: 4px;
+            font-family: monospace;
+            margin-left: 10px;
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        button {
+            padding: 12px 20px;
+            background: linear-gradient(90deg, #4facfe 0%, #00f2fe 100%);
+            border: none;
+            border-radius: 8px;
+            color: #0c0e2a;
+            font-weight: bold;
+            cursor: pointer;
+            flex: 1;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 15px rgba(79, 172, 254, 0.4);
+        }
+        
+        button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(79, 172, 254, 0.6);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        button.reset {
+            background: linear-gradient(90deg, #fe4f4f 0%, #fe9a00 100%);
+            box-shadow: 0 5px 15px rgba(254, 79, 79, 0.4);
+        }
+        
+        .info-section {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            margin-top: 30px;
+        }
+        
+        .info-card {
+            background: rgba(10, 12, 40, 0.6);
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            border-left: 4px solid #4facfe;
+        }
+        
+        .law-item {
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+            border-bottom: 1px dashed rgba(100, 150, 255, 0.2);
+        }
+        
+        .law-item:last-child {
+            margin-bottom: 0;
+            padding-bottom: 0;
+            border-bottom: none;
+        }
+        
+        .law-title {
+            color: #4facfe;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .law-desc {
+            color: #b0d0ff;
+            font-size: 0.95rem;
+            line-height: 1.5;
+        }
+        
+        .data-display {
+            font-family: monospace;
+            background: rgba(5, 7, 25, 0.8);
+            padding: 12px;
+            border-radius: 8px;
+            margin-top: 10px;
+            font-size: 0.9rem;
+            border: 1px solid rgba(100, 150, 255, 0.2);
+        }
+        
+        .energy-display {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .energy-value {
+            text-align: center;
+            padding: 10px;
+            border-radius: 8px;
+            background: rgba(5, 7, 25, 0.8);
+            border: 1px solid rgba(100, 150, 255, 0.2);
+        }
+        
+        .energy-label {
+            display: block;
+            font-size: 0.9rem;
+            color: #b0d0ff;
+            margin-bottom: 5px;
+        }
+        
+        .energy-number {
+            font-size: 1.2rem;
+            font-weight: bold;
+            font-family: monospace;
+        }
+        
+        .kinetic-energy .energy-number {
+            color: #ff6b6b;
+        }
+        
+        .potential-energy .energy-number {
+            color: #4ecdc4;
+        }
+        
+        .lagrangian-energy .energy-number {
+            color: #ffe66d;
+        }
+        
+        .kepler-badge {
+            display: inline-block;
+            background: linear-gradient(90deg, #ff8a00 0%, #ffcc00 100%);
+            color: #0c0e2a;
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        
+        .legend {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-top: 10px;
+            flex-wrap: wrap;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 0.9rem;
+        }
+        
+        .legend-color {
+            width: 15px;
+            height: 15px;
+            border-radius: 3px;
+        }
+        
+        .legend-kinetic {
+            background-color: #ff6b6b;
+        }
+        
+        .legend-potential {
+            background-color: #4ecdc4;
+        }
+        
+        .legend-lagrangian {
+            background-color: #ffe66d;
+        }
+        
+        .legend-total {
+            background-color: #9d4edd;
+        }
+        
+        @media (max-width: 1200px) {
+            .simulation-container {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        [x-cloak] {
+            display: none !important;
+        }
+        
+        .visual-feedback {
+            position: absolute;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            pointer-events: none;
+            z-index: 10;
+            border: 1px solid rgba(100, 150, 255, 0.3);
+            max-width: 300px;
+        }
+        
+        .energy-graph-container {
+            position: relative;
+            margin-top: 20px;
+        }
+        
+        .graph-point {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: white;
+            border: 2px solid #4facfe;
+            transform: translate(-50%, -50%);
+            z-index: 5;
+            pointer-events: none;
+            box-shadow: 0 0 10px rgba(79, 172, 254, 0.8);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Elliptical Orbit Simulation with Energy Analysis</h1>
+            <p class="subtitle">A 2D visualization of Kepler's Laws with real-time energy analysis. Watch as an Earth-like planet orbits a Sun-like star while tracking kinetic, potential, and Lagrangian energies.</p>
+        </header>
+        
+        <div class="simulation-container">
+            <div class="canvas-section">
+                <div class="canvas-title">
+                    <h2>Orbit Visualization</h2>
+                    <div class="button-group">
+                        <button @click="toggleAnimation">⏸️ Pause</button>
+                        <button @click="resetOrbit">🔄 Reset</button>
+                        <button @click="toggleTrail">🗑️ Clear Trail</button>
+                    </div>
+                </div>
+                <div class="canvas-wrapper">
+                    <canvas id="orbitCanvas" width="800" height="500"></canvas>
+                </div>
+                
+                <div class="energy-graph-container">
+                    <div class="canvas-title">
+                        <h2>Energy Analysis</h2>
+                        <div class="legend">
+                            <div class="legend-item">
+                                <div class="legend-color legend-kinetic"></div>
+                                <span>Kinetic Energy</span>
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-color legend-potential"></div>
+                                <span>Potential Energy</span>
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-color legend-lagrangian"></div>
+                                <span>Lagrangian (L = T - V)</span>
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-color legend-total"></div>
+                                <span>Total Energy</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="energy-canvas-wrapper">
+                        <canvas id="energyCanvas" width="800" height="300"></canvas>
+                        <div class="graph-point" id="graphPoint" :style="{ left: graphPointX + 'px', top: graphPointY + 'px' }"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="controls-section">
+                <h2>Simulation Controls</h2>
+                
+                <div class="control-group">
+                    <h3>Orbital Parameters</h3>
+                    
+                    <div class="slider-container">
+                        <label for="eccentricity">Eccentricity: <span class="value-display" x-text="eccentricity.toFixed(2)"></span></label>
+                        <input type="range" id="eccentricity" min="0" max="0.9" step="0.01" x-model="eccentricity">
+                        <div class="law-desc">Higher values create more elliptical orbits (0 = circular).</div>
+                    </div>
+                    
+                    <div class="slider-container">
+                        <label for="semiMajorAxis">Orbit Size: <span class="value-display" x-text="semiMajorAxis.toFixed(0)"> px</span></label>
+                        <input type="range" id="semiMajorAxis" min="150" max="400" step="1" x-model="semiMajorAxis">
+                        <div class="law-desc">Semi-major axis in simulation units.</div>
+                    </div>
+                    
+                    <div class="slider-container">
+                        <label for="orbitalSpeed">Orbital Speed: <span class="value-display" x-text="orbitalSpeed.toFixed(1)">x</span></label>
+                        <input type="range" id="orbitalSpeed" min="0.1" max="5" step="0.1" x-model="orbitalSpeed">
+                        <div class="law-desc">Speed multiplier for orbital motion.</div>
+                    </div>
+                </div>
+                
+                <div class="control-group">
+                    <h3>Planet Properties</h3>
+                    
+                    <div class="slider-container">
+                        <label for="rotationSpeed">Axial Rotation: <span class="value-display" x-text="rotationSpeed.toFixed(1)">x</span></label>
+                        <input type="range" id="rotationSpeed" min="0.5" max="3" step="0.1" x-model="rotationSpeed">
+                        <div class="law-desc">Speed of planet's rotation around its axis.</div>
+                    </div>
+                    
+                    <div class="slider-container">
+                        <label for="planetSize">Planet Size: <span class="value-display" x-text="planetSize.toFixed(0)"> px</span></label>
+                        <input type="range" id="planetSize" min="15" max="40" step="1" x-model="planetSize">
+                        <div class="law-desc">Relative size of the planet.</div>
+                    </div>
+                </div>
+                
+                <div class="control-group">
+                    <h3>Energy Visualization</h3>
+                    
+                    <div class="slider-container">
+                        <label for="energyHistory">Energy History: <span class="value-display" x-text="energyHistoryLength"></span> points</label>
+                        <input type="range" id="energyHistory" min="100" max="1000" step="50" x-model="energyHistoryLength">
+                        <div class="law-desc">Number of energy data points to display.</div>
+                    </div>
+                    
+                    <div class="button-group">
+                        <button @click="toggle3DEffect">3D Effect: <span x-text="use3DEffect ? 'ON' : 'OFF'"></span></button>
+                        <button @click="toggleGrid">Grid: <span x-text="showGrid ? 'ON' : 'OFF'"></span></button>
+                    </div>
+                </div>
+                
+                <div class="control-group">
+                    <h3>Energy Values (Joules)</h3>
+                    <div class="energy-display">
+                        <div class="energy-value kinetic-energy">
+                            <span class="energy-label">Kinetic (T)</span>
+                            <span class="energy-number" x-text="kineticEnergy.toExponential(2)"></span>
+                        </div>
+                        <div class="energy-value potential-energy">
+                            <span class="energy-label">Potential (V)</span>
+                            <span class="energy-number" x-text="potentialEnergy.toExponential(2)"></span>
+                        </div>
+                        <div class="energy-value lagrangian-energy">
+                            <span class="energy-label">Lagrangian (L)</span>
+                            <span class="energy-number" x-text="lagrangianEnergy.toExponential(2)"></span>
+                        </div>
+                    </div>
+                    <div class="data-display" style="margin-top: 15px;">
+                        <div>Total Energy: <span x-text="totalEnergy.toExponential(2)"> J</span></div>
+                        <div>Energy Conservation: <span x-text="(energyConservation*100).toFixed(2)">%</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="info-section">
+            <div class="info-card">
+                <div class="kepler-badge">KEPLER'S LAWS</div>
+                <h2>Orbital Mechanics</h2>
+                
+                <div class="law-item">
+                    <div class="law-title">First Law (Law of Ellipses)</div>
+                    <div class="law-desc">The orbit of a planet is an ellipse with the Sun at one of the two foci.</div>
+                </div>
+                
+                <div class="law-item">
+                    <div class="law-title">Second Law (Law of Equal Areas)</div>
+                    <div class="law-desc">A line joining a planet and the Sun sweeps out equal areas during equal intervals of time.</div>
+                </div>
+                
+                <div class="law-item">
+                    <div class="law-title">Third Law (Harmonic Law)</div>
+                    <div class="law-desc">The square of the orbital period is proportional to the cube of the semi-major axis.</div>
+                </div>
+            </div>
+            
+            <div class="info-card">
+                <h2>Energy Dynamics</h2>
+                <div class="law-desc">
+                    In orbital mechanics, the total energy of a planet is constant:
+                </div>
+                <div class="data-display" style="margin-top: 10px;">
+                    <div>E = T + V = constant</div>
+                    <div>Where T = ½mv² (kinetic energy)</div>
+                    <div>And V = -GMm/r (potential energy)</div>
+                </div>
+                
+                <div class="law-desc" style="margin-top: 15px;">
+                    The Lagrangian (L = T - V) is used in analytical mechanics to derive equations of motion. In the graph, you can see how energies transform throughout the orbit.
+                </div>
+            </div>
+            
+            <div class="info-card">
+                <h2>Visual Feedback</h2>
+                <div class="law-desc">
+                    Real-time visual indicators:
+                </div>
+                <ul style="color: #b0d0ff; margin-top: 10px; padding-left: 20px;">
+                    <li>Moving point on energy graphs shows current state</li>
+                    <li>Color intensity shows relative energy values</li>
+                    <li>Energy conservation percentage indicator</li>
+                    <li>Orbit trail with velocity-based coloring</li>
+                    <li>Visual connection between orbit position and energy state</li>
+                </ul>
+                
+                <div class="data-display" style="margin-top: 15px;">
+                    <div>Current Position: <span x-text="positionLabel"></span></div>
+                    <div>Velocity: <span x-text="currentSpeed.toFixed(2)"> km/s</span></div>
+                    <div>Distance: <span x-text="distanceToStar.toFixed(2)"> AU</span></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function orbitSimulation() {
+            return {
+                // Simulation state
+                animationId: null,
+                isAnimating: true,
+                time: 0,
+                
+                // Orbital parameters
+                eccentricity: 0.7,
+                semiMajorAxis: 250,
+                orbitalSpeed: 1.0,
+                rotationSpeed: 1.0,
+                
+                // Visual parameters
+                planetSize: 25,
+                trailLength: 200,
+                use3DEffect: true,
+                showGrid: true,
+                energyHistoryLength: 300,
+                
+                // Energy data
+                energyHistory: [],
+                kineticEnergy: 0,
+                potentialEnergy: 0,
+                lagrangianEnergy: 0,
+                totalEnergy: 0,
+                energyConservation: 1.0,
+                
+                // Calculated values
+                orbitalPeriod: 365,
+                currentSpeed: 29.8,
+                distanceToStar: 1.0,
+                orbitalPhase: 0,
+                areaSwept: 0,
+                positionLabel: "Perihelion",
+                
+                // Graph point position
+                graphPointX: 0,
+                graphPointY: 0,
+                
+                // Trail data
+                trail: [],
+                
+                // Physical constants (simplified for visualization)
+                G: 6.67430e-11, // Gravitational constant
+                M: 1.989e30,    // Solar mass (kg)
+                m: 5.972e24,    // Earth mass (kg)
+                AU: 1.496e11,   // Astronomical unit (m)
+                
+                init() {
+                    this.calculateOrbitalParameters();
+                    this.startAnimation();
+                    
+                    // Update trail length when changed
+                    this.$watch('trailLength', (value) => {
+                        if (this.trail.length > value) {
+                            this.trail = this.trail.slice(this.trail.length - value);
+                        }
+                    });
+                    
+                    // Update orbital parameters when eccentricity or semiMajorAxis changes
+                    this.$watch('eccentricity', () => this.calculateOrbitalParameters());
+                    this.$watch('semiMajorAxis', () => this.calculateOrbitalParameters());
+                },
+                
+                calculateOrbitalParameters() {
+                    // Calculate orbital period using Kepler's Third Law
+                    // T² ∝ a³ (simplified for simulation)
+                    const a = this.semiMajorAxis / 150; // Normalize to Earth's orbit (150px = 1AU)
+                    this.orbitalPeriod = Math.sqrt(a * a * a) * 365;
+                    
+                    // Calculate current distance to star (for display)
+                    this.distanceToStar = a;
+                },
+                
+                calculateEnergies(x, y) {
+                    // Calculate distance from star (in meters for energy calculation)
+                    const starX = 400;
+                    const starY = 250;
+                    const dx = x - starX;
+                    const dy = y - starY;
+                    const distancePx = Math.sqrt(dx * dx + dy * dy);
+                    
+                    // Convert distance from pixels to meters
+                    const distanceM = (distancePx / 150) * this.AU; // 150px = 1AU
+                    
+                    // Calculate velocity (simplified - using conservation of angular momentum)
+                    // For elliptical orbit, v = sqrt(GM(2/r - 1/a))
+                    const aM = (this.semiMajorAxis / 150) * this.AU; // Semi-major axis in meters
+                    const velocity = Math.sqrt(this.G * this.M * (2/distanceM - 1/aM));
+                    
+                    // Calculate energies
+                    this.kineticEnergy = 0.5 * this.m * velocity * velocity;
+                    this.potentialEnergy = -this.G * this.M * this.m / distanceM;
+                    this.lagrangianEnergy = this.kineticEnergy - (-this.potentialEnergy); // L = T - V
+                    this.totalEnergy = this.kineticEnergy + this.potentialEnergy;
+                    
+                    // Track energy conservation (should be constant)
+                    if (this.energyHistory.length > 0) {
+                        const firstEnergy = this.energyHistory[0].total;
+                        const currentEnergy = this.totalEnergy;
+                        this.energyConservation = Math.abs(1 - Math.abs((currentEnergy - firstEnergy) / firstEnergy));
+                    }
+                    
+                    // Update position label based on distance
+                    const aPx = this.semiMajorAxis;
+                    const e = this.eccentricity;
+                    const perihelion = aPx * (1 - e);
+                    const aphelion = aPx * (1 + e);
+                    
+                    if (distancePx < perihelion * 1.1) {
+                        this.positionLabel = "Perihelion (Closest)";
+                    } else if (distancePx > aphelion * 0.9) {
+                        this.positionLabel = "Aphelion (Farthest)";
+                    } else if (x > 400 && Math.abs(y - 250) < 50) {
+                        this.positionLabel = "Ascending Node";
+                    } else if (x < 400 && Math.abs(y - 250) < 50) {
+                        this.positionLabel = "Descending Node";
+                    } else if (y > 250) {
+                        this.positionLabel = "Southern Orbit";
+                    } else {
+                        this.positionLabel = "Northern Orbit";
+                    }
+                    
+                    // Store energy data for graphing
+                    this.energyHistory.push({
+                        time: this.time,
+                        kinetic: this.kineticEnergy,
+                        potential: this.potentialEnergy,
+                        lagrangian: this.lagrangianEnergy,
+                        total: this.totalEnergy
+                    });
+                    
+                    // Limit history length
+                    if (this.energyHistory.length > this.energyHistoryLength) {
+                        this.energyHistory.shift();
+                    }
+                    
+                    // Update current speed for display
+                    this.currentSpeed = velocity / 1000; // Convert to km/s
+                    this.distanceToStar = distanceM / this.AU;
+                },
+                
+                startAnimation() {
+                    if (this.animationId) return;
+                    
+                    const canvas = document.getElementById('orbitCanvas');
+                    const energyCanvas = document.getElementById('energyCanvas');
+                    const ctx = canvas.getContext('2d');
+                    const energyCtx = energyCanvas.getContext('2d');
+                    
+                    const animate = () => {
+                        if (this.isAnimating) {
+                            this.updatePhysics();
+                            this.drawOrbit(ctx, canvas);
+                            this.drawEnergyGraph(energyCtx, energyCanvas);
+                        }
+                        this.animationId = requestAnimationFrame(animate);
+                    };
+                    
+                    animate();
+                },
+                
+                updatePhysics() {
+                    // Increment time based on orbital speed
+                    this.time += 0.01 * this.orbitalSpeed;
+                    
+                    // Calculate position on elliptical orbit using parametric equation
+                    const a = this.semiMajorAxis; // semi-major axis
+                    const e = this.eccentricity; // eccentricity
+                    const b = a * Math.sqrt(1 - e * e); // semi-minor axis
+                    
+                    // Center of ellipse (offset for focus)
+                    const centerX = 400 + a * e; // Canvas center X + focus offset
+                    const centerY = 250; // Canvas center Y
+                    
+                    // Parametric angle (true anomaly)
+                    const angle = this.time;
+                    
+                    // Elliptical coordinates
+                    const x = centerX + a * Math.cos(angle) - a * e;
+                    const y = centerY + b * Math.sin(angle);
+                    
+                    // Calculate energies
+                    this.calculateEnergies(x, y);
+                    
+                    // Update trail
+                    this.trail.push({x, y, speed: this.currentSpeed});
+                    if (this.trail.length > this.trailLength) {
+                        this.trail.shift();
+                    }
+                    
+                    // Update displayed values
+                    this.orbitalPhase = (angle * 180 / Math.PI) % 360;
+                },
+                
+                drawOrbit(ctx, canvas) {
+                    // Clear canvas with space-like gradient
+                    const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+                    gradient.addColorStop(0, "#050719");
+                    gradient.addColorStop(1, "#0a0c28");
+                    ctx.fillStyle = gradient;
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    
+                    // Draw grid if enabled
+                    if (this.showGrid) {
+                        this.drawGrid(ctx, canvas);
+                    }
+                    
+                    // Calculate ellipse parameters
+                    const a = this.semiMajorAxis;
+                    const e = this.eccentricity;
+                    const b = a * Math.sqrt(1 - e * e);
+                    
+                    // Center of ellipse (offset for focus)
+                    const centerX = 400 + a * e;
+                    const centerY = 250;
+                    
+                    // Draw elliptical orbit path
+                    ctx.beginPath();
+                    ctx.ellipse(centerX, centerY, a, b, 0, 0, Math.PI * 2);
+                    ctx.strokeStyle = "rgba(100, 150, 255, 0.3)";
+                    ctx.lineWidth = 1;
+                    ctx.stroke();
+                    
+                    // Draw trail with velocity-based coloring
+                    this.drawTrail(ctx);
+                    
+                    // Draw foci points
+                    ctx.fillStyle = "rgba(255, 200, 50, 0.5)";
+                    ctx.beginPath();
+                    ctx.arc(400, 250, 4, 0, Math.PI * 2); // Primary focus (star location)
+                    ctx.fill();
+                    
+                    ctx.fillStyle = "rgba(255, 100, 100, 0.5)";
+                    ctx.beginPath();
+                    ctx.arc(400 + 2 * a * e, 250, 3, 0, Math.PI * 2); // Secondary focus
+                    ctx.fill();
+                    
+                    // Calculate current position
+                    const angle = this.time;
+                    const x = centerX + a * Math.cos(angle) - a * e;
+                    const y = centerY + b * Math.sin(angle);
+                    
+                    // Draw line from star to planet (radius vector)
+                    ctx.beginPath();
+                    ctx.moveTo(400, 250);
+                    ctx.lineTo(x, y);
+                    ctx.strokeStyle = "rgba(100, 200, 255, 0.5)";
+                    ctx.lineWidth = 1;
+                    ctx.stroke();
+                    
+                    // Draw energy indicator on radius vector
+                    const energyRatio = this.kineticEnergy / Math.abs(this.potentialEnergy);
+                    const indicatorX = 400 + (x - 400) * energyRatio;
+                    const indicatorY = 250 + (y - 250) * energyRatio;
+                    
+                    ctx.beginPath();
+                    ctx.moveTo(400, 250);
+                    ctx.lineTo(indicatorX, indicatorY);
+                    ctx.strokeStyle = "rgba(255, 107, 107, 0.7)";
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                    
+                    ctx.beginPath();
+                    ctx.arc(indicatorX, indicatorY, 5, 0, Math.PI * 2);
+                    ctx.fillStyle = "#ff6b6b";
+                    ctx.fill();
+                    
+                    // Draw star (sun-like)
+                    this.drawStar(ctx, 400, 250);
+                    
+                    // Draw planet
+                    this.drawPlanet(ctx, x, y, angle);
+                    
+                    // Draw labels
+                    this.drawLabels(ctx, centerX, centerY, a, b, e, x, y);
+                    
+                    // Draw visual feedback
+                    this.drawVisualFeedback(ctx, x, y);
+                },
+                
+                drawGrid(ctx, canvas) {
+                    ctx.strokeStyle = "rgba(100, 120, 255, 0.1)";
+                    ctx.lineWidth = 0.5;
+                    
+                    // Vertical lines
+                    for (let x = 0; x <= canvas.width; x += 50) {
+                        ctx.beginPath();
+                        ctx.moveTo(x, 0);
+                        ctx.lineTo(x, canvas.height);
+                        ctx.stroke();
+                    }
+                    
+                    // Horizontal lines
+                    for (let y = 0; y <= canvas.height; y += 50) {
+                        ctx.beginPath();
+                        ctx.moveTo(0, y);
+                        ctx.lineTo(canvas.width, y);
+                        ctx.stroke();
+                    }
+                    
+                    // Center crosshair
+                    ctx.strokeStyle = "rgba(100, 150, 255, 0.3)";
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.moveTo(400, 0);
+                    ctx.lineTo(400, canvas.height);
+                    ctx.moveTo(0, 250);
+                    ctx.lineTo(canvas.width, 250);
+                    ctx.stroke();
+                },
+                
+                drawTrail(ctx) {
+                    if (this.trail.length < 2) return;
+                    
+                    // Create gradient trail with velocity-based coloring
+                    for (let i = 1; i < this.trail.length; i++) {
+                        const alpha = i / this.trail.length;
+                        const point1 = this.trail[i-1];
+                        const point2 = this.trail[i];
+                        
+                        // Color based on velocity (red = fast, blue = slow)
+                        const speedRatio = point2.speed / 40; // Normalize to 40 km/s max
+                        const r = Math.min(255, 100 + speedRatio * 155);
+                        const g = Math.min(255, 100 + (1 - speedRatio) * 155);
+                        const b = 255;
+                        
+                        ctx.beginPath();
+                        ctx.moveTo(point1.x, point1.y);
+                        ctx.lineTo(point2.x, point2.y);
+                        
+                        ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${alpha * 0.7})`;
+                        ctx.lineWidth = 2;
+                        ctx.stroke();
+                    }
+                },
+                
+                drawStar(ctx, x, y) {
+                    // Create star glow
+                    const gradient = ctx.createRadialGradient(x, y, 0, x, y, 60);
+                    gradient.addColorStop(0, "rgba(255, 255, 200, 0.9)");
+                    gradient.addColorStop(0.3, "rgba(255, 200, 100, 0.5)");
+                    gradient.addColorStop(1, "rgba(255, 100, 50, 0)");
+                    
+                    ctx.beginPath();
+                    ctx.arc(x, y, 60, 0, Math.PI * 2);
+                    ctx.fillStyle = gradient;
+                    ctx.fill();
+                    
+                    // Draw star surface
+                    ctx.beginPath();
+                    ctx.arc(x, y, 25, 0, Math.PI * 2);
+                    
+                    if (this.use3DEffect) {
+                        // 3D-like gradient for star
+                        const starGradient = ctx.createRadialGradient(
+                            x - 10, y - 10, 0,
+                            x, y, 25
+                        );
+                        starGradient.addColorStop(0, "#ffff80");
+                        starGradient.addColorStop(0.7, "#ffaa50");
+                        starGradient.addColorStop(1, "#ff6600");
+                        ctx.fillStyle = starGradient;
+                    } else {
+                        ctx.fillStyle = "#ffff80";
+                    }
+                    
+                    ctx.fill();
+                    
+                    // Draw star texture
+                    ctx.fillStyle = "rgba(255, 150, 50, 0.5)";
+                    for (let i = 0; i < 8; i++) {
+                        const angle = (i * Math.PI) / 4;
+                        const px = x + Math.cos(angle) * 20;
+                        const py = y + Math.sin(angle) * 20;
+                        ctx.beginPath();
+                        ctx.arc(px, py, 3, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                },
+                
+                drawPlanet(ctx, x, y, angle) {
+                    // Calculate rotation for planet
+                    const rotationAngle = angle * 5 * this.rotationSpeed;
+                    
+                    // Create planet with 3D effect
+                    if (this.use3DEffect) {
+                        // Draw planet shadow (dark side)
+                        ctx.beginPath();
+                        ctx.arc(x, y, this.planetSize, 0, Math.PI * 2);
+                        const shadowGradient = ctx.createRadialGradient(
+                            x - this.planetSize/3, y - this.planetSize/3, 0,
+                            x, y, this.planetSize
+                        );
+                        shadowGradient.addColorStop(0, "rgba(50, 100, 200, 0.9)");
+                        shadowGradient.addColorStop(0.7, "rgba(30, 70, 150, 0.8)");
+                        shadowGradient.addColorStop(1, "rgba(10, 40, 100, 0.7)");
+                        ctx.fillStyle = shadowGradient;
+                        ctx.fill();
+                        
+                        // Draw planet lit side
+                        ctx.beginPath();
+                        ctx.arc(x, y, this.planetSize * 0.9, 0, Math.PI * 2);
+                        const planetGradient = ctx.createRadialGradient(
+                            x + this.planetSize/3, y + this.planetSize/3, 0,
+                            x, y, this.planetSize * 0.9
+                        );
+                        planetGradient.addColorStop(0, "rgba(100, 200, 255, 0.9)");
+                        planetGradient.addColorStop(0.5, "rgba(70, 150, 230, 0.8)");
+                        planetGradient.addColorStop(1, "rgba(40, 100, 200, 0.7)");
+                        ctx.fillStyle = planetGradient;
+                        ctx.fill();
+                        
+                        // Draw planet details (continents)
+                        ctx.fillStyle = "rgba(50, 180, 100, 0.6)";
+                        ctx.beginPath();
+                        ctx.arc(
+                            x + Math.cos(rotationAngle) * this.planetSize/2,
+                            y + Math.sin(rotationAngle) * this.planetSize/2,
+                            this.planetSize/3, 0, Math.PI * 2
+                        );
+                        ctx.fill();
+                        
+                        // Draw clouds
+                        ctx.fillStyle = "rgba(255, 255, 255, 0.7)";
+                        for (let i = 0; i < 3; i++) {
+                            const cloudAngle = rotationAngle + (i * Math.PI * 2/3);
+                            ctx.beginPath();
+                            ctx.arc(
+                                x + Math.cos(cloudAngle) * this.planetSize/1.5,
+                                y + Math.sin(cloudAngle) * this.planetSize/1.5,
+                                this.planetSize/5, 0, Math.PI * 2
+                            );
+                            ctx.fill();
+                        }
+                        
+                        // Draw atmospheric glow (color based on energy)
+                        const energyIntensity = Math.min(1, this.kineticEnergy / 3e33);
+                        ctx.beginPath();
+                        ctx.arc(x, y, this.planetSize + 5, 0, Math.PI * 2);
+                        ctx.strokeStyle = `rgba(255, ${200 - energyIntensity * 100}, ${100 + energyIntensity * 100}, 0.5)`;
+                        ctx.lineWidth = 3;
+                        ctx.stroke();
+                    } else {
+                        // Simple 2D planet
+                        ctx.beginPath();
+                        ctx.arc(x, y, this.planetSize, 0, Math.PI * 2);
+                        ctx.fillStyle = "#4facfe";
+                        ctx.fill();
+                        
+                        // Draw rotation indicator
+                        ctx.beginPath();
+                        ctx.arc(
+                            x + Math.cos(rotationAngle) * this.planetSize/2,
+                            y + Math.sin(rotationAngle) * this.planetSize/2,
+                            this.planetSize/4, 0, Math.PI * 2
+                        );
+                        ctx.fillStyle = "#00f2fe";
+                        ctx.fill();
+                    }
+                    
+                    // Draw axis of rotation
+                    ctx.beginPath();
+                    ctx.moveTo(
+                        x + Math.cos(rotationAngle) * this.planetSize,
+                        y + Math.sin(rotationAngle) * this.planetSize
+                    );
+                    ctx.lineTo(
+                        x - Math.cos(rotationAngle) * this.planetSize,
+                        y - Math.sin(rotationAngle) * this.planetSize
+                    );
+                    ctx.strokeStyle = "rgba(255, 255, 255, 0.5)";
+                    ctx.lineWidth = 1;
+                    ctx.stroke();
+                },
+                
+                drawLabels(ctx, centerX, centerY, a, b, e, planetX, planetY) {
+                    ctx.fillStyle = "#e0e0ff";
+                    ctx.font = "12px Arial";
+                    ctx.textAlign = "center";
+                    
+                    // Label the star
+                    ctx.fillText("Sun-like Star", 400, 230);
+                    
+                    // Label semi-major axis
+                    ctx.fillText("Semi-major axis (a)", centerX, centerY - b - 10);
+                    
+                    // Label semi-minor axis
+                    ctx.fillText("Semi-minor axis (b)", centerX + a + 30, centerY);
+                    
+                    // Label foci
+                    ctx.fillText("Primary Focus (Star)", 400, 270);
+                    ctx.fillText("Secondary Focus", 400 + 2 * a * e, 270);
+                    
+                    // Draw eccentricity value on orbit
+                    ctx.fillText(`e = ${e.toFixed(2)}`, centerX, centerY + b + 20);
+                    
+                    // Draw velocity indicator near planet
+                    ctx.fillStyle = "#ff6b6b";
+                    ctx.fillText(`${this.currentSpeed.toFixed(1)} km/s`, planetX, planetY - this.planetSize - 10);
+                },
+                
+                drawVisualFeedback(ctx, planetX, planetY) {
+                    // Draw energy indicator near planet
+                    const keRatio = (this.kineticEnergy / 3e33).toFixed(2);
+                    const peRatio = (Math.abs(this.potentialEnergy) / 3e33).toFixed(2);
+                    
+                    ctx.fillStyle = "#ff6b6b";
+                    ctx.fillText(`KE: ${keRatio}`, planetX + 40, planetY - 20);
+                    ctx.fillStyle = "#4ecdc4";
+                    ctx.fillText(`PE: ${peRatio}`, planetX + 40, planetY);
+                    ctx.fillStyle = "#ffe66d";
+                    ctx.fillText(`L: ${(this.lagrangianEnergy/1e33).toFixed(2)}`, planetX + 40, planetY + 20);
+                },
+                
+                drawEnergyGraph(ctx, canvas) {
+                    // Clear canvas
+                    ctx.fillStyle = "rgba(5, 7, 25, 0.9)";
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    
+                    if (this.energyHistory.length < 2) return;
+                    
+                    // Draw grid
+                    ctx.strokeStyle = "rgba(100, 120, 255, 0.1)";
+                    ctx.lineWidth = 0.5;
+                    
+                    // Vertical lines
+                    for (let x = 0; x <= canvas.width; x += 50) {
+                        ctx.beginPath();
+                        ctx.moveTo(x, 0);
+                        ctx.lineTo(x, canvas.height);
+                        ctx.stroke();
+                    }
+                    
+                    // Horizontal lines
+                    for (let y = 0; y <= canvas.height; y += 50) {
+                        ctx.beginPath();
+                        ctx.moveTo(0, y);
+                        ctx.lineTo(canvas.width, y);
+                        ctx.stroke();
+                    }
+                    
+                    // Find min and max values for scaling
+                    let minEnergy = Infinity;
+                    let maxEnergy = -Infinity;
+                    
+                    for (const data of this.energyHistory) {
+                        minEnergy = Math.min(minEnergy, data.kinetic, data.potential, data.lagrangian, data.total);
+                        maxEnergy = Math.max(maxEnergy, data.kinetic, data.potential, data.lagrangian, data.total);
+                    }
+                    
+                    // Add some padding
+                    const range = maxEnergy - minEnergy;
+                    minEnergy -= range * 0.1;
+                    maxEnergy += range * 0.1;
+                    
+                    // Helper function to map energy value to y coordinate
+                    const mapY = (value) => {
+                        return canvas.height - ((value - minEnergy) / (maxEnergy - minEnergy)) * canvas.height;
+                    };
+                    
+                    // Draw energy curves
+                    this.drawEnergyCurve(ctx, canvas, this.energyHistory, "kinetic", "#ff6b6b", mapY);
+                    this.drawEnergyCurve(ctx, canvas, this.energyHistory, "potential", "#4ecdc4", mapY);
+                    this.drawEnergyCurve(ctx, canvas, this.energyHistory, "lagrangian", "#ffe66d", mapY);
+                    this.drawEnergyCurve(ctx, canvas, this.energyHistory, "total", "#9d4edd", mapY);
+                    
+                    // Draw current point indicator
+                    const currentData = this.energyHistory[this.energyHistory.length - 1];
+                    const xPos = canvas.width - 10; // Rightmost point
+                    const yPos = mapY(currentData.lagrangian);
+                    
+                    // Update graph point position for Alpine binding
+                    this.graphPointX = xPos;
+                    this.graphPointY = yPos;
+                    
+                    // Draw the point
+                    ctx.beginPath();
+                    ctx.arc(xPos, yPos, 6, 0, Math.PI * 2);
+                    ctx.fillStyle = "#ffffff";
+                    ctx.fill();
+                    ctx.strokeStyle = "#4facfe";
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                    
+                    // Draw label for current point
+                    ctx.fillStyle = "#ffffff";
+                    ctx.font = "12px Arial";
+                    ctx.textAlign = "right";
+                    ctx.fillText("Current", xPos - 10, yPos - 10);
+                    
+                    // Draw axes labels
+                    ctx.fillStyle = "#b0d0ff";
+                    ctx.textAlign = "left";
+                    ctx.fillText("Time →", 10, canvas.height - 10);
+                    ctx.save();
+                    ctx.translate(20, canvas.height / 2);
+                    ctx.rotate(-Math.PI / 2);
+                    ctx.fillText("Energy (J)", 0, 0);
+                    ctx.restore();
+                    
+                    // Draw scale indicators
+                    ctx.fillStyle = "#b0d0ff";
+                    ctx.font = "10px Arial";
+                    ctx.textAlign = "right";
+                    ctx.fillText(maxEnergy.toExponential(2), canvas.width - 5, 15);
+                    ctx.fillText(minEnergy.toExponential(2), canvas.width - 5, canvas.height - 5);
+                },
+                
+                drawEnergyCurve(ctx, canvas, data, key, color, mapY) {
+                    ctx.beginPath();
+                    const step = canvas.width / (data.length - 1);
+                    
+                    for (let i = 0; i < data.length; i++) {
+                        const x = i * step;
+                        const y = mapY(data[i][key]);
+        
+                        if (i === 0) {
+                            ctx.moveTo(x, y);
+                        } else {
+                            ctx.lineTo(x, y);
+                        }
+                    }
+                    
+                    ctx.strokeStyle = color;
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                    
+                    // Add gradient fill for some curves
+                    if (key === "kinetic" || key === "potential") {
+                        ctx.lineTo(canvas.width, canvas.height);
+                        ctx.lineTo(0, canvas.height);
+                        ctx.closePath();
+                        
+                        const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+                        gradient.addColorStop(0, color + "40");
+                        gradient.addColorStop(1, color + "00");
+                        
+                        ctx.fillStyle = gradient;
+                        ctx.fill();
+                    }
+                },
+                
+                toggleAnimation() {
+                    this.isAnimating = !this.isAnimating;
+                },
+                
+                resetOrbit() {
+                    this.time = 0;
+                    this.trail = [];
+                    this.energyHistory = [];
+                    this.isAnimating = true;
+                },
+                
+                toggleTrail() {
+                    this.trail = [];
+                },
+                
+                toggle3DEffect() {
+                    this.use3DEffect = !this.use3DEffect;
+                },
+                
+                toggleGrid() {
+                    this.showGrid = !this.showGrid;
+                }
+            };
+        }
+    </script>
+</body>
+</html>

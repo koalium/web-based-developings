@@ -1,0 +1,1536 @@
+<!DOCTYPE html>
+<html lang="en" x-data="nBodySimulation()" x-cloak>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>N-Body Gravity - Touch Simulation</title>
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #000428 0%, #004e92 100%);
+            color: #ffffff;
+            min-height: 100vh;
+            overflow-x: hidden;
+            padding: 0;
+        }
+        
+        .mobile-container {
+            width: 100%;
+            min-height: 100vh;
+            padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+        }
+        
+        /* Header - Fixed Top */
+        .simulation-header {
+            background: rgba(0, 20, 40, 0.9);
+            backdrop-filter: blur(10px);
+            padding: 12px 16px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .header-left h1 {
+            font-size: 1.3rem;
+            font-weight: 700;
+            background: linear-gradient(90deg, #00c6ff 0%, #0072ff 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 2px;
+        }
+        
+        .header-left .subtitle {
+            font-size: 0.75rem;
+            opacity: 0.8;
+        }
+        
+        .header-stats {
+            display: flex;
+            gap: 12px;
+        }
+        
+        .stat-item {
+            text-align: center;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 4px 8px;
+            border-radius: 6px;
+            min-width: 60px;
+        }
+        
+        .stat-value {
+            font-size: 0.9rem;
+            font-weight: bold;
+            color: #00c6ff;
+        }
+        
+        .stat-label {
+            font-size: 0.7rem;
+            opacity: 0.8;
+        }
+        
+        /* Main Simulation Area */
+        .simulation-main {
+            margin-top: 90px;
+            margin-bottom: 70px;
+            position: relative;
+        }
+        
+        .canvas-wrapper {
+            width: 100vw;
+            height: 55vh;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        #simulationCanvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+        
+        /* Touch Controls Overlay */
+        .touch-controls {
+            position: absolute;
+            bottom: 20px;
+            left: 0;
+            right: 0;
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            z-index: 100;
+        }
+        
+        .touch-button {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(10px);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            color: white;
+            font-size: 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            user-select: none;
+        }
+        
+        .touch-button:active {
+            transform: scale(0.9);
+            background: rgba(0, 198, 255, 0.5);
+        }
+        
+        /* Visualization Panel */
+        .visualization-panel {
+            padding: 16px;
+            background: rgba(0, 20, 40, 0.7);
+            backdrop-filter: blur(5px);
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            margin: 10px 0;
+        }
+        
+        .viz-title {
+            font-size: 1.1rem;
+            margin-bottom: 12px;
+            color: #00c6ff;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .viz-title i {
+            font-size: 1.2rem;
+        }
+        
+        .energy-meter {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+        
+        .meter-item {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            padding: 10px;
+            text-align: center;
+        }
+        
+        .meter-label {
+            font-size: 0.7rem;
+            opacity: 0.8;
+            margin-bottom: 4px;
+        }
+        
+        .meter-value {
+            font-size: 0.9rem;
+            font-weight: bold;
+            font-family: monospace;
+        }
+        
+        .meter-bar {
+            height: 4px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 2px;
+            margin-top: 6px;
+            overflow: hidden;
+        }
+        
+        .meter-fill {
+            height: 100%;
+            transition: width 0.3s ease;
+        }
+        
+        .kinetic-fill { background: #ff6b6b; }
+        .potential-fill { background: #4ecdc4; }
+        .total-fill { background: #ffe66d; }
+        
+        /* Control Tabs */
+        .control-tabs {
+            display: flex;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 12px;
+            padding: 4px;
+            margin-bottom: 15px;
+        }
+        
+        .tab-button {
+            flex: 1;
+            padding: 10px;
+            text-align: center;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            user-select: none;
+        }
+        
+        .tab-button.active {
+            background: rgba(0, 198, 255, 0.3);
+            color: #00c6ff;
+            font-weight: bold;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        /* Slider Controls */
+        .slider-group {
+            margin-bottom: 15px;
+        }
+        
+        .slider-label {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        
+        .slider-label span {
+            font-size: 0.9rem;
+        }
+        
+        .slider-value {
+            background: rgba(0, 198, 255, 0.2);
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 0.9rem;
+        }
+        
+        input[type="range"] {
+            width: 100%;
+            height: 6px;
+            -webkit-appearance: none;
+            background: linear-gradient(90deg, #00c6ff 0%, #0072ff 100%);
+            border-radius: 3px;
+            outline: none;
+        }
+        
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 24px;
+            height: 24px;
+            background: #ffffff;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(0, 198, 255, 0.8);
+        }
+        
+        /* Preset Grid */
+        .preset-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .preset-card {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            padding: 12px 8px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            user-select: none;
+        }
+        
+        .preset-card:active {
+            transform: scale(0.95);
+            background: rgba(0, 198, 255, 0.2);
+        }
+        
+        .preset-card.active {
+            background: rgba(0, 198, 255, 0.3);
+            border: 1px solid rgba(0, 198, 255, 0.5);
+        }
+        
+        .preset-icon {
+            font-size: 1.5rem;
+            margin-bottom: 5px;
+        }
+        
+        .preset-name {
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+        
+        /* Body List */
+        .body-scroll {
+            max-height: 120px;
+            overflow-y: auto;
+            margin-top: 10px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+            padding: 8px;
+        }
+        
+        .body-item {
+            display: flex;
+            align-items: center;
+            padding: 8px;
+            margin-bottom: 6px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .body-item:active {
+            background: rgba(0, 198, 255, 0.2);
+        }
+        
+        .body-item.selected {
+            background: rgba(0, 198, 255, 0.3);
+            border-left: 3px solid #00c6ff;
+        }
+        
+        .body-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            margin-right: 10px;
+        }
+        
+        .body-info {
+            flex: 1;
+        }
+        
+        .body-name {
+            font-weight: bold;
+            font-size: 0.9rem;
+        }
+        
+        .body-stats {
+            font-size: 0.7rem;
+            opacity: 0.8;
+        }
+        
+        /* Footer Controls */
+        .simulation-footer {
+            background: rgba(0, 20, 40, 0.9);
+            backdrop-filter: blur(10px);
+            padding: 12px 16px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+        }
+        
+        .action-buttons {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+        }
+        
+        .action-button {
+            background: linear-gradient(135deg, #00c6ff 0%, #0072ff 100%);
+            border: none;
+            border-radius: 8px;
+            padding: 12px 8px;
+            color: white;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            user-select: none;
+            text-align: center;
+        }
+        
+        .action-button:active {
+            transform: scale(0.95);
+            opacity: 0.9;
+        }
+        
+        .action-button.reset {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ff0000 100%);
+        }
+        
+        /* Visual Effects Toggle */
+        .toggle-group {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .toggle-label {
+            font-size: 0.9rem;
+        }
+        
+        .toggle-switch {
+            position: relative;
+            width: 50px;
+            height: 26px;
+        }
+        
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #444;
+            transition: .4s;
+            border-radius: 34px;
+        }
+        
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        
+        input:checked + .toggle-slider {
+            background: linear-gradient(90deg, #00c6ff 0%, #0072ff 100%);
+        }
+        
+        input:checked + .toggle-slider:before {
+            transform: translateX(24px);
+        }
+        
+        /* Touch Gesture Hints */
+        .gesture-hints {
+            display: flex;
+            justify-content: space-around;
+            padding: 10px 0;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            margin-top: 15px;
+        }
+        
+        .gesture-item {
+            text-align: center;
+            font-size: 0.8rem;
+            opacity: 0.8;
+        }
+        
+        .gesture-icon {
+            font-size: 1.2rem;
+            margin-bottom: 4px;
+            display: block;
+        }
+        
+        /* Responsive Adjustments */
+        @media (max-width: 768px) {
+            .simulation-header {
+                padding: 10px 12px;
+            }
+            
+            .header-left h1 {
+                font-size: 1.1rem;
+            }
+            
+            .stat-item {
+                min-width: 50px;
+                padding: 3px 6px;
+            }
+            
+            .canvas-wrapper {
+                height: 45vh;
+            }
+            
+            .preset-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .action-button {
+                font-size: 0.75rem;
+                padding: 10px 6px;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .energy-meter {
+                grid-template-columns: 1fr;
+            }
+            
+            .preset-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .action-buttons {
+                grid-template-columns: repeat(2, 1fr);
+                gap: 8px;
+            }
+            
+            .touch-button {
+                width: 50px;
+                height: 50px;
+                font-size: 1.3rem;
+            }
+        }
+        
+        [x-cloak] {
+            display: none !important;
+        }
+        
+        /* Animation for new bodies */
+        @keyframes bodyPulse {
+            0% { transform: scale(0.5); opacity: 0; }
+            70% { transform: scale(1.2); opacity: 1; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        
+        .new-body {
+            animation: bodyPulse 0.5s ease-out;
+        }
+        
+        /* Orbit visualization */
+        @keyframes orbitGlow {
+            0% { opacity: 0.3; }
+            50% { opacity: 0.7; }
+            100% { opacity: 0.3; }
+        }
+        
+        .orbiting {
+            animation: orbitGlow 2s ease-in-out infinite;
+        }
+    </style>
+</head>
+<body>
+    <div class="mobile-container" x-data="{ activeTab: 'presets' }">
+        <!-- Fixed Header -->
+        <header class="simulation-header">
+            <div class="header-left">
+                <h1>N-Body Gravity</h1>
+                <div class="subtitle">Touch to interact • Pinch to zoom</div>
+            </div>
+            <div class="header-stats">
+                <div class="stat-item">
+                    <div class="stat-value" x-text="bodies.length"></div>
+                    <div class="stat-label">BODIES</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" x-text="timeScale.toFixed(1) + 'x'"></div>
+                    <div class="stat-label">SPEED</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" x-text="(energyConservation*100).toFixed(0) + '%'"></div>
+                    <div class="stat-label">ENERGY</div>
+                </div>
+            </div>
+        </header>
+        
+        <!-- Main Simulation Area -->
+        <main class="simulation-main">
+            <div class="canvas-wrapper">
+                <canvas id="simulationCanvas"></canvas>
+                
+                <!-- Touch Controls Overlay -->
+                <div class="touch-controls">
+                    <div class="touch-button" @touchstart="addBodyAtCenter()" @click="addBodyAtCenter()">
+                        +
+                    </div>
+                    <div class="touch-button" @touchstart="toggleSimulation()" @click="toggleSimulation()">
+                        <span x-text="isRunning ? '⏸️' : '▶️'"></span>
+                    </div>
+                    <div class="touch-button" @touchstart="zoomIn()" @click="zoomIn()">
+                        🔍+
+                    </div>
+                    <div class="touch-button" @touchstart="zoomOut()" @click="zoomOut()">
+                        🔍-
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Visualization Panel -->
+            <section class="visualization-panel">
+                <h3 class="viz-title">⚡ ENERGY DYNAMICS</h3>
+                
+                <div class="energy-meter">
+                    <div class="meter-item">
+                        <div class="meter-label">Kinetic</div>
+                        <div class="meter-value kinetic" x-text="formatEnergy(kineticEnergy)"></div>
+                        <div class="meter-bar">
+                            <div class="meter-fill kinetic-fill" :style="'width: ' + (kineticEnergy/maxEnergy*100) + '%'"></div>
+                        </div>
+                    </div>
+                    <div class="meter-item">
+                        <div class="meter-label">Potential</div>
+                        <div class="meter-value potential" x-text="formatEnergy(potentialEnergy)"></div>
+                        <div class="meter-bar">
+                            <div class="meter-fill potential-fill" :style="'width: ' + (Math.abs(potentialEnergy)/maxEnergy*100) + '%'"></div>
+                        </div>
+                    </div>
+                    <div class="meter-item">
+                        <div class="meter-label">Total</div>
+                        <div class="meter-value total" x-text="formatEnergy(totalEnergy)"></div>
+                        <div class="meter-bar">
+                            <div class="meter-fill total-fill" :style="'width: ' + (Math.abs(totalEnergy)/maxEnergy*100) + '%'"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="control-tabs">
+                    <div class="tab-button" :class="{'active': activeTab === 'presets'}" @click="activeTab = 'presets'">
+                        Presets
+                    </div>
+                    <div class="tab-button" :class="{'active': activeTab === 'controls'}" @click="activeTab = 'controls'">
+                        Controls
+                    </div>
+                    <div class="tab-button" :class="{'active': activeTab === 'bodies'}" @click="activeTab = 'bodies'">
+                        Bodies
+                    </div>
+                </div>
+                
+                <!-- Presets Tab -->
+                <div class="tab-content" :class="{'active': activeTab === 'presets'}">
+                    <div class="preset-grid">
+                        <div class="preset-card" :class="{'active': currentPreset === 'binary'}" 
+                             @click="loadBinarySystem()" @touchstart="loadBinarySystem()">
+                            <div class="preset-icon">🌌</div>
+                            <div class="preset-name">Binary Stars</div>
+                        </div>
+                        <div class="preset-card" :class="{'active': currentPreset === 'chaotic'}" 
+                             @click="loadChaoticSystem()" @touchstart="loadChaoticSystem()">
+                            <div class="preset-icon">🌀</div>
+                            <div class="preset-name">Chaotic Dance</div>
+                        </div>
+                        <div class="preset-card" :class="{'active': currentPreset === 'elliptical'}" 
+                             @click="loadHighlyElliptical()" @touchstart="loadHighlyElliptical()">
+                            <div class="preset-icon">⭐</div>
+                            <div class="preset-name">Elliptical</div>
+                        </div>
+                        <div class="preset-card" :class="{'active': currentPreset === 'solar'}" 
+                             @click="loadSolarSystem()" @touchstart="loadSolarSystem()">
+                            <div class="preset-icon">🌞</div>
+                            <div class="preset-name">Solar System</div>
+                        </div>
+                        <div class="preset-card" :class="{'active': currentPreset === 'triple'}" 
+                             @click="loadTripleSystem()" @touchstart="loadTripleSystem()">
+                            <div class="preset-icon">✨</div>
+                            <div class="preset-name">Triple Star</div>
+                        </div>
+                        <div class="preset-card" :class="{'active': currentPreset === 'figure8'}" 
+                             @click="loadFigure8()" @touchstart="loadFigure8()">
+                            <div class="preset-icon">∞</div>
+                            <div class="preset-name">Figure-8</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Controls Tab -->
+                <div class="tab-content" :class="{'active': activeTab === 'controls'}">
+                    <div class="slider-group">
+                        <div class="slider-label">
+                            <span>Time Scale</span>
+                            <span class="slider-value" x-text="timeScale.toFixed(1) + 'x'"></span>
+                        </div>
+                        <input type="range" x-model="timeScale" min="0.1" max="50" step="0.1">
+                    </div>
+                    
+                    <div class="slider-group">
+                        <div class="slider-label">
+                            <span>Gravity Strength</span>
+                            <span class="slider-value" x-text="(G*1e11).toFixed(2)"></span>
+                        </div>
+                        <input type="range" x-model="logG" min="-13" max="-9" step="0.1" @input="updateGravityConstant()">
+                    </div>
+                    
+                    <div class="toggle-group">
+                        <span class="toggle-label">Show Trails</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" x-model="showTrails" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    
+                    <div class="toggle-group">
+                        <span class="toggle-label">3D Effects</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" x-model="use3DEffects" checked>
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    
+                    <div class="toggle-group">
+                        <span class="toggle-label">Velocity Vectors</span>
+                        <label class="toggle-switch">
+                            <input type="checkbox" x-model="showVectors">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+                
+                <!-- Bodies Tab -->
+                <div class="tab-content" :class="{'active': activeTab === 'bodies'}">
+                    <div class="body-scroll">
+                        <div class="body-item" 
+                             :class="{'selected': body === selectedBody}"
+                             @click="selectBody(body)"
+                             @touchstart="selectBody(body)"
+                             x-for="body in bodies" :key="body.id">
+                            <div class="body-color" :style="`background-color: ${body.color}`"></div>
+                            <div class="body-info">
+                                <div class="body-name" x-text="body.name"></div>
+                                <div class="body-stats">
+                                    M: <span x-text="body.mass.toFixed(2)"></span> • 
+                                    V: <span x-text="Math.sqrt(body.vx**2 + body.vy**2).toFixed(2)"></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="slider-group" x-show="selectedBody">
+                        <div class="slider-label">
+                            <span>Selected Mass</span>
+                            <span class="slider-value" x-text="selectedBody ? selectedBody.mass.toFixed(2) : '0'"></span>
+                        </div>
+                        <input type="range" x-model="selectedBody.mass" min="0.1" max="10" step="0.1" 
+                               :disabled="!selectedBody" @input="updateSelectedBody()">
+                    </div>
+                </div>
+            </section>
+            
+            <!-- Gesture Hints -->
+            <div class="gesture-hints">
+                <div class="gesture-item">
+                    <span class="gesture-icon">👆</span>
+                    <div>Tap to add bodies</div>
+                </div>
+                <div class="gesture-item">
+                    <span class="gesture-icon">🤏</span>
+                    <div>Pinch to zoom</div>
+                </div>
+                <div class="gesture-item">
+                    <span class="gesture-icon">👈👉</span>
+                    <div>Swipe to pan</div>
+                </div>
+            </div>
+        </main>
+        
+        <!-- Fixed Footer -->
+        <footer class="simulation-footer">
+            <div class="action-buttons">
+                <button class="action-button" @touchstart="toggleSimulation()" @click="toggleSimulation()">
+                    <span x-text="isRunning ? 'PAUSE' : 'PLAY'"></span>
+                </button>
+                <button class="action-button" @touchstart="resetSimulation()" @click="resetSimulation()">
+                    RESET
+                </button>
+                <button class="action-button reset" @touchstart="clearTrails()" @click="clearTrails()">
+                    CLEAR
+                </button>
+                <button class="action-button" @touchstart="addRandomBody()" @click="addRandomBody()">
+                    ADD+
+                </button>
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        function nBodySimulation() {
+            return {
+                // Simulation state
+                animationId: null,
+                isRunning: true,
+                simulationTime: 0,
+                timeScale: 1.0,
+                zoom: 1.0,
+                offsetX: 0,
+                offsetY: 0,
+                
+                // Visualization settings
+                showTrails: true,
+                use3DEffects: true,
+                showVectors: false,
+                showGrid: true,
+                
+                // Physics constants
+                G: 6.67430e-5,
+                logG: -11,
+                bodies: [],
+                selectedBody: null,
+                currentPreset: 'binary',
+                
+                // Energy tracking
+                maxEnergy: 1e30,
+                kineticEnergy: 0,
+                potentialEnergy: 0,
+                totalEnergy: 0,
+                energyConservation: 1.0,
+                
+                // Touch interaction
+                lastTouchX: 0,
+                lastTouchY: 0,
+                isDragging: false,
+                touchDistance: 0,
+                
+                // Canvas dimensions
+                canvasWidth: 0,
+                canvasHeight: 0,
+                
+                init() {
+                    this.setupCanvas();
+                    this.loadBinarySystem();
+                    this.setupTouchEvents();
+                    this.startSimulation();
+                },
+                
+                setupCanvas() {
+                    const canvas = document.getElementById('simulationCanvas');
+                    this.canvasWidth = window.innerWidth;
+                    this.canvasHeight = window.innerHeight * 0.55;
+                    
+                    canvas.width = this.canvasWidth;
+                    canvas.height = this.canvasHeight;
+                    
+                    // Handle window resize
+                    window.addEventListener('resize', () => {
+                        this.canvasWidth = window.innerWidth;
+                        this.canvasHeight = window.innerHeight * 0.55;
+                        canvas.width = this.canvasWidth;
+                        canvas.height = this.canvasHeight;
+                    });
+                },
+                
+                setupTouchEvents() {
+                    const canvas = document.getElementById('simulationCanvas');
+                    
+                    // Single touch for dragging
+                    canvas.addEventListener('touchstart', (e) => {
+                        e.preventDefault();
+                        if (e.touches.length === 1) {
+                            this.lastTouchX = e.touches[0].clientX;
+                            this.lastTouchY = e.touches[0].clientY;
+                            this.isDragging = true;
+                        } else if (e.touches.length === 2) {
+                            // Pinch to zoom
+                            const touch1 = e.touches[0];
+                            const touch2 = e.touches[1];
+                            this.touchDistance = Math.hypot(
+                                touch2.clientX - touch1.clientX,
+                                touch2.clientY - touch1.clientY
+                            );
+                        }
+                    });
+                    
+                    canvas.addEventListener('touchmove', (e) => {
+                        e.preventDefault();
+                        
+                        if (e.touches.length === 1 && this.isDragging) {
+                            const touch = e.touches[0];
+                            const dx = touch.clientX - this.lastTouchX;
+                            const dy = touch.clientY - this.lastTouchY;
+                            
+                            // Pan the view
+                            this.offsetX += dx / this.zoom;
+                            this.offsetY += dy / this.zoom;
+                            
+                            this.lastTouchX = touch.clientX;
+                            this.lastTouchY = touch.clientY;
+                        } else if (e.touches.length === 2) {
+                            // Handle pinch zoom
+                            const touch1 = e.touches[0];
+                            const touch2 = e.touches[1];
+                            const distance = Math.hypot(
+                                touch2.clientX - touch1.clientX,
+                                touch2.clientY - touch1.clientY
+                            );
+                            
+                            const scaleChange = distance / this.touchDistance;
+                            this.zoom *= scaleChange;
+                            this.zoom = Math.max(0.1, Math.min(5, this.zoom));
+                            
+                            this.touchDistance = distance;
+                        }
+                    });
+                    
+                    canvas.addEventListener('touchend', (e) => {
+                        e.preventDefault();
+                        this.isDragging = false;
+                        
+                        // Single tap to add body
+                        if (e.changedTouches.length === 1 && !this.isDragging) {
+                            const touch = e.changedTouches[0];
+                            const rect = canvas.getBoundingClientRect();
+                            const x = (touch.clientX - rect.left - this.offsetX * this.zoom) / this.zoom;
+                            const y = (touch.clientY - rect.top - this.offsetY * this.zoom) / this.zoom;
+                            
+                            this.addBodyAt(x, y);
+                        }
+                    });
+                    
+                    // Click to add body
+                    canvas.addEventListener('click', (e) => {
+                        const rect = canvas.getBoundingClientRect();
+                        const x = (e.clientX - rect.left - this.offsetX * this.zoom) / this.zoom;
+                        const y = (e.clientY - rect.top - this.offsetY * this.zoom) / this.zoom;
+                        
+                        this.addBodyAt(x, y);
+                    });
+                },
+                
+                startSimulation() {
+                    const canvas = document.getElementById('simulationCanvas');
+                    const ctx = canvas.getContext('2d');
+                    
+                    const animate = () => {
+                        if (this.isRunning) {
+                            // Update physics
+                            const steps = Math.max(1, Math.floor(this.timeScale));
+                            for (let i = 0; i < steps; i++) {
+                                this.updatePhysics(0.016 / steps);
+                            }
+                            
+                            this.drawSimulation(ctx);
+                            this.updateEnergyDisplay();
+                        }
+                        this.animationId = requestAnimationFrame(animate);
+                    };
+                    
+                    animate();
+                },
+                
+                updatePhysics(dt) {
+                    // Calculate forces between all bodies
+                    const forces = new Array(this.bodies.length);
+                    for (let i = 0; i < this.bodies.length; i++) {
+                        forces[i] = { fx: 0, fy: 0 };
+                    }
+                    
+                    // N^2 force calculation
+                    for (let i = 0; i < this.bodies.length; i++) {
+                        for (let j = i + 1; j < this.bodies.length; j++) {
+                            const body1 = this.bodies[i];
+                            const body2 = this.bodies[j];
+                            
+                            const dx = body2.x - body1.x;
+                            const dy = body2.y - body1.y;
+                            const distance = Math.sqrt(dx * dx + dy * dy);
+                            
+                            // Avoid division by zero
+                            if (distance < 5) continue;
+                            
+                            const force = this.G * body1.mass * body2.mass / (distance * distance);
+                            const fx = force * dx / distance;
+                            const fy = force * dy / distance;
+                            
+                            forces[i].fx += fx;
+                            forces[i].fy += fy;
+                            forces[j].fx -= fx;
+                            forces[j].fy -= fy;
+                        }
+                    }
+                    
+                    // Update velocities and positions
+                    for (let i = 0; i < this.bodies.length; i++) {
+                        const body = this.bodies[i];
+                        const force = forces[i];
+                        
+                        // Update velocity
+                        body.vx += force.fx / body.mass * dt;
+                        body.vy += force.fy / body.mass * dt;
+                        
+                        // Update position
+                        body.x += body.vx * dt * 50;
+                        body.y += body.vy * dt * 50;
+                        
+                        // Add to trail
+                        if (this.showTrails) {
+                            body.trail.push({ x: body.x, y: body.y });
+                            if (body.trail.length > 100) {
+                                body.trail.shift();
+                            }
+                        }
+                    }
+                    
+                    // Update simulation time
+                    this.simulationTime += dt * this.timeScale;
+                    
+                    // Calculate energies
+                    this.calculateEnergies();
+                },
+                
+                calculateEnergies() {
+                    this.kineticEnergy = 0;
+                    this.potentialEnergy = 0;
+                    
+                    // Kinetic energy
+                    for (const body of this.bodies) {
+                        const v2 = body.vx * body.vx + body.vy * body.vy;
+                        this.kineticEnergy += 0.5 * body.mass * v2;
+                    }
+                    
+                    // Potential energy
+                    for (let i = 0; i < this.bodies.length; i++) {
+                        for (let j = i + 1; j < this.bodies.length; j++) {
+                            const body1 = this.bodies[i];
+                            const body2 = this.bodies[j];
+                            
+                            const dx = body2.x - body1.x;
+                            const dy = body2.y - body1.y;
+                            const distance = Math.sqrt(dx * dx + dy * dy);
+                            
+                            if (distance > 10) {
+                                this.potentialEnergy -= this.G * body1.mass * body2.mass / distance;
+                            }
+                        }
+                    }
+                    
+                    this.totalEnergy = this.kineticEnergy + this.potentialEnergy;
+                    
+                    // Update max energy for visualization
+                    this.maxEnergy = Math.max(this.maxEnergy, Math.abs(this.kineticEnergy), 
+                                             Math.abs(this.potentialEnergy), Math.abs(this.totalEnergy));
+                },
+                
+                updateEnergyDisplay() {
+                    // Calculate energy conservation
+                    if (this.energyHistory && this.energyHistory.length > 0) {
+                        const firstEnergy = this.energyHistory[0];
+                        const currentEnergy = this.totalEnergy;
+                        const error = Math.abs((currentEnergy - firstEnergy) / firstEnergy);
+                        this.energyConservation = 1 - Math.min(error, 1);
+                    } else {
+                        this.energyHistory = [this.totalEnergy];
+                    }
+                },
+                
+                drawSimulation(ctx) {
+                    // Clear with space gradient
+                    const gradient = ctx.createRadialGradient(
+                        this.canvasWidth/2, this.canvasHeight/2, 0,
+                        this.canvasWidth/2, this.canvasHeight/2, this.canvasWidth
+                    );
+                    gradient.addColorStop(0, '#000428');
+                    gradient.addColorStop(1, '#004e92');
+                    ctx.fillStyle = gradient;
+                    ctx.fillRect(0, 0, this.canvasWidth, this.canvasHeight);
+                    
+                    // Apply zoom and offset
+                    ctx.save();
+                    ctx.translate(this.offsetX * this.zoom, this.offsetY * this.zoom);
+                    ctx.scale(this.zoom, this.zoom);
+                    
+                    // Draw grid if zoomed in enough
+                    if (this.zoom > 0.5 && this.showGrid) {
+                        this.drawGrid(ctx);
+                    }
+                    
+                    // Draw center marker
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+                    ctx.beginPath();
+                    ctx.arc(0, 0, 3, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    // Draw body trails
+                    if (this.showTrails) {
+                        for (const body of this.bodies) {
+                            this.drawTrail(ctx, body);
+                        }
+                    }
+                    
+                    // Draw bodies
+                    for (const body of this.bodies) {
+                        this.drawBody(ctx, body);
+                    }
+                    
+                    // Draw velocity vectors
+                    if (this.showVectors) {
+                        for (const body of this.bodies) {
+                            this.drawVelocityVector(ctx, body);
+                        }
+                    }
+                    
+                    // Draw selected body highlight
+                    if (this.selectedBody) {
+                        this.drawSelectedHighlight(ctx, this.selectedBody);
+                    }
+                    
+                    ctx.restore();
+                    
+                    // Draw zoom level indicator
+                    this.drawZoomIndicator(ctx);
+                },
+                
+                drawGrid(ctx) {
+                    const gridSize = 50;
+                    const startX = Math.floor(-this.offsetX / gridSize) * gridSize;
+                    const startY = Math.floor(-this.offsetY / gridSize) * gridSize;
+                    const endX = startX + this.canvasWidth / this.zoom + gridSize;
+                    const endY = startY + this.canvasHeight / this.zoom + gridSize;
+                    
+                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+                    ctx.lineWidth = 1;
+                    
+                    for (let x = startX; x < endX; x += gridSize) {
+                        ctx.beginPath();
+                        ctx.moveTo(x, startY);
+                        ctx.lineTo(x, endY);
+                        ctx.stroke();
+                    }
+                    
+                    for (let y = startY; y < endY; y += gridSize) {
+                        ctx.beginPath();
+                        ctx.moveTo(startX, y);
+                        ctx.lineTo(endX, y);
+                        ctx.stroke();
+                    }
+                },
+                
+                drawTrail(ctx, body) {
+                    if (body.trail.length < 2) return;
+                    
+                    // Create gradient trail
+                    ctx.beginPath();
+                    ctx.moveTo(body.trail[0].x, body.trail[0].y);
+                    
+                    for (let i = 1; i < body.trail.length; i++) {
+                        const alpha = i / body.trail.length;
+                        const point = body.trail[i];
+                        
+                        ctx.lineTo(point.x, point.y);
+                        
+                        // Color based on velocity
+                        const speed = Math.sqrt(body.vx**2 + body.vy**2);
+                        const r = Math.min(255, 100 + speed * 50);
+                        const g = Math.min(255, 100);
+                        const b = Math.min(255, 200 - speed * 30);
+                        
+                        ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${alpha * 0.7})`;
+                        ctx.lineWidth = 2;
+                        ctx.stroke();
+                        
+                        ctx.beginPath();
+                        ctx.moveTo(point.x, point.y);
+                    }
+                },
+                
+                drawBody(ctx, body) {
+                    const radius = Math.max(3, Math.log(body.mass + 1) * 5);
+                    const isSelected = body === this.selectedBody;
+                    
+                    // 3D effect with gradient
+                    if (this.use3DEffects) {
+                        const gradient = ctx.createRadialGradient(
+                            body.x - radius/3, body.y - radius/3, 0,
+                            body.x, body.y, radius * 1.5
+                        );
+                        gradient.addColorStop(0, body.color);
+                        gradient.addColorStop(0.6, this.darkenColor(body.color, 0.3));
+                        gradient.addColorStop(1, this.darkenColor(body.color, 0.6));
+                        
+                        ctx.fillStyle = gradient;
+                    } else {
+                        ctx.fillStyle = body.color;
+                    }
+                    
+                    // Draw body
+                    ctx.beginPath();
+                    ctx.arc(body.x, body.y, radius, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    // Add glow for massive bodies
+                    if (body.mass > 1) {
+                        ctx.beginPath();
+                        ctx.arc(body.x, body.y, radius * 2, 0, Math.PI * 2);
+                        const glowGradient = ctx.createRadialGradient(
+                            body.x, body.y, radius,
+                            body.x, body.y, radius * 2
+                        );
+                        glowGradient.addColorStop(0, body.color + '80');
+                        glowGradient.addColorStop(1, body.color + '00');
+                        ctx.fillStyle = glowGradient;
+                        ctx.fill();
+                    }
+                    
+                    // Draw body label for massive bodies
+                    if (body.mass > 0.5) {
+                        ctx.fillStyle = '#ffffff';
+                        ctx.font = '10px Arial';
+                        ctx.textAlign = 'center';
+                        ctx.fillText(body.name, body.x, body.y - radius - 5);
+                    }
+                },
+                
+                drawVelocityVector(ctx, body) {
+                    const speed = Math.sqrt(body.vx * body.vx + body.vy * body.vy);
+                    const scale = 20;
+                    
+                    ctx.beginPath();
+                    ctx.moveTo(body.x, body.y);
+                    ctx.lineTo(body.x + body.vx * scale, body.y + body.vy * scale);
+                    ctx.strokeStyle = '#ffff0080';
+                    ctx.lineWidth = 1.5;
+                    ctx.stroke();
+                    
+                    // Draw arrowhead
+                    const angle = Math.atan2(body.vy, body.vx);
+                    ctx.save();
+                    ctx.translate(body.x + body.vx * scale, body.y + body.vy * scale);
+                    ctx.rotate(angle);
+                    ctx.beginPath();
+                    ctx.moveTo(0, 0);
+                    ctx.lineTo(-4, -2);
+                    ctx.lineTo(-4, 2);
+                    ctx.closePath();
+                    ctx.fillStyle = '#ffff00';
+                    ctx.fill();
+                    ctx.restore();
+                },
+                
+                drawSelectedHighlight(ctx, body) {
+                    const radius = Math.max(3, Math.log(body.mass + 1) * 5);
+                    
+                    // Pulsing highlight
+                    const pulse = (Math.sin(this.simulationTime * 3) + 1) * 0.5;
+                    
+                    ctx.beginPath();
+                    ctx.arc(body.x, body.y, radius + 5 + pulse * 3, 0, Math.PI * 2);
+                    ctx.strokeStyle = '#00c6ff';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                    
+                    // Draw connection lines to other bodies
+                    for (const otherBody of this.bodies) {
+                        if (otherBody !== body) {
+                            ctx.beginPath();
+                            ctx.moveTo(body.x, body.y);
+                            ctx.lineTo(otherBody.x, otherBody.y);
+                            ctx.strokeStyle = 'rgba(0, 198, 255, 0.2)';
+                            ctx.lineWidth = 1;
+                            ctx.stroke();
+                        }
+                    }
+                },
+                
+                drawZoomIndicator(ctx) {
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                    ctx.fillRect(10, this.canvasHeight - 30, 100, 20);
+                    
+                    ctx.fillStyle = '#00c6ff';
+                    ctx.font = '12px Arial';
+                    ctx.textAlign = 'left';
+                    ctx.fillText(`Zoom: ${this.zoom.toFixed(1)}x`, 15, this.canvasHeight - 15);
+                },
+                
+                // Color utilities
+                darkenColor(color, amount) {
+                    const hex = color.replace('#', '');
+                    let r = parseInt(hex.substr(0, 2), 16);
+                    let g = parseInt(hex.substr(2, 2), 16);
+                    let b = parseInt(hex.substr(4, 2), 16);
+                    
+                    r = Math.floor(r * (1 - amount));
+                    g = Math.floor(g * (1 - amount));
+                    b = Math.floor(b * (1 - amount));
+                    
+                    return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+                },
+                
+                // Preset systems
+                loadBinarySystem() {
+                    this.currentPreset = 'binary';
+                    this.bodies = [];
+                    
+                    // Two stars in binary orbit
+                    this.addBody(300, 300, 0, -1.2, 3.0, '#ff6b6b', 'Star A');
+                    this.addBody(500, 300, 0, 0.8, 2.5, '#4ecdc4', 'Star B');
+                    // Planet with elliptical orbit
+                    this.addBody(700, 300, 0, -0.9, 0.3, '#ffe66d', 'Planet');
+                    
+                    this.resetView();
+                },
+                
+                loadChaoticSystem() {
+                    this.currentPreset = 'chaotic';
+                    this.bodies = [];
+                    
+                    // Chaotic N-body system
+                    for (let i = 0; i < 6; i++) {
+                        const angle = (i * Math.PI * 2) / 6;
+                        const distance = 150 + Math.random() * 100;
+                        const x = 400 + Math.cos(angle) * distance;
+                        const y = 300 + Math.sin(angle) * distance;
+                        const vx = Math.sin(angle) * (0.3 + Math.random() * 0.4);
+                        const vy = -Math.cos(angle) * (0.3 + Math.random() * 0.4);
+                        const mass = 0.3 + Math.random() * 1.2;
+                        const color = this.getRandomColor();
+                        
+                        this.addBody(x, y, vx, vy, mass, color, `Body ${i+1}`);
+                    }
+                    
+                    this.resetView();
+                },
+                
+                loadHighlyElliptical() {
+                    this.currentPreset = 'elliptical';
+                    this.bodies = [];
+                    
+                    // Central massive body
+                    this.addBody(400, 300, 0, 0, 4.0, '#ffff00', 'Sun');
+                    
+                    // Highly elliptical orbits
+                    this.addBody(600, 300, 0, -1.0, 0.2, '#ff6b6b', 'Comet A');
+                    this.addBody(200, 300, 0, 1.2, 0.25, '#4ecdc4', 'Comet B');
+                    this.addBody(400, 100, 0.9, 0, 0.15, '#ffe66d', 'Comet C');
+                    this.addBody(400, 500, -0.7, 0, 0.18, '#9d4edd', 'Comet D');
+                    
+                    this.resetView();
+                },
+                
+                loadSolarSystem() {
+                    this.currentPreset = 'solar';
+                    this.bodies = [];
+                    
+                    // Sun
+                    this.addBody(400, 300, 0, 0, 5.0, '#ffff00', 'Sun');
+                    
+                    // Planets
+                    const planets = [
+                        { distance: 80, speed: 1.0, mass: 0.1, color: '#ff9999', name: 'Mercury' },
+                        { distance: 120, speed: 0.8, mass: 0.15, color: '#ffcc99', name: 'Venus' },
+                        { distance: 160, speed: 0.7, mass: 0.2, color: '#99ccff', name: 'Earth' },
+                        { distance: 200, speed: 0.6, mass: 0.12, color: '#ff6666', name: 'Mars' },
+                        { distance: 280, speed: 0.4, mass: 2.0, color: '#ff9966', name: 'Jupiter' },
+                    ];
+                    
+                    for (const planet of planets) {
+                        const x = 400 + planet.distance;
+                        const y = 300;
+                        const vx = 0;
+                        const vy = -planet.speed;
+                        
+                        this.addBody(x, y, vx, vy, planet.mass, planet.color, planet.name);
+                    }
+                    
+                    this.resetView();
+                },
+                
+                loadTripleSystem() {
+                    this.currentPreset = 'triple';
+                    this.bodies = [];
+                    
+                    // Three-body system
+                    this.addBody(350, 300, 0.4, -0.5, 2.0, '#ff6b6b', 'Star A');
+                    this.addBody(450, 300, -0.3, 0.4, 1.8, '#4ecdc4', 'Star B');
+                    this.addBody(400, 400, 0.6, 0, 1.5, '#9d4edd', 'Star C');
+                    
+                    this.resetView();
+                },
+                
+                loadFigure8() {
+                    this.currentPreset = 'figure8';
+                    this.bodies = [];
+                    
+                    // Figure-8 three-body solution
+                    this.addBody(400 - 70, 300, 0.347111, 0.532728, 1.0, '#ff6b6b', 'Body A');
+                    this.addBody(400 + 70, 300, 0.347111, 0.532728, 1.0, '#4ecdc4', 'Body B');
+                    this.addBody(400, 300 + 121.2, -0.694222, 0, 1.0, '#ffe66d', 'Body C');
+                    
+                    this.resetView();
+                },
+                
+                // Body management
+                addBody(x, y, vx = 0, vy = 0, mass = 1, color = null, name = null) {
+                    const body = {
+                        id: Date.now() + Math.random(),
+                        x, y, vx, vy, mass,
+                        color: color || this.getRandomColor(),
+                        name: name || `Body ${this.bodies.length + 1}`,
+                        trail: []
+                    };
+                    
+                    this.bodies.push(body);
+                    this.selectBody(body);
+                    
+                    // Visual feedback
+                    this.showPulseEffect(x, y, body.color);
+                },
+                
+                addBodyAtCenter() {
+                    const x = -this.offsetX + this.canvasWidth / (2 * this.zoom);
+                    const y = -this.offsetY + this.canvasHeight / (2 * this.zoom);
+                    this.addBody(x, y, 0, 0, 1);
+                },
+                
+                addRandomBody() {
+                    const x = -this.offsetX + Math.random() * this.canvasWidth / this.zoom;
+                    const y = -this.offsetY + Math.random() * this.canvasHeight / this.zoom;
+                    const vx = (Math.random() - 0.5) * 1.5;
+                    const vy = (Math.random() - 0.5) * 1.5;
+                    const mass = 0.5 + Math.random() * 2;
+                    
+                    this.addBody(x, y, vx, vy, mass);
+                },
+                
+                showPulseEffect(x, y, color) {
+                    // Visual pulse effect for new body
+                    const canvas = document.getElementById('simulationCanvas');
+                    const ctx = canvas.getContext('2d');
+                    
+                    let radius = 0;
+                    const maxRadius = 50;
+                    
+                    const animatePulse = () => {
+                        radius += 2;
+                        ctx.save();
+                        ctx.translate(this.offsetX * this.zoom, this.offsetY * this.zoom);
+                        ctx.scale(this.zoom, this.zoom);
+                        
+                        ctx.beginPath();
+                        ctx.arc(x, y, radius, 0, Math.PI * 2);
+                        ctx.strokeStyle = color + Math.floor((1 - radius/maxRadius) * 255).toString(16).padStart(2, '0');
+                        ctx.lineWidth = 2;
+                        ctx.stroke();
+                        
+                        ctx.restore();
+                        
+                        if (radius < maxRadius) {
+                            requestAnimationFrame(animatePulse);
+                        }
+                    };
+                    
+                    animatePulse();
+                },
+                
+                selectBody(body) {
+                    this.selectedBody = body;
+                },
+                
+                updateSelectedBody() {
+                    // Body mass updated via x-model
+                },
+                
+                updateGravityConstant() {
+                    this.G = Math.pow(10, this.logG);
+                },
+                
+                getRandomColor() {
+                    const colors = ['#ff6b6b', '#4ecdc4', '#ffe66d', '#9d4edd', '#00c6ff', '#ff8a00'];
+                    return colors[Math.floor(Math.random() * colors.length)];
+                },
+                
+                formatEnergy(value) {
+                    if (Math.abs(value) < 1e3) return value.toFixed(2);
+                    if (Math.abs(value) < 1e6) return (value/1e3).toFixed(1) + 'K';
+                    if (Math.abs(value) < 1e9) return (value/1e6).toFixed(1) + 'M';
+                    return (value/1e9).toFixed(1) + 'B';
+                },
+                
+                // View controls
+                zoomIn() {
+                    this.zoom = Math.min(5, this.zoom * 1.2);
+                },
+                
+                zoomOut() {
+                    this.zoom = Math.max(0.1, this.zoom / 1.2);
+                },
+                
+                resetView() {
+                    this.zoom = 1.0;
+                    this.offsetX = 0;
+                    this.offsetY = 0;
+                    this.resetSimulation();
+                },
+                
+                // Simulation controls
+                toggleSimulation() {
+                    this.isRunning = !this.isRunning;
+                },
+                
+                resetSimulation() {
+                    this.simulationTime = 0;
+                    this.energyHistory = [];
+                    
+                    for (const body of this.bodies) {
+                        body.trail = [];
+                    }
+                },
+                
+                clearTrails() {
+                    for (const body of this.bodies) {
+                        body.trail = [];
+                    }
+                }
+            };
+        }
+    </script>
+</body>
+</html>

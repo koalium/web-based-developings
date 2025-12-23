@@ -1,0 +1,1051 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Passive Radar - Aircraft & Drone Tracking</title>
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --secondary: #7c3aed;
+            --danger: #dc2626;
+            --success: #16a34a;
+            --warning: #d97706;
+            --info: #0ea5e9;
+            --bg: #0f172a;
+            --card-bg: #1e293b;
+            --text: #f8fafc;
+            --grid: rgba(255, 255, 255, 0.1);
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, var(--bg) 0%, #1e1b4b 100%);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 10px;
+        }
+        
+        .container {
+            max-width: 95vw;
+            margin: 0 auto;
+        }
+        
+        /* Enhanced 3D Airspace */
+        .airspace-3d {
+            width: 100%;
+            height: 600px;
+            background: 
+                radial-gradient(circle at 20% 20%, rgba(37, 99, 235, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 80% 80%, rgba(124, 58, 237, 0.1) 0%, transparent 50%),
+                linear-gradient(0deg, rgba(0, 0, 0, 0.8) 0%, transparent 100%);
+            border-radius: 20px;
+            position: relative;
+            overflow: hidden;
+            border: 2px solid var(--grid);
+            margin-bottom: 25px;
+            perspective: 1000px;
+        }
+        
+        .sky-grid {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                linear-gradient(var(--grid) 1px, transparent 1px),
+                linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+            background-size: 100px 100px;
+            opacity: 0.3;
+            transform-style: preserve-3d;
+        }
+        
+        .altitude-layers {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+        }
+        
+        .altitude-layer {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border: 1px dashed rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            transform-style: preserve-3d;
+        }
+        
+        /* Radar Antenna Array */
+        .radar-array {
+            position: absolute;
+            bottom: 50px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            gap: 8px;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            border-radius: 15px;
+            border: 2px solid var(--primary);
+            backdrop-filter: blur(10px);
+            z-index: 10;
+        }
+        
+        .antenna-element {
+            width: 16px;
+            height: 16px;
+            background: var(--primary);
+            border-radius: 50%;
+            transition: all 0.3s ease;
+            box-shadow: 0 0 15px var(--primary);
+            position: relative;
+        }
+        
+        .antenna-element.active {
+            background: var(--success);
+            box-shadow: 0 0 25px var(--success);
+            animation: antennaPulse 1.5s infinite;
+        }
+        
+        @keyframes antennaPulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.3); opacity: 0.7; }
+        }
+        
+        /* Aircraft & Drone Visualization */
+        .aircraft {
+            position: absolute;
+            width: 80px;
+            height: 40px;
+            transition: all 2s ease-in-out;
+            filter: drop-shadow(0 5px 15px rgba(0, 0, 0, 0.7));
+            z-index: 5;
+        }
+        
+        .aircraft-body {
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+        
+        .aircraft-fuselage {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 60px;
+            height: 20px;
+            background: currentColor;
+            border-radius: 10px;
+        }
+        
+        .aircraft-wings {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80px;
+            height: 8px;
+            background: currentColor;
+            border-radius: 4px;
+        }
+        
+        .aircraft-tail {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 15px;
+            height: 25px;
+            background: currentColor;
+            border-radius: 3px;
+        }
+        
+        .drone {
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            transition: all 1.5s ease-in-out;
+            filter: drop-shadow(0 3px 10px rgba(0, 0, 0, 0.5));
+            z-index: 4;
+        }
+        
+        .drone-body {
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+        
+        .drone-center {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 20px;
+            height: 20px;
+            background: currentColor;
+            border-radius: 50%;
+        }
+        
+        .drone-rotor {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            background: currentColor;
+            border-radius: 50%;
+            animation: rotorSpin 0.5s linear infinite;
+        }
+        
+        @keyframes rotorSpin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        
+        /* Tracking Elements */
+        .tracking-line {
+            position: absolute;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, currentColor, transparent);
+            transform-origin: left center;
+            pointer-events: none;
+            opacity: 0.6;
+        }
+        
+        .tracking-dot {
+            position: absolute;
+            width: 6px;
+            height: 6px;
+            background: currentColor;
+            border-radius: 50%;
+            animation: dotPulse 2s infinite;
+        }
+        
+        @keyframes dotPulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.5); opacity: 0.5; }
+        }
+        
+        /* Signal Propagation */
+        .signal-wave {
+            position: absolute;
+            border: 1px solid;
+            border-radius: 50%;
+            opacity: 0;
+            animation: waveExpand 3s linear infinite;
+        }
+        
+        @keyframes waveExpand {
+            to {
+                transform: scale(8);
+                opacity: 0;
+            }
+        }
+        
+        /* Enhanced Dashboard */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 20px;
+            margin-bottom: 25px;
+        }
+        
+        .card {
+            background: var(--card-bg);
+            border-radius: 20px;
+            padding: 25px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--grid);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+        }
+        
+        /* Tracking Information Panels */
+        .target-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .target-card {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 15px;
+            border-radius: 10px;
+            border-left: 4px solid;
+            transition: all 0.3s ease;
+        }
+        
+        .target-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.4);
+        }
+        
+        .target-header {
+            display: flex;
+            justify-content: between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .target-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            font-size: 0.9rem;
+        }
+        
+        .stat-item {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .stat-label {
+            opacity: 0.7;
+            font-size: 0.8rem;
+        }
+        
+        .stat-value {
+            font-weight: bold;
+            font-size: 1.1rem;
+        }
+        
+        /* Control Panel */
+        .control-panel {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            padding: 20px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 15px;
+            margin: 20px 0;
+        }
+        
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 10px;
+            background: var(--primary);
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(37, 99, 235, 0.4);
+        }
+        
+        .btn-success { background: var(--success); }
+        .btn-danger { background: var(--danger); }
+        .btn-warning { background: var(--warning); }
+        
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .airspace-3d {
+                height: 400px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container" x-data="aircraftTrackingRadar()">
+        <!-- Header -->
+        <header class="main-header">
+            <h1>Passive Radar - Aircraft & Drone Tracking</h1>
+            <p class="subtitle">Real-time Air Target Detection using Wi-Fi Signals • 8×8 Phased Array</p>
+            
+            <div class="system-status">
+                <div class="status-indicators">
+                    <span class="status-item active">Radar: Online</span>
+                    <span class="status-item active">Tracking: <span x-text="trackedTargets.length"></span> targets</span>
+                    <span class="status-item" x-text="`Range: ${maxDetectionRange} km`"></span>
+                    <span class="status-item" x-text="`Update Rate: ${updateRate} Hz`"></span>
+                </div>
+            </div>
+        </header>
+
+        <!-- 3D Airspace Visualization -->
+        <div class="airspace-3d">
+            <div class="sky-grid"></div>
+            
+            <!-- Altitude Layers -->
+            <div class="altitude-layers">
+                <div class="altitude-layer" style="bottom: 20%; width: 80%; height: 80%;"></div>
+                <div class="altitude-layer" style="bottom: 40%; width: 60%; height: 60%;"></div>
+                <div class="altitude-layer" style="bottom: 60%; width: 40%; height: 40%;"></div>
+                <div class="altitude-layer" style="bottom: 80%; width: 20%; height: 20%;"></div>
+            </div>
+            
+            <!-- Radar Array -->
+            <div class="radar-array">
+                <template x-for="(row, i) in antennaArray" :key="i">
+                    <template x-for="(antenna, j) in row" :key="j">
+                        <div class="antenna-element" :class="{'active': antenna.active}"></div>
+                    </template>
+                </template>
+            </div>
+            
+            <!-- Aircraft & Drones -->
+            <template x-for="target in trackedTargets" :key="target.id">
+                <!-- Target Visualization -->
+                <div class="aircraft" x-show="target.type === 'aircraft'" 
+                     :style="`left: ${target.position.x}%; top: ${target.position.y}%; color: ${target.color}; transform: rotate(${target.heading}deg)`">
+                    <div class="aircraft-body">
+                        <div class="aircraft-fuselage"></div>
+                        <div class="aircraft-wings"></div>
+                        <div class="aircraft-tail"></div>
+                    </div>
+                </div>
+                
+                <div class="drone" x-show="target.type === 'drone'" 
+                     :style="`left: ${target.position.x}%; top: ${target.position.y}%; color: ${target.color};`">
+                    <div class="drone-body">
+                        <div class="drone-center"></div>
+                        <div class="drone-rotor" style="top: 5px; left: 5px;"></div>
+                        <div class="drone-rotor" style="top: 5px; right: 5px;"></div>
+                        <div class="drone-rotor" style="bottom: 5px; left: 5px;"></div>
+                        <div class="drone-rotor" style="bottom: 5px; right: 5px;"></div>
+                    </div>
+                </div>
+                
+                <!-- Tracking Lines -->
+                <div class="tracking-line" 
+                     :style="`
+                         left: 50%; 
+                         top: 50%; 
+                         width: ${calculateLineLength(target)}px; 
+                         transform: rotate(${calculateLineAngle(target)}deg);
+                         color: ${target.color};
+                     `">
+                </div>
+                
+                <!-- Tracking Dot -->
+                <div class="tracking-dot" 
+                     :style="`
+                         left: ${target.position.x}%; 
+                         top: ${target.position.y}%; 
+                         color: ${target.color};
+                     `">
+                </div>
+                
+                <!-- Signal Waves -->
+                <div class="signal-wave" 
+                     :style="`
+                         left: ${target.position.x}%; 
+                         top: ${target.position.y}%; 
+                         width: 20px; 
+                         height: 20px; 
+                         border-color: ${target.color};
+                         animation-delay: ${target.id * 0.5}s;
+                     `">
+                </div>
+                
+                <!-- Target Information Label -->
+                <div class="target-label" 
+                     :style="`
+                         left: ${target.position.x + 2}%; 
+                         top: ${target.position.y - 5}%; 
+                         color: ${target.color};
+                     `">
+                    <strong x-text="target.id"></strong>
+                    <br>
+                    <small x-text="`${target.altitude}m • ${target.speed}km/h`"></small>
+                </div>
+            </template>
+        </div>
+
+        <!-- Control Panel -->
+        <div class="control-panel">
+            <div class="control-group">
+                <button class="btn" @click="startTracking">Start Tracking</button>
+                <button class="btn btn-warning" @click="stopTracking">Pause System</button>
+            </div>
+            
+            <div class="control-group">
+                <button class="btn btn-success" @click="addAircraft">Add Aircraft</button>
+                <button class="btn btn-success" @click="addDrone">Add Drone</button>
+                <button class="btn btn-danger" @click="simulateThreat">Simulate Threat</button>
+            </div>
+            
+            <div class="control-group">
+                <label>Detection Range</label>
+                <input type="range" min="1" max="50" x-model="maxDetectionRange">
+                <span x-text="`${maxDetectionRange} km`"></span>
+            </div>
+            
+            <div class="control-group">
+                <label>Signal Sensitivity</label>
+                <input type="range" min="1" max="100" x-model="signalSensitivity">
+                <span x-text="`${signalSensitivity}%`"></span>
+            </div>
+        </div>
+
+        <!-- Tracking Information Dashboard -->
+        <div class="dashboard-grid">
+            <!-- Active Targets -->
+            <div class="card">
+                <div class="card-header">
+                    <h3>Active Target Tracking</h3>
+                    <div class="target-count" x-text="`${trackedTargets.length} targets`"></div>
+                </div>
+                <div class="target-info">
+                    <template x-for="target in trackedTargets" :key="target.id">
+                        <div class="target-card" :style="`border-left-color: ${target.color};`">
+                            <div class="target-header">
+                                <strong x-text="target.id"></strong>
+                                <span class="target-type" x-text="target.type" 
+                                      :style="`color: ${target.color};`"></span>
+                            </div>
+                            <div class="target-stats">
+                                <div class="stat-item">
+                                    <span class="stat-label">Altitude</span>
+                                    <span class="stat-value" x-text="`${target.altitude}m`"></span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-label">Speed</span>
+                                    <span class="stat-value" x-text="`${target.speed}km/h`"></span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-label">Heading</span>
+                                    <span class="stat-value" x-text="`${target.heading}°`"></span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-label">SNR</span>
+                                    <span class="stat-value" x-text="`${target.snr}dB`"></span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-label">Distance</span>
+                                    <span class="stat-value" x-text="`${target.distance}km`"></span>
+                                </div>
+                                <div class="stat-item">
+                                    <span class="stat-label">Threat Level</span>
+                                    <span class="stat-value" :style="`color: ${getThreatColor(target.threatLevel)}`"
+                                          x-text="target.threatLevel"></span>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+            <!-- Radar Performance -->
+            <div class="card">
+                <div class="card-header">
+                    <h3>Radar Performance Metrics</h3>
+                    <div class="performance-status" x-text="performanceStatus"></div>
+                </div>
+                <div class="performance-metrics">
+                    <div class="metric-grid">
+                        <div class="metric-item">
+                            <span class="metric-label">Detection Probability</span>
+                            <div class="metric-value" x-text="`${detectionProbability}%`"></div>
+                            <div class="metric-bar">
+                                <div class="metric-fill" :style="`width: ${detectionProbability}%`"></div>
+                            </div>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-label">False Alarm Rate</span>
+                            <div class="metric-value" x-text="`${falseAlarmRate}%`"></div>
+                            <div class="metric-bar">
+                                <div class="metric-fill false-alarm" :style="`width: ${falseAlarmRate}%`"></div>
+                            </div>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-label">Track Accuracy</span>
+                            <div class="metric-value" x-text="`${trackAccuracy}%`"></div>
+                            <div class="metric-bar">
+                                <div class="metric-fill" :style="`width: ${trackAccuracy}%`"></div>
+                            </div>
+                        </div>
+                        <div class="metric-item">
+                            <span class="metric-label">Signal Quality</span>
+                            <div class="metric-value" x-text="`${signalQuality}%`"></div>
+                            <div class="metric-bar">
+                                <div class="metric-fill" :style="`width: ${signalQuality}%`"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Advanced Tracking Analytics -->
+        <div class="dashboard-grid">
+            <!-- Signal Processing -->
+            <div class="card">
+                <div class="card-header">
+                    <h3>Signal Processing & DOA Analysis</h3>
+                </div>
+                <div class="signal-analysis">
+                    <canvas id="doaSpectrum"></canvas>
+                </div>
+            </div>
+
+            <!-- Threat Assessment -->
+            <div class="card">
+                <div class="card-header">
+                    <h3>Threat Assessment & Classification</h3>
+                </div>
+                <div class="threat-assessment">
+                    <div class="threat-matrix">
+                        <template x-for="threat in threatAssessments" :key="threat.id">
+                            <div class="threat-item" :class="`level-${threat.level}`">
+                                <div class="threat-header">
+                                    <span x-text="threat.targetId"></span>
+                                    <span class="threat-level" x-text="`Level ${threat.level}`"></span>
+                                </div>
+                                <div class="threat-metrics">
+                                    <span x-text="threat.classification"></span>
+                                    <span x-text="threat.confidence"></span>
+                                </div>
+                                <div class="threat-timeline">
+                                    <span x-text="threat.duration"></span>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Alert System -->
+        <template x-if="activeAlerts.length > 0">
+            <div class="alert-panel">
+                <div class="alert-header">
+                    <h3>Active Alerts</h3>
+                    <span class="alert-count" x-text="activeAlerts.length"></span>
+                </div>
+                <div class="alert-list">
+                    <template x-for="alert in activeAlerts" :key="alert.id">
+                        <div class="alert-item" :class="`severity-${alert.severity}`">
+                            <div class="alert-icon">🚨</div>
+                            <div class="alert-content">
+                                <div class="alert-title" x-text="alert.title"></div>
+                                <div class="alert-description" x-text="alert.description"></div>
+                                <div class="alert-target" x-text="alert.targetId"></div>
+                            </div>
+                            <div class="alert-timestamp" x-text="alert.timestamp"></div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </template>
+    </div>
+
+    <script>
+        function aircraftTrackingRadar() {
+            return {
+                // System State
+                isTracking: false,
+                trackingInterval: null,
+                maxDetectionRange: 25,
+                signalSensitivity: 85,
+                updateRate: 2,
+                
+                // Antenna Array
+                antennaArray: [],
+                
+                // Tracked Targets
+                trackedTargets: [
+                    {
+                        id: 'AC-001',
+                        type: 'aircraft',
+                        position: { x: 30, y: 25 },
+                        altitude: 3000,
+                        speed: 450,
+                        heading: 45,
+                        distance: 12.5,
+                        snr: 24.5,
+                        threatLevel: 'Low',
+                        color: '#3b82f6',
+                        trackHistory: []
+                    },
+                    {
+                        id: 'DR-001',
+                        type: 'drone',
+                        position: { x: 60, y: 40 },
+                        altitude: 150,
+                        speed: 35,
+                        heading: 120,
+                        distance: 3.2,
+                        snr: 18.2,
+                        threatLevel: 'Medium',
+                        color: '#10b981',
+                        trackHistory: []
+                    },
+                    {
+                        id: 'AC-002',
+                        type: 'aircraft',
+                        position: { x: 75, y: 15 },
+                        altitude: 5000,
+                        speed: 520,
+                        heading: 290,
+                        distance: 18.7,
+                        snr: 21.8,
+                        threatLevel: 'Low',
+                        color: '#8b5cf6',
+                        trackHistory: []
+                    }
+                ],
+                
+                // Performance Metrics
+                performanceStatus: 'Optimal',
+                detectionProbability: 92,
+                falseAlarmRate: 2.5,
+                trackAccuracy: 88,
+                signalQuality: 94,
+                
+                // Threat Assessment
+                threatAssessments: [
+                    {
+                        id: 1,
+                        targetId: 'DR-001',
+                        level: 2,
+                        classification: 'Commercial Drone',
+                        confidence: '85%',
+                        duration: '12:45'
+                    }
+                ],
+                
+                // Alert System
+                activeAlerts: [],
+                
+                init() {
+                    this.initializeAntennaArray();
+                    this.initializeCharts();
+                    this.startTracking();
+                },
+                
+                initializeAntennaArray() {
+                    for (let i = 0; i < 8; i++) {
+                        let row = [];
+                        for (let j = 0; j < 8; j++) {
+                            row.push({
+                                active: Math.random() > 0.3,
+                                phase: Math.random() * Math.PI * 2,
+                                beamDirection: Math.random() * 360
+                            });
+                        }
+                        this.antennaArray.push(row);
+                    }
+                },
+                
+                initializeCharts() {
+                    // DOA Spectrum Chart
+                    const doaCtx = document.getElementById('doaSpectrum').getContext('2d');
+                    this.doaChart = new Chart(doaCtx, {
+                        type: 'polarArea',
+                        data: {
+                            labels: ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'],
+                            datasets: [{
+                                data: [65, 59, 90, 81, 56, 55, 40, 70],
+                                backgroundColor: [
+                                    '#3b82f6', '#8b5cf6', '#10b981', '#f59e0b',
+                                    '#ef4444', '#ec4899', '#0ea5e9', '#d97706'
+                                ]
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            scales: {
+                                r: {
+                                    beginAtZero: true
+                                }
+                            }
+                        }
+                    });
+                },
+                
+                startTracking() {
+                    this.isTracking = true;
+                    
+                    this.trackingInterval = setInterval(() => {
+                        this.updateAntennaActivity();
+                        this.updateTargetPositions();
+                        this.updatePerformanceMetrics();
+                        this.checkForThreats();
+                        this.updateCharts();
+                    }, 500);
+                },
+                
+                stopTracking() {
+                    this.isTracking = false;
+                    clearInterval(this.trackingInterval);
+                },
+                
+                updateAntennaActivity() {
+                    this.antennaArray.forEach(row => {
+                        row.forEach(antenna => {
+                            antenna.active = Math.random() > 0.4;
+                            antenna.phase += (Math.random() - 0.5) * 0.3;
+                            antenna.beamDirection = (antenna.beamDirection + Math.random() * 10) % 360;
+                        });
+                    });
+                },
+                
+                updateTargetPositions() {
+                    this.trackedTargets.forEach(target => {
+                        // Store current position in history
+                        target.trackHistory.unshift({
+                            x: target.position.x,
+                            y: target.position.y,
+                            timestamp: Date.now()
+                        });
+                        
+                        // Keep only recent history
+                        if (target.trackHistory.length > 20) {
+                            target.trackHistory = target.trackHistory.slice(0, 20);
+                        }
+                        
+                        // Update position based on type
+                        if (target.type === 'aircraft') {
+                            this.updateAircraftPosition(target);
+                        } else {
+                            this.updateDronePosition(target);
+                        }
+                        
+                        // Update other metrics
+                        target.distance = this.calculateDistance(target.position);
+                        target.snr = 15 + Math.random() * 15;
+                        target.speed += (Math.random() - 0.5) * 10;
+                        target.speed = Math.max(0, target.speed);
+                    });
+                },
+                
+                updateAircraftPosition(target) {
+                    // Aircraft move in more linear paths
+                    target.position.x += Math.cos(target.heading * Math.PI / 180) * 0.5;
+                    target.position.y += Math.sin(target.heading * Math.PI / 180) * 0.3;
+                    
+                    // Occasionally change heading
+                    if (Math.random() < 0.02) {
+                        target.heading = (target.heading + (Math.random() - 0.5) * 30) % 360;
+                    }
+                    
+                    // Keep within bounds
+                    target.position.x = (target.position.x + 100) % 100;
+                    target.position.y = Math.max(5, Math.min(95, target.position.y));
+                },
+                
+                updateDronePosition(target) {
+                    // Drones move more erratically
+                    target.position.x += (Math.random() - 0.5) * 1.5;
+                    target.position.y += (Math.random() - 0.5) * 1.2;
+                    
+                    // Update heading based on movement
+                    const dx = target.position.x - (target.trackHistory[1]?.x || target.position.x);
+                    const dy = target.position.y - (target.trackHistory[1]?.y || target.position.y);
+                    target.heading = (Math.atan2(dy, dx) * 180 / Math.PI + 360) % 360;
+                    
+                    // Keep within bounds
+                    target.position.x = Math.max(5, Math.min(95, target.position.x));
+                    target.position.y = Math.max(10, Math.min(90, target.position.y));
+                },
+                
+                calculateDistance(position) {
+                    // Simplified distance calculation from center
+                    const dx = position.x - 50;
+                    const dy = position.y - 50;
+                    return Math.sqrt(dx * dx + dy * dy) * this.maxDetectionRange / 50;
+                },
+                
+                calculateLineLength(target) {
+                    const dx = target.position.x - 50;
+                    const dy = target.position.y - 50;
+                    return Math.sqrt(dx * dx + dy * dy) * 10;
+                },
+                
+                calculateLineAngle(target) {
+                    const dx = target.position.x - 50;
+                    const dy = target.position.y - 50;
+                    return Math.atan2(dy, dx) * 180 / Math.PI;
+                },
+                
+                updatePerformanceMetrics() {
+                    // Update metrics based on current tracking state
+                    this.detectionProbability = Math.max(70, Math.min(98,
+                        this.detectionProbability + (Math.random() - 0.5) * 2));
+                    
+                    this.falseAlarmRate = Math.max(0.5, Math.min(8,
+                        this.falseAlarmRate + (Math.random() - 0.5) * 0.5));
+                    
+                    this.trackAccuracy = Math.max(75, Math.min(95,
+                        this.trackAccuracy + (Math.random() - 0.5) * 1.5));
+                    
+                    this.signalQuality = Math.max(80, Math.min(98,
+                        this.signalQuality + (Math.random() - 0.5) * 2));
+                    
+                    // Update performance status
+                    if (this.detectionProbability > 90 && this.falseAlarmRate < 3) {
+                        this.performanceStatus = 'Optimal';
+                    } else if (this.detectionProbability > 80 && this.falseAlarmRate < 5) {
+                        this.performanceStatus = 'Good';
+                    } else {
+                        this.performanceStatus = 'Degraded';
+                    }
+                },
+                
+                checkForThreats() {
+                    this.trackedTargets.forEach(target => {
+                        // Check for low altitude (potential threat)
+                        if (target.altitude < 200 && target.type === 'aircraft') {
+                            this.triggerAlert(target, 'Low Altitude Alert', 
+                                `Aircraft flying at critically low altitude: ${target.altitude}m`, 'high');
+                            target.threatLevel = 'High';
+                        }
+                        
+                        // Check for high speed drones
+                        if (target.type === 'drone' && target.speed > 50) {
+                            this.triggerAlert(target, 'High Speed Drone', 
+                                `Drone moving at high speed: ${target.speed}km/h`, 'medium');
+                            target.threatLevel = 'High';
+                        }
+                        
+                        // Check for proximity to restricted areas
+                        if (target.position.x > 70 && target.position.y < 30) {
+                            this.triggerAlert(target, 'Restricted Airspace', 
+                                'Target approaching restricted airspace', 'medium');
+                        }
+                    });
+                },
+                
+                triggerAlert(target, title, description, severity) {
+                    const existingAlert = this.activeAlerts.find(alert => 
+                        alert.targetId === target.id && alert.title === title);
+                    
+                    if (!existingAlert) {
+                        this.activeAlerts.push({
+                            id: Date.now(),
+                            targetId: target.id,
+                            title: title,
+                            description: description,
+                            severity: severity,
+                            timestamp: new Date().toLocaleTimeString()
+                        });
+                    }
+                },
+                
+                updateCharts() {
+                    if (this.doaChart) {
+                        // Update DOA chart with random data for demonstration
+                        this.doaChart.data.datasets[0].data = 
+                            Array.from({length: 8}, () => 30 + Math.random() * 70);
+                        this.doaChart.update('none');
+                    }
+                },
+                
+                addAircraft() {
+                    const colors = ['#3b82f6', '#8b5cf6', '#0ea5e9', '#6366f1'];
+                    const newAircraft = {
+                        id: `AC-${String(this.trackedTargets.length + 1).padStart(3, '0')}`,
+                        type: 'aircraft',
+                        position: {
+                            x: Math.random() * 60 + 20,
+                            y: Math.random() * 40 + 10
+                        },
+                        altitude: Math.floor(Math.random() * 4000) + 1000,
+                        speed: Math.floor(Math.random() * 300) + 200,
+                        heading: Math.random() * 360,
+                        distance: 0,
+                        snr: 15 + Math.random() * 15,
+                        threatLevel: 'Low',
+                        color: colors[this.trackedTargets.length % colors.length],
+                        trackHistory: []
+                    };
+                    newAircraft.distance = this.calculateDistance(newAircraft.position);
+                    this.trackedTargets.push(newAircraft);
+                },
+                
+                addDrone() {
+                    const colors = ['#10b981', '#84cc16', '#22c55e', '#16a34a'];
+                    const newDrone = {
+                        id: `DR-${String(this.trackedTargets.length + 1).padStart(3, '0')}`,
+                        type: 'drone',
+                        position: {
+                            x: Math.random() * 70 + 15,
+                            y: Math.random() * 60 + 20
+                        },
+                        altitude: Math.floor(Math.random() * 200) + 50,
+                        speed: Math.floor(Math.random() * 30) + 10,
+                        heading: Math.random() * 360,
+                        distance: 0,
+                        snr: 10 + Math.random() * 10,
+                        threatLevel: 'Medium',
+                        color: colors[this.trackedTargets.length % colors.length],
+                        trackHistory: []
+                    };
+                    newDrone.distance = this.calculateDistance(newDrone.position);
+                    this.trackedTargets.push(newDrone);
+                },
+                
+                simulateThreat() {
+                    const colors = ['#ef4444', '#dc2626', '#991b1b'];
+                    const threatTypes = ['UAV', 'UAS', 'Unknown'];
+                    
+                    const threat = {
+                        id: `TH-${Date.now().toString().slice(-3)}`,
+                        type: 'drone',
+                        position: {
+                            x: Math.random() * 40 + 10,
+                            y: Math.random() * 40 + 10
+                        },
+                        altitude: Math.floor(Math.random() * 100) + 20,
+                        speed: Math.floor(Math.random() * 60) + 40,
+                        heading: Math.random() * 360,
+                        distance: 0,
+                        snr: 5 + Math.random() * 8,
+                        threatLevel: 'Critical',
+                        color: colors[Math.floor(Math.random() * colors.length)],
+                        trackHistory: []
+                    };
+                    threat.distance = this.calculateDistance(threat.position);
+                    
+                    this.trackedTargets.push(threat);
+                    
+                    // Trigger high severity alert
+                    this.triggerAlert(threat, 'Potential Threat Detected',
+                        `${threatTypes[Math.floor(Math.random() * threatTypes.length)]} operating in restricted airspace`,
+                        'critical');
+                },
+                
+                getThreatColor(level) {
+                    switch(level.toLowerCase()) {
+                        case 'low': return '#10b981';
+                        case 'medium': return '#f59e0b';
+                        case 'high': return '#ef4444';
+                        case 'critical': return '#dc2626';
+                        default: return '#6b7280';
+                    }
+                }
+            }
+        }
+    </script>
+</body>
+</html>

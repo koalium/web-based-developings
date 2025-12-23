@@ -1,0 +1,1953 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>CINEMATIC 3D ORBITAL SIMULATOR</title>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/controls/TrackballControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/postprocessing/EffectComposer.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/postprocessing/RenderPass.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/postprocessing/UnrealBloomPass.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/shaders/CopyShader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/postprocessing/ShaderPass.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+            -webkit-touch-callout: none;
+        }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background: #000;
+            font-family: 'SF Mono', 'Consolas', monospace;
+            color: #fff;
+            touch-action: none;
+        }
+
+        #three-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        /* Cinematic UI Overlay */
+        .cinematic-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            padding: env(safe-area-inset-top, 20px) env(safe-area-inset-right, 20px) 
+                     env(safe-area-inset-bottom, 20px) env(safe-area-inset-left, 20px);
+        }
+
+        /* Cinematic Header */
+        .cinematic-header {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 80px;
+            background: linear-gradient(180deg, 
+                rgba(0, 0, 0, 0.8) 0%, 
+                rgba(0, 0, 0, 0) 100%);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 30px;
+            pointer-events: none;
+        }
+
+        .cinematic-title {
+            font-size: clamp(18px, 3vw, 24px);
+            font-weight: 300;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            color: #fff;
+            text-shadow: 0 0 20px rgba(64, 201, 255, 0.5);
+        }
+
+        .cinematic-subtitle {
+            font-size: clamp(12px, 1.5vw, 14px);
+            font-weight: 300;
+            letter-spacing: 2px;
+            color: #88ccff;
+            opacity: 0.8;
+        }
+
+        /* Cinematic Footer */
+        .cinematic-footer {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 120px;
+            background: linear-gradient(0deg, 
+                rgba(0, 0, 0, 0.8) 0%, 
+                rgba(0, 0, 0, 0) 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            pointer-events: none;
+        }
+
+        /* Scene Information */
+        .scene-info {
+            position: absolute;
+            bottom: 40px;
+            left: 40px;
+            max-width: 400px;
+            pointer-events: none;
+        }
+
+        .scene-title {
+            font-size: clamp(20px, 3vw, 28px);
+            font-weight: 400;
+            margin-bottom: 10px;
+            color: #fff;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.8);
+        }
+
+        .scene-description {
+            font-size: clamp(14px, 1.8vw, 16px);
+            line-height: 1.6;
+            color: rgba(255, 255, 255, 0.8);
+            text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8);
+        }
+
+        /* Camera Controls */
+        .camera-controls {
+            position: absolute;
+            right: 40px;
+            bottom: 40px;
+            display: flex;
+            gap: 15px;
+            pointer-events: auto;
+            z-index: 101;
+        }
+
+        .camera-btn {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: rgba(0, 20, 40, 0.6);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(64, 156, 255, 0.4);
+            color: #40c9ff;
+            font-size: 24px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .camera-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: radial-gradient(circle at center, 
+                rgba(64, 201, 255, 0.1) 0%, 
+                rgba(64, 201, 255, 0) 70%);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .camera-btn:hover::before,
+        .camera-btn:active::before {
+            opacity: 1;
+        }
+
+        .camera-btn:hover {
+            border-color: #40c9ff;
+            box-shadow: 0 0 20px rgba(64, 201, 255, 0.3);
+            transform: scale(1.1);
+        }
+
+        .camera-btn:active {
+            transform: scale(0.95);
+        }
+
+        .camera-btn.active {
+            background: rgba(64, 201, 255, 0.2);
+            border-color: #40c9ff;
+            box-shadow: 0 0 30px rgba(64, 201, 255, 0.5);
+        }
+
+        .camera-label {
+            position: absolute;
+            bottom: -25px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 11px;
+            color: #88ccff;
+            white-space: nowrap;
+            opacity: 0.8;
+        }
+
+        /* Telemetry Display */
+        .telemetry-panel {
+            position: absolute;
+            top: 100px;
+            right: 40px;
+            width: 300px;
+            background: rgba(0, 20, 40, 0.4);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(64, 156, 255, 0.2);
+            border-radius: 15px;
+            padding: 20px;
+            pointer-events: none;
+        }
+
+        .telemetry-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(64, 156, 255, 0.2);
+        }
+
+        .telemetry-icon {
+            font-size: 20px;
+            color: #40c9ff;
+        }
+
+        .telemetry-title {
+            font-size: 16px;
+            font-weight: 500;
+            color: #fff;
+        }
+
+        .telemetry-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .telemetry-item {
+            background: rgba(0, 40, 80, 0.3);
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid rgba(64, 156, 255, 0.1);
+        }
+
+        .telemetry-label {
+            font-size: 12px;
+            color: #88ccff;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .telemetry-value {
+            font-size: 18px;
+            font-weight: 600;
+            color: #fff;
+            font-family: 'Courier New', monospace;
+        }
+
+        /* Cinematic Mode Indicator */
+        .cinematic-indicator {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 48px;
+            color: rgba(255, 255, 255, 0.1);
+            pointer-events: none;
+            user-select: none;
+            display: none;
+        }
+
+        .cinematic-indicator.active {
+            display: block;
+            animation: cinematicPulse 4s infinite;
+        }
+
+        @keyframes cinematicPulse {
+            0%, 100% { opacity: 0.05; }
+            50% { opacity: 0.2; }
+        }
+
+        /* Scene Transition Overlay */
+        .scene-transition {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            z-index: 1000;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 1s ease;
+        }
+
+        .scene-transition.active {
+            opacity: 1;
+        }
+
+        /* Camera Path Indicator */
+        .camera-path {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 20, 40, 0.6);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(64, 156, 255, 0.3);
+            border-radius: 10px;
+            padding: 15px;
+            max-width: 300px;
+            pointer-events: none;
+            display: none;
+        }
+
+        .camera-path.active {
+            display: block;
+        }
+
+        .path-point {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 12px;
+            margin: 5px 0;
+            border-radius: 6px;
+            background: rgba(64, 156, 255, 0.1);
+            cursor: pointer;
+            pointer-events: auto;
+        }
+
+        .path-point:hover {
+            background: rgba(64, 156, 255, 0.2);
+        }
+
+        .path-point.active {
+            background: rgba(64, 201, 255, 0.3);
+            border-left: 3px solid #40c9ff;
+        }
+
+        /* Touch Controls for Mobile */
+        .touch-controls {
+            position: fixed;
+            bottom: 120px;
+            left: 20px;
+            display: flex;
+            gap: 10px;
+            pointer-events: auto;
+            z-index: 101;
+        }
+
+        .touch-btn {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: rgba(0, 20, 40, 0.7);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(64, 156, 255, 0.4);
+            color: #40c9ff;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            touch-action: manipulation;
+        }
+
+        /* Performance Monitor */
+        .performance-monitor {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 20, 40, 0.6);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(64, 156, 255, 0.3);
+            border-radius: 10px;
+            padding: 12px;
+            font-size: 12px;
+            color: #88ccff;
+            pointer-events: none;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .cinematic-header {
+                height: 60px;
+                padding: 0 20px;
+            }
+            
+            .camera-controls {
+                right: 20px;
+                bottom: 20px;
+            }
+            
+            .camera-btn {
+                width: 50px;
+                height: 50px;
+                font-size: 20px;
+            }
+            
+            .telemetry-panel {
+                top: 80px;
+                right: 20px;
+                width: calc(100% - 40px);
+            }
+            
+            .scene-info {
+                left: 20px;
+                bottom: 100px;
+                max-width: calc(100% - 40px);
+            }
+            
+            .touch-controls {
+                display: flex;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .telemetry-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .camera-controls {
+                flex-direction: column;
+                right: 10px;
+                bottom: 10px;
+            }
+            
+            .touch-controls {
+                flex-direction: column;
+                left: 10px;
+                bottom: 140px;
+            }
+        }
+
+        /* Print Styles */
+        @media print {
+            .cinematic-overlay {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body x-data="cinematicOrbitalSimulator()" x-init="init()">
+    <div id="three-container"></div>
+    
+    <div class="scene-transition" id="sceneTransition"></div>
+    
+    <div class="cinematic-overlay">
+        <div class="cinematic-header">
+            <div>
+                <div class="cinematic-title">CINEMATIC ORBITAL SIMULATOR</div>
+                <div class="cinematic-subtitle">REAL-TIME 3D ORBITAL MECHANICS</div>
+            </div>
+        </div>
+
+        <div class="cinematic-indicator" id="cinematicIndicator">🎬</div>
+
+        <div class="scene-info">
+            <div class="scene-title" x-text="currentScene.title"></div>
+            <div class="scene-description" x-text="currentScene.description"></div>
+        </div>
+
+        <div class="camera-controls">
+            <div class="camera-btn-wrapper">
+                <button class="camera-btn" :class="{ 'active': cameraMode === 'cinematic' }" 
+                        @click="setCameraMode('cinematic')" title="Cinematic Camera">
+                    🎬
+                    <div class="camera-label">CINEMATIC</div>
+                </button>
+            </div>
+            
+            <div class="camera-btn-wrapper">
+                <button class="camera-btn" :class="{ 'active': cameraMode === 'follow' }" 
+                        @click="setCameraMode('follow')" title="Follow Spacecraft">
+                    🚀
+                    <div class="camera-label">FOLLOW</div>
+                </button>
+            </div>
+            
+            <div class="camera-btn-wrapper">
+                <button class="camera-btn" :class="{ 'active': cameraMode === 'satellite' }" 
+                        @click="setCameraMode('satellite')" title="Follow Satellite">
+                    🛰️
+                    <div class="camera-label">SATELLITE</div>
+                </button>
+            </div>
+            
+            <div class="camera-btn-wrapper">
+                <button class="camera-btn" :class="{ 'active': cameraMode === 'free' }" 
+                        @click="setCameraMode('free')" title="Free Camera">
+                    🎥
+                    <div class="camera-label">FREE</div>
+                </button>
+            </div>
+            
+            <div class="camera-btn-wrapper">
+                <button class="camera-btn" @click="nextShot()" title="Next Shot">
+                    ⏭️
+                    <div class="camera-label">NEXT</div>
+                </button>
+            </div>
+        </div>
+
+        <div class="telemetry-panel">
+            <div class="telemetry-header">
+                <div class="telemetry-icon">📡</div>
+                <div class="telemetry-title">ORBITAL TELEMETRY</div>
+            </div>
+            <div class="telemetry-grid">
+                <div class="telemetry-item">
+                    <div class="telemetry-label">ALTITUDE</div>
+                    <div class="telemetry-value" x-text="`${craftAltitude.toFixed(0)} km`"></div>
+                </div>
+                <div class="telemetry-item">
+                    <div class="telemetry-label">VELOCITY</div>
+                    <div class="telemetry-value" x-text="`${craftVelocity.toFixed(1)} km/s`"></div>
+                </div>
+                <div class="telemetry-item">
+                    <div class="telemetry-label">DISTANCE</div>
+                    <div class="telemetry-value" x-text="`${(distance/1000).toFixed(1)} km`"></div>
+                </div>
+                <div class="telemetry-item">
+                    <div class="telemetry-label">REL ΔV</div>
+                    <div class="telemetry-value" x-text="`${deltaV.toFixed(2)} m/s`"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="touch-controls" x-show="isTouchDevice">
+            <button class="touch-btn" @touchstart="startRCS('pitch_up')" @touchend="stopRCS()">⬆️</button>
+            <button class="touch-btn" @touchstart="startRCS('pitch_down')" @touchend="stopRCS()">⬇️</button>
+            <button class="touch-btn" @touchstart="startRCS('yaw_left')" @touchend="stopRCS()">⬅️</button>
+            <button class="touch-btn" @touchstart="startRCS('yaw_right')" @touchend="stopRCS()">➡️</button>
+        </div>
+
+        <div class="camera-path" :class="{ 'active': showCameraPath }" id="cameraPath">
+            <div style="margin-bottom: 10px; font-weight: 500; color: #40c9ff;">CAMERA PATH</div>
+            <template x-for="(point, index) in cameraPaths" :key="index">
+                <div class="path-point" :class="{ 'active': currentCameraPath === index }"
+                     @click="setCameraPath(index)">
+                    <span x-text="`${index + 1}. ${point.name}`"></span>
+                </div>
+            </template>
+        </div>
+
+        <div class="performance-monitor">
+            <div>FPS: <span x-text="fps"></span></div>
+            <div>Draw Calls: <span x-text="drawCalls"></span></div>
+            <div>Triangles: <span x-text="triangles"></span></div>
+        </div>
+    </div>
+
+    <script>
+        function cinematicOrbitalSimulator() {
+            return {
+                // Scene Management
+                currentScene: {
+                    title: 'ORBITAL RENDEZVOUS',
+                    description: 'Spacecraft approaching target satellite in lunar orbit'
+                },
+                
+                scenes: [
+                    {
+                        title: 'LAUNCH SEQUENCE',
+                        description: 'Booster separation and orbital insertion',
+                        cameraPosition: new THREE.Vector3(0, 100000, 500000)
+                    },
+                    {
+                        title: 'ORBITAL TRANSFER',
+                        description: 'Hohmann transfer to target orbit',
+                        cameraPosition: new THREE.Vector3(500000, 500000, 500000)
+                    },
+                    {
+                        title: 'RENDEZVOUS APPROACH',
+                        description: 'Final approach and station keeping',
+                        cameraPosition: new THREE.Vector3(100000, 100000, 100000)
+                    },
+                    {
+                        title: 'DOCKING SEQUENCE',
+                        description: 'Final docking maneuver with satellite',
+                        cameraPosition: new THREE.Vector3(50000, 50000, 50000)
+                    }
+                ],
+                
+                // Camera System
+                cameraMode: 'cinematic',
+                currentCameraPath: 0,
+                showCameraPath: false,
+                
+                cameraPaths: [
+                    { 
+                        name: 'Long Shot - Earth View', 
+                        position: new THREE.Vector3(0, 10000000, 10000000),
+                        target: new THREE.Vector3(0, 0, 0),
+                        fov: 45,
+                        transition: 5.0
+                    },
+                    { 
+                        name: 'Medium Shot - Orbital Plane', 
+                        position: new THREE.Vector3(5000000, 0, 5000000),
+                        target: new THREE.Vector3(0, 0, 0),
+                        fov: 60,
+                        transition: 3.0
+                    },
+                    { 
+                        name: 'Close Shot - Spacecraft', 
+                        position: new THREE.Vector3(100000, 100000, 100000),
+                        target: null, // Will follow spacecraft
+                        fov: 75,
+                        transition: 2.0
+                    },
+                    { 
+                        name: 'Tracking Shot - Chase Cam', 
+                        position: new THREE.Vector3(-50000, 50000, -50000),
+                        target: null, // Will follow spacecraft
+                        fov: 85,
+                        transition: 4.0
+                    },
+                    { 
+                        name: 'Dolly Shot - Approach', 
+                        position: new THREE.Vector3(0, 0, 100000),
+                        target: new THREE.Vector3(0, 0, 0),
+                        fov: 50,
+                        transition: 6.0
+                    }
+                ],
+                
+                // Cinematic Camera
+                cinematicCamera: {
+                    currentTime: 0,
+                    pathDuration: 30,
+                    isMoving: true,
+                    smoothness: 0.1
+                },
+                
+                // Performance Tracking
+                fps: 0,
+                drawCalls: 0,
+                triangles: 0,
+                lastFPSUpdate: 0,
+                frameCount: 0,
+                
+                // Device Detection
+                isTouchDevice: false,
+                
+                // Physics State
+                craftAltitude: 200,
+                craftVelocity: 1.6,
+                distance: 10000,
+                deltaV: 50,
+                
+                // Three.js Objects
+                scene: null,
+                camera: null,
+                renderer: null,
+                composer: null,
+                controls: null,
+                
+                // Scene Objects
+                moon: null,
+                earth: null,
+                spacecraft: null,
+                satellite: null,
+                booster: null,
+                starfield: null,
+                
+                // Post Processing
+                bloomPass: null,
+                bloomEnabled: true,
+                
+                // Lighting
+                sunLight: null,
+                fillLight: null,
+                rimLight: null,
+                
+                // Particle Systems
+                engineParticles: null,
+                rcsParticles: null,
+                thrusterEffects: [],
+                
+                // Initialization
+                init() {
+                    this.detectDevice();
+                    this.initThreeJS();
+                    this.initScene();
+                    this.initLighting();
+                    this.initPostProcessing();
+                    this.initCameraPaths();
+                    this.initControls();
+                    this.animate();
+                    
+                    // Start cinematic camera
+                    this.startCinematicMode();
+                },
+                
+                // Device Detection
+                detectDevice() {
+                    this.isTouchDevice = 'ontouchstart' in window || 
+                                       navigator.maxTouchPoints > 0 || 
+                                       navigator.msMaxTouchPoints > 0;
+                },
+                
+                // Initialize Three.js with cinematic settings
+                initThreeJS() {
+                    // Scene with fog for depth
+                    this.scene = new THREE.Scene();
+                    this.scene.fog = new THREE.Fog(0x000010, 100000, 10000000);
+                    
+                    // Camera with cinematic settings
+                    const aspect = window.innerWidth / window.innerHeight;
+                    this.camera = new THREE.PerspectiveCamera(
+                        60, aspect, 100, 100000000
+                    );
+                    
+                    // Renderer with high quality settings
+                    this.renderer = new THREE.WebGLRenderer({
+                        antialias: true,
+                        alpha: true,
+                        powerPreference: "high-performance",
+                        logarithmicDepthBuffer: true
+                    });
+                    
+                    this.renderer.setSize(window.innerWidth, window.innerHeight);
+                    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+                    this.renderer.shadowMap.enabled = true;
+                    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+                    this.renderer.outputEncoding = THREE.sRGBEncoding;
+                    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+                    this.renderer.toneMappingExposure = 1.0;
+                    
+                    document.getElementById('three-container').appendChild(this.renderer.domElement);
+                    
+                    // Initialize controls
+                    this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
+                    this.controls.enableDamping = true;
+                    this.controls.dampingFactor = 0.05;
+                    this.controls.maxDistance = 100000000;
+                    this.controls.minDistance = 1000;
+                    this.controls.enablePan = true;
+                    
+                    // Handle window resize
+                    window.addEventListener('resize', () => this.onResize(), { passive: true });
+                },
+                
+                // Initialize scene with detailed objects
+                initScene() {
+                    // Create starfield
+                    this.createStarfield();
+                    
+                    // Create Earth (distant background)
+                    this.createEarth();
+                    
+                    // Create Moon with detailed surface
+                    this.createMoon();
+                    
+                    // Create Spacecraft with detailed model
+                    this.createSpacecraft();
+                    
+                    // Create Satellite with detailed model
+                    this.createSatellite();
+                    
+                    // Create Booster stage
+                    this.createBooster();
+                    
+                    // Create orbital path visualizations
+                    this.createOrbitPaths();
+                    
+                    // Create particle systems
+                    this.createParticleSystems();
+                },
+                
+                // Create cinematic starfield
+                createStarfield() {
+                    const starCount = 20000;
+                    const positions = new Float32Array(starCount * 3);
+                    const colors = new Float32Array(starCount * 3);
+                    const sizes = new Float32Array(starCount);
+                    
+                    for (let i = 0; i < starCount; i++) {
+                        const i3 = i * 3;
+                        
+                        // Random position in sphere
+                        const radius = 50000000;
+                        const theta = Math.random() * Math.PI * 2;
+                        const phi = Math.acos(2 * Math.random() - 1);
+                        
+                        positions[i3] = radius * Math.sin(phi) * Math.cos(theta);
+                        positions[i3 + 1] = radius * Math.sin(phi) * Math.sin(theta);
+                        positions[i3 + 2] = radius * Math.cos(phi);
+                        
+                        // Random color (mostly white/blue)
+                        const color = new THREE.Color();
+                        color.setHSL(Math.random() * 0.1 + 0.6, 0.2, Math.random() * 0.5 + 0.5);
+                        
+                        colors[i3] = color.r;
+                        colors[i3 + 1] = color.g;
+                        colors[i3 + 2] = color.b;
+                        
+                        // Random size
+                        sizes[i] = Math.random() * 2 + 0.5;
+                    }
+                    
+                    const geometry = new THREE.BufferGeometry();
+                    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+                    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+                    geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+                    
+                    const material = new THREE.PointsMaterial({
+                        size: 1,
+                        vertexColors: true,
+                        transparent: true,
+                        sizeAttenuation: true,
+                        depthWrite: false
+                    });
+                    
+                    this.starfield = new THREE.Points(geometry, material);
+                    this.scene.add(this.starfield);
+                },
+                
+                // Create detailed Earth
+                createEarth() {
+                    const earthGroup = new THREE.Group();
+                    
+                    // Earth sphere
+                    const earthGeometry = new THREE.SphereGeometry(6371000 * 0.5, 128, 128);
+                    const earthMaterial = new THREE.MeshStandardMaterial({
+                        color: 0x1a5fb4,
+                        roughness: 0.8,
+                        metalness: 0.2,
+                        emissive: 0x0a2f5a,
+                        emissiveIntensity: 0.1
+                    });
+                    
+                    const earthMesh = new THREE.Mesh(earthGeometry, earthMaterial);
+                    earthGroup.add(earthMesh);
+                    
+                    // Clouds
+                    const cloudGeometry = new THREE.SphereGeometry(6371000 * 0.51, 128, 128);
+                    const cloudMaterial = new THREE.MeshStandardMaterial({
+                        color: 0xffffff,
+                        transparent: true,
+                        opacity: 0.3,
+                        side: THREE.DoubleSide,
+                        alphaTest: 0.5
+                    });
+                    
+                    const cloudMesh = new THREE.Mesh(cloudGeometry, cloudMaterial);
+                    earthGroup.add(cloudMesh);
+                    
+                    // Position Earth at distance
+                    earthGroup.position.set(384400000 * 0.8, 0, -384400000 * 0.6);
+                    
+                    this.earth = earthGroup;
+                    this.scene.add(earthGroup);
+                },
+                
+                // Create detailed Moon
+                createMoon() {
+                    const moonGroup = new THREE.Group();
+                    
+                    // High resolution sphere
+                    const moonGeometry = new THREE.SphereGeometry(1737100, 256, 256);
+                    
+                    // Create detailed material with normal map simulation
+                    const moonMaterial = new THREE.MeshStandardMaterial({
+                        color: 0x888888,
+                        roughness: 1.0,
+                        metalness: 0.1,
+                        bumpScale: 0.05
+                    });
+                    
+                    // Create base mesh
+                    const moonMesh = new THREE.Mesh(moonGeometry, moonMaterial);
+                    moonMesh.castShadow = true;
+                    moonMesh.receiveShadow = true;
+                    moonGroup.add(moonMesh);
+                    
+                    // Add detailed craters
+                    this.addMoonCraters(moonGroup);
+                    
+                    // Add mountain ranges
+                    this.addMoonMountains(moonGroup);
+                    
+                    // Add surface details
+                    this.addMoonSurfaceDetails(moonGroup);
+                    
+                    // Rotate to show interesting side
+                    moonGroup.rotation.y = Math.PI / 6;
+                    moonGroup.rotation.x = Math.PI / 12;
+                    
+                    this.moon = moonGroup;
+                    this.scene.add(moonGroup);
+                },
+                
+                // Add detailed craters to Moon
+                addMoonCraters(moonGroup) {
+                    const craterCount = 500;
+                    
+                    for (let i = 0; i < craterCount; i++) {
+                        const size = Math.random() * 50000 + 5000;
+                        const depth = size * 0.2;
+                        
+                        // Create crater geometry (inverted sphere)
+                        const craterGeometry = new THREE.SphereGeometry(size, 16, 16, 0, Math.PI * 2, 0, Math.PI / 2);
+                        
+                        // Position on sphere surface
+                        const theta = Math.random() * Math.PI * 2;
+                        const phi = Math.acos(2 * Math.random() - 1);
+                        const radius = 1737100;
+                        
+                        const x = radius * Math.sin(phi) * Math.cos(theta);
+                        const y = radius * Math.sin(phi) * Math.sin(theta);
+                        const z = radius * Math.cos(phi);
+                        
+                        const crater = new THREE.Mesh(craterGeometry, new THREE.MeshStandardMaterial({
+                            color: 0x666666,
+                            roughness: 1.0,
+                            metalness: 0.1
+                        }));
+                        
+                        crater.position.set(x, y, z);
+                        crater.lookAt(0, 0, 0);
+                        crater.rotateX(Math.PI);
+                        
+                        moonGroup.add(crater);
+                    }
+                },
+                
+                // Add mountain ranges to Moon
+                addMoonMountains(moonGroup) {
+                    const mountainCount = 100;
+                    
+                    for (let i = 0; i < mountainCount; i++) {
+                        const height = Math.random() * 10000 + 1000;
+                        const radius = Math.random() * 5000 + 1000;
+                        
+                        const mountainGeometry = new THREE.ConeGeometry(radius, height, 8);
+                        const mountainMaterial = new THREE.MeshStandardMaterial({
+                            color: 0x777777,
+                            roughness: 0.9,
+                            metalness: 0.1
+                        });
+                        
+                        const mountain = new THREE.Mesh(mountainGeometry, mountainMaterial);
+                        
+                        // Position on surface
+                        const theta = Math.random() * Math.PI * 2;
+                        const phi = Math.acos(2 * Math.random() - 1);
+                        const moonRadius = 1737100;
+                        
+                        const x = moonRadius * Math.sin(phi) * Math.cos(theta);
+                        const y = moonRadius * Math.sin(phi) * Math.sin(theta);
+                        const z = moonRadius * Math.cos(phi);
+                        
+                        mountain.position.set(x, y, z);
+                        mountain.lookAt(0, 0, 0);
+                        
+                        moonGroup.add(mountain);
+                    }
+                },
+                
+                // Add surface details to Moon
+                addMoonSurfaceDetails(moonGroup) {
+                    // Add surface scattering with small rocks
+                    const rockCount = 1000;
+                    
+                    for (let i = 0; i < rockCount; i++) {
+                        const size = Math.random() * 500 + 100;
+                        const geometry = new THREE.DodecahedronGeometry(size, 0);
+                        const material = new THREE.MeshStandardMaterial({
+                            color: 0x555555,
+                            roughness: 1.0,
+                            metalness: 0.1
+                        });
+                        
+                        const rock = new THREE.Mesh(geometry, material);
+                        
+                        // Position on surface
+                        const theta = Math.random() * Math.PI * 2;
+                        const phi = Math.acos(2 * Math.random() - 1);
+                        const moonRadius = 1737100 + size;
+                        
+                        const x = moonRadius * Math.sin(phi) * Math.cos(theta);
+                        const y = moonRadius * Math.sin(phi) * Math.sin(theta);
+                        const z = moonRadius * Math.cos(phi);
+                        
+                        rock.position.set(x, y, z);
+                        rock.lookAt(0, 0, 0);
+                        
+                        moonGroup.add(rock);
+                    }
+                },
+                
+                // Create detailed spacecraft
+                createSpacecraft() {
+                    const spacecraftGroup = new THREE.Group();
+                    
+                    // Command Module (Cone)
+                    const cmdGeometry = new THREE.ConeGeometry(1500, 4000, 16);
+                    const cmdMaterial = new THREE.MeshStandardMaterial({
+                        color: 0xf8f8f8,
+                        roughness: 0.3,
+                        metalness: 0.8,
+                        emissive: 0x222222,
+                        emissiveIntensity: 0.1
+                    });
+                    const commandModule = new THREE.Mesh(cmdGeometry, cmdMaterial);
+                    commandModule.rotation.x = Math.PI;
+                    commandModule.castShadow = true;
+                    spacecraftGroup.add(commandModule);
+                    
+                    // Cockpit Window
+                    const cockpitGeometry = new THREE.SphereGeometry(800, 32, 32, 0, Math.PI, 0, Math.PI);
+                    const cockpitMaterial = new THREE.MeshPhysicalMaterial({
+                        color: 0x88ccff,
+                        roughness: 0.1,
+                        metalness: 0.9,
+                        transmission: 0.95,
+                        thickness: 200,
+                        ior: 1.5,
+                        specularIntensity: 1,
+                        envMapIntensity: 1
+                    });
+                    const cockpit = new THREE.Mesh(cockpitGeometry, cockpitMaterial);
+                    cockpit.position.set(0, 1500, 0);
+                    cockpit.castShadow = true;
+                    spacecraftGroup.add(cockpit);
+                    
+                    // Service Module (Cylinder)
+                    const serviceGeometry = new THREE.CylinderGeometry(1200, 1500, 3000, 16);
+                    const serviceMaterial = new THREE.MeshStandardMaterial({
+                        color: 0xcc2255,
+                        roughness: 0.4,
+                        metalness: 0.6,
+                        emissive: 0x440011,
+                        emissiveIntensity: 0.05
+                    });
+                    const serviceModule = new THREE.Mesh(serviceGeometry, serviceMaterial);
+                    serviceModule.position.set(0, -2500, 0);
+                    serviceModule.castShadow = true;
+                    spacecraftGroup.add(serviceModule);
+                    
+                    // Engine Nozzle
+                    const nozzleGeometry = new THREE.CylinderGeometry(300, 800, 1000, 16);
+                    const nozzleMaterial = new THREE.MeshStandardMaterial({
+                        color: 0x333333,
+                        roughness: 0.8,
+                        metalness: 0.9,
+                        emissive: 0x111111,
+                        emissiveIntensity: 0.1
+                    });
+                    const nozzle = new THREE.Mesh(nozzleGeometry, nozzleMaterial);
+                    nozzle.position.set(0, -4000, 0);
+                    nozzle.castShadow = true;
+                    spacecraftGroup.add(nozzle);
+                    
+                    // RCS Thrusters (8 thrusters)
+                    this.addSpacecraftThrusters(spacecraftGroup);
+                    
+                    // Solar Panels
+                    this.addSolarPanels(spacecraftGroup);
+                    
+                    // Antennas and Sensors
+                    this.addSpacecraftSensors(spacecraftGroup);
+                    
+                    // Engine Glow (transparent cone)
+                    const glowGeometry = new THREE.ConeGeometry(1000, 4000, 16);
+                    const glowMaterial = new THREE.MeshBasicMaterial({
+                        color: 0xff6600,
+                        transparent: true,
+                        opacity: 0,
+                        blending: THREE.AdditiveBlending,
+                        depthWrite: false
+                    });
+                    this.engineGlow = new THREE.Mesh(glowGeometry, glowMaterial);
+                    this.engineGlow.position.set(0, -6000, 0);
+                    this.engineGlow.rotation.x = Math.PI;
+                    spacecraftGroup.add(this.engineGlow);
+                    
+                    // Add wireframe for technical look
+                    const wireframe = new THREE.WireframeGeometry(cmdGeometry);
+                    const wireframeMat = new THREE.LineBasicMaterial({
+                        color: 0x40c9ff,
+                        linewidth: 1,
+                        transparent: true,
+                        opacity: 0.3
+                    });
+                    const wireframeMesh = new THREE.LineSegments(wireframe, wireframeMat);
+                    wireframeMesh.rotation.x = Math.PI;
+                    spacecraftGroup.add(wireframeMesh);
+                    
+                    // Position in orbit
+                    spacecraftGroup.position.set(2000000, 0, 0);
+                    
+                    this.spacecraft = spacecraftGroup;
+                    this.scene.add(spacecraftGroup);
+                },
+                
+                // Add RCS thrusters to spacecraft
+                addSpacecraftThrusters(group) {
+                    const thrusterGeometry = new THREE.CylinderGeometry(100, 150, 400, 8);
+                    const thrusterMaterial = new THREE.MeshStandardMaterial({
+                        color: 0xffaa00,
+                        roughness: 0.3,
+                        metalness: 0.9,
+                        emissive: 0x442200,
+                        emissiveIntensity: 0.1
+                    });
+                    
+                    // Define thruster positions (8 thrusters in 3D space)
+                    const thrusterPositions = [
+                        { x: 1200, y: 0, z: 0, rotation: new THREE.Vector3(0, Math.PI/2, 0) }, // Right
+                        { x: -1200, y: 0, z: 0, rotation: new THREE.Vector3(0, -Math.PI/2, 0) }, // Left
+                        { x: 0, y: 1200, z: 0, rotation: new THREE.Vector3(-Math.PI/2, 0, 0) }, // Top
+                        { x: 0, y: -1200, z: 0, rotation: new THREE.Vector3(Math.PI/2, 0, 0) }, // Bottom
+                        { x: 0, y: 0, z: 1200, rotation: new THREE.Vector3(0, Math.PI, 0) }, // Front
+                        { x: 0, y: 0, z: -1200, rotation: new THREE.Vector3(0, 0, 0) }, // Back
+                        { x: 850, y: 850, z: 0, rotation: new THREE.Vector3(-Math.PI/4, Math.PI/2, 0) }, // Top-Right
+                        { x: -850, y: 850, z: 0, rotation: new THREE.Vector3(-Math.PI/4, -Math.PI/2, 0) } // Top-Left
+                    ];
+                    
+                    thrusterPositions.forEach(pos => {
+                        const thruster = new THREE.Mesh(thrusterGeometry, thrusterMaterial);
+                        thruster.position.set(pos.x, pos.y, pos.z);
+                        thruster.rotation.set(pos.rotation.x, pos.rotation.y, pos.rotation.z);
+                        thruster.castShadow = true;
+                        group.add(thruster);
+                        
+                        // Add thruster glow
+                        const glowGeometry = new THREE.ConeGeometry(150, 600, 8);
+                        const glowMaterial = new THREE.MeshBasicMaterial({
+                            color: 0x00ffff,
+                            transparent: true,
+                            opacity: 0,
+                            blending: THREE.AdditiveBlending,
+                            depthWrite: false
+                        });
+                        
+                        const glow = new THREE.Mesh(glowGeometry, glowMaterial);
+                        glow.position.set(0, -300, 0);
+                        glow.rotation.x = Math.PI;
+                        thruster.add(glow);
+                        
+                        this.thrusterEffects.push({
+                            mesh: thruster,
+                            glow: glow,
+                            direction: new THREE.Vector3(pos.x, pos.y, pos.z).normalize()
+                        });
+                    });
+                },
+                
+                // Add solar panels to spacecraft
+                addSolarPanels(group) {
+                    const panelGeometry = new THREE.BoxGeometry(6000, 100, 3000);
+                    const panelMaterial = new THREE.MeshStandardMaterial({
+                        color: 0x222222,
+                        roughness: 0.2,
+                        metalness: 0.9,
+                        emissive: 0x111111,
+                        emissiveIntensity: 0.05
+                    });
+                    
+                    // Left solar panel
+                    const leftPanel = new THREE.Mesh(panelGeometry, panelMaterial);
+                    leftPanel.position.set(-3500, 0, 0);
+                    leftPanel.castShadow = true;
+                    group.add(leftPanel);
+                    
+                    // Right solar panel
+                    const rightPanel = new THREE.Mesh(panelGeometry, panelMaterial);
+                    rightPanel.position.set(3500, 0, 0);
+                    rightPanel.castShadow = true;
+                    group.add(rightPanel);
+                    
+                    // Solar cell details
+                    const cellGeometry = new THREE.BoxGeometry(5800, 50, 2800);
+                    const cellMaterial = new THREE.MeshStandardMaterial({
+                        color: 0x0044aa,
+                        roughness: 0.1,
+                        metalness: 0.95,
+                        emissive: 0x002255,
+                        emissiveIntensity: 0.1
+                    });
+                    
+                    const leftCells = new THREE.Mesh(cellGeometry, cellMaterial);
+                    leftCells.position.set(-3500, 75, 0);
+                    group.add(leftCells);
+                    
+                    const rightCells = new THREE.Mesh(cellGeometry, cellMaterial);
+                    rightCells.position.set(3500, 75, 0);
+                    group.add(rightCells);
+                },
+                
+                // Add sensors and antennas
+                addSpacecraftSensors(group) {
+                    // Communications antenna
+                    const antennaGeometry = new THREE.CylinderGeometry(50, 50, 2000, 8);
+                    const antennaMaterial = new THREE.MeshStandardMaterial({
+                        color: 0x888888,
+                        roughness: 0.3,
+                        metalness: 0.8
+                    });
+                    
+                    const antenna = new THREE.Mesh(antennaGeometry, antennaMaterial);
+                    antenna.position.set(0, 2500, 0);
+                    group.add(antenna);
+                    
+                    // Radar dish
+                    const dishGeometry = new THREE.CircleGeometry(800, 16);
+                    const dishMaterial = new THREE.MeshStandardMaterial({
+                        color: 0x666666,
+                        roughness: 0.2,
+                        metalness: 0.9,
+                        side: THREE.DoubleSide
+                    });
+                    
+                    const dish = new THREE.Mesh(dishGeometry, dishMaterial);
+                    dish.position.set(0, 2000, -1000);
+                    dish.rotation.x = Math.PI / 4;
+                    group.add(dish);
+                    
+                    // Sensor array
+                    const sensorGeometry = new THREE.BoxGeometry(300, 300, 300);
+                    const sensorMaterial = new THREE.MeshStandardMaterial({
+                        color: 0x444444,
+                        roughness: 0.1,
+                        metalness: 0.95,
+                        emissive: 0x002244,
+                        emissiveIntensity: 0.2
+                    });
+                    
+                    const sensors = new THREE.Mesh(sensorGeometry, sensorMaterial);
+                    sensors.position.set(0, 1800, 800);
+                    group.add(sensors);
+                },
+                
+                // Create detailed satellite
+                createSatellite() {
+                    const satelliteGroup = new THREE.Group();
+                    
+                    // Main body
+                    const bodyGeometry = new THREE.BoxGeometry(2000, 1000, 1000);
+                    const bodyMaterial = new THREE.MeshStandardMaterial({
+                        color: 0x4cc9f0,
+                        roughness: 0.2,
+                        metalness: 0.8,
+                        emissive: 0x004466,
+                        emissiveIntensity: 0.1
+                    });
+                    const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+                    body.castShadow = true;
+                    satelliteGroup.add(body);
+                    
+                    // Solar panels (large arrays)
+                    const panelGeometry = new THREE.BoxGeometry(8000, 50, 4000);
+                    const panelMaterial = new THREE.MeshStandardMaterial({
+                        color: 0x2a8faf,
+                        roughness: 0.1,
+                        metalness: 0.9,
+                        emissive: 0x003344,
+                        emissiveIntensity: 0.05
+                    });
+                    
+                    const leftPanel = new THREE.Mesh(panelGeometry, panelMaterial);
+                    leftPanel.position.set(-5000, 0, 0);
+                    leftPanel.castShadow = true;
+                    satelliteGroup.add(leftPanel);
+                    
+                    const rightPanel = new THREE.Mesh(panelGeometry, panelMaterial);
+                    rightPanel.position.set(5000, 0, 0);
+                    rightPanel.castShadow = true;
+                    satelliteGroup.add(rightPanel);
+                    
+                    // Communication antennas
+                    const antennaGeometry = new THREE.CylinderGeometry(30, 30, 3000, 8);
+                    const antennaMaterial = new THREE.MeshStandardMaterial({
+                        color: 0xffffff,
+                        roughness: 0.3,
+                        metalness: 0.7
+                    });
+                    
+                    for (let i = 0; i < 4; i++) {
+                        const antenna = new THREE.Mesh(antennaGeometry, antennaMaterial);
+                        const angle = (i / 4) * Math.PI * 2;
+                        antenna.position.set(
+                            Math.cos(angle) * 800,
+                            0,
+                            Math.sin(angle) * 800
+                        );
+                        antenna.lookAt(0, 3000, 0);
+                        satelliteGroup.add(antenna);
+                    }
+                    
+                    // Sensor array
+                    const sensorGeometry = new THREE.SphereGeometry(300, 16, 16);
+                    const sensorMaterial = new THREE.MeshStandardMaterial({
+                        color: 0xff4444,
+                        roughness: 0.1,
+                        metalness: 0.9,
+                        emissive: 0x440000,
+                        emissiveIntensity: 0.3
+                    });
+                    
+                    const sensor = new THREE.Mesh(sensorGeometry, sensorMaterial);
+                    sensor.position.set(0, 800, 0);
+                    satelliteGroup.add(sensor);
+                    
+                    // Position in higher orbit
+                    satelliteGroup.position.set(2500000, 0, 0);
+                    
+                    // Rotate panels to face sun
+                    satelliteGroup.rotation.y = Math.PI / 4;
+                    
+                    this.satellite = satelliteGroup;
+                    this.scene.add(satelliteGroup);
+                },
+                
+                // Create booster stage
+                createBooster() {
+                    const boosterGroup = new THREE.Group();
+                    
+                    // Booster body
+                    const bodyGeometry = new THREE.CylinderGeometry(2500, 2000, 10000, 16);
+                    const bodyMaterial = new THREE.MeshStandardMaterial({
+                        color: 0x555555,
+                        roughness: 0.8,
+                        metalness: 0.4,
+                        emissive: 0x222222,
+                        emissiveIntensity: 0.05
+                    });
+                    const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+                    body.castShadow = true;
+                    boosterGroup.add(body);
+                    
+                    // Engine bells (4 engines)
+                    const engineGeometry = new THREE.ConeGeometry(800, 2000, 16);
+                    const engineMaterial = new THREE.MeshStandardMaterial({
+                        color: 0x222222,
+                        roughness: 0.9,
+                        metalness: 0.8
+                    });
+                    
+                    for (let i = 0; i < 4; i++) {
+                        const engine = new THREE.Mesh(engineGeometry, engineMaterial);
+                        const angle = (i / 4) * Math.PI * 2;
+                        engine.position.set(
+                            Math.cos(angle) * 1500,
+                            -6000,
+                            Math.sin(angle) * 1500
+                        );
+                        engine.rotation.x = Math.PI;
+                        engine.castShadow = true;
+                        boosterGroup.add(engine);
+                    }
+                    
+                    // Fins (4 fins)
+                    const finGeometry = new THREE.ConeGeometry(1000, 4000, 4);
+                    const finMaterial = new THREE.MeshStandardMaterial({
+                        color: 0x777777,
+                        roughness: 0.6,
+                        metalness: 0.3
+                    });
+                    
+                    for (let i = 0; i < 4; i++) {
+                        const fin = new THREE.Mesh(finGeometry, finMaterial);
+                        const angle = (i / 4) * Math.PI * 2;
+                        fin.position.set(
+                            Math.cos(angle) * 3000,
+                            0,
+                            Math.sin(angle) * 3000
+                        );
+                        fin.rotation.y = angle;
+                        fin.castShadow = true;
+                        boosterGroup.add(fin);
+                    }
+                    
+                    // Position below spacecraft
+                    boosterGroup.position.set(2000000, -12000, 0);
+                    
+                    this.booster = boosterGroup;
+                    this.scene.add(boosterGroup);
+                },
+                
+                // Create orbital path visualizations
+                createOrbitPaths() {
+                    // Spacecraft orbit (elliptical)
+                    const craftOrbitPoints = [];
+                    const segments = 256;
+                    
+                    const semiMajorAxis = 2000000;
+                    const eccentricity = 0.1;
+                    
+                    for (let i = 0; i <= segments; i++) {
+                        const theta = (i / segments) * Math.PI * 2;
+                        const radius = semiMajorAxis * (1 - eccentricity * eccentricity) / (1 + eccentricity * Math.cos(theta));
+                        craftOrbitPoints.push(new THREE.Vector3(
+                            radius * Math.cos(theta),
+                            0,
+                            radius * Math.sin(theta)
+                        ));
+                    }
+                    
+                    const craftOrbitGeometry = new THREE.BufferGeometry().setFromPoints(craftOrbitPoints);
+                    const craftOrbitMaterial = new THREE.LineBasicMaterial({
+                        color: 0xf72585,
+                        transparent: true,
+                        opacity: 0.3,
+                        linewidth: 2
+                    });
+                    
+                    const craftOrbit = new THREE.Line(craftOrbitGeometry, craftOrbitMaterial);
+                    this.scene.add(craftOrbit);
+                    
+                    // Satellite orbit (circular)
+                    const satOrbitPoints = [];
+                    
+                    for (let i = 0; i <= segments; i++) {
+                        const theta = (i / segments) * Math.PI * 2;
+                        satOrbitPoints.push(new THREE.Vector3(
+                            2500000 * Math.cos(theta),
+                            0,
+                            2500000 * Math.sin(theta)
+                        ));
+                    }
+                    
+                    const satOrbitGeometry = new THREE.BufferGeometry().setFromPoints(satOrbitPoints);
+                    const satOrbitMaterial = new THREE.LineBasicMaterial({
+                        color: 0x4cc9f0,
+                        transparent: true,
+                        opacity: 0.3,
+                        linewidth: 2
+                    });
+                    
+                    const satOrbit = new THREE.Line(satOrbitGeometry, satOrbitMaterial);
+                    this.scene.add(satOrbit);
+                },
+                
+                // Create particle systems
+                createParticleSystems() {
+                    // Main engine particles
+                    const particleCount = 1000;
+                    const particleGeometry = new THREE.BufferGeometry();
+                    const positions = new Float32Array(particleCount * 3);
+                    const velocities = new Float32Array(particleCount * 3);
+                    const colors = new Float32Array(particleCount * 3);
+                    const sizes = new Float32Array(particleCount);
+                    
+                    for (let i = 0; i < particleCount; i++) {
+                        const i3 = i * 3;
+                        positions[i3] = 0;
+                        positions[i3 + 1] = -6000;
+                        positions[i3 + 2] = 0;
+                        
+                        // Random velocity direction (downward cone)
+                        const angle = Math.random() * Math.PI * 2;
+                        const spread = Math.random() * 0.2;
+                        velocities[i3] = Math.cos(angle) * spread;
+                        velocities[i3 + 1] = -1 - Math.random() * 2;
+                        velocities[i3 + 2] = Math.sin(angle) * spread;
+                        
+                        // Color gradient from yellow to red
+                        const hue = 0.1 + Math.random() * 0.1;
+                        const color = new THREE.Color();
+                        color.setHSL(hue, 1, 0.5);
+                        
+                        colors[i3] = color.r;
+                        colors[i3 + 1] = color.g;
+                        colors[i3 + 2] = color.b;
+                        
+                        sizes[i] = Math.random() * 500 + 100;
+                    }
+                    
+                    particleGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+                    particleGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+                    particleGeometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+                    
+                    const particleMaterial = new THREE.PointsMaterial({
+                        size: 100,
+                        vertexColors: true,
+                        transparent: true,
+                        opacity: 0.8,
+                        blending: THREE.AdditiveBlending,
+                        sizeAttenuation: true,
+                        depthWrite: false
+                    });
+                    
+                    this.engineParticles = new THREE.Points(particleGeometry, particleMaterial);
+                    this.engineParticles.visible = false;
+                    this.scene.add(this.engineParticles);
+                },
+                
+                // Initialize lighting system
+                initLighting() {
+                    // Sun light (main light source)
+                    this.sunLight = new THREE.DirectionalLight(0xffffff, 1.5);
+                    this.sunLight.position.set(10000000, 10000000, 10000000);
+                    this.sunLight.castShadow = true;
+                    this.sunLight.shadow.mapSize.width = 4096;
+                    this.sunLight.shadow.mapSize.height = 4096;
+                    this.sunLight.shadow.camera.near = 1000;
+                    this.sunLight.shadow.camera.far = 100000000;
+                    this.sunLight.shadow.camera.left = -100000;
+                    this.sunLight.shadow.camera.right = 100000;
+                    this.sunLight.shadow.camera.top = 100000;
+                    this.sunLight.shadow.camera.bottom = -100000;
+                    this.sunLight.shadow.bias = -0.0001;
+                    this.scene.add(this.sunLight);
+                    
+                    // Fill light (soft ambient)
+                    const fillLight = new THREE.HemisphereLight(0x4488ff, 0x002244, 0.3);
+                    this.scene.add(fillLight);
+                    
+                    // Rim light (back light)
+                    this.rimLight = new THREE.DirectionalLight(0x4488ff, 0.5);
+                    this.rimLight.position.set(-10000000, -10000000, -10000000);
+                    this.scene.add(this.rimLight);
+                    
+                    // Point lights for engine glow
+                    const engineLight = new THREE.PointLight(0xff6600, 2, 100000);
+                    engineLight.position.set(0, -6000, 0);
+                    this.spacecraft.add(engineLight);
+                },
+                
+                // Initialize post-processing
+                initPostProcessing() {
+                    this.composer = new THREE.EffectComposer(this.renderer);
+                    
+                    const renderPass = new THREE.RenderPass(this.scene, this.camera);
+                    this.composer.addPass(renderPass);
+                    
+                    // Bloom pass for glowing effects
+                    this.bloomPass = new THREE.UnrealBloomPass(
+                        new THREE.Vector2(window.innerWidth, window.innerHeight),
+                        1.5,  // strength
+                        0.4,  // radius
+                        0.85  // threshold
+                    );
+                    this.composer.addPass(this.bloomPass);
+                    
+                    // Copy pass to render to screen
+                    const copyPass = new THREE.ShaderPass(THREE.CopyShader);
+                    copyPass.renderToScreen = true;
+                    this.composer.addPass(copyPass);
+                },
+                
+                // Initialize camera paths
+                initCameraPaths() {
+                    // Update camera paths with better positions
+                    this.cameraPaths.forEach((path, index) => {
+                        if (index === 0) {
+                            // Long shot showing Earth and Moon
+                            path.position.set(0, 50000000, 50000000);
+                        } else if (index === 2) {
+                            // Close shot relative to spacecraft
+                            path.position.set(100000, 100000, 100000);
+                        }
+                    });
+                },
+                
+                // Initialize controls
+                initControls() {
+                    // Keyboard controls for camera
+                    document.addEventListener('keydown', (e) => {
+                        switch(e.key.toLowerCase()) {
+                            case '1': this.setCameraMode('cinematic'); break;
+                            case '2': this.setCameraMode('follow'); break;
+                            case '3': this.setCameraMode('satellite'); break;
+                            case '4': this.setCameraMode('free'); break;
+                            case 'n': this.nextShot(); break;
+                            case 'p': this.toggleCameraPath(); break;
+                            case ' ': this.toggleEngineEffect(); break;
+                        }
+                    });
+                    
+                    // Touch controls
+                    if (this.isTouchDevice) {
+                        // Add pinch zoom and rotate
+                        this.initTouchControls();
+                    }
+                },
+                
+                // Initialize touch controls
+                initTouchControls() {
+                    let initialDistance = 0;
+                    
+                    document.addEventListener('touchstart', (e) => {
+                        if (e.touches.length === 2) {
+                            initialDistance = Math.hypot(
+                                e.touches[0].clientX - e.touches[1].clientX,
+                                e.touches[0].clientY - e.touches[1].clientY
+                            );
+                        }
+                    });
+                    
+                    document.addEventListener('touchmove', (e) => {
+                        if (e.touches.length === 2 && this.cameraMode === 'free') {
+                            const distance = Math.hypot(
+                                e.touches[0].clientX - e.touches[1].clientX,
+                                e.touches[0].clientY - e.touches[1].clientY
+                            );
+                            
+                            const zoomDelta = (initialDistance - distance) * 0.01;
+                            this.camera.position.multiplyScalar(1 + zoomDelta);
+                            initialDistance = distance;
+                            
+                            e.preventDefault();
+                        }
+                    }, { passive: false });
+                },
+                
+                // Start cinematic mode
+                startCinematicMode() {
+                    this.cameraMode = 'cinematic';
+                    this.cinematicCamera.isMoving = true;
+                    this.cinematicCamera.currentTime = 0;
+                    
+                    // Show cinematic indicator
+                    const indicator = document.getElementById('cinematicIndicator');
+                    indicator.classList.add('active');
+                    
+                    // Hide indicator after 3 seconds
+                    setTimeout(() => {
+                        indicator.classList.remove('active');
+                    }, 3000);
+                },
+                
+                // Set camera mode
+                setCameraMode(mode) {
+                    this.cameraMode = mode;
+                    
+                    // Update camera controls
+                    if (mode === 'free') {
+                        this.controls.enabled = true;
+                    } else {
+                        this.controls.enabled = false;
+                        
+                        if (mode === 'cinematic') {
+                            this.startCinematicMode();
+                        }
+                    }
+                },
+                
+                // Next cinematic shot
+                nextShot() {
+                    this.currentCameraPath = (this.currentCameraPath + 1) % this.cameraPaths.length;
+                    this.transitionToCameraPath(this.currentCameraPath);
+                },
+                
+                // Set specific camera path
+                setCameraPath(index) {
+                    this.currentCameraPath = index;
+                    this.transitionToCameraPath(index);
+                },
+                
+                // Transition to camera path
+                transitionToCameraPath(index) {
+                    const path = this.cameraPaths[index];
+                    
+                    // Show scene transition
+                    const transition = document.getElementById('sceneTransition');
+                    transition.classList.add('active');
+                    
+                    setTimeout(() => {
+                        // Update camera position
+                        if (path.target) {
+                            this.camera.position.copy(path.position);
+                            this.camera.lookAt(path.target);
+                        } else {
+                            // Follow spacecraft
+                            const offset = path.position;
+                            this.camera.position.copy(this.spacecraft.position).add(offset);
+                            this.camera.lookAt(this.spacecraft.position);
+                        }
+                        
+                        // Update FOV
+                        this.camera.fov = path.fov;
+                        this.camera.updateProjectionMatrix();
+                        
+                        // Hide transition
+                        setTimeout(() => {
+                            transition.classList.remove('active');
+                        }, 500);
+                        
+                    }, 500);
+                },
+                
+                // Toggle camera path display
+                toggleCameraPath() {
+                    this.showCameraPath = !this.showCameraPath;
+                },
+                
+                // Toggle engine effect
+                toggleEngineEffect() {
+                    if (this.engineParticles) {
+                        this.engineParticles.visible = !this.engineParticles.visible;
+                        
+                        if (this.engineGlow) {
+                            this.engineGlow.material.opacity = this.engineParticles.visible ? 0.8 : 0;
+                        }
+                    }
+                },
+                
+                // Start RCS thrust
+                startRCS(direction) {
+                    // Activate thruster glow
+                    this.thrusterEffects.forEach(effect => {
+                        const dot = effect.direction.dot(new THREE.Vector3(
+                            direction.includes('left') ? -1 : direction.includes('right') ? 1 : 0,
+                            direction.includes('up') ? 1 : direction.includes('down') ? -1 : 0,
+                            0
+                        ).normalize());
+                        
+                        if (dot > 0.7) {
+                            effect.glow.material.opacity = 0.8;
+                        }
+                    });
+                },
+                
+                // Stop RCS thrust
+                stopRCS() {
+                    // Deactivate all thruster glows
+                    this.thrusterEffects.forEach(effect => {
+                        effect.glow.material.opacity = 0;
+                    });
+                },
+                
+                // Main animation loop
+                animate() {
+                    requestAnimationFrame(() => this.animate());
+                    
+                    this.frameCount++;
+                    
+                    // Update cinematic camera
+                    this.updateCinematicCamera();
+                    
+                    // Update scene objects
+                    this.updateSceneObjects();
+                    
+                    // Update particle systems
+                    this.updateParticles();
+                    
+                    // Update performance stats
+                    this.updatePerformance();
+                    
+                    // Update controls if in free mode
+                    if (this.cameraMode === 'free') {
+                        this.controls.update();
+                    }
+                    
+                    // Render with post-processing
+                    this.composer.render();
+                },
+                
+                // Update cinematic camera movement
+                updateCinematicCamera() {
+                    if (this.cameraMode !== 'cinematic' || !this.cinematicCamera.isMoving) return;
+                    
+                    this.cinematicCamera.currentTime += 0.016;
+                    
+                    if (this.cinematicCamera.currentTime > this.cinematicCamera.pathDuration) {
+                        this.cinematicCamera.currentTime = 0;
+                        this.nextShot();
+                    }
+                    
+                    // Calculate position along path
+                    const pathIndex = Math.floor(this.cinematicCamera.currentTime / 6) % this.cameraPaths.length;
+                    const nextIndex = (pathIndex + 1) % this.cameraPaths.length;
+                    const t = (this.cinematicCamera.currentTime % 6) / 6;
+                    
+                    const currentPath = this.cameraPaths[pathIndex];
+                    const nextPath = this.cameraPaths[nextIndex];
+                    
+                    // Smooth interpolation between camera positions
+                    const position = new THREE.Vector3().lerpVectors(
+                        currentPath.position,
+                        nextPath.position,
+                        t
+                    );
+                    
+                    let target;
+                    if (currentPath.target && nextPath.target) {
+                        target = new THREE.Vector3().lerpVectors(
+                            currentPath.target,
+                            nextPath.target,
+                            t
+                        );
+                    } else {
+                        target = this.spacecraft.position;
+                    }
+                    
+                    // Smooth camera movement
+                    this.camera.position.lerp(position, this.cinematicCamera.smoothness);
+                    this.camera.lookAt(target);
+                    
+                    // Smooth FOV transition
+                    const fov = THREE.MathUtils.lerp(
+                        currentPath.fov,
+                        nextPath.fov,
+                        t
+                    );
+                    
+                    this.camera.fov = THREE.MathUtils.lerp(this.camera.fov, fov, 0.1);
+                    this.camera.updateProjectionMatrix();
+                },
+                
+                // Update scene objects
+                updateSceneObjects() {
+                    // Rotate Earth
+                    if (this.earth) {
+                        this.earth.rotation.y += 0.001;
+                        this.earth.children[1].rotation.y += 0.0015; // Clouds faster
+                    }
+                    
+                    // Rotate Moon
+                    if (this.moon) {
+                        this.moon.rotation.y += 0.0002;
+                    }
+                    
+                    // Orbit spacecraft
+                    if (this.spacecraft) {
+                        const time = Date.now() * 0.0001;
+                        const radius = 2000000;
+                        const eccentricity = 0.1;
+                        
+                        const trueAnomaly = time * 0.5;
+                        const currentRadius = radius * (1 - eccentricity * eccentricity) / (1 + eccentricity * Math.cos(trueAnomaly));
+                        
+                        this.spacecraft.position.x = currentRadius * Math.cos(trueAnomaly);
+                        this.spacecraft.position.z = currentRadius * Math.sin(trueAnomaly);
+                        
+                        // Calculate altitude
+                        this.craftAltitude = (currentRadius - 1737100) / 1000;
+                        
+                        // Calculate orbital velocity
+                        const mu = 4.9048695e12; // Moon's gravitational parameter
+                        const orbitalVelocity = Math.sqrt(mu * (2/currentRadius - 1/radius));
+                        this.craftVelocity = orbitalVelocity / 1000;
+                        
+                        // Make spacecraft face direction of motion
+                        const forward = new THREE.Vector3(
+                            -Math.sin(trueAnomaly),
+                            0,
+                            Math.cos(trueAnomaly)
+                        );
+                        this.spacecraft.lookAt(
+                            this.spacecraft.position.clone().add(forward)
+                        );
+                        
+                        // Update booster position
+                        if (this.booster) {
+                            this.booster.position.copy(this.spacecraft.position);
+                            this.booster.position.y -= 12000;
+                            this.booster.rotation.copy(this.spacecraft.rotation);
+                        }
+                    }
+                    
+                    // Orbit satellite
+                    if (this.satellite) {
+                        const time = Date.now() * 0.0001;
+                        const radius = 2500000;
+                        
+                        this.satellite.position.x = radius * Math.cos(time * 0.4);
+                        this.satellite.position.z = radius * Math.sin(time * 0.4);
+                        
+                        // Keep solar panels facing sun (simplified)
+                        this.satellite.children[1].lookAt(this.sunLight.position);
+                        this.satellite.children[2].lookAt(this.sunLight.position);
+                        
+                        // Calculate distance to spacecraft
+                        this.distance = this.spacecraft.position.distanceTo(this.satellite.position);
+                        
+                        // Calculate relative velocity
+                        const mu = 4.9048695e12;
+                        const craftRadius = this.spacecraft.position.length();
+                        const satRadius = this.satellite.position.length();
+                        
+                        const craftVelocity = Math.sqrt(mu * (2/craftRadius - 1/2000000));
+                        const satVelocity = Math.sqrt(mu * (2/satRadius - 1/2500000));
+                        
+                        this.deltaV = Math.abs(craftVelocity - satVelocity);
+                    }
+                },
+                
+                // Update particle systems
+                updateParticles() {
+                    if (!this.engineParticles || !this.engineParticles.visible) return;
+                    
+                    const positions = this.engineParticles.geometry.attributes.position.array;
+                    const velocities = new Float32Array(positions.length);
+                    
+                    // Simulate particle physics
+                    for (let i = 0; i < positions.length; i += 3) {
+                        // Apply velocity
+                        positions[i] += velocities[i] * 100;
+                        positions[i + 1] += velocities[i + 1] * 100;
+                        positions[i + 2] += velocities[i + 2] * 100;
+                        
+                        // Reset particles that go too far
+                        if (positions[i + 1] < -20000) {
+                            positions[i] = (Math.random() - 0.5) * 1000;
+                            positions[i + 1] = -6000;
+                            positions[i + 2] = (Math.random() - 0.5) * 1000;
+                        }
+                    }
+                    
+                    this.engineParticles.geometry.attributes.position.needsUpdate = true;
+                    
+                    // Make particles face camera
+                    this.engineParticles.lookAt(this.camera.position);
+                },
+                
+                // Update performance statistics
+                updatePerformance() {
+                    const now = performance.now();
+                    
+                    if (now - this.lastFPSUpdate >= 1000) {
+                        this.fps = Math.round((this.frameCount * 1000) / (now - this.lastFPSUpdate));
+                        this.frameCount = 0;
+                        this.lastFPSUpdate = now;
+                        
+                        // Update render info
+                        const info = this.renderer.info;
+                        this.drawCalls = info.render.calls;
+                        this.triangles = info.render.triangles;
+                    }
+                },
+                
+                // Handle window resize
+                onResize() {
+                    const width = window.innerWidth;
+                    const height = window.innerHeight;
+                    
+                    this.camera.aspect = width / height;
+                    this.camera.updateProjectionMatrix();
+                    
+                    this.renderer.setSize(width, height);
+                    this.composer.setSize(width, height);
+                }
+            };
+        }
+    </script>
+</body>
+</html>

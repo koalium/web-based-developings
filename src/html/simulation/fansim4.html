@@ -1,0 +1,3018 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Aerodynamic Fan Simulator</title>
+    
+    <!-- Bootstrap 5 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Three.js with required extras -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/libs/stats.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/math/ConvexHull.js"></script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            touch-action: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body, html {
+            overflow: hidden;
+            width: 100%;
+            height: 100%;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: #000;
+        }
+
+        #renderCanvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        /* Touch Zones */
+        .touch-zone {
+            position: absolute;
+            z-index: 100;
+            opacity: 0.15;
+            transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            pointer-events: auto;
+        }
+
+        .touch-zone.active {
+            opacity: 0.35;
+            border-color: rgba(255, 255, 255, 0.6);
+            box-shadow: 0 0 30px rgba(255, 255, 255, 0.4);
+        }
+
+        .touch-zone.up {
+            top: 0;
+            left: 25%;
+            width: 50%;
+            height: 25%;
+            background: linear-gradient(180deg, rgba(0, 150, 255, 0.6) 0%, rgba(0, 100, 200, 0.4) 100%);
+        }
+
+        .touch-zone.down {
+            bottom: 0;
+            left: 25%;
+            width: 50%;
+            height: 25%;
+            background: linear-gradient(0deg, rgba(0, 200, 100, 0.6) 0%, rgba(0, 150, 80, 0.4) 100%);
+        }
+
+        .touch-zone.left {
+            top: 25%;
+            left: 0;
+            width: 25%;
+            height: 50%;
+            background: linear-gradient(90deg, rgba(255, 200, 0, 0.6) 0%, rgba(220, 170, 0, 0.4) 100%);
+        }
+
+        .touch-zone.right {
+            top: 25%;
+            right: 0;
+            width: 25%;
+            height: 50%;
+            background: linear-gradient(270deg, rgba(255, 50, 50, 0.6) 0%, rgba(220, 30, 30, 0.4) 100%);
+        }
+
+        /* Glass Panels */
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(25px);
+            -webkit-backdrop-filter: blur(25px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+            border-radius: 16px;
+        }
+
+        .glass-panel-dark {
+            background: rgba(0, 0, 0, 0.75);
+            backdrop-filter: blur(25px);
+            -webkit-backdrop-filter: blur(25px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        /* Custom Controls */
+        .control-slider {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 8px;
+            border-radius: 4px;
+            background: linear-gradient(90deg, #0066cc 0%, #0099ff 100%);
+            outline: none;
+        }
+
+        .control-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: #ffffff;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
+            border: 3px solid #0066cc;
+        }
+
+        .param-value {
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-weight: 600;
+            color: #00ccff;
+            text-shadow: 0 0 10px rgba(0, 204, 255, 0.5);
+        }
+
+        .aerodynamic-chart {
+            height: 120px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .status-active { background: #00ff00; box-shadow: 0 0 15px #00ff00; }
+        .status-warning { background: #ffaa00; box-shadow: 0 0 15px #ffaa00; }
+        .status-critical { background: #ff0000; box-shadow: 0 0 15px #ff0000; }
+
+        /* Airflow Visualization */
+        .airflow-particle {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: #00ffff;
+            border-radius: 50%;
+            pointer-events: none;
+            opacity: 0;
+            box-shadow: 0 0 8px #00ffff;
+        }
+
+        /* Advanced Physics Display */
+        .physics-value {
+            font-family: 'Courier New', monospace;
+            background: linear-gradient(135deg, rgba(0, 50, 100, 0.5), rgba(0, 100, 150, 0.5));
+            padding: 6px 12px;
+            border-radius: 8px;
+            border: 1px solid rgba(0, 200, 255, 0.3);
+            font-size: 0.9em;
+        }
+
+        .modal-content {
+            background: rgba(0, 0, 0, 0.9);
+            backdrop-filter: blur(30px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+        }
+
+        .form-range:focus::-webkit-slider-thumb {
+            box-shadow: 0 0 0 3px rgba(0, 204, 255, 0.5);
+        }
+
+        .btn-aero {
+            background: linear-gradient(135deg, #0066cc, #0099ff);
+            border: none;
+            color: white;
+            transition: all 0.3s ease;
+        }
+
+        .btn-aero:hover {
+            background: linear-gradient(135deg, #0099ff, #0066cc);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0, 153, 255, 0.4);
+        }
+
+        .ring-option {
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px solid transparent;
+            border-radius: 10px;
+            padding: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .ring-option.active {
+            background: rgba(0, 204, 255, 0.2);
+            border-color: #00ccff;
+            box-shadow: 0 0 20px rgba(0, 204, 255, 0.3);
+        }
+
+        .touch-info {
+            font-size: 0.8em;
+            color: #888;
+        }
+
+        @media (max-width: 768px) {
+            .control-panel {
+                max-width: 95vw !important;
+            }
+            .physics-panel {
+                max-width: 90vw !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Canvas Container -->
+    <div id="renderCanvas"></div>
+
+    <!-- Touch Zones -->
+    <div class="touch-zone up" data-zone="up"></div>
+    <div class="touch-zone down" data-zone="down"></div>
+    <div class="touch-zone left" data-zone="left"></div>
+    <div class="touch-zone right" data-zone="right"></div>
+
+    <!-- Main Control Panel -->
+    <div class="position-fixed top-0 start-50 translate-middle-x mt-4 control-panel" style="z-index: 2000; width: 95%; max-width: 1400px;">
+        <div class="glass-panel p-4">
+            <div class="row g-4">
+                <!-- Left Column: Fan Configuration -->
+                <div class="col-lg-3">
+                    <h5 class="text-white mb-3">
+                        <span class="status-indicator status-active"></span>
+                        Fan Configuration
+                    </h5>
+                    
+                    <!-- RPM Control -->
+                    <div class="mb-4">
+                        <div class="d-flex justify-content-between mb-2">
+                            <label class="form-label text-white mb-0">Rotation Speed</label>
+                            <span class="param-value" id="rpmValue">1000 RPM</span>
+                        </div>
+                        <input type="range" class="form-range control-slider" id="rpmSlider" 
+                               min="0" max="1500" value="1000" step="1">
+                        <div class="d-flex justify-content-between text-white-50 small mt-1">
+                            <span>0 RPM</span>
+                            <span>1500 RPM</span>
+                        </div>
+                    </div>
+
+                    <!-- Blade Parameters -->
+                    <div class="mb-4">
+                        <div class="d-flex justify-content-between mb-2">
+                            <label class="form-label text-white mb-0">Blade Count</label>
+                            <span class="param-value" id="bladeCountValue">5</span>
+                        </div>
+                        <input type="range" class="form-range control-slider" id="bladeCountSlider" 
+                               min="3" max="10" value="5" step="1">
+                    </div>
+
+                    <div class="mb-4">
+                        <div class="d-flex justify-content-between mb-2">
+                            <label class="form-label text-white mb-0">Angle of Attack</label>
+                            <span class="param-value" id="angleValue">15°</span>
+                        </div>
+                        <input type="range" class="form-range control-slider" id="angleSlider" 
+                               min="5" max="35" value="15" step="0.1">
+                    </div>
+
+                    <!-- Blade Dimensions -->
+                    <div class="row g-2 mb-4">
+                        <div class="col-6">
+                            <label class="form-label text-white small">Blade Length</label>
+                            <div class="physics-value text-center" id="lengthValue">60 cm</div>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label text-white small">Blade Width</label>
+                            <div class="physics-value text-center" id="widthValue">15 cm</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Center Column: Fan Ring Selection -->
+                <div class="col-lg-3">
+                    <h5 class="text-white mb-3">
+                        <i class="bi-circle me-2"></i>
+                        Fan Ring Type
+                    </h5>
+                    
+                    <div class="d-grid gap-3">
+                        <div class="ring-option active" data-ring="bell">
+                            <h6 class="text-white mb-1">Bell Shape Ring</h6>
+                            <small class="text-white-50">Convergent-divergent profile for pressure recovery</small>
+                        </div>
+                        
+                        <div class="ring-option" data-ring="cylinder">
+                            <h6 class="text-white mb-1">Cylinder Ring</h6>
+                            <small class="text-white-50">Constant cross-section for uniform flow</small>
+                        </div>
+                        
+                        <div class="ring-option" data-ring="diffuser">
+                            <h6 class="text-white mb-1">Diffuser Ring</h6>
+                            <small class="text-white-50">Divergent profile for velocity reduction</small>
+                        </div>
+                        
+                        <div class="ring-option" data-ring="venturi">
+                            <h6 class="text-white mb-1">Venturi Ring</h6>
+                            <small class="text-white-50">Convergent profile for velocity increase</small>
+                        </div>
+                    </div>
+
+                    <!-- Ring Parameters -->
+                    <div class="mt-4" id="ringParams">
+                        <div class="mb-3">
+                            <label class="form-label text-white small">Ring Diameter</label>
+                            <input type="range" class="form-range control-slider" id="ringDiameterSlider" 
+                                   min="50" max="150" value="100" step="1">
+                            <div class="physics-value text-center mt-2" id="ringDiameterValue">100 cm</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="form-label text-white small">Ring Length</label>
+                            <input type="range" class="form-range control-slider" id="ringLengthSlider" 
+                                   min="10" max="60" value="30" step="1">
+                            <div class="physics-value text-center mt-2" id="ringLengthValue">30 cm</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Column: Performance Metrics -->
+                <div class="col-lg-6">
+                    <h5 class="text-white mb-3">
+                        <i class="bi-graph-up-arrow me-2"></i>
+                        Aerodynamic Performance
+                    </h5>
+                    
+                    <!-- Real-time Metrics -->
+                    <div class="row g-3 mb-4">
+                        <div class="col-4">
+                            <div class="glass-panel-dark rounded-3 p-3 text-center">
+                                <small class="text-white-50 d-block mb-1">Power Consumption</small>
+                                <div class="physics-value" id="powerValue">1.25 kW</div>
+                                <small class="text-white-50 d-block mt-1" id="efficiencyValue">η = 78.5%</small>
+                            </div>
+                        </div>
+                        
+                        <div class="col-4">
+                            <div class="glass-panel-dark rounded-3 p-3 text-center">
+                                <small class="text-white-50 d-block mb-1">Airflow Rate</small>
+                                <div class="physics-value" id="airflowValue">850 CFM</div>
+                                <small class="text-white-50 d-block mt-1" id="velocityValue">V = 25.4 m/s</small>
+                            </div>
+                        </div>
+                        
+                        <div class="col-4">
+                            <div class="glass-panel-dark rounded-3 p-3 text-center">
+                                <small class="text-white-50 d-block mb-1">Static Pressure</small>
+                                <div class="physics-value" id="pressureValue">125 Pa</div>
+                                <small class="text-white-50 d-block mt-1" id="pressureDropValue">ΔP = 45 Pa</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Advanced Physics Chart -->
+                    <div class="mb-3">
+                        <label class="form-label text-white small">Performance vs RPM</label>
+                        <div class="aerodynamic-chart">
+                            <canvas id="performanceChart" width="400" height="120"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Control Buttons -->
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-aero flex-fill" id="simulationMode">
+                            <i class="bi-play-fill me-2"></i>Start Simulation
+                        </button>
+                        <button class="btn btn-outline-light flex-fill" id="showFormulas">
+                            <i class="bi-calculator me-2"></i>Show Formulas
+                        </button>
+                        <button class="btn btn-outline-light flex-fill" id="exportData">
+                            <i class="bi-download me-2"></i>Export Data
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Touch Analytics Panel -->
+    <div class="position-fixed bottom-0 start-0 m-4 glass-panel-dark rounded-3 p-3" style="z-index: 2000; width: 320px;">
+        <h6 class="text-white mb-3">
+            <i class="bi-touchpad me-2"></i>
+            Touch Analytics
+        </h6>
+        
+        <div class="row g-2">
+            <div class="col-6">
+                <small class="text-white-50">Active Zone</small>
+                <div class="physics-value" id="activeZone">None</div>
+            </div>
+            <div class="col-6">
+                <small class="text-white-50">Touch Duration</small>
+                <div class="physics-value" id="touchDuration">0 ms</div>
+            </div>
+        </div>
+        
+        <div class="row g-2 mt-2">
+            <div class="col-6">
+                <small class="text-white-50">Displacement</small>
+                <div class="physics-value" id="displacementValue">0 px</div>
+            </div>
+            <div class="col-6">
+                <small class="text-white-50">Velocity</small>
+                <div class="physics-value" id="velocityValue2">0 px/s</div>
+            </div>
+        </div>
+        
+        <div class="mt-3">
+            <small class="text-white-50">Coordinates (x, y)</small>
+            <div class="physics-value" id="touchCoords">(0, 0)</div>
+        </div>
+        
+        <div class="mt-2">
+            <small class="text-white-50">Multi-Touch</small>
+            <div class="physics-value" id="multiTouchCount">0 fingers</div>
+        </div>
+        
+        <div class="touch-info mt-3">
+            <small>• Quarter zones act as arrow keys</small><br>
+            <small>• Slide for camera movement</small><br>
+            <small>• Pinch for zoom, rotate for rotation</small>
+        </div>
+    </div>
+
+    <!-- Advanced Physics Panel -->
+    <div class="position-fixed bottom-0 end-0 m-4 physics-panel glass-panel-dark rounded-3 p-3" style="z-index: 2000; width: 350px;">
+        <h6 class="text-white mb-3">
+            <i class="bi-speedometer2 me-2"></i>
+            Aerodynamic Parameters
+        </h6>
+        
+        <div class="mb-3">
+            <small class="text-white-50">Reynolds Number</small>
+            <div class="physics-value" id="reynoldsNumber">1.2×10⁶</div>
+        </div>
+        
+        <div class="mb-3">
+            <small class="text-white-50">Mach Number</small>
+            <div class="physics-value" id="machNumber">0.073</div>
+        </div>
+        
+        <div class="mb-3">
+            <small class="text-white-50">Tip Speed Ratio</small>
+            <div class="physics-value" id="tipSpeedRatio">6.28</div>
+        </div>
+        
+        <div class="mb-3">
+            <small class="text-white-50">Strouhal Number</small>
+            <div class="physics-value" id="strouhalNumber">0.18</div>
+        </div>
+        
+        <div class="mb-3">
+            <small class="text-white-50">Flow Coefficient</small>
+            <div class="physics-value" id="flowCoefficient">0.45</div>
+        </div>
+        
+        <div class="mb-3">
+            <small class="text-white-50">Pressure Coefficient</small>
+            <div class="physics-value" id="pressureCoefficient">0.32</div>
+        </div>
+        
+        <div class="mt-3">
+            <small class="text-white-50">System Status</small>
+            <div class="d-flex align-items-center mt-1">
+                <span class="status-indicator status-active me-2"></span>
+                <span class="text-white small">Simulation Running</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Camera Control Panel -->
+    <div class="position-fixed top-0 end-0 m-4 glass-panel-dark rounded-3 p-3" style="z-index: 2000; width: 280px;">
+        <h6 class="text-white mb-3">
+            <i class="bi-camera me-2"></i>
+            Camera Control
+        </h6>
+        
+        <div class="mb-3">
+            <label class="form-label text-white small">Camera Distance</label>
+            <input type="range" class="form-range control-slider" id="cameraDistanceSlider" 
+                   min="50" max="500" value="300" step="1">
+        </div>
+        
+        <div class="mb-3">
+            <label class="form-label text-white small">Camera Height</label>
+            <input type="range" class="form-range control-slider" id="cameraHeightSlider" 
+                   min="50" max="300" value="150" step="1">
+        </div>
+        
+        <div class="mb-3">
+            <label class="form-label text-white small">Field of View</label>
+            <input type="range" class="form-range control-slider" id="fovSlider" 
+                   min="30" max="90" value="60" step="1">
+        </div>
+        
+        <div class="d-grid gap-2 mt-3">
+            <button class="btn btn-outline-light btn-sm" id="resetView">
+                <i class="bi-arrow-clockwise me-2"></i>Reset View
+            </button>
+            <button class="btn btn-outline-light btn-sm" id="toggleWireframe">
+                <i class="bi-grid-3x3-gap me-2"></i>Toggle Wireframe
+            </button>
+            <button class="btn btn-outline-light btn-sm" id="toggleAirflow">
+                <i class="bi-wind me-2"></i>Show Airflow
+            </button>
+        </div>
+    </div>
+
+    <!-- Formulas Modal -->
+    <div class="modal fade" id="formulasModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header border-0">
+                    <h5 class="modal-title text-white">Aerodynamic Formulas</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-6">
+                            <h6 class="text-info mb-3">Fan Laws & Basic Equations</h6>
+                            <pre class="text-white small bg-dark p-3 rounded">
+1. Power Consumption:
+   P = ρ × Q × H / η
+   where: ρ = air density (1.225 kg/m³)
+         Q = volumetric flow rate (m³/s)
+         H = total pressure head (Pa)
+         η = efficiency
+
+2. Euler's Turbomachinery Equation:
+   ΔH = u₂ × v_{θ₂} - u₁ × v_{θ₁}
+   where: u = blade speed
+         v_θ = tangential velocity component
+
+3. Bernoulli's Equation (with losses):
+   P₁/ρg + v₁²/2g + z₁ = P₂/ρg + v₂²/2g + z₂ + h_L
+   where: h_L = head loss
+                            </pre>
+                        </div>
+                        <div class="col-6">
+                            <h6 class="text-info mb-3">Dimensionless Numbers</h6>
+                            <pre class="text-white small bg-dark p-3 rounded">
+1. Reynolds Number:
+   Re = (ρ × v × L) / μ
+   where: v = characteristic velocity
+         L = characteristic length
+         μ = dynamic viscosity
+
+2. Mach Number:
+   M = v / a
+   where: a = speed of sound (343 m/s)
+
+3. Flow Coefficient:
+   φ = Q / (A × u)
+   where: A = flow area
+
+4. Pressure Coefficient:
+   ψ = ΔP / (ρ × u²)
+                            </pre>
+                        </div>
+                    </div>
+                    <div class="mt-4">
+                        <h6 class="text-info mb-3">Ring-Specific Equations</h6>
+                        <pre class="text-white small bg-dark p-3 rounded">
+Bell Shape Ring (Convergent-Divergent):
+   A(x) = A_throat × [1 + ((A_exit/A_throat)-1) × (x/L)²]
+   Pressure Recovery: η_pr = (P₂ - P₁) / (0.5×ρ×v₁²)
+
+Diffuser Ring:
+   dP/dx = -ρ × v × dv/dx - τ_w × C/A
+   where: τ_w = wall shear stress
+         C = perimeter
+         A = cross-sectional area
+
+Venturi Ring:
+   Q = C_d × A_throat × √[2×(P₁-P₂)/ρ×(1-β⁴)]
+   where: β = diameter ratio
+         C_d = discharge coefficient
+                        </pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Three.js Script -->
+    <script>
+        // ============================================
+        // PRECISION TOUCH CONTROLLER WITH ADVANCED PHYSICS
+        // ============================================
+        class AdvancedTouchController {
+            constructor() {
+                this.activeTouches = new Map();
+                this.activeZones = new Set();
+                this.slideData = new Map();
+                this.multiTouchData = null;
+                this.touchHistory = [];
+                this.maxHistorySize = 60;
+                
+                // Zone elements
+                this.zones = {
+                    up: document.querySelector('.touch-zone.up'),
+                    down: document.querySelector('.touch-zone.down'),
+                    left: document.querySelector('.touch-zone.left'),
+                    right: document.querySelector('.touch-zone.right')
+                };
+                
+                // Debug elements
+                this.debugElements = {
+                    activeZone: document.getElementById('activeZone'),
+                    displacementValue: document.getElementById('displacementValue'),
+                    velocityValue2: document.getElementById('velocityValue2'),
+                    touchCoords: document.getElementById('touchCoords'),
+                    touchDuration: document.getElementById('touchDuration'),
+                    multiTouchCount: document.getElementById('multiTouchCount')
+                };
+                
+                this.init();
+                this.startUpdateLoop();
+            }
+            
+            init() {
+                // Add touch event listeners to zones
+                Object.entries(this.zones).forEach(([zone, element]) => {
+                    element.addEventListener('touchstart', (e) => this.handleTouchStart(e, zone), { passive: false });
+                    element.addEventListener('touchmove', (e) => this.handleTouchMove(e, zone), { passive: false });
+                    element.addEventListener('touchend', (e) => this.handleTouchEnd(e, zone), { passive: false });
+                    element.addEventListener('touchcancel', (e) => this.handleTouchEnd(e, zone), { passive: false });
+                });
+                
+                // Global multi-touch for camera control
+                document.addEventListener('touchstart', (e) => this.handleGlobalTouchStart(e), { passive: false });
+                document.addEventListener('touchmove', (e) => this.handleGlobalTouchMove(e), { passive: false });
+                document.addEventListener('touchend', (e) => this.handleGlobalTouchEnd(e), { passive: false });
+            }
+            
+            handleTouchStart(e, zone) {
+                e.preventDefault();
+                const touch = e.touches[0];
+                const touchId = touch.identifier;
+                const currentTime = performance.now();
+                
+                // Create precise touch data structure
+                const touchData = {
+                    id: touchId,
+                    zone: zone,
+                    x: touch.clientX,
+                    y: touch.clientY,
+                    t: currentTime,
+                    startX: touch.clientX,
+                    startY: touch.clientY,
+                    startT: currentTime,
+                    prevX: touch.clientX,
+                    prevY: touch.clientY,
+                    prevT: currentTime,
+                    velocityX: 0,
+                    velocityY: 0,
+                    accelerationX: 0,
+                    accelerationY: 0,
+                    pathLength: 0,
+                    maxVelocity: 0
+                };
+                
+                this.activeTouches.set(touchId, touchData);
+                this.activeZones.add(zone);
+                this.zones[zone].classList.add('active');
+                
+                // Initialize slide data
+                this.slideData.set(touchId, {
+                    x0: touch.clientX,
+                    y0: touch.clientY,
+                    t0: currentTime,
+                    zone: zone,
+                    history: []
+                });
+                
+                // Emit zone press event
+                this.emitZoneEvent(zone, 'press', {
+                    x: touch.clientX,
+                    y: touch.clientY,
+                    t: currentTime,
+                    force: e.touches[0].force || 1.0
+                });
+                
+                this.updateDebug();
+            }
+            
+            handleTouchMove(e, zone) {
+                e.preventDefault();
+                const currentTime = performance.now();
+                
+                Array.from(e.touches).forEach(touch => {
+                    const touchId = touch.identifier;
+                    if (this.activeTouches.has(touchId) && this.activeTouches.get(touchId).zone === zone) {
+                        const touchData = this.activeTouches.get(touchId);
+                        
+                        // Calculate precise deltas
+                        const dt = currentTime - touchData.t;
+                        const dx = touch.clientX - touchData.x;
+                        const dy = touch.clientY - touchData.y;
+                        const dxt = touch.clientX - touchData.prevX;
+                        const dyt = touch.clientY - touchData.prevY;
+                        
+                        if (dt > 0) {
+                            // Update velocities (px/s)
+                            const newVelocityX = dx / dt * 1000;
+                            const newVelocityY = dy / dt * 1000;
+                            
+                            // Calculate acceleration (px/s²)
+                            touchData.accelerationX = (newVelocityX - touchData.velocityX) / dt * 1000;
+                            touchData.accelerationY = (newVelocityY - touchData.velocityY) / dt * 1000;
+                            
+                            touchData.velocityX = newVelocityX;
+                            touchData.velocityY = newVelocityY;
+                            
+                            // Update path length
+                            const segmentLength = Math.sqrt(dx*dx + dy*dy);
+                            touchData.pathLength += segmentLength;
+                            
+                            // Track max velocity
+                            const currentSpeed = Math.sqrt(newVelocityX*newVelocityX + newVelocityY*newVelocityY);
+                            touchData.maxVelocity = Math.max(touchData.maxVelocity, currentSpeed);
+                        }
+                        
+                        // Update previous values
+                        touchData.prevX = touchData.x;
+                        touchData.prevY = touchData.y;
+                        touchData.prevT = touchData.t;
+                        
+                        // Update current values
+                        touchData.x = touch.clientX;
+                        touchData.y = touch.clientY;
+                        touchData.t = currentTime;
+                        
+                        // Update slide data
+                        if (this.slideData.has(touchId)) {
+                            const slide = this.slideData.get(touchId);
+                            slide.x = touch.clientX;
+                            slide.y = touch.clientY;
+                            slide.t = currentTime;
+                            
+                            // Calculate slide physics
+                            const slideDx = slide.x - slide.x0;
+                            const slideDy = slide.y - slide.y0;
+                            const slideDt = currentTime - slide.t0;
+                            const displacement = Math.sqrt(slideDx*slideDx + slideDy*slideDy);
+                            const velocity = slideDt > 0 ? displacement / slideDt * 1000 : 0;
+                            
+                            slide.displacement = displacement;
+                            slide.velocity = velocity;
+                            slide.dx = slideDx;
+                            slide.dy = slideDy;
+                            slide.dt = slideDt;
+                            
+                            // Emit slide event
+                            this.emitSlideEvent({
+                                touchId: touchId,
+                                zone: zone,
+                                ...slide
+                            });
+                        }
+                        
+                        // Emit hold event with detailed physics
+                        this.emitZoneEvent(zone, 'hold', {
+                            x: touch.clientX,
+                            y: touch.clientY,
+                            t: currentTime,
+                            velocityX: touchData.velocityX,
+                            velocityY: touchData.velocityY,
+                            accelerationX: touchData.accelerationX,
+                            accelerationY: touchData.accelerationY,
+                            pathLength: touchData.pathLength
+                        });
+                    }
+                });
+                
+                this.updateDebug();
+            }
+            
+            handleTouchEnd(e, zone) {
+                e.preventDefault();
+                const currentTime = performance.now();
+                
+                Array.from(e.changedTouches).forEach(touch => {
+                    const touchId = touch.identifier;
+                    if (this.activeTouches.has(touchId)) {
+                        const touchData = this.activeTouches.get(touchId);
+                        
+                        // Finalize slide data
+                        if (this.slideData.has(touchId)) {
+                            const slide = this.slideData.get(touchId);
+                            const finalData = {
+                                ...slide,
+                                x1: touch.clientX,
+                                y1: touch.clientY,
+                                t1: currentTime,
+                                final: true
+                            };
+                            
+                            // Calculate final physics
+                            const dx = finalData.x1 - finalData.x0;
+                            const dy = finalData.y1 - finalData.y0;
+                            const dt = finalData.t1 - finalData.t0;
+                            const displacement = Math.sqrt(dx*dx + dy*dy);
+                            const velocity = dt > 0 ? displacement / dt * 1000 : 0;
+                            
+                            finalData.displacement = displacement;
+                            finalData.velocity = velocity;
+                            finalData.dx = dx;
+                            finalData.dy = dy;
+                            finalData.dt = dt;
+                            
+                            // Emit final slide event
+                            this.emitSlideEvent(finalData);
+                            
+                            // Log detailed physics
+                            console.log(`Slide Analysis (${zone}):
+                                Displacement: ${displacement.toFixed(2)} px
+                                Velocity: ${velocity.toFixed(2)} px/s
+                                Duration: ${dt.toFixed(0)} ms
+                                Angle: ${Math.atan2(dy, dx).toFixed(2)} rad
+                                Max Velocity: ${touchData.maxVelocity.toFixed(2)} px/s`);
+                            
+                            this.slideData.delete(touchId);
+                        }
+                        
+                        // Emit release event
+                        this.emitZoneEvent(zone, 'release', {
+                            x: touch.clientX,
+                            y: touch.clientY,
+                            t: currentTime,
+                            totalDuration: currentTime - touchData.startT,
+                            pathLength: touchData.pathLength,
+                            maxVelocity: touchData.maxVelocity
+                        });
+                        
+                        this.activeTouches.delete(touchId);
+                    }
+                });
+                
+                // Check if zone is still active
+                const zoneStillActive = Array.from(this.activeTouches.values())
+                    .some(data => data.zone === zone);
+                
+                if (!zoneStillActive) {
+                    this.activeZones.delete(zone);
+                    this.zones[zone].classList.remove('active');
+                }
+                
+                this.updateDebug();
+            }
+            
+            handleGlobalTouchStart(e) {
+                if (e.touches.length >= 2) {
+                    this.multiTouchData = {
+                        touchCount: e.touches.length,
+                        initialTouches: Array.from(e.touches).map(t => ({
+                            x: t.clientX,
+                            y: t.clientY,
+                            id: t.identifier
+                        })),
+                        startTime: performance.now()
+                    };
+                    
+                    this.debugElements.multiTouchCount.textContent = `${e.touches.length} fingers`;
+                }
+            }
+            
+            handleGlobalTouchMove(e) {
+                if (this.multiTouchData && e.touches.length >= 2) {
+                    e.preventDefault();
+                    
+                    const currentTouches = Array.from(e.touches);
+                    const currentTime = performance.now();
+                    
+                    if (e.touches.length === 2) {
+                        // Two-finger gesture (pinch + rotate + pan)
+                        const touch1 = currentTouches[0];
+                        const touch2 = currentTouches[1];
+                        
+                        // Calculate transformation matrix
+                        const initialCenter = this.calculateCenter(
+                            this.multiTouchData.initialTouches[0],
+                            this.multiTouchData.initialTouches[1]
+                        );
+                        const currentCenter = this.calculateCenter(touch1, touch2);
+                        
+                        const initialVector = this.calculateVector(
+                            this.multiTouchData.initialTouches[0],
+                            this.multiTouchData.initialTouches[1]
+                        );
+                        const currentVector = this.calculateVector(touch1, touch2);
+                        
+                        // Calculate transformations
+                        const scale = currentVector.magnitude / initialVector.magnitude;
+                        const rotation = Math.atan2(currentVector.y, currentVector.x) - 
+                                      Math.atan2(initialVector.y, initialVector.x);
+                        const panX = currentCenter.x - initialCenter.x;
+                        const panY = currentCenter.y - initialCenter.y;
+                        
+                        // Emit camera control event with transformation matrix
+                        this.emitCameraEvent('multi-touch-transform', {
+                            scale: scale,
+                            rotation: rotation,
+                            panX: panX,
+                            panY: panY,
+                            matrix: this.calculateTransformationMatrix(
+                                initialCenter, currentCenter,
+                                initialVector, currentVector
+                            )
+                        });
+                    }
+                }
+            }
+            
+            handleGlobalTouchEnd(e) {
+                if (this.multiTouchData && e.touches.length < 2) {
+                    this.multiTouchData = null;
+                    this.debugElements.multiTouchCount.textContent = '0 fingers';
+                }
+            }
+            
+            calculateCenter(t1, t2) {
+                return {
+                    x: (t1.clientX + t2.clientX) / 2,
+                    y: (t1.clientY + t2.clientY) / 2
+                };
+            }
+            
+            calculateVector(t1, t2) {
+                return {
+                    x: t2.clientX - t1.clientX,
+                    y: t2.clientY - t1.clientY,
+                    magnitude: Math.sqrt(
+                        Math.pow(t2.clientX - t1.clientX, 2) + 
+                        Math.pow(t2.clientY - t1.clientY, 2)
+                    )
+                };
+            }
+            
+            calculateTransformationMatrix(initialCenter, currentCenter, initialVector, currentVector) {
+                // Create 2D transformation matrix
+                const scaleX = currentVector.x / initialVector.x;
+                const scaleY = currentVector.y / initialVector.y;
+                const rotation = Math.atan2(currentVector.y, currentVector.x) - 
+                               Math.atan2(initialVector.y, initialVector.x);
+                const translationX = currentCenter.x - initialCenter.x;
+                const translationY = currentCenter.y - initialCenter.y;
+                
+                return {
+                    scale: { x: scaleX, y: scaleY },
+                    rotation: rotation,
+                    translation: { x: translationX, y: translationY }
+                };
+            }
+            
+            emitZoneEvent(zone, action, data) {
+                const event = new CustomEvent('zoneEvent', {
+                    detail: {
+                        zone,
+                        action,
+                        timestamp: performance.now(),
+                        ...data
+                    }
+                });
+                window.dispatchEvent(event);
+            }
+            
+            emitSlideEvent(data) {
+                const event = new CustomEvent('slideEvent', { detail: data });
+                window.dispatchEvent(event);
+                
+                // Update debug display with high precision
+                if (data.displacement !== undefined) {
+                    this.debugElements.displacementValue.textContent = 
+                        `${data.displacement.toFixed(2)} px`;
+                    this.debugElements.velocityValue2.textContent = 
+                        `${data.velocity.toFixed(2)} px/s`;
+                    this.debugElements.touchCoords.textContent = 
+                        `(${data.x?.toFixed(0) || 0}, ${data.y?.toFixed(0) || 0})`;
+                    this.debugElements.touchDuration.textContent = 
+                        `${data.dt?.toFixed(0) || 0} ms`;
+                }
+            }
+            
+            emitCameraEvent(type, data) {
+                const event = new CustomEvent('cameraEvent', {
+                    detail: { type, ...data, timestamp: performance.now() }
+                });
+                window.dispatchEvent(event);
+            }
+            
+            updateDebug() {
+                // Update active zone display
+                if (this.activeZones.size > 0) {
+                    this.debugElements.activeZone.textContent = 
+                        Array.from(this.activeZones).join(', ');
+                } else {
+                    this.debugElements.activeZone.textContent = 'None';
+                }
+                
+                // Update touch count
+                this.debugElements.multiTouchCount.textContent = 
+                    `${this.activeTouches.size} finger${this.activeTouches.size !== 1 ? 's' : ''}`;
+            }
+            
+            startUpdateLoop() {
+                const update = () => {
+                    // Continuous hold events for active zones
+                    this.activeZones.forEach(zone => {
+                        this.emitZoneEvent(zone, 'continuous', {
+                            timestamp: performance.now(),
+                            touchCount: this.activeTouches.size
+                        });
+                    });
+                    
+                    requestAnimationFrame(update);
+                };
+                update();
+            }
+        }
+
+        // ============================================
+        // AERODYNAMIC FAN WITH COMPLEX PHYSICS
+        // ============================================
+        class AerodynamicFanSystem {
+            constructor(scene) {
+                this.scene = scene;
+                this.fanGroup = new THREE.Group();
+                this.scene.add(this.fanGroup);
+                
+                // Detailed fan parameters (all in SI units)
+                this.parameters = {
+                    // Blade parameters
+                    bladeCount: 5,
+                    rpm: 1000,
+                    bladeLength: 0.6,      // meters
+                    bladeWidth: 0.15,      // meters
+                    bladeThickness: 0.04,   // meters (max thickness)
+                    angleOfAttack: 15,      // degrees
+                    bladeTwist: 10,         // degrees
+                    
+                    // Hub parameters
+                    hubDiameter: 0.25,      // meters
+                    hubThickness: 0.15,     // meters
+                    hubConicity: 5,         // degrees
+                    
+                    // Motor parameters
+                    motorDiameter: 0.4,     // meters
+                    motorLength: 0.5,       // meters
+                    shaftDiameter: 0.05,    // meters
+                    
+                    // Ring parameters
+                    ringType: 'bell',       // bell, cylinder, diffuser, venturi
+                    ringDiameter: 1.0,      // meters
+                    ringLength: 0.3,        // meters
+                    ringThroatRatio: 0.7,   // for bell/venturi
+                    ringDivergenceAngle: 8, // degrees for diffuser
+                    ringConvergenceAngle: 12, // degrees for venturi
+                    
+                    // Fluid properties
+                    airDensity: 1.225,      // kg/m³ at sea level
+                    airViscosity: 1.81e-5,  // Pa·s
+                    speedOfSound: 343.0,    // m/s
+                    atmosphericPressure: 101325 // Pa
+                };
+                
+                // Physics state variables
+                this.physicsState = {
+                    angularVelocity: 0,     // rad/s
+                    torque: 0,              // N·m
+                    powerInput: 0,          // W
+                    powerOutput: 0,         // W
+                    efficiency: 0,          // %
+                    massFlowRate: 0,        // kg/s
+                    volumetricFlowRate: 0,  // m³/s
+                    staticPressureRise: 0,  // Pa
+                    totalPressureRise: 0,   // Pa
+                    velocityProfile: null,
+                    pressureDistribution: null,
+                    boundaryLayer: null
+                };
+                
+                // Aerodynamic coefficients
+                this.coefficients = {
+                    liftCoefficient: 0,
+                    dragCoefficient: 0,
+                    momentCoefficient: 0,
+                    pressureCoefficient: 0,
+                    flowCoefficient: 0,
+                    pressureCoefficient: 0,
+                    reynoldsNumber: 0,
+                    machNumber: 0,
+                    strouhalNumber: 0,
+                    tipSpeedRatio: 0
+                };
+                
+                // Create all components
+                this.createMotorAssembly();
+                this.createHubAssembly();
+                this.createBladeAssembly();
+                this.createRingAssembly();
+                this.createMountingSystem();
+                
+                // Initialize physics
+                this.updateAerodynamicPhysics();
+                
+                // Position the fan
+                this.fanGroup.position.set(0, 1.5, 0);
+            }
+            
+            // ============================================
+            // MOTOR ASSEMBLY WITH DETAILED COMPONENTS
+            // ============================================
+            createMotorAssembly() {
+                this.motorGroup = new THREE.Group();
+                
+                // Main motor housing (stator)
+                const statorGeometry = new THREE.CylinderGeometry(
+                    this.parameters.motorDiameter / 2,
+                    this.parameters.motorDiameter / 2,
+                    this.parameters.motorLength,
+                    128,  // High poly count
+                    1,
+                    true
+                );
+                
+                // Detailed stator material with realistic properties
+                const statorMaterial = new THREE.MeshPhysicalMaterial({
+                    color: 0x222222,
+                    metalness: 0.95,
+                    roughness: 0.08,
+                    clearcoat: 1.0,
+                    clearcoatRoughness: 0.05,
+                    reflectivity: 0.8,
+                    envMapIntensity: 1.0,
+                    anisotropy: 0.8
+                });
+                
+                this.stator = new THREE.Mesh(statorGeometry, statorMaterial);
+                this.stator.rotation.x = Math.PI / 2;
+                this.stator.castShadow = true;
+                this.stator.receiveShadow = true;
+                this.motorGroup.add(this.stator);
+                
+                // Motor end bells with detailed features
+                this.createEndBells();
+                
+                // Cooling system with optimized fin design
+                this.createCoolingSystem();
+                
+                // Stator laminations (electrical steel stack)
+                this.createStatorLaminations();
+                
+                // Windings and electrical components
+                this.createWindings();
+                
+                // Bearings and shaft support system
+                this.createBearingSystem();
+                
+                // Motor terminal box
+                this.createTerminalBox();
+                
+                this.fanGroup.add(this.motorGroup);
+            }
+            
+            createEndBells() {
+                // Front end bell
+                const frontBellGeometry = new THREE.CylinderGeometry(
+                    this.parameters.motorDiameter / 2 + 0.02,
+                    this.parameters.motorDiameter / 2 + 0.02,
+                    0.02,
+                    128
+                );
+                
+                const bellMaterial = new THREE.MeshPhysicalMaterial({
+                    color: 0x333333,
+                    metalness: 0.9,
+                    roughness: 0.1,
+                    clearcoat: 0.5
+                });
+                
+                const frontBell = new THREE.Mesh(frontBellGeometry, bellMaterial);
+                frontBell.position.z = this.parameters.motorLength / 2 + 0.01;
+                frontBell.rotation.x = Math.PI / 2;
+                this.motorGroup.add(frontBell);
+                
+                // Rear end bell
+                const rearBell = frontBell.clone();
+                rearBell.position.z = -this.parameters.motorLength / 2 - 0.01;
+                this.motorGroup.add(rearBell);
+                
+                // Cooling openings on end bells
+                this.createCoolingOpenings(frontBell, rearBell);
+            }
+            
+            createCoolingSystem() {
+                const finCount = 36;
+                const finHeight = this.parameters.motorLength - 0.15;
+                const finThickness = 0.005;
+                const finDepth = 0.03;
+                
+                // Create optimized fin profile (airfoil shaped)
+                const finShape = new THREE.Shape();
+                const finPoints = [
+                    [0, 0],
+                    [0.3, 0.02],
+                    [0.7, 0.025],
+                    [1, 0.02],
+                    [0.7, -0.01],
+                    [0.3, -0.015],
+                    [0, 0]
+                ];
+                
+                finPoints.forEach(([x, y], i) => {
+                    if (i === 0) {
+                        finShape.moveTo(x * finDepth, y * finHeight);
+                    } else {
+                        finShape.lineTo(x * finDepth, y * finHeight);
+                    }
+                });
+                
+                const finGeometry = new THREE.ExtrudeGeometry(finShape, {
+                    steps: 1,
+                    depth: finThickness,
+                    bevelEnabled: false
+                });
+                
+                const finMaterial = new THREE.MeshPhysicalMaterial({
+                    color: 0x444444,
+                    metalness: 0.8,
+                    roughness: 0.3
+                });
+                
+                // Position fins around motor
+                for (let i = 0; i < finCount; i++) {
+                    const angle = (i / finCount) * Math.PI * 2;
+                    const radius = this.parameters.motorDiameter / 2 + finDepth / 2;
+                    
+                    const fin = new THREE.Mesh(finGeometry, finMaterial);
+                    fin.position.x = Math.cos(angle) * radius;
+                    fin.position.y = Math.sin(angle) * radius;
+                    fin.rotation.z = angle;
+                    fin.rotation.y = Math.PI / 2;
+                    
+                    this.motorGroup.add(fin);
+                }
+            }
+            
+            createStatorLaminations() {
+                const laminationCount = 200;
+                const laminationThickness = 0.00035; // 0.35mm per lamination
+                const slotDepth = 0.03;
+                
+                // Create lamination stack
+                const laminationGeometry = new THREE.CylinderGeometry(
+                    this.parameters.motorDiameter / 2 - slotDepth,
+                    this.parameters.motorDiameter / 2 - slotDepth,
+                    laminationCount * laminationThickness,
+                    128
+                );
+                
+                const laminationMaterial = new THREE.MeshPhysicalMaterial({
+                    color: 0x666666,
+                    metalness: 0.3,
+                    roughness: 0.4,
+                    emissive: 0x111111,
+                    emissiveIntensity: 0.1
+                });
+                
+                const laminationStack = new THREE.Mesh(laminationGeometry, laminationMaterial);
+                laminationStack.rotation.x = Math.PI / 2;
+                this.motorGroup.add(laminationStack);
+                
+                // Create stator slots
+                this.createStatorSlots();
+            }
+            
+            createStatorSlots() {
+                const slotCount = 36;
+                const slotWidth = 0.008;
+                const slotDepth = 0.03;
+                
+                const slotGeometry = new THREE.BoxGeometry(slotWidth, slotDepth, this.parameters.motorLength);
+                const slotMaterial = new THREE.MeshBasicMaterial({ color: 0x000000 });
+                
+                for (let i = 0; i < slotCount; i++) {
+                    const angle = (i / slotCount) * Math.PI * 2;
+                    const radius = this.parameters.motorDiameter / 2 - slotDepth / 2;
+                    
+                    const slot = new THREE.Mesh(slotGeometry, slotMaterial);
+                    slot.position.x = Math.cos(angle) * radius;
+                    slot.position.y = Math.sin(angle) * radius;
+                    slot.position.z = 0;
+                    slot.rotation.z = angle;
+                    
+                    this.motorGroup.add(slot);
+                }
+            }
+            
+            createWindings() {
+                const windingCount = 36;
+                const wireDiameter = 0.002;
+                
+                // Create copper winding material
+                const windingMaterial = new THREE.MeshPhysicalMaterial({
+                    color: 0xFFD700,
+                    metalness: 0.9,
+                    roughness: 0.2,
+                    emissive: 0xFFA500,
+                    emissiveIntensity: 0.05
+                });
+                
+                // Create winding geometry (simplified as torus)
+                const windingGeometry = new THREE.TorusGeometry(
+                    wireDiameter * 10,
+                    wireDiameter / 2,
+                    8,
+                    32
+                );
+                
+                for (let i = 0; i < windingCount; i++) {
+                    const angle = (i / windingCount) * Math.PI * 2;
+                    const radius = this.parameters.motorDiameter / 2 - 0.02;
+                    
+                    const winding = new THREE.Mesh(windingGeometry, windingMaterial);
+                    winding.position.x = Math.cos(angle) * radius;
+                    winding.position.y = Math.sin(angle) * radius;
+                    winding.position.z = 0;
+                    winding.rotation.x = Math.PI / 2;
+                    winding.rotation.z = angle;
+                    
+                    this.motorGroup.add(winding);
+                }
+            }
+            
+            createBearingSystem() {
+                // Front bearing
+                const bearingGeometry = new THREE.CylinderGeometry(
+                    0.04,
+                    0.04,
+                    0.03,
+                    32
+                );
+                
+                const bearingMaterial = new THREE.MeshPhysicalMaterial({
+                    color: 0x888888,
+                    metalness: 0.95,
+                    roughness: 0.05
+                });
+                
+                const frontBearing = new THREE.Mesh(bearingGeometry, bearingMaterial);
+                frontBearing.position.z = this.parameters.motorLength / 2 - 0.05;
+                frontBearing.rotation.x = Math.PI / 2;
+                this.motorGroup.add(frontBearing);
+                
+                // Rear bearing
+                const rearBearing = frontBearing.clone();
+                rearBearing.position.z = -this.parameters.motorLength / 2 + 0.05;
+                this.motorGroup.add(rearBearing);
+                
+                // Create shaft
+                this.createShaft();
+            }
+            
+            createShaft() {
+                const shaftGeometry = new THREE.CylinderGeometry(
+                    this.parameters.shaftDiameter / 2,
+                    this.parameters.shaftDiameter / 2,
+                    0.6,
+                    32
+                );
+                
+                const shaftMaterial = new THREE.MeshPhysicalMaterial({
+                    color: 0xAAAAAA,
+                    metalness: 0.98,
+                    roughness: 0.02,
+                    clearcoat: 1.0
+                });
+                
+                this.shaft = new THREE.Mesh(shaftGeometry, shaftMaterial);
+                this.shaft.position.z = this.parameters.motorLength / 2 + 0.3;
+                this.shaft.rotation.x = Math.PI / 2;
+                this.motorGroup.add(this.shaft);
+                
+                // Keyway on shaft
+                this.createKeyway();
+            }
+            
+            createKeyway() {
+                const keywayGeometry = new THREE.BoxGeometry(0.008, 0.02, 0.1);
+                const keywayMaterial = new THREE.MeshBasicMaterial({ color: 0x000000 });
+                
+                const keyway = new THREE.Mesh(keywayGeometry, keywayMaterial);
+                keyway.position.set(0, this.parameters.shaftDiameter / 2 - 0.01, 0);
+                this.shaft.add(keyway);
+            }
+            
+            createTerminalBox() {
+                const terminalBoxGeometry = new THREE.BoxGeometry(0.1, 0.08, 0.12);
+                const terminalBoxMaterial = new THREE.MeshPhysicalMaterial({
+                    color: 0x222222,
+                    roughness: 0.8,
+                    metalness: 0.1
+                });
+                
+                const terminalBox = new THREE.Mesh(terminalBoxGeometry, terminalBoxMaterial);
+                terminalBox.position.set(
+                    this.parameters.motorDiameter / 2 + 0.06,
+                    0,
+                    -this.parameters.motorLength / 4
+                );
+                this.motorGroup.add(terminalBox);
+            }
+            
+            // ============================================
+            // HUB ASSEMBLY WITH PRECISE ENGINEERING
+            // ============================================
+            createHubAssembly() {
+                this.hubGroup = new THREE.Group();
+                
+                // Main hub body with aerodynamic shaping
+                const hubPoints = [];
+                const segments = 32;
+                
+                // Create aerodynamic hub profile
+                for (let i = 0; i <= segments; i++) {
+                    const t = i / segments;
+                    const angle = t * Math.PI * 2;
+                    
+                    // Elliptical profile for reduced drag
+                    const radiusX = this.parameters.hubDiameter / 2 * (1 - 0.1 * Math.cos(angle));
+                    const radiusY = this.parameters.hubDiameter / 2 * (1 + 0.1 * Math.sin(angle));
+                    
+                    hubPoints.push(new THREE.Vector3(
+                        radiusX * Math.cos(angle),
+                        radiusY * Math.sin(angle),
+                        (t - 0.5) * this.parameters.hubThickness
+                    ));
+                }
+                
+                // Create hub geometry using lathe
+                const hubGeometry = new THREE.LatheGeometry(
+                    hubPoints.map(p => new THREE.Vector2(p.x, p.z)),
+                    64
+                );
+                
+                const hubMaterial = new THREE.MeshPhysicalMaterial({
+                    color: 0x555555,
+                    metalness: 0.85,
+                    roughness: 0.15,
+                    clearcoat: 0.7,
+                    anisotropy: 0.5
+                });
+                
+                this.hub = new THREE.Mesh(hubGeometry, hubMaterial);
+                this.hub.castShadow = true;
+                this.hub.receiveShadow = true;
+                this.hubGroup.add(this.hub);
+                
+                // Hub arms with airfoil cross-section
+                this.createHubArms();
+                
+                // Shaft-hub connection with precise tolerances
+                this.createShaftConnection();
+                
+                // Balancing weights and features
+                this.createBalancingFeatures();
+                
+                // Position hub at end of shaft
+                this.hubGroup.position.z = this.parameters.motorLength / 2 + 0.3;
+                
+                this.fanGroup.add(this.hubGroup);
+            }
+            
+            createHubArms() {
+                const armCount = this.parameters.bladeCount;
+                
+                for (let i = 0; i < armCount; i++) {
+                    const angle = (i / armCount) * Math.PI * 2;
+                    this.createHubArm(angle, i);
+                }
+            }
+            
+            createHubArm(angle, index) {
+                // Airfoil-shaped arm for reduced drag
+                const armShape = new THREE.Shape();
+                const armPoints = [
+                    [0, 0],
+                    [0.2, 0.03],
+                    [0.4, 0.04],
+                    [0.6, 0.035],
+                    [0.8, 0.02],
+                    [1, 0],
+                    [0.8, -0.015],
+                    [0.6, -0.02],
+                    [0.4, -0.018],
+                    [0.2, -0.01],
+                    [0, 0]
+                ];
+                
+                const armLength = 0.12;
+                const armThickness = 0.02;
+                
+                armPoints.forEach(([x, y], i) => {
+                    if (i === 0) {
+                        armShape.moveTo(x * armLength, y * armThickness);
+                    } else {
+                        armShape.lineTo(x * armLength, y * armThickness);
+                    }
+                });
+                
+                const armGeometry = new THREE.ExtrudeGeometry(armShape, {
+                    steps: 1,
+                    depth: this.parameters.hubThickness + 0.02,
+                    bevelEnabled: true,
+                    bevelThickness: 0.005,
+                    bevelSize: 0.005,
+                    bevelSegments: 3
+                });
+                
+                const armMaterial = new THREE.MeshPhysicalMaterial({
+                    color: 0x777777,
+                    metalness: 0.8,
+                    roughness: 0.2
+                });
+                
+                const arm = new THREE.Mesh(armGeometry, armMaterial);
+                
+                // Position arm radially from hub
+                const radius = this.parameters.hubDiameter / 2 + armLength / 2;
+                arm.position.x = Math.cos(angle) * radius;
+                arm.position.y = Math.sin(angle) * radius;
+                arm.rotation.z = angle;
+                
+                // Add blade mounting features
+                this.createBladeMounting(arm, angle, index);
+                
+                this.hubGroup.add(arm);
+            }
+            
+            createBladeMounting(arm, angle, index) {
+                // Create precise blade mounting interface
+                const mountingGeometry = new THREE.BoxGeometry(0.04, 0.08, 0.02);
+                const mountingMaterial = new THREE.MeshPhysicalMaterial({
+                    color: 0x888888,
+                    metalness: 0.9,
+                    roughness: 0.1
+                });
+                
+                const mounting = new THREE.Mesh(mountingGeometry, mountingMaterial);
+                mounting.position.y = 0.06;
+                arm.add(mounting);
+                
+                // Bolt holes for blade attachment
+                this.createBoltPattern(mounting, index);
+                
+                // Alignment pins
+                this.createAlignmentPins(mounting, angle);
+            }
+            
+            createBoltPattern(mounting, index) {
+                const boltCount = 4;
+                const boltPositions = [
+                    [-0.015, 0.02],
+                    [0.015, 0.02],
+                    [-0.015, -0.02],
+                    [0.015, -0.02]
+                ];
+                
+                for (let i = 0; i < boltCount; i++) {
+                    const [x, y] = boltPositions[i];
+                    
+                    // Bolt hole
+                    const boltHoleGeometry = new THREE.CylinderGeometry(0.003, 0.003, 0.03, 16);
+                    const boltHoleMaterial = new THREE.MeshBasicMaterial({ color: 0x000000 });
+                    
+                    const boltHole = new THREE.Mesh(boltHoleGeometry, boltHoleMaterial);
+                    boltHole.position.set(x, y, 0.015);
+                    boltHole.rotation.x = Math.PI / 2;
+                    mounting.add(boltHole);
+                    
+                    // Bolt head
+                    const boltHeadGeometry = new THREE.CylinderGeometry(0.006, 0.006, 0.005, 6);
+                    const boltHeadMaterial = new THREE.MeshPhysicalMaterial({
+                        color: 0xAAAAAA,
+                        metalness: 0.95,
+                        roughness: 0.05
+                    });
+                    
+                    const boltHead = new THREE.Mesh(boltHeadGeometry, boltHeadMaterial);
+                    boltHead.position.set(x, y, 0.0325);
+                    boltHead.rotation.x = Math.PI / 2;
+                    mounting.add(boltHead);
+                }
+            }
+            
+            createAlignmentPins(mounting, angle) {
+                const pinGeometry = new THREE.CylinderGeometry(0.002, 0.002, 0.01, 12);
+                const pinMaterial = new THREE.MeshPhysicalMaterial({
+                    color: 0x999999,
+                    metalness: 0.9,
+                    roughness: 0.1
+                });
+                
+                for (let i = 0; i < 2; i++) {
+                    const pin = new THREE.Mesh(pinGeometry, pinMaterial);
+                    pin.position.set(i === 0 ? -0.025 : 0.025, 0, 0.015);
+                    pin.rotation.x = Math.PI / 2;
+                    mounting.add(pin);
+                }
+            }
+            
+            createShaftConnection() {
+                // Create interference fit connection
+                const connectionGeometry = new THREE.CylinderGeometry(
+                    this.parameters.shaftDiameter / 2 + 0.005,
+                    this.parameters.hubDiameter / 2 - 0.03,
+                    0.05,
+                    32
+                );
+                
+                const connectionMaterial = new THREE.MeshPhysicalMaterial({
+                    color: 0x666666,
+                    metalness: 0.9,
+                    roughness: 0.1
+                });
+                
+                const connection = new THREE.Mesh(connectionGeometry, connectionMaterial);
+                connection.position.z = -this.parameters.hubThickness / 2 - 0.025;
+                connection.rotation.x = Math.PI / 2;
+                this.hubGroup.add(connection);
+                
+                // Key and keyway for torque transmission
+                this.createShaftKey();
+            }
+            
+            createShaftKey() {
+                const keyGeometry = new THREE.BoxGeometry(0.008, 0.02, 0.05);
+                const keyMaterial = new THREE.MeshPhysicalMaterial({
+                    color: 0x777777,
+                    metalness: 0.8,
+                    roughness: 0.2
+                });
+                
+                const key = new THREE.Mesh(keyGeometry, keyMaterial);
+                key.position.set(0, this.parameters.shaftDiameter / 2 - 0.01, -this.parameters.hubThickness / 2 - 0.025);
+                this.hubGroup.add(key);
+            }
+            
+            createBalancingFeatures() {
+                // Add balancing weights and inspection points
+                const weightGeometry = new THREE.SphereGeometry(0.01, 16, 16);
+                const weightMaterial = new THREE.MeshPhysicalMaterial({
+                    color: 0xFF0000,
+                    metalness: 0.5,
+                    roughness: 0.5
+                });
+                
+                // Add balancing weights at strategic locations
+                for (let i = 0; i < 3; i++) {
+                    const angle = (i / 3) * Math.PI * 2;
+                    const weight = new THREE.Mesh(weightGeometry, weightMaterial);
+                    weight.position.set(
+                        Math.cos(angle) * (this.parameters.hubDiameter / 2 - 0.02),
+                        Math.sin(angle) * (this.parameters.hubDiameter / 2 - 0.02),
+                        this.parameters.hubThickness / 2 - 0.01
+                    );
+                    this.hubGroup.add(weight);
+                }
+            }
+            
+            // ============================================
+            // BLADE ASSEMBLY WITH ADVANCED AERODYNAMICS
+            // ============================================
+            createBladeAssembly() {
+                this.bladeGroup = new THREE.Group();
+                this.blades = [];
+                
+                for (let i = 0; i < this.parameters.bladeCount; i++) {
+                    const blade = this.createAerodynamicBlade(i);
+                    this.blades.push(blade);
+                    this.bladeGroup.add(blade.mesh);
+                }
+                
+                this.hubGroup.add(this.bladeGroup);
+            }
+            
+            createAerodynamicBlade(index) {
+                // Create NACA 63-415 airfoil (high lift, moderate drag)
+                const airfoilPoints = this.generateNACA63415Points();
+                
+                // Apply twist and taper
+                const bladeShape = this.createBladeShape(airfoilPoints);
+                
+                // Extrude with complex geometry
+                const bladeGeometry = this.createBladeGeometry(bladeShape);
+                
+                // Advanced material with anisotropic properties
+                const bladeMaterial = new THREE.MeshPhysicalMaterial({
+                    color: 0xCCCCCC,
+                    metalness: 0.2,
+                    roughness: 0.4,
+                    clearcoat: 0.3,
+                    anisotropy: 0.8,
+                    anisotropyRotation: Math.PI / 4,
+                    side: THREE.DoubleSide,
+                    transparent: true,
+                    opacity: 0.95
+                });
+                
+                const bladeMesh = new THREE.Mesh(bladeGeometry, bladeMaterial);
+                bladeMesh.castShadow = true;
+                bladeMesh.receiveShadow = true;
+                
+                // Position blade
+                const angle = (index / this.parameters.bladeCount) * Math.PI * 2;
+                const radius = this.parameters.hubDiameter / 2 + 0.08;
+                bladeMesh.position.x = Math.cos(angle) * radius;
+                bladeMesh.position.y = Math.sin(angle) * radius;
+                bladeMesh.rotation.z = angle;
+                
+                // Set angle of attack with twist
+                const attackAngleRad = THREE.MathUtils.degToRad(this.parameters.angleOfAttack);
+                const twistAngleRad = THREE.MathUtils.degToRad(this.parameters.bladeTwist);
+                bladeMesh.rotation.y = attackAngleRad;
+                
+                return {
+                    mesh: bladeMesh,
+                    index: index,
+                    baseAngle: angle,
+                    currentAngle: attackAngleRad,
+                    twist: twistAngleRad,
+                    liftCoefficient: 0,
+                    dragCoefficient: 0
+                };
+            }
+            
+            generateNACA63415Points() {
+                // NACA 63-415 coordinates (high-performance airfoil)
+                const points = [];
+                const m = 0.63;  // maximum camber
+                const p = 0.4;   // position of maximum camber
+                const t = 0.15;  // thickness
+                
+                const segments = 100;
+                
+                for (let i = 0; i <= segments; i++) {
+                    const x = i / segments;
+                    
+                    // Thickness distribution
+                    const yt = 5 * t * (
+                        0.2969 * Math.sqrt(x) -
+                        0.1260 * x -
+                        0.3516 * Math.pow(x, 2) +
+                        0.2843 * Math.pow(x, 3) -
+                        0.1015 * Math.pow(x, 4)
+                    );
+                    
+                    // Camber line
+                    let yc = 0;
+                    if (x < p) {
+                        yc = (m / Math.pow(p, 2)) * (2 * p * x - Math.pow(x, 2));
+                    } else {
+                        yc = (m / Math.pow(1 - p, 2)) * ((1 - 2 * p) + 2 * p * x - Math.pow(x, 2));
+                    }
+                    
+                    // Derivative of camber line
+                    let dyc_dx = 0;
+                    if (x < p) {
+                        dyc_dx = (2 * m / Math.pow(p, 2)) * (p - x);
+                    } else {
+                        dyc_dx = (2 * m / Math.pow(1 - p, 2)) * (p - x);
+                    }
+                    
+                    const theta = Math.atan(dyc_dx);
+                    
+                    // Upper surface
+                    const xu = x - yt * Math.sin(theta);
+                    const yu = yc + yt * Math.cos(theta);
+                    points.push(new THREE.Vector2(xu, yu));
+                }
+                
+                for (let i = segments; i >= 0; i--) {
+                    const x = i / segments;
+                    
+                    // Thickness distribution
+                    const yt = 5 * t * (
+                        0.2969 * Math.sqrt(x) -
+                        0.1260 * x -
+                        0.3516 * Math.pow(x, 2) +
+                        0.2843 * Math.pow(x, 3) -
+                        0.1015 * Math.pow(x, 4)
+                    );
+                    
+                    // Camber line
+                    let yc = 0;
+                    if (x < p) {
+                        yc = (m / Math.pow(p, 2)) * (2 * p * x - Math.pow(x, 2));
+                    } else {
+                        yc = (m / Math.pow(1 - p, 2)) * ((1 - 2 * p) + 2 * p * x - Math.pow(x, 2));
+                    }
+                    
+                    // Derivative of camber line
+                    let dyc_dx = 0;
+                    if (x < p) {
+                        dyc_dx = (2 * m / Math.pow(p, 2)) * (p - x);
+                    } else {
+                        dyc_dx = (2 * m / Math.pow(1 - p, 2)) * (p - x);
+                    }
+                    
+                    const theta = Math.atan(dyc_dx);
+                    
+                    // Lower surface
+                    const xl = x + yt * Math.sin(theta);
+                    const yl = yc - yt * Math.cos(theta);
+                    points.push(new THREE.Vector2(xl, yl));
+                }
+                
+                return points;
+            }
+            
+            createBladeShape(airfoilPoints) {
+                const shape = new THREE.Shape();
+                
+                // Scale to actual blade dimensions
+                const scaledPoints = airfoilPoints.map(p => 
+                    new THREE.Vector2(
+                        p.x * this.parameters.bladeLength,
+                        p.y * this.parameters.bladeThickness
+                    )
+                );
+                
+                scaledPoints.forEach((point, i) => {
+                    if (i === 0) {
+                        shape.moveTo(point.x, point.y);
+                    } else {
+                        shape.lineTo(point.x, point.y);
+                    }
+                });
+                
+                return shape;
+            }
+            
+            createBladeGeometry(shape) {
+                // Create extrusion with complex options
+                const extrudeSettings = {
+                    steps: 50,
+                    depth: this.parameters.bladeWidth,
+                    bevelEnabled: true,
+                    bevelThickness: 0.005,
+                    bevelSize: 0.005,
+                    bevelOffset: 0,
+                    bevelSegments: 5,
+                    curveSegments: 32
+                };
+                
+                const geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings);
+                
+                // Apply transformations for correct orientation
+                geometry.rotateX(Math.PI / 2);
+                geometry.rotateY(Math.PI);
+                geometry.translate(-this.parameters.bladeLength / 2, -this.parameters.bladeWidth / 2, 0);
+                
+                // Compute vertex normals for smooth shading
+                geometry.computeVertexNormals();
+                
+                return geometry;
+            }
+            
+            // ============================================
+            // FAN RING ASSEMBLY WITH MULTIPLE DESIGNS
+            // ============================================
+            createRingAssembly() {
+                this.ringGroup = new THREE.Group();
+                this.currentRing = null;
+                
+                // Create all ring types
+                this.rings = {
+                    bell: this.createBellShapeRing(),
+                    cylinder: this.createCylinderRing(),
+                    diffuser: this.createDiffuserRing(),
+                    venturi: this.createVenturiRing()
+                };
+                
+                // Set initial ring
+                this.setRingType(this.parameters.ringType);
+                
+                this.fanGroup.add(this.ringGroup);
+            }
+            
+            createBellShapeRing() {
+                const ringGroup = new THREE.Group();
+                
+                // Bell shape profile (convergent-divergent)
+                const profilePoints = [];
+                const segments = 64;
+                const length = this.parameters.ringLength;
+                const radius = this.parameters.ringDiameter / 2;
+                const throatRatio = this.parameters.ringThroatRatio;
+                
+                // Create bell profile (smooth curve)
+                for (let i = 0; i <= segments; i++) {
+                    const t = i / segments;
+                    const x = t * length;
+                    
+                    // Bell mouth equation (polynomial)
+                    const bellRadius = radius * (
+                        1 - 
+                        (1 - throatRatio) * Math.sin(Math.PI * t) * 
+                        Math.exp(-2 * Math.pow(t - 0.5, 2))
+                    );
+                    
+                    profilePoints.push(new THREE.Vector2(bellRadius, x));
+                }
+                
+                // Add thickness to ring
+                const ringGeometry = new THREE.LatheGeometry(
+                    profilePoints.map(p => new THREE.Vector2(p.x, p.y)),
+                    128
+                );
+                
+                const ringMaterial = new THREE.MeshPhysicalMaterial({
+                    color: 0x888888,
+                    metalness: 0.7,
+                    roughness: 0.3,
+                    transparent: true,
+                    opacity: 0.8,
+                    side: THREE.DoubleSide
+                });
+                
+                const ringMesh = new THREE.Mesh(ringGeometry, ringMaterial);
+                ringMesh.rotation.x = Math.PI / 2;
+                ringMesh.position.z = this.parameters.motorLength / 2 + 0.3;
+                
+                // Add mounting flange
+                this.createRingMounting(ringGroup, radius, length);
+                
+                ringGroup.add(ringMesh);
+                ringGroup.userData.type = 'bell';
+                
+                return ringGroup;
+            }
+            
+            createCylinderRing() {
+                const ringGroup = new THREE.Group();
+                
+                const radius = this.parameters.ringDiameter / 2;
+                const length = this.parameters.ringLength;
+                
+                // Create cylinder geometry
+                const ringGeometry = new THREE.CylinderGeometry(
+                    radius, radius, length,
+                    128, 1, true
+                );
+                
+                const ringMaterial = new THREE.MeshPhysicalMaterial({
+                    color: 0x777777,
+                    metalness: 0.6,
+                    roughness: 0.4,
+                    transparent: true,
+                    opacity: 0.8,
+                    side: THREE.DoubleSide
+                });
+                
+                const ringMesh = new THREE.Mesh(ringGeometry, ringMaterial);
+                ringMesh.rotation.x = Math.PI / 2;
+                ringMesh.position.z = this.parameters.motorLength / 2 + 0.3;
+                
+                // Add internal flow straighteners
+                this.createFlowStraighteners(ringGroup, radius, length);
+                
+                ringGroup.add(ringMesh);
+                ringGroup.userData.type = 'cylinder';
+                
+                return ringGroup;
+            }
+            
+            createDiffuserRing() {
+                const ringGroup = new THREE.Group();
+                
+                const inletRadius = this.parameters.ringDiameter / 2;
+                const outletRadius = inletRadius * 1.5;
+                const length = this.parameters.ringLength;
+                const divergenceAngle = THREE.MathUtils.degToRad(this.parameters.ringDivergenceAngle);
+                
+                // Create diffuser profile (linearly diverging)
+                const profilePoints = [];
+                const segments = 64;
+                
+                for (let i = 0; i <= segments; i++) {
+                    const t = i / segments;
+                    const x = t * length;
+                    const radius = inletRadius + (outletRadius - inletRadius) * t;
+                    
+                    profilePoints.push(new THREE.Vector2(radius, x));
+                }
+                
+                const ringGeometry = new THREE.LatheGeometry(
+                    profilePoints.map(p => new THREE.Vector2(p.x, p.y)),
+                    128
+                );
+                
+                const ringMaterial = new THREE.MeshPhysicalMaterial({
+                    color: 0x6699CC,
+                    metalness: 0.5,
+                    roughness: 0.5,
+                    transparent: true,
+                    opacity: 0.8,
+                    side: THREE.DoubleSide
+                });
+                
+                const ringMesh = new THREE.Mesh(ringGeometry, ringMaterial);
+                ringMesh.rotation.x = Math.PI / 2;
+                ringMesh.position.z = this.parameters.motorLength / 2 + 0.3;
+                
+                // Add boundary layer control
+                this.createBoundaryLayerControl(ringGroup, inletRadius, outletRadius, length);
+                
+                ringGroup.add(ringMesh);
+                ringGroup.userData.type = 'diffuser';
+                
+                return ringGroup;
+            }
+            
+            createVenturiRing() {
+                const ringGroup = new THREE.Group();
+                
+                const inletRadius = this.parameters.ringDiameter / 2;
+                const throatRadius = inletRadius * this.parameters.ringThroatRatio;
+                const outletRadius = inletRadius;
+                const length = this.parameters.ringLength;
+                const convergenceAngle = THREE.MathUtils.degToRad(this.parameters.ringConvergenceAngle);
+                
+                // Create venturi profile (convergent-divergent)
+                const profilePoints = [];
+                const segments = 64;
+                
+                // Inlet section (convergent)
+                for (let i = 0; i <= segments/2; i++) {
+                    const t = i / (segments/2);
+                    const x = t * length/2;
+                    const radius = inletRadius - (inletRadius - throatRadius) * t;
+                    
+                    profilePoints.push(new THREE.Vector2(radius, x));
+                }
+                
+                // Outlet section (divergent)
+                for (let i = segments/2; i <= segments; i++) {
+                    const t = (i - segments/2) / (segments/2);
+                    const x = length/2 + t * length/2;
+                    const radius = throatRadius + (outletRadius - throatRadius) * t;
+                    
+                    profilePoints.push(new THREE.Vector2(radius, x));
+                }
+                
+                const ringGeometry = new THREE.LatheGeometry(
+                    profilePoints.map(p => new THREE.Vector2(p.x, p.y)),
+                    128
+                );
+                
+                const ringMaterial = new THREE.MeshPhysicalMaterial({
+                    color: 0xCC9966,
+                    metalness: 0.6,
+                    roughness: 0.4,
+                    transparent: true,
+                    opacity: 0.8,
+                    side: THREE.DoubleSide
+                });
+                
+                const ringMesh = new THREE.Mesh(ringGeometry, ringMaterial);
+                ringMesh.rotation.x = Math.PI / 2;
+                ringMesh.position.z = this.parameters.motorLength / 2 + 0.3;
+                
+                // Add pressure taps
+                this.createPressureTaps(ringGroup, inletRadius, throatRadius, outletRadius, length);
+                
+                ringGroup.add(ringMesh);
+                ringGroup.userData.type = 'venturi';
+                
+                return ringGroup;
+            }
+            
+            createRingMounting(ringGroup, radius, length) {
+                // Create mounting flange for ring
+                const flangeGeometry = new THREE.CylinderGeometry(
+                    radius + 0.05, radius + 0.05, 0.02,
+                    64
+                );
+                
+                const flangeMaterial = new THREE.MeshPhysicalMaterial({
+                    color: 0x555555,
+                    metalness: 0.8,
+                    roughness: 0.2
+                });
+                
+                const flange = new THREE.Mesh(flangeGeometry, flangeMaterial);
+                flange.position.z = -length/2 - 0.01;
+                flange.rotation.x = Math.PI / 2;
+                ringGroup.add(flange);
+                
+                // Mounting bolts
+                this.createMountingBolts(ringGroup, radius + 0.03);
+            }
+            
+            createFlowStraighteners(ringGroup, radius, length) {
+                // Create guide vanes for flow straightening
+                const vaneCount = 8;
+                const vaneGeometry = new THREE.BoxGeometry(0.01, radius * 0.8, length);
+                const vaneMaterial = new THREE.MeshPhysicalMaterial({
+                    color: 0x999999,
+                    metalness: 0.5,
+                    roughness: 0.5
+                });
+                
+                for (let i = 0; i < vaneCount; i++) {
+                    const angle = (i / vaneCount) * Math.PI * 2;
+                    const vane = new THREE.Mesh(vaneGeometry, vaneMaterial);
+                    
+                    const vaneRadius = radius * 0.6;
+                    vane.position.x = Math.cos(angle) * vaneRadius;
+                    vane.position.y = Math.sin(angle) * vaneRadius;
+                    vane.rotation.z = angle;
+                    
+                    ringGroup.add(vane);
+                }
+            }
+            
+            createBoundaryLayerControl(ringGroup, inletRadius, outletRadius, length) {
+                // Add boundary layer suction slots
+                const slotCount = 12;
+                const slotGeometry = new THREE.BoxGeometry(0.005, 0.02, length * 0.3);
+                const slotMaterial = new THREE.MeshBasicMaterial({ color: 0x000000 });
+                
+                for (let i = 0; i < slotCount; i++) {
+                    const angle = (i / slotCount) * Math.PI * 2;
+                    const slotRadius = (inletRadius + outletRadius) / 2;
+                    
+                    const slot = new THREE.Mesh(slotGeometry, slotMaterial);
+                    slot.position.x = Math.cos(angle) * slotRadius;
+                    slot.position.y = Math.sin(angle) * slotRadius;
+                    slot.position.z = length * 0.35;
+                    slot.rotation.z = angle;
+                    
+                    ringGroup.add(slot);
+                }
+            }
+            
+            createPressureTaps(ringGroup, inletRadius, throatRadius, outletRadius, length) {
+                // Add pressure measurement points
+                const tapGeometry = new THREE.SphereGeometry(0.005, 16, 16);
+                const tapMaterial = new THREE.MeshBasicMaterial({ color: 0xFF0000 });
+                
+                // Inlet tap
+                const inletTap = new THREE.Mesh(tapGeometry, tapMaterial);
+                inletTap.position.set(inletRadius + 0.01, 0, 0);
+                ringGroup.add(inletTap);
+                
+                // Throat tap
+                const throatTap = inletTap.clone();
+                throatTap.position.set(throatRadius + 0.01, 0, length/2);
+                ringGroup.add(throatTap);
+                
+                // Outlet tap
+                const outletTap = inletTap.clone();
+                outletTap.position.set(outletRadius + 0.01, 0, length);
+                ringGroup.add(outletTap);
+            }
+            
+            createMountingBolts(ringGroup, radius) {
+                const boltCount = 8;
+                const boltGeometry = new THREE.CylinderGeometry(0.005, 0.005, 0.05, 16);
+                const boltMaterial = new THREE.MeshPhysicalMaterial({
+                    color: 0xAAAAAA,
+                    metalness: 0.9,
+                    roughness: 0.1
+                });
+                
+                for (let i = 0; i < boltCount; i++) {
+                    const angle = (i / boltCount) * Math.PI * 2;
+                    const bolt = new THREE.Mesh(boltGeometry, boltMaterial);
+                    
+                    bolt.position.x = Math.cos(angle) * radius;
+                    bolt.position.y = Math.sin(angle) * radius;
+                    bolt.position.z = -0.025;
+                    bolt.rotation.x = Math.PI / 2;
+                    
+                    ringGroup.add(bolt);
+                }
+            }
+            
+            setRingType(type) {
+                // Remove current ring
+                if (this.currentRing) {
+                    this.ringGroup.remove(this.currentRing);
+                }
+                
+                // Add new ring
+                this.currentRing = this.rings[type];
+                this.ringGroup.add(this.currentRing);
+                this.parameters.ringType = type;
+                
+                // Update physics for new ring type
+                this.updateAerodynamicPhysics();
+            }
+            
+            // ============================================
+            // MOUNTING SYSTEM WITH VIBRATION ISOLATION
+            // ============================================
+            createMountingSystem() {
+                this.mountingGroup = new THREE.Group();
+                
+                // Base plate
+                const baseGeometry = new THREE.BoxGeometry(1.0, 1.0, 0.02);
+                const baseMaterial = new THREE.MeshPhysicalMaterial({
+                    color: 0x333333,
+                    metalness: 0.6,
+                    roughness: 0.4
+                });
+                
+                const basePlate = new THREE.Mesh(baseGeometry, baseMaterial);
+                basePlate.position.y = -0.8;
+                basePlate.castShadow = true;
+                basePlate.receiveShadow = true;
+                this.mountingGroup.add(basePlate);
+                
+                // Vibration isolators
+                this.createVibrationIsolators();
+                
+                // Motor mounting brackets
+                this.createMotorBrackets();
+                
+                // Cable management
+                this.createCableManagement();
+                
+                this.fanGroup.add(this.mountingGroup);
+            }
+            
+            createVibrationIsolators() {
+                const isolatorCount = 4;
+                const positions = [
+                    [-0.4, -0.8, -0.4],
+                    [0.4, -0.8, -0.4],
+                    [-0.4, -0.8, 0.4],
+                    [0.4, -0.8, 0.4]
+                ];
+                
+                positions.forEach(pos => {
+                    // Create rubber isolator
+                    const isolatorGeometry = new THREE.CylinderGeometry(0.05, 0.06, 0.15, 16);
+                    const isolatorMaterial = new THREE.MeshPhysicalMaterial({
+                        color: 0x226622,
+                        roughness: 0.9,
+                        metalness: 0.1
+                    });
+                    
+                    const isolator = new THREE.Mesh(isolatorGeometry, isolatorMaterial);
+                    isolator.position.set(...pos);
+                    this.mountingGroup.add(isolator);
+                    
+                    // Mounting plate
+                    const plateGeometry = new THREE.CylinderGeometry(0.08, 0.08, 0.01, 16);
+                    const plateMaterial = new THREE.MeshPhysicalMaterial({
+                        color: 0x555555,
+                        metalness: 0.7,
+                        roughness: 0.3
+                    });
+                    
+                    const plate = new THREE.Mesh(plateGeometry, plateMaterial);
+                    plate.position.set(pos[0], pos[1] + 0.08, pos[2]);
+                    this.mountingGroup.add(plate);
+                });
+            }
+            
+            createMotorBrackets() {
+                // Create L-shaped motor mounting brackets
+                const bracketGeometry = new THREE.BoxGeometry(0.05, 0.3, 0.05);
+                const bracketMaterial = new THREE.MeshPhysicalMaterial({
+                    color: 0x666666,
+                    metalness: 0.8,
+                    roughness: 0.2
+                });
+                
+                for (let i = 0; i < 4; i++) {
+                    const angle = (i / 4) * Math.PI * 2 + Math.PI/4;
+                    const radius = this.parameters.motorDiameter / 2 + 0.05;
+                    
+                    const bracket = new THREE.Mesh(bracketGeometry, bracketMaterial);
+                    bracket.position.x = Math.cos(angle) * radius;
+                    bracket.position.y = -0.5;
+                    bracket.position.z = Math.sin(angle) * radius;
+                    bracket.rotation.y = angle;
+                    
+                    this.mountingGroup.add(bracket);
+                }
+            }
+            
+            createCableManagement() {
+                // Power cable
+                const cableGeometry = new THREE.CylinderGeometry(0.01, 0.01, 1.0, 8);
+                const cableMaterial = new THREE.MeshPhysicalMaterial({
+                    color: 0x000000,
+                    roughness: 0.9,
+                    metalness: 0.1
+                });
+                
+                const cable = new THREE.Mesh(cableGeometry, cableMaterial);
+                cable.position.set(0.3, -0.4, 0);
+                cable.rotation.z = Math.PI / 4;
+                this.mountingGroup.add(cable);
+                
+                // Cable gland
+                const glandGeometry = new THREE.CylinderGeometry(0.02, 0.02, 0.04, 16);
+                const glandMaterial = new THREE.MeshPhysicalMaterial({
+                    color: 0x333333,
+                    metalness: 0.6,
+                    roughness: 0.4
+                });
+                
+                const gland = new THREE.Mesh(glandGeometry, glandMaterial);
+                gland.position.set(0.3, -0.1, 0);
+                this.mountingGroup.add(gland);
+            }
+            
+            // ============================================
+            // ADVANCED AERODYNAMIC PHYSICS CALCULATIONS
+            // ============================================
+            updateAerodynamicPhysics() {
+                // Convert RPM to angular velocity
+                const omega = (this.parameters.rpm * Math.PI * 2) / 60; // rad/s
+                this.physicsState.angularVelocity = omega;
+                
+                // Calculate blade tip speed
+                const tipSpeed = omega * this.parameters.bladeLength; // m/s
+                
+                // Calculate Mach number at tip
+                const machNumber = tipSpeed / this.parameters.speedOfSound;
+                this.coefficients.machNumber = machNumber;
+                
+                // Calculate Reynolds number based on chord length
+                const chordLength = this.parameters.bladeWidth;
+                const reynoldsNumber = (this.parameters.airDensity * tipSpeed * chordLength) / 
+                                      this.parameters.airViscosity;
+                this.coefficients.reynoldsNumber = reynoldsNumber;
+                
+                // Calculate flow area
+                const flowArea = Math.PI * Math.pow(this.parameters.ringDiameter / 2, 2) -
+                               Math.PI * Math.pow(this.parameters.hubDiameter / 2, 2);
+                
+                // Calculate blade element performance
+                this.calculateBladeElementPerformance(omega, tipSpeed, flowArea);
+                
+                // Calculate ring-specific effects
+                this.calculateRingEffects(flowArea);
+                
+                // Calculate overall performance
+                this.calculateOverallPerformance();
+                
+                // Update UI displays
+                this.updatePhysicsDisplays();
+            }
+            
+            calculateBladeElementPerformance(omega, tipSpeed, flowArea) {
+                const bladeCount = this.parameters.bladeCount;
+                const chord = this.parameters.bladeWidth;
+                const radius = this.parameters.bladeLength;
+                const alpha = THREE.MathUtils.degToRad(this.parameters.angleOfAttack);
+                const airDensity = this.parameters.airDensity;
+                
+                // Initialize blade performance arrays
+                let totalLift = 0;
+                let totalDrag = 0;
+                let totalTorque = 0;
+                let totalThrust = 0;
+                
+                // Blade element theory calculation
+                const elements = 20;
+                for (let i = 0; i < elements; i++) {
+                    const r = (i + 0.5) / elements * radius; // Element radius
+                    const dr = radius / elements; // Element width
+                    
+                    // Local velocity components
+                    const tangentialVelocity = omega * r;
+                    const axialVelocity = tipSpeed * 0.6; // Assumed inflow factor
+                    
+                    // Local angle of attack (including twist)
+                    const localTwist = this.parameters.bladeTwist * (1 - r/radius);
+                    const localAlpha = alpha + THREE.MathUtils.degToRad(localTwist);
+                    
+                    // Calculate lift and drag coefficients (simplified)
+                    const cl = 2 * Math.PI * Math.sin(localAlpha); // Linear lift curve
+                    const cd = 0.01 + 0.1 * Math.pow(localAlpha, 2); // Parabolic drag polar
+                    
+                    // Dynamic pressure
+                    const localVelocity = Math.sqrt(Math.pow(tangentialVelocity, 2) + 
+                                                   Math.pow(axialVelocity, 2));
+                    const dynamicPressure = 0.5 * airDensity * Math.pow(localVelocity, 2);
+                    
+                    // Element area
+                    const elementArea = chord * dr;
+                    
+                    // Element forces
+                    const lift = cl * dynamicPressure * elementArea;
+                    const drag = cd * dynamicPressure * elementArea;
+                    
+                    // Resolve forces into thrust and torque
+                    const phi = Math.atan2(axialVelocity, tangentialVelocity);
+                    const thrust = lift * Math.cos(phi) - drag * Math.sin(phi);
+                    const torque = (lift * Math.sin(phi) + drag * Math.cos(phi)) * r;
+                    
+                    totalLift += lift;
+                    totalDrag += drag;
+                    totalThrust += thrust;
+                    totalTorque += torque;
+                }
+                
+                // Multiply by blade count
+                totalLift *= bladeCount;
+                totalDrag *= bladeCount;
+                totalThrust *= bladeCount;
+                totalTorque *= bladeCount;
+                
+                // Store results
+                this.physicsState.torque = totalTorque;
+                this.physicsState.staticPressureRise = totalThrust / flowArea;
+                
+                // Calculate coefficients
+                this.coefficients.liftCoefficient = totalLift / 
+                    (0.5 * airDensity * Math.pow(tipSpeed, 2) * bladeCount * chord * radius);
+                this.coefficients.dragCoefficient = totalDrag / 
+                    (0.5 * airDensity * Math.pow(tipSpeed, 2) * bladeCount * chord * radius);
+            }
+            
+            calculateRingEffects(flowArea) {
+                const ringType = this.parameters.ringType;
+                const tipSpeed = this.physicsState.angularVelocity * this.parameters.bladeLength;
+                const basePressure = this.physicsState.staticPressureRise;
+                
+                let pressureMultiplier = 1.0;
+                let efficiencyMultiplier = 1.0;
+                
+                switch(ringType) {
+                    case 'bell':
+                        // Bell shape: pressure recovery in divergent section
+                        pressureMultiplier = 1.15;
+                        efficiencyMultiplier = 1.05;
+                        break;
+                        
+                    case 'cylinder':
+                        // Cylinder: constant area, minor losses
+                        pressureMultiplier = 0.95;
+                        efficiencyMultiplier = 0.98;
+                        break;
+                        
+                    case 'diffuser':
+                        // Diffuser: static pressure recovery, potential for separation
+                        pressureMultiplier = 1.25;
+                        efficiencyMultiplier = 1.10;
+                        break;
+                        
+                    case 'venturi':
+                        // Venturi: velocity increase, pressure drop at throat
+                        pressureMultiplier = 0.85;
+                        efficiencyMultiplier = 0.95;
+                        break;
+                }
+                
+                // Apply ring effects
+                this.physicsState.staticPressureRise *= pressureMultiplier;
+                
+                // Calculate ring-specific coefficients
+                const velocity = tipSpeed * 0.6; // Assumed mean velocity
+                this.coefficients.flowCoefficient = velocity / tipSpeed;
+                this.coefficients.pressureCoefficient = this.physicsState.staticPressureRise / 
+                    (0.5 * this.parameters.airDensity * Math.pow(tipSpeed, 2));
+                
+                // Calculate Strouhal number (for vortex shedding)
+                const characteristicLength = this.parameters.ringDiameter;
+                const strouhalNumber = (this.parameters.rpm / 60) * characteristicLength / velocity;
+                this.coefficients.strouhalNumber = strouhalNumber;
+                
+                // Tip speed ratio (for axial fans)
+                this.coefficients.tipSpeedRatio = tipSpeed / velocity;
+            }
+            
+            calculateOverallPerformance() {
+                const omega = this.physicsState.angularVelocity;
+                const torque = this.physicsState.torque;
+                
+                // Power calculations
+                const powerInput = torque * omega; // Mechanical power
+                const powerOutput = this.calculateFluidPower();
+                
+                // Efficiency
+                const efficiency = powerOutput / powerInput;
+                
+                // Flow rate calculations
+                const meanVelocity = this.coefficients.flowCoefficient * 
+                                   (omega * this.parameters.bladeLength);
+                const flowArea = Math.PI * Math.pow(this.parameters.ringDiameter / 2, 2) -
+                               Math.PI * Math.pow(this.parameters.hubDiameter / 2, 2);
+                const volumetricFlowRate = meanVelocity * flowArea;
+                const massFlowRate = volumetricFlowRate * this.parameters.airDensity;
+                
+                // Update physics state
+                this.physicsState.powerInput = powerInput;
+                this.physicsState.powerOutput = powerOutput;
+                this.physicsState.efficiency = efficiency * 100; // Percentage
+                this.physicsState.volumetricFlowRate = volumetricFlowRate;
+                this.physicsState.massFlowRate = massFlowRate;
+                this.physicsState.totalPressureRise = this.physicsState.staticPressureRise + 
+                    0.5 * this.parameters.airDensity * Math.pow(meanVelocity, 2);
+            }
+            
+            calculateFluidPower() {
+                const deltaP = this.physicsState.staticPressureRise;
+                const Q = this.physicsState.volumetricFlowRate;
+                const rho = this.parameters.airDensity;
+                const meanVelocity = this.coefficients.flowCoefficient * 
+                                   (this.physicsState.angularVelocity * this.parameters.bladeLength);
+                
+                // Fluid power = pressure rise * flow rate
+                const pressurePower = deltaP * Q;
+                
+                // Kinetic energy component
+                const kineticPower = 0.5 * rho * Q * Math.pow(meanVelocity, 2);
+                
+                return pressurePower + kineticPower;
+            }
+            
+            updatePhysicsDisplays() {
+                // Update main performance metrics
+                document.getElementById('powerValue').textContent = 
+                    `${(this.physicsState.powerInput / 1000).toFixed(2)} kW`;
+                document.getElementById('efficiencyValue').textContent = 
+                    `η = ${this.physicsState.efficiency.toFixed(1)}%`;
+                document.getElementById('airflowValue').textContent = 
+                    `${(this.physicsState.volumetricFlowRate * 2118.88).toFixed(0)} CFM`;
+                document.getElementById('velocityValue').textContent = 
+                    `V = ${(this.coefficients.flowCoefficient * 
+                           this.physicsState.angularVelocity * 
+                           this.parameters.bladeLength).toFixed(1)} m/s`;
+                document.getElementById('pressureValue').textContent = 
+                    `${this.physicsState.staticPressureRise.toFixed(0)} Pa`;
+                document.getElementById('pressureDropValue').textContent = 
+                    `ΔP = ${(this.physicsState.staticPressureRise * 0.36).toFixed(0)} Pa`;
+                
+                // Update aerodynamic coefficients
+                document.getElementById('reynoldsNumber').textContent = 
+                    `${(this.coefficients.reynoldsNumber / 1e6).toFixed(2)}×10⁶`;
+                document.getElementById('machNumber').textContent = 
+                    this.coefficients.machNumber.toFixed(3);
+                document.getElementById('tipSpeedRatio').textContent = 
+                    this.coefficients.tipSpeedRatio.toFixed(2);
+                document.getElementById('strouhalNumber').textContent = 
+                    this.coefficients.strouhalNumber.toFixed(2);
+                document.getElementById('flowCoefficient').textContent = 
+                    this.coefficients.flowCoefficient.toFixed(3);
+                document.getElementById('pressureCoefficient').textContent = 
+                    this.coefficients.pressureCoefficient.toFixed(3);
+            }
+            
+            // ============================================
+            // ANIMATION AND UPDATE FUNCTIONS
+            // ============================================
+            update(deltaTime) {
+                if (this.physicsState.angularVelocity > 0) {
+                    // Rotate fan
+                    const rotationAngle = this.physicsState.angularVelocity * deltaTime;
+                    this.hubGroup.rotation.z += rotationAngle;
+                    
+                    // Add subtle vibration based on RPM and imbalance
+                    const vibrationFrequency = this.parameters.rpm / 60; // Hz
+                    const vibrationAmplitude = 0.0001 * Math.pow(this.parameters.rpm / 1000, 2);
+                    
+                    this.fanGroup.position.x = Math.sin(performance.now() * 0.001 * 
+                        vibrationFrequency) * vibrationAmplitude;
+                    this.fanGroup.position.y = 1.5 + Math.cos(performance.now() * 0.001 * 
+                        vibrationFrequency * 1.3) * vibrationAmplitude;
+                    
+                    // Update blade loading visualization
+                    this.updateBladeLoading();
+                }
+            }
+            
+            updateBladeLoading() {
+                // Update blade colors based on loading
+                const maxLift = 2 * Math.PI * Math.sin(THREE.MathUtils.degToRad(35));
+                const maxDrag = 0.01 + 0.1 * Math.pow(THREE.MathUtils.degToRad(35), 2);
+                
+                this.blades.forEach(blade => {
+                    const loadRatio = this.coefficients.liftCoefficient / maxLift;
+                    const hue = 240 - loadRatio * 120; // Blue to Red scale
+                    const saturation = 0.8;
+                    const lightness = 0.7;
+                    
+                    blade.mesh.material.color.setHSL(hue / 360, saturation, lightness);
+                });
+            }
+            
+            // ============================================
+            // PUBLIC INTERFACE FUNCTIONS
+            // ============================================
+            setRPM(rpm) {
+                this.parameters.rpm = Math.max(0, Math.min(1500, rpm));
+                this.updateAerodynamicPhysics();
+            }
+            
+            setBladeCount(count) {
+                this.parameters.bladeCount = Math.max(3, Math.min(10, count));
+                
+                // Recreate blades
+                while (this.bladeGroup.children.length > 0) {
+                    this.bladeGroup.remove(this.bladeGroup.children[0]);
+                }
+                
+                this.blades = [];
+                for (let i = 0; i < this.parameters.bladeCount; i++) {
+                    const blade = this.createAerodynamicBlade(i);
+                    this.blades.push(blade);
+                    this.bladeGroup.add(blade.mesh);
+                }
+                
+                this.updateAerodynamicPhysics();
+            }
+            
+            setAngleOfAttack(angle) {
+                this.parameters.angleOfAttack = Math.max(5, Math.min(35, angle));
+                
+                // Update all blades
+                const attackAngleRad = THREE.MathUtils.degToRad(this.parameters.angleOfAttack);
+                this.blades.forEach(blade => {
+                    blade.mesh.rotation.y = attackAngleRad;
+                });
+                
+                this.updateAerodynamicPhysics();
+            }
+            
+            setRingType(type) {
+                if (this.rings[type]) {
+                    this.setRingType(type);
+                }
+            }
+            
+            setRingDiameter(diameter) {
+                this.parameters.ringDiameter = diameter / 100; // Convert cm to m
+                // Note: In full implementation, would recreate ring
+                this.updateAerodynamicPhysics();
+            }
+            
+            setRingLength(length) {
+                this.parameters.ringLength = length / 100; // Convert cm to m
+                this.updateAerodynamicPhysics();
+            }
+        }
+
+        // ============================================
+        // MAIN SCENE AND APPLICATION CONTROLLER
+        // ============================================
+        class AdvancedFanSimulation {
+            constructor() {
+                this.initScene();
+                this.createEnvironment();
+                this.createFanSystem();
+                this.setupControls();
+                this.setupUI();
+                this.animate();
+            }
+            
+            initScene() {
+                // Scene
+                this.scene = new THREE.Scene();
+                
+                // Camera
+                const aspect = window.innerWidth / window.innerHeight;
+                this.camera = new THREE.PerspectiveCamera(60, aspect, 0.1, 1000);
+                this.camera.position.set(3, 2, 3);
+                this.camera.lookAt(0, 1.5, 0);
+                
+                // Renderer
+                this.renderer = new THREE.WebGLRenderer({ 
+                    antialias: true,
+                    alpha: true,
+                    powerPreference: "high-performance"
+                });
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
+                this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+                this.renderer.shadowMap.enabled = true;
+                this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+                this.renderer.outputEncoding = THREE.sRGBEncoding;
+                this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+                this.renderer.toneMappingExposure = 1.2;
+                
+                document.getElementById('renderCanvas').appendChild(this.renderer.domElement);
+                
+                // Controls
+                this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
+                this.controls.enableDamping = true;
+                this.controls.dampingFactor = 0.05;
+                this.controls.screenSpacePanning = true;
+                this.controls.maxPolarAngle = Math.PI;
+                this.controls.minDistance = 1;
+                this.controls.maxDistance = 10;
+                
+                // Clock
+                this.clock = new THREE.Clock();
+                
+                // Background options
+                this.backgrounds = [
+                    0x87CEEB, // Sky Blue
+                    0x0A1931, // Night Sky
+                    0x1A237E, // Dark Blue
+                    0x808000, // Olive
+                    0x228B22  // Forest Green
+                ];
+                
+                // Window resize handler
+                window.addEventListener('resize', () => this.onWindowResize());
+            }
+            
+            createEnvironment() {
+                // Set random background
+                const randomBg = this.backgrounds[Math.floor(Math.random() * this.backgrounds.length)];
+                this.scene.background = new THREE.Color(randomBg);
+                
+                // Add subtle fog
+                this.scene.fog = new THREE.Fog(randomBg, 5, 15);
+                
+                // Floor
+                const floorGeometry = new THREE.PlaneGeometry(20, 20, 100, 100);
+                
+                // Create checkerboard texture for floor
+                const canvas = document.createElement('canvas');
+                canvas.width = canvas.height = 256;
+                const ctx = canvas.getContext('2d');
+                
+                // Create grid pattern
+                ctx.fillStyle = '#333333';
+                ctx.fillRect(0, 0, 256, 256);
+                
+                ctx.strokeStyle = '#444444';
+                ctx.lineWidth = 1;
+                
+                // Draw grid
+                for (let i = 0; i <= 256; i += 32) {
+                    ctx.beginPath();
+                    ctx.moveTo(i, 0);
+                    ctx.lineTo(i, 256);
+                    ctx.stroke();
+                    
+                    ctx.beginPath();
+                    ctx.moveTo(0, i);
+                    ctx.lineTo(256, i);
+                    ctx.stroke();
+                }
+                
+                const texture = new THREE.CanvasTexture(canvas);
+                texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+                texture.repeat.set(10, 10);
+                
+                const floorMaterial = new THREE.MeshStandardMaterial({
+                    map: texture,
+                    roughness: 0.8,
+                    metalness: 0.1
+                });
+                
+                this.floor = new THREE.Mesh(floorGeometry, floorMaterial);
+                this.floor.rotation.x = -Math.PI / 2;
+                this.floor.receiveShadow = true;
+                this.scene.add(this.floor);
+            }
+            
+            createFanSystem() {
+                this.fanSystem = new AerodynamicFanSystem(this.scene);
+            }
+            
+            setupControls() {
+                // Initialize touch controller
+                this.touchController = new AdvancedTouchController();
+                
+                // Handle zone events
+                window.addEventListener('zoneEvent', (e) => {
+                    const { zone, action } = e.detail;
+                    
+                    if (action === 'press' || action === 'hold') {
+                        // Adjust camera based on zone
+                        switch(zone) {
+                            case 'up':
+                                this.controls.target.y += 0.5;
+                                break;
+                            case 'down':
+                                this.controls.target.y = Math.max(0, this.controls.target.y - 0.5);
+                                break;
+                            case 'left':
+                                this.controls.rotateLeft(0.1);
+                                break;
+                            case 'right':
+                                this.controls.rotateRight(0.1);
+                                break;
+                        }
+                    }
+                });
+                
+                // Handle camera events
+                window.addEventListener('cameraEvent', (e) => {
+                    const { type, ...data } = e.detail;
+                    
+                    if (type === 'multi-touch-transform') {
+                        // Apply camera transformations
+                        this.camera.position.x += data.panX * 0.01;
+                        this.camera.position.y -= data.panY * 0.01;
+                        
+                        // Zoom
+                        const zoomFactor = data.scale;
+                        this.camera.position.multiplyScalar(1 / zoomFactor);
+                        
+                        // Rotation
+                        this.controls.rotateLeft(data.rotation * 0.5);
+                    }
+                });
+                
+                // Handle slide events
+                window.addEventListener('slideEvent', (e) => {
+                    const { dx, dy } = e.detail;
+                    
+                    if (!e.detail.final) {
+                        // Pan camera based on slide
+                        this.camera.position.x -= dx * 0.01;
+                        this.camera.position.y += dy * 0.01;
+                        this.controls.target.x -= dx * 0.01;
+                        this.controls.target.y += dy * 0.01;
+                    }
+                });
+            }
+            
+            setupUI() {
+                // RPM Slider
+                const rpmSlider = document.getElementById('rpmSlider');
+                const rpmValue = document.getElementById('rpmValue');
+                
+                rpmSlider.addEventListener('input', (e) => {
+                    const rpm = parseInt(e.target.value);
+                    rpmValue.textContent = `${rpm} RPM`;
+                    this.fanSystem.setRPM(rpm);
+                });
+                
+                // Blade Count Slider
+                const bladeCountSlider = document.getElementById('bladeCountSlider');
+                const bladeCountValue = document.getElementById('bladeCountValue');
+                
+                bladeCountSlider.addEventListener('input', (e) => {
+                    const count = parseInt(e.target.value);
+                    bladeCountValue.textContent = count;
+                    this.fanSystem.setBladeCount(count);
+                });
+                
+                // Angle of Attack Slider
+                const angleSlider = document.getElementById('angleSlider');
+                const angleValue = document.getElementById('angleValue');
+                
+                angleSlider.addEventListener('input', (e) => {
+                    const angle = parseFloat(e.target.value);
+                    angleValue.textContent = `${angle}°`;
+                    this.fanSystem.setAngleOfAttack(angle);
+                });
+                
+                // Ring Type Selection
+                document.querySelectorAll('.ring-option').forEach(option => {
+                    option.addEventListener('click', (e) => {
+                        document.querySelectorAll('.ring-option').forEach(o => 
+                            o.classList.remove('active'));
+                        option.classList.add('active');
+                        
+                        const ringType = option.dataset.ring;
+                        this.fanSystem.setRingType(ringType);
+                    });
+                });
+                
+                // Ring Diameter Slider
+                const ringDiameterSlider = document.getElementById('ringDiameterSlider');
+                const ringDiameterValue = document.getElementById('ringDiameterValue');
+                
+                ringDiameterSlider.addEventListener('input', (e) => {
+                    const diameter = parseInt(e.target.value);
+                    ringDiameterValue.textContent = `${diameter} cm`;
+                    this.fanSystem.setRingDiameter(diameter);
+                });
+                
+                // Ring Length Slider
+                const ringLengthSlider = document.getElementById('ringLengthSlider');
+                const ringLengthValue = document.getElementById('ringLengthValue');
+                
+                ringLengthSlider.addEventListener('input', (e) => {
+                    const length = parseInt(e.target.value);
+                    ringLengthValue.textContent = `${length} cm`;
+                    this.fanSystem.setRingLength(length);
+                });
+                
+                // Camera Controls
+                const cameraDistanceSlider = document.getElementById('cameraDistanceSlider');
+                const cameraHeightSlider = document.getElementById('cameraHeightSlider');
+                const fovSlider = document.getElementById('fovSlider');
+                
+                cameraDistanceSlider.addEventListener('input', (e) => {
+                    const distance = parseFloat(e.target.value);
+                    this.camera.position.setLength(distance);
+                });
+                
+                cameraHeightSlider.addEventListener('input', (e) => {
+                    const height = parseFloat(e.target.value);
+                    this.camera.position.y = height;
+                });
+                
+                fovSlider.addEventListener('input', (e) => {
+                    this.camera.fov = parseFloat(e.target.value);
+                    this.camera.updateProjectionMatrix();
+                });
+                
+                // Reset View Button
+                document.getElementById('resetView').addEventListener('click', () => {
+                    this.camera.position.set(3, 2, 3);
+                    this.camera.lookAt(0, 1.5, 0);
+                    this.controls.target.set(0, 1.5, 0);
+                    this.controls.update();
+                });
+                
+                // Show Formulas Button
+                document.getElementById('showFormulas').addEventListener('click', () => {
+                    const modal = new bootstrap.Modal(document.getElementById('formulasModal'));
+                    modal.show();
+                });
+                
+                // Simulation Mode Button
+                document.getElementById('simulationMode').addEventListener('click', (e) => {
+                    const btn = e.target;
+                    if (btn.textContent.includes('Start')) {
+                        btn.innerHTML = '<i class="bi-pause-fill me-2"></i>Pause Simulation';
+                        this.fanSystem.setRPM(1000);
+                    } else {
+                        btn.innerHTML = '<i class="bi-play-fill me-2"></i>Start Simulation';
+                        this.fanSystem.setRPM(0);
+                    }
+                });
+            }
+            
+            onWindowResize() {
+                const aspect = window.innerWidth / window.innerHeight;
+                
+                this.camera.aspect = aspect;
+                this.camera.updateProjectionMatrix();
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
+            }
+            
+            animate() {
+                requestAnimationFrame(() => this.animate());
+                
+                const deltaTime = this.clock.getDelta();
+                
+                // Update fan system
+                this.fanSystem.update(deltaTime);
+                
+                // Update controls
+                this.controls.update();
+                
+                // Render scene
+                this.renderer.render(this.scene, this.camera);
+            }
+        }
+
+        // Initialize the simulation when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            new AdvancedFanSimulation();
+        });
+
+        // Prevent default touch behaviors
+        document.addEventListener('touchstart', (e) => {
+            if (e.touches.length > 1) {
+                e.preventDefault();
+            }
+        }, { passive: false });
+
+        document.addEventListener('gesturestart', (e) => {
+            e.preventDefault();
+        });
+    </script>
+</body>
+</html>

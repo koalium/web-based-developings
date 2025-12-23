@@ -1,0 +1,1588 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ULTIMATE PASSIVE RADAR: Advanced Multi-Target Tracking System</title>
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/controls/OrbitControls.js"></script>
+    <style>
+        :root {
+            --matrix-green: #00ff41;
+            --cyber-blue: #00f7ff;
+            --cyber-purple: #ff00ff;
+            --cyber-red: #ff003c;
+            --cyber-orange: #ff6b00;
+            --cyber-yellow: #ffd700;
+            --dark-bg: #0a0a0a;
+            --panel-bg: #0a0a12;
+            --grid-line: rgba(0, 255, 65, 0.1);
+            --panel-border: rgba(0, 247, 255, 0.3);
+            --text-glow: rgba(0, 255, 65, 0.8);
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Courier New', monospace;
+            background: radial-gradient(circle at 50% 0%, #000000 0%, #0a0a0a 100%);
+            color: var(--matrix-green);
+            min-height: 100vh;
+            padding: 5px;
+            overflow-x: hidden;
+            letter-spacing: 0.5px;
+        }
+        
+        .cyber-grid {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                linear-gradient(var(--grid-line) 1px, transparent 1px),
+                linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+            background-size: 50px 50px;
+            pointer-events: none;
+            z-index: -1;
+            opacity: 0.3;
+        }
+        
+        .scan-line {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(to right, transparent, var(--cyber-blue), transparent);
+            box-shadow: 0 0 20px var(--cyber-blue);
+            animation: scanMove 3s linear infinite;
+            z-index: -1;
+            pointer-events: none;
+        }
+        
+        @keyframes scanMove {
+            0% { top: 0%; }
+            100% { top: 100%; }
+        }
+        
+        .container {
+            max-width: 99vw;
+            margin: 0 auto;
+            position: relative;
+        }
+        
+        /* Main Command Interface */
+        .command-interface {
+            display: grid;
+            grid-template-columns: 1fr 350px;
+            gap: 20px;
+            margin-bottom: 20px;
+            height: calc(100vh - 40px);
+        }
+        
+        .main-display {
+            display: grid;
+            grid-template-rows: auto 1fr;
+            gap: 20px;
+        }
+        
+        /* Cyber Header */
+        .cyber-header {
+            background: linear-gradient(180deg, rgba(0, 10, 20, 0.9) 0%, rgba(0, 20, 40, 0.7) 100%);
+            border: 2px solid var(--panel-border);
+            border-radius: 15px;
+            padding: 20px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 
+                0 0 50px rgba(0, 247, 255, 0.1),
+                inset 0 0 30px rgba(0, 255, 65, 0.05);
+        }
+        
+        .cyber-header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, 
+                var(--cyber-red), 
+                var(--cyber-orange), 
+                var(--cyber-yellow),
+                var(--matrix-green),
+                var(--cyber-blue),
+                var(--cyber-purple));
+            animation: headerGlow 3s linear infinite;
+        }
+        
+        @keyframes headerGlow {
+            0% { filter: hue-rotate(0deg); }
+            100% { filter: hue-rotate(360deg); }
+        }
+        
+        .system-title {
+            text-align: center;
+            font-size: 2.8rem;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            background: linear-gradient(90deg, var(--cyber-blue), var(--matrix-green));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 30px rgba(0, 255, 65, 0.5);
+            font-weight: bold;
+        }
+        
+        .system-subtitle {
+            text-align: center;
+            font-size: 1.2rem;
+            opacity: 0.8;
+            margin-bottom: 20px;
+            color: var(--cyber-blue);
+        }
+        
+        /* Status Matrix */
+        .status-matrix {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .status-cell {
+            background: rgba(0, 20, 40, 0.5);
+            border: 1px solid var(--panel-border);
+            border-radius: 10px;
+            padding: 15px;
+            position: relative;
+            transition: all 0.3s ease;
+            overflow: hidden;
+        }
+        
+        .status-cell::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(0, 255, 65, 0.1), transparent);
+            transition: left 0.5s ease;
+        }
+        
+        .status-cell:hover::before {
+            left: 100%;
+        }
+        
+        .status-cell:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0, 255, 65, 0.2);
+            border-color: var(--matrix-green);
+        }
+        
+        .status-label {
+            font-size: 0.9rem;
+            opacity: 0.7;
+            margin-bottom: 5px;
+            color: var(--cyber-blue);
+        }
+        
+        .status-value {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: var(--matrix-green);
+            text-shadow: 0 0 10px currentColor;
+            font-family: 'Courier New', monospace;
+        }
+        
+        /* Radar Display Area */
+        .radar-container {
+            display: grid;
+            grid-template-columns: 1.5fr 1fr;
+            gap: 20px;
+            height: calc(100vh - 300px);
+        }
+        
+        /* 3D Radar Sphere */
+        .radar-sphere-container {
+            background: rgba(0, 10, 20, 0.8);
+            border: 2px solid var(--panel-border);
+            border-radius: 15px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 
+                inset 0 0 100px rgba(0, 255, 65, 0.05),
+                0 0 50px rgba(0, 247, 255, 0.1);
+        }
+        
+        #radar3d {
+            width: 100%;
+            height: 100%;
+            border-radius: 15px;
+        }
+        
+        .radar-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            pointer-events: none;
+            background: 
+                radial-gradient(circle at center, transparent 30%, rgba(0, 255, 65, 0.03) 100%),
+                repeating-conic-gradient(
+                    from 0deg,
+                    transparent 0deg 10deg,
+                    rgba(0, 255, 65, 0.1) 10deg 20deg
+                );
+            opacity: 0.3;
+        }
+        
+        /* Signal Processing Panel */
+        .signal-panel {
+            background: rgba(0, 10, 20, 0.8);
+            border: 2px solid var(--panel-border);
+            border-radius: 15px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            box-shadow: 
+                inset 0 0 50px rgba(0, 20, 40, 0.5),
+                0 0 30px rgba(0, 247, 255, 0.1);
+        }
+        
+        .spectrum-display {
+            flex: 1;
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid var(--panel-border);
+            border-radius: 10px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        /* Target Matrix */
+        .target-matrix {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .target-card {
+            background: linear-gradient(135deg, rgba(0, 20, 40, 0.8) 0%, rgba(0, 40, 80, 0.6) 100%);
+            border: 2px solid;
+            border-radius: 15px;
+            padding: 20px;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+            backdrop-filter: blur(10px);
+        }
+        
+        .target-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: inherit;
+            border-color: inherit;
+        }
+        
+        .target-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 
+                0 15px 40px rgba(0, 255, 65, 0.3),
+                0 0 30px currentColor;
+        }
+        
+        .target-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(0, 255, 65, 0.2);
+        }
+        
+        .target-id {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .target-icon {
+            font-size: 2rem;
+            filter: drop-shadow(0 0 10px currentColor);
+        }
+        
+        .target-class {
+            padding: 5px 12px;
+            border-radius: 15px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid;
+        }
+        
+        .class-drone { color: var(--matrix-green); border-color: var(--matrix-green); }
+        .class-plane { color: var(--cyber-blue); border-color: var(--cyber-blue); }
+        .class-uav { color: var(--cyber-purple); border-color: var(--cyber-purple); }
+        .class-missile { color: var(--cyber-red); border-color: var(--cyber-red); }
+        .class-unknown { color: var(--cyber-yellow); border-color: var(--cyber-yellow); }
+        
+        /* Signal Waveform */
+        .signal-waveform {
+            height: 80px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            margin: 15px 0;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .waveform-path {
+            width: 100%;
+            height: 100%;
+        }
+        
+        /* Data Stream */
+        .data-stream {
+            position: fixed;
+            bottom: 20px;
+            left: 0;
+            right: 0;
+            height: 60px;
+            background: linear-gradient(transparent, rgba(0, 20, 40, 0.8));
+            border-top: 2px solid var(--panel-border);
+            overflow: hidden;
+            z-index: 100;
+        }
+        
+        .stream-content {
+            display: flex;
+            animation: streamFlow 20s linear infinite;
+            white-space: nowrap;
+            font-size: 1.2rem;
+            color: var(--matrix-green);
+        }
+        
+        @keyframes streamFlow {
+            0% { transform: translateX(100%); }
+            100% { transform: translateX(-100%); }
+        }
+        
+        /* Control Cluster */
+        .control-cluster {
+            background: rgba(0, 10, 20, 0.9);
+            border: 2px solid var(--panel-border);
+            border-radius: 15px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        
+        .cyber-button {
+            padding: 15px;
+            border: 2px solid var(--cyber-blue);
+            background: rgba(0, 40, 80, 0.3);
+            color: var(--cyber-blue);
+            font-family: 'Courier New', monospace;
+            font-size: 1.1rem;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .cyber-button::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(0, 247, 255, 0.3), transparent);
+            transition: left 0.5s ease;
+        }
+        
+        .cyber-button:hover::before {
+            left: 100%;
+        }
+        
+        .cyber-button:hover {
+            background: rgba(0, 60, 120, 0.5);
+            border-color: var(--matrix-green);
+            color: var(--matrix-green);
+            box-shadow: 
+                0 0 20px var(--cyber-blue),
+                inset 0 0 20px rgba(0, 255, 65, 0.2);
+            transform: scale(1.05);
+        }
+        
+        /* Threat Visualization */
+        .threat-sphere {
+            height: 200px;
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid var(--panel-border);
+            border-radius: 10px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .sphere-pulse {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            border: 2px solid var(--cyber-red);
+            box-shadow: 
+                0 0 30px var(--cyber-red),
+                inset 0 0 30px var(--cyber-red);
+            animation: threatPulse 2s ease-in-out infinite;
+        }
+        
+        @keyframes threatPulse {
+            0%, 100% { 
+                transform: translate(-50%, -50%) scale(1);
+                opacity: 0.8;
+            }
+            50% { 
+                transform: translate(-50%, -50%) scale(1.3);
+                opacity: 0.3;
+            }
+        }
+        
+        /* Advanced Visualization */
+        .vis-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        .vis-panel {
+            background: rgba(0, 10, 20, 0.8);
+            border: 2px solid var(--panel-border);
+            border-radius: 15px;
+            padding: 20px;
+            height: 300px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        /* Code Stream Effect */
+        .code-stream {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: repeating-linear-gradient(
+                0deg,
+                transparent,
+                transparent 2px,
+                rgba(0, 255, 65, 0.05) 2px,
+                rgba(0, 255, 65, 0.05) 4px
+            );
+            animation: codeFlow 10s linear infinite;
+        }
+        
+        @keyframes codeFlow {
+            0% { background-position: 0 0; }
+            100% { background-position: 0 100px; }
+        }
+        
+        /* Responsive */
+        @media (max-width: 1400px) {
+            .command-interface {
+                grid-template-columns: 1fr;
+                height: auto;
+            }
+            
+            .radar-container {
+                grid-template-columns: 1fr;
+                height: 500px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="cyber-grid"></div>
+    <div class="scan-line"></div>
+    
+    <div class="container" x-data="ultimateRadarSystem()" x-init="init()">
+        <!-- Main Command Interface -->
+        <div class="command-interface">
+            <!-- Main Display Area -->
+            <div class="main-display">
+                <!-- Cyber Header -->
+                <header class="cyber-header">
+                    <div class="system-title">PASSIVE RADAR COMMAND SYSTEM</div>
+                    <div class="system-subtitle">ADVANCED MULTI-TARGET TRACKING & SIGNAL INTELLIGENCE</div>
+                    
+                    <!-- Status Matrix -->
+                    <div class="status-matrix">
+                        <div class="status-cell">
+                            <div class="status-label">SYSTEM STATUS</div>
+                            <div class="status-value" x-text="systemStatus" 
+                                 :style="`color: ${getStatusColor(systemStatus)}`"></div>
+                        </div>
+                        <div class="status-cell">
+                            <div class="status-label">TARGETS TRACKED</div>
+                            <div class="status-value" x-text="`${activeTargets}/${maxTargets}`"></div>
+                        </div>
+                        <div class="status-cell">
+                            <div class="status-label">ARRAY GAIN</div>
+                            <div class="status-value" x-text="`${arrayGain.toFixed(1)} dB`"></div>
+                        </div>
+                        <div class="status-cell">
+                            <div class="status-label">THREAT LEVEL</div>
+                            <div class="status-value" :style="`color: ${threatColor}`" x-text="threatLevel"></div>
+                        </div>
+                        <div class="status-cell">
+                            <div class="status-label">JAMMING RESISTANCE</div>
+                            <div class="status-value" x-text="`${jammingResistance}%`"></div>
+                        </div>
+                        <div class="status-cell">
+                            <div class="status-label">FREQUENCY AGILITY</div>
+                            <div class="status-value" x-text="`${frequencyAgility} GHz`"></div>
+                        </div>
+                    </div>
+                </header>
+                
+                <!-- Radar & Signal Processing Area -->
+                <div class="radar-container">
+                    <!-- 3D Radar Sphere -->
+                    <div class="radar-sphere-container">
+                        <div id="radar3d"></div>
+                        <div class="radar-overlay"></div>
+                    </div>
+                    
+                    <!-- Signal Processing Panel -->
+                    <div class="signal-panel">
+                        <h3 style="color: var(--cyber-blue); margin-bottom: 15px;">SIGNAL SPECTRUM</h3>
+                        <div class="spectrum-display">
+                            <canvas id="spectrumChart"></canvas>
+                        </div>
+                        
+                        <h3 style="color: var(--cyber-blue); margin-top: 15px;">DOPPLER ANALYSIS</h3>
+                        <div style="height: 120px; position: relative;">
+                            <canvas id="dopplerChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Target Matrix -->
+                <div class="target-matrix">
+                    <template x-for="target in targets" :key="target.id">
+                        <div class="target-card" :style="`border-color: ${target.color};`">
+                            <div class="target-header">
+                                <div class="target-id">
+                                    <div class="target-icon" x-text="target.icon"></div>
+                                    <div>
+                                        <div style="font-size: 1.2rem; font-weight: bold;" x-text="target.callsign"></div>
+                                        <div style="font-size: 0.9rem; opacity: 0.8;" x-text="target.type"></div>
+                                    </div>
+                                </div>
+                                <div class="target-class" :class="`class-${target.classification}`" 
+                                     x-text="target.classification.toUpperCase()"></div>
+                            </div>
+                            
+                            <!-- Target Signature -->
+                            <div class="signal-waveform">
+                                <svg class="waveform-path">
+                                    <path :d="generateWaveform(target)" 
+                                          :stroke="target.color" 
+                                          stroke-width="2" 
+                                          fill="none"
+                                          stroke-linecap="round"/>
+                                </svg>
+                            </div>
+                            
+                            <!-- Target Statistics -->
+                            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
+                                <div>
+                                    <div style="font-size: 0.8rem; opacity: 0.7;">RANGE</div>
+                                    <div style="font-size: 1.2rem; font-weight: bold;" 
+                                         x-text="`${target.range} km`"></div>
+                                </div>
+                                <div>
+                                    <div style="font-size: 0.8rem; opacity: 0.7;">SPEED</div>
+                                    <div style="font-size: 1.2rem; font-weight: bold;" 
+                                         x-text="`${target.speed} m/s`"></div>
+                                </div>
+                                <div>
+                                    <div style="font-size: 0.8rem; opacity: 0.7;">ALTITUDE</div>
+                                    <div style="font-size: 1.2rem; font-weight: bold;" 
+                                         x-text="`${target.altitude} m`"></div>
+                                </div>
+                            </div>
+                            
+                            <!-- Signal Parameters -->
+                            <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(0,255,65,0.2);">
+                                <div style="display: flex; justify-content: space-between;">
+                                    <div>
+                                        <div style="font-size: 0.8rem; opacity: 0.7;">SNR</div>
+                                        <div :style="`color: ${getSNRColor(target.snr)}`" 
+                                             x-text="`${target.snr.toFixed(1)} dB`"></div>
+                                    </div>
+                                    <div>
+                                        <div style="font-size: 0.8rem; opacity: 0.7;">RCS</div>
+                                        <div x-text="`${target.rcs} m²`"></div>
+                                    </div>
+                                    <div>
+                                        <div style="font-size: 0.8rem; opacity: 0.7;">DOPPLER</div>
+                                        <div x-text="`${target.doppler.toFixed(1)} Hz`"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Classification Bar -->
+                            <div style="margin-top: 15px;">
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                                    <div style="font-size: 0.8rem; opacity: 0.7;">CLASSIFICATION CONFIDENCE</div>
+                                    <div x-text="`${target.confidence}%`"></div>
+                                </div>
+                                <div style="height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; overflow: hidden;">
+                                    <div :style="`
+                                        width: ${target.confidence}%;
+                                        height: 100%;
+                                        background: linear-gradient(90deg, ${target.color}, ${target.color}80);
+                                        box-shadow: 0 0 10px ${target.color};
+                                    `"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+            
+            <!-- Control Cluster -->
+            <div class="control-cluster">
+                <h3 style="color: var(--cyber-blue); text-align: center; margin-bottom: 20px;">CONTROL MATRIX</h3>
+                
+                <button class="cyber-button" @click="toggleSystem">
+                    <span x-text="isRunning ? 'SHUTDOWN SYSTEM' : 'ACTIVATE SYSTEM'"></span>
+                </button>
+                
+                <button class="cyber-button" @click="addRandomTarget">
+                    DEPLOY TARGET
+                </button>
+                
+                <button class="cyber-button" @click="simulateJammingAttack">
+                    TEST JAMMING
+                </button>
+                
+                <button class="cyber-button" @click="activateCountermeasures">
+                    COUNTERMEASURES
+                </button>
+                
+                <button class="cyber-button" @click="analyzeSignatures">
+                    SIGNATURE ANALYSIS
+                </button>
+                
+                <!-- Mode Selection -->
+                <div style="margin-top: 20px;">
+                    <div style="font-size: 0.9rem; opacity: 0.7; margin-bottom: 10px;">OPERATIONAL MODE</div>
+                    <select x-model="operationalMode" style="
+                        width: 100%;
+                        padding: 10px;
+                        background: rgba(0, 20, 40, 0.5);
+                        border: 2px solid var(--cyber-blue);
+                        color: var(--cyber-blue);
+                        border-radius: 5px;
+                        font-family: 'Courier New', monospace;
+                        font-size: 1rem;
+                    ">
+                        <option value="surveillance">SURVEILLANCE</option>
+                        <option value="tracking">ACTIVE TRACKING</option>
+                        <option value="stealth">STEALTH MODE</option>
+                        <option value="analysis">SIGNAL ANALYSIS</option>
+                        <option value="countermeasures">COUNTERMEASURES</option>
+                    </select>
+                </div>
+                
+                <!-- Threat Visualization -->
+                <div class="threat-sphere" style="margin-top: 20px;">
+                    <div class="sphere-pulse" :style="`
+                        border-color: ${threatColor};
+                        box-shadow: 0 0 30px ${threatColor}, inset 0 0 30px ${threatColor};
+                    `"></div>
+                </div>
+                
+                <!-- System Parameters -->
+                <div style="margin-top: 20px;">
+                    <div style="font-size: 0.9rem; opacity: 0.7; margin-bottom: 10px;">SYSTEM PARAMETERS</div>
+                    <div style="display: grid; gap: 10px;">
+                        <div>
+                            <div style="display: flex; justify-content: between;">
+                                <span>ARRAY SENSITIVITY</span>
+                                <span x-text="`${arraySensitivity}%`"></span>
+                            </div>
+                            <input type="range" min="0" max="100" x-model="arraySensitivity" style="width: 100%;">
+                        </div>
+                        <div>
+                            <div style="display: flex; justify-content: between;">
+                                <span>SIGNAL PROCESSING</span>
+                                <span x-text="`${signalProcessing}%`"></span>
+                            </div>
+                            <input type="range" min="0" max="100" x-model="signalProcessing" style="width: 100%;">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Advanced Visualization Panels -->
+        <div class="vis-container">
+            <div class="vis-panel">
+                <div style="position: absolute; top: 20px; left: 20px; color: var(--cyber-blue);">
+                    PHASE ARRAY VISUALIZATION
+                </div>
+                <div class="code-stream"></div>
+                <canvas id="arrayCanvas" style="width: 100%; height: 100%;"></canvas>
+            </div>
+            
+            <div class="vis-panel">
+                <div style="position: absolute; top: 20px; left: 20px; color: var(--cyber-blue);">
+                    FREQUENCY DOMAIN ANALYSIS
+                </div>
+                <div class="code-stream"></div>
+                <canvas id="frequencyCanvas"></canvas>
+            </div>
+            
+            <div class="vis-panel">
+                <div style="position: absolute; top: 20px; left: 20px; color: var(--cyber-blue);">
+                    TARGET MOTION ANALYSIS
+                </div>
+                <div class="code-stream"></div>
+                <canvas id="motionCanvas"></canvas>
+            </div>
+        </div>
+        
+        <!-- Data Stream -->
+        <div class="data-stream">
+            <div class="stream-content" x-html="dataStream"></div>
+        </div>
+    </div>
+
+    <script>
+        function ultimateRadarSystem() {
+            return {
+                // System State
+                isRunning: true,
+                systemStatus: 'OPERATIONAL',
+                operationalMode: 'tracking',
+                arraySensitivity: 85,
+                signalProcessing: 92,
+                
+                // System Parameters
+                activeTargets: 5,
+                maxTargets: 12,
+                arrayGain: 28.5,
+                threatLevel: 'MODERATE',
+                threatColor: 'var(--cyber-yellow)',
+                jammingResistance: 94,
+                frequencyAgility: 2.8,
+                
+                // Targets
+                targets: [],
+                
+                // Three.js variables
+                scene: null,
+                camera: null,
+                renderer: null,
+                controls: null,
+                radarObjects: [],
+                
+                // Charts
+                charts: {},
+                canvases: {},
+                
+                // Data Stream
+                dataStream: '',
+                
+                init() {
+                    this.initializeTargets();
+                    this.initialize3DScene();
+                    this.initializeCharts();
+                    this.initializeCanvases();
+                    this.startDataStream();
+                    this.updateLoop();
+                },
+                
+                initializeTargets() {
+                    const targetTypes = [
+                        {
+                            callsign: 'GHOST-1',
+                            type: 'Stealth UAV',
+                            icon: '🛸',
+                            classification: 'uav',
+                            color: 'var(--matrix-green)',
+                            rcs: 0.01,
+                            baseSpeed: 45
+                        },
+                        {
+                            callsign: 'RAVEN-7',
+                            type: 'Surveillance Drone',
+                            icon: '🚁',
+                            classification: 'drone',
+                            color: 'var(--cyber-blue)',
+                            rcs: 0.05,
+                            baseSpeed: 35
+                        },
+                        {
+                            callsign: 'HAWK-3',
+                            type: 'Interceptor UAV',
+                            icon: '🦅',
+                            classification: 'uav',
+                            color: 'var(--cyber-purple)',
+                            rcs: 0.03,
+                            baseSpeed: 60
+                        },
+                        {
+                            callsign: 'TITAN-9',
+                            type: 'Heavy Transport',
+                            icon: '✈️',
+                            classification: 'plane',
+                            color: 'var(--cyber-orange)',
+                            rcs: 15,
+                            baseSpeed: 220
+                        },
+                        {
+                            callsign: 'VIPER-2',
+                            type: 'Fast Attack Drone',
+                            icon: '⚡',
+                            classification: 'missile',
+                            color: 'var(--cyber-red)',
+                            rcs: 0.02,
+                            baseSpeed: 85
+                        }
+                    ];
+                    
+                    this.targets = targetTypes.map((type, index) => ({
+                        id: index + 1,
+                        ...type,
+                        position: {
+                            x: (Math.random() - 0.5) * 100,
+                            y: (Math.random() - 0.5) * 100,
+                            z: Math.random() * 50
+                        },
+                        velocity: {
+                            x: (Math.random() - 0.5) * 2,
+                            y: (Math.random() - 0.5) * 2,
+                            z: (Math.random() - 0.5) * 1
+                        },
+                        range: (Math.random() * 40 + 5).toFixed(1),
+                        speed: type.baseSpeed + Math.random() * 20,
+                        altitude: Math.floor(Math.random() * 10000 + 1000),
+                        snr: 15 + Math.random() * 15,
+                        doppler: (Math.random() - 0.5) * 200,
+                        confidence: Math.floor(Math.random() * 30 + 70),
+                        signature: this.generateSignature()
+                    }));
+                    
+                    this.activeTargets = this.targets.length;
+                },
+                
+                generateSignature() {
+                    const signatures = ['steady', 'pulsed', 'modulated', 'chirp', 'hopped'];
+                    return signatures[Math.floor(Math.random() * signatures.length)];
+                },
+                
+                generateWaveform(target) {
+                    const width = 280;
+                    const height = 80;
+                    const points = [];
+                    const steps = 50;
+                    
+                    for (let i = 0; i <= steps; i++) {
+                        const x = (i / steps) * width;
+                        let y = height / 2;
+                        
+                        // Different waveforms based on target type
+                        switch(target.signature) {
+                            case 'steady':
+                                y += Math.sin(i * 0.5) * 20;
+                                break;
+                            case 'pulsed':
+                                y += Math.sin(i * 0.8) * 25 * (Math.sin(i * 0.1) > 0 ? 1 : 0.3);
+                                break;
+                            case 'modulated':
+                                y += Math.sin(i * 0.3) * 15 + Math.sin(i * 2) * 10;
+                                break;
+                            case 'chirp':
+                                y += Math.sin(i * 0.1 * (1 + i/steps)) * 30;
+                                break;
+                            case 'hopped':
+                                y += Math.sin(i * (0.5 + Math.floor(i/10)*0.2)) * 25;
+                                break;
+                        }
+                        
+                        // Add noise
+                        y += (Math.random() - 0.5) * 5;
+                        
+                        points.push(`${x},${y}`);
+                    }
+                    
+                    return `M ${points.join(' L ')}`;
+                },
+                
+                initialize3DScene() {
+                    const container = document.getElementById('radar3d');
+                    
+                    // Create scene
+                    this.scene = new THREE.Scene();
+                    this.scene.fog = new THREE.Fog(0x000000, 1, 300);
+                    
+                    // Create camera
+                    this.camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
+                    this.camera.position.set(0, 150, 150);
+                    
+                    // Create renderer
+                    this.renderer = new THREE.WebGLRenderer({ 
+                        antialias: true,
+                        alpha: true
+                    });
+                    this.renderer.setSize(container.clientWidth, container.clientHeight);
+                    this.renderer.setClearColor(0x000000, 0);
+                    container.appendChild(this.renderer.domElement);
+                    
+                    // Add orbit controls
+                    this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
+                    this.controls.enableDamping = true;
+                    this.controls.dampingFactor = 0.05;
+                    
+                    // Add lighting
+                    const ambientLight = new THREE.AmbientLight(0x00ff41, 0.3);
+                    this.scene.add(ambientLight);
+                    
+                    const directionalLight = new THREE.DirectionalLight(0x00f7ff, 0.5);
+                    directionalLight.position.set(50, 100, 50);
+                    this.scene.add(directionalLight);
+                    
+                    // Create radar sphere
+                    this.createRadarSphere();
+                    
+                    // Create targets
+                    this.createTargets();
+                    
+                    // Add coordinate system
+                    this.addCoordinateSystem();
+                    
+                    // Handle window resize
+                    window.addEventListener('resize', () => {
+                        this.camera.aspect = container.clientWidth / container.clientHeight;
+                        this.camera.updateProjectionMatrix();
+                        this.renderer.setSize(container.clientWidth, container.clientHeight);
+                    });
+                },
+                
+                createRadarSphere() {
+                    // Create outer sphere
+                    const sphereGeometry = new THREE.SphereGeometry(50, 32, 32);
+                    const sphereMaterial = new THREE.MeshBasicMaterial({
+                        color: 0x00ff41,
+                        wireframe: true,
+                        transparent: true,
+                        opacity: 0.1
+                    });
+                    const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
+                    this.scene.add(sphere);
+                    
+                    // Add grid lines
+                    const gridGeometry = new THREE.BufferGeometry();
+                    const gridVertices = [];
+                    
+                    // Latitude lines
+                    for (let lat = -80; lat <= 80; lat += 20) {
+                        const theta = (90 - lat) * Math.PI / 180;
+                        for (let lon = 0; lon <= 360; lon += 10) {
+                            const phi = lon * Math.PI / 180;
+                            const x = 50 * Math.sin(theta) * Math.cos(phi);
+                            const y = 50 * Math.cos(theta);
+                            const z = 50 * Math.sin(theta) * Math.sin(phi);
+                            gridVertices.push(x, y, z);
+                        }
+                    }
+                    
+                    gridGeometry.setAttribute('position', new THREE.Float32BufferAttribute(gridVertices, 3));
+                    const gridMaterial = new THREE.LineBasicMaterial({
+                        color: 0x00ff41,
+                        transparent: true,
+                        opacity: 0.2
+                    });
+                    const grid = new THREE.Line(gridGeometry, gridMaterial);
+                    this.scene.add(grid);
+                },
+                
+                createTargets() {
+                    this.targets.forEach(target => {
+                        // Create target sphere
+                        const geometry = new THREE.SphereGeometry(1.5, 16, 16);
+                        const material = new THREE.MeshBasicMaterial({
+                            color: this.hexColor(target.color),
+                            emissive: this.hexColor(target.color),
+                            emissiveIntensity: 0.5
+                        });
+                        const sphere = new THREE.Mesh(geometry, material);
+                        
+                        // Position target
+                        sphere.position.set(
+                            target.position.x,
+                            target.position.z,
+                            target.position.y
+                        );
+                        
+                        this.scene.add(sphere);
+                        this.radarObjects.push({
+                            mesh: sphere,
+                            target: target
+                        });
+                        
+                        // Add trail
+                        const trailGeometry = new THREE.BufferGeometry();
+                        const trailMaterial = new THREE.LineBasicMaterial({
+                            color: this.hexColor(target.color),
+                            transparent: true,
+                            opacity: 0.3
+                        });
+                        const trail = new THREE.Line(trailGeometry, trailMaterial);
+                        this.scene.add(trail);
+                        target.trail = trail;
+                        target.trailPoints = [];
+                    });
+                },
+                
+                hexColor(cssColor) {
+                    const colorMap = {
+                        'var(--matrix-green)': 0x00ff41,
+                        'var(--cyber-blue)': 0x00f7ff,
+                        'var(--cyber-purple)': 0xff00ff,
+                        'var(--cyber-red)': 0xff003c,
+                        'var(--cyber-orange)': 0xff6b00,
+                        'var(--cyber-yellow)': 0xffd700
+                    };
+                    return colorMap[cssColor] || 0x00ff41;
+                },
+                
+                addCoordinateSystem() {
+                    // X axis (red)
+                    const xGeometry = new THREE.BufferGeometry().setFromPoints([
+                        new THREE.Vector3(-60, 0, 0),
+                        new THREE.Vector3(60, 0, 0)
+                    ]);
+                    const xMaterial = new THREE.LineBasicMaterial({ color: 0xff0000 });
+                    const xAxis = new THREE.Line(xGeometry, xMaterial);
+                    this.scene.add(xAxis);
+                    
+                    // Y axis (green)
+                    const yGeometry = new THREE.BufferGeometry().setFromPoints([
+                        new THREE.Vector3(0, -60, 0),
+                        new THREE.Vector3(0, 60, 0)
+                    ]);
+                    const yMaterial = new THREE.LineBasicMaterial({ color: 0x00ff00 });
+                    const yAxis = new THREE.Line(yGeometry, yMaterial);
+                    this.scene.add(yAxis);
+                    
+                    // Z axis (blue)
+                    const zGeometry = new THREE.BufferGeometry().setFromPoints([
+                        new THREE.Vector3(0, 0, -60),
+                        new THREE.Vector3(0, 0, 60)
+                    ]);
+                    const zMaterial = new THREE.LineBasicMaterial({ color: 0x0000ff });
+                    const zAxis = new THREE.Line(zGeometry, zMaterial);
+                    this.scene.add(zAxis);
+                },
+                
+                initializeCharts() {
+                    // Spectrum Chart
+                    const spectrumCtx = document.getElementById('spectrumChart').getContext('2d');
+                    this.charts.spectrum = new Chart(spectrumCtx, {
+                        type: 'line',
+                        data: {
+                            labels: Array.from({length: 100}, (_, i) => i),
+                            datasets: [{
+                                label: 'Signal Power',
+                                data: Array.from({length: 100}, () => Math.random() * 100),
+                                borderColor: 'rgba(0, 255, 65, 1)',
+                                backgroundColor: 'rgba(0, 255, 65, 0.1)',
+                                borderWidth: 2,
+                                fill: true,
+                                tension: 0.4
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: { legend: { display: false } },
+                            scales: {
+                                x: { display: false },
+                                y: { 
+                                    display: false,
+                                    min: 0,
+                                    max: 100
+                                }
+                            },
+                            animation: false
+                        }
+                    });
+                    
+                    // Doppler Chart
+                    const dopplerCtx = document.getElementById('dopplerChart').getContext('2d');
+                    this.charts.doppler = new Chart(dopplerCtx, {
+                        type: 'scatter',
+                        data: {
+                            datasets: this.targets.map(target => ({
+                                label: target.callsign,
+                                data: [{x: target.doppler, y: target.snr}],
+                                backgroundColor: target.color.replace('var(--', '').replace(')', ''),
+                                borderColor: target.color,
+                                borderWidth: 2,
+                                pointRadius: 6,
+                                pointHoverRadius: 10
+                            }))
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: { 
+                                    display: true,
+                                    labels: {
+                                        color: 'rgba(0, 255, 65, 0.8)',
+                                        font: { family: 'Courier New' }
+                                    }
+                                }
+                            },
+                            scales: {
+                                x: {
+                                    title: {
+                                        display: true,
+                                        text: 'Doppler Shift (Hz)',
+                                        color: 'rgba(0, 247, 255, 0.8)'
+                                    },
+                                    grid: { color: 'rgba(0, 255, 65, 0.1)' }
+                                },
+                                y: {
+                                    title: {
+                                        display: true,
+                                        text: 'SNR (dB)',
+                                        color: 'rgba(0, 247, 255, 0.8)'
+                                    },
+                                    grid: { color: 'rgba(0, 255, 65, 0.1)' }
+                                }
+                            }
+                        }
+                    });
+                },
+                
+                initializeCanvases() {
+                    // Array Canvas
+                    const arrayCtx = document.getElementById('arrayCanvas').getContext('2d');
+                    this.canvases.array = arrayCtx;
+                    
+                    // Frequency Canvas
+                    const freqCtx = document.getElementById('frequencyCanvas').getContext('2d');
+                    this.canvases.frequency = freqCtx;
+                    
+                    // Motion Canvas
+                    const motionCtx = document.getElementById('motionCanvas').getContext('2d');
+                    this.canvases.motion = motionCtx;
+                },
+                
+                startDataStream() {
+                    const messages = [
+                        "SYSTEM INITIALIZED... PASSIVE ARRAY ACTIVE",
+                        "PROCESSING AMBIENT RF SIGNALS...",
+                        "MUSIC ALGORITHM ENGAGED... RESOLVING MULTIPLE TARGETS",
+                        "ADAPTIVE BEAMFORMING OPTIMIZED...",
+                        "JAMMING DETECTION SYSTEMS ARMED...",
+                        "FREQUENCY HOPPING SYNCHRONIZED...",
+                        "TARGET SIGNATURE DATABASE LOADED...",
+                        "REAL-TIME TRACKING ACTIVE...",
+                        "THREAT ASSESSMENT MATRIX UPDATED...",
+                        "COUNTERMEASURES READY..."
+                    ];
+                    
+                    setInterval(() => {
+                        const message = messages[Math.floor(Math.random() * messages.length)];
+                        const timestamp = new Date().toISOString().split('T')[1].split('.')[0];
+                        this.dataStream = `[${timestamp}] ${message} `;
+                    }, 3000);
+                },
+                
+                updateLoop() {
+                    const animate = () => {
+                        requestAnimationFrame(animate);
+                        
+                        if (this.isRunning) {
+                            this.updateTargets();
+                            this.update3DScene();
+                            this.updateCharts();
+                            this.updateCanvases();
+                        }
+                        
+                        if (this.renderer && this.scene && this.camera) {
+                            this.controls.update();
+                            this.renderer.render(this.scene, this.camera);
+                        }
+                    };
+                    
+                    animate();
+                },
+                
+                updateTargets() {
+                    this.targets.forEach(target => {
+                        // Update position
+                        target.position.x += target.velocity.x;
+                        target.position.y += target.velocity.y;
+                        target.position.z += target.velocity.z;
+                        
+                        // Bounce off boundaries
+                        if (Math.abs(target.position.x) > 50) target.velocity.x *= -1;
+                        if (Math.abs(target.position.y) > 50) target.velocity.y *= -1;
+                        if (target.position.z < 0 || target.position.z > 50) target.velocity.z *= -1;
+                        
+                        // Update parameters
+                        target.range = (Math.sqrt(
+                            target.position.x ** 2 + 
+                            target.position.y ** 2 + 
+                            target.position.z ** 2
+                        ) * 0.1).toFixed(1);
+                        
+                        target.doppler = (Math.random() - 0.5) * 200;
+                        target.snr = Math.max(10, 25 + (Math.random() - 0.5) * 5);
+                        
+                        // Update trail
+                        if (target.trailPoints) {
+                            target.trailPoints.push(
+                                target.position.x,
+                                target.position.z,
+                                target.position.y
+                            );
+                            
+                            if (target.trailPoints.length > 300) {
+                                target.trailPoints.splice(0, 3);
+                            }
+                            
+                            if (target.trail) {
+                                target.trail.geometry.setAttribute(
+                                    'position',
+                                    new THREE.Float32BufferAttribute(target.trailPoints, 3)
+                                );
+                            }
+                        }
+                    });
+                },
+                
+                update3DScene() {
+                    this.radarObjects.forEach(obj => {
+                        if (obj.mesh && obj.target) {
+                            obj.mesh.position.set(
+                                obj.target.position.x,
+                                obj.target.position.z,
+                                obj.target.position.y
+                            );
+                            
+                            // Pulsing animation
+                            const scale = 1 + 0.3 * Math.sin(Date.now() * 0.002 * obj.target.id);
+                            obj.mesh.scale.setScalar(scale);
+                        }
+                    });
+                },
+                
+                updateCharts() {
+                    if (this.charts.spectrum) {
+                        // Update spectrum data
+                        const newData = Array.from({length: 100}, (_, i) => {
+                            let value = 50 + 30 * Math.sin(i * 0.1 + Date.now() * 0.001);
+                            this.targets.forEach(target => {
+                                const freq = 20 + target.id * 5;
+                                if (Math.abs(i - freq) < 10) {
+                                    value += (10 - Math.abs(i - freq)) * 2;
+                                }
+                            });
+                            return value + Math.random() * 10;
+                        });
+                        
+                        this.charts.spectrum.data.datasets[0].data = newData;
+                        this.charts.spectrum.update('none');
+                    }
+                    
+                    if (this.charts.doppler) {
+                        // Update doppler chart
+                        this.charts.doppler.data.datasets.forEach((dataset, i) => {
+                            const target = this.targets[i];
+                            if (target) {
+                                dataset.data[0] = {x: target.doppler, y: target.snr};
+                            }
+                        });
+                        this.charts.doppler.update('none');
+                    }
+                },
+                
+                updateCanvases() {
+                    // Update array visualization
+                    this.drawArrayVisualization();
+                    
+                    // Update frequency visualization
+                    this.drawFrequencyVisualization();
+                    
+                    // Update motion visualization
+                    this.drawMotionVisualization();
+                },
+                
+                drawArrayVisualization() {
+                    const ctx = this.canvases.array;
+                    const width = ctx.canvas.width;
+                    const height = ctx.canvas.height;
+                    
+                    // Clear canvas
+                    ctx.clearRect(0, 0, width, height);
+                    
+                    // Draw 8x8 array
+                    const spacing = 30;
+                    const offsetX = (width - 7 * spacing) / 2;
+                    const offsetY = (height - 7 * spacing) / 2;
+                    
+                    for (let i = 0; i < 8; i++) {
+                        for (let j = 0; j < 8; j++) {
+                            const x = offsetX + i * spacing;
+                            const y = offsetY + j * spacing;
+                            const phase = Math.sin(Date.now() * 0.001 + i * 0.5 + j * 0.3);
+                            const radius = 8 + phase * 4;
+                            
+                            // Draw antenna element
+                            ctx.beginPath();
+                            ctx.arc(x, y, radius, 0, Math.PI * 2);
+                            ctx.fillStyle = `rgba(0, ${255 - i*30}, ${65 + j*30}, ${0.5 + phase*0.3})`;
+                            ctx.fill();
+                            ctx.strokeStyle = 'var(--matrix-green)';
+                            ctx.stroke();
+                        }
+                    }
+                },
+                
+                drawFrequencyVisualization() {
+                    const ctx = this.canvases.frequency;
+                    const width = ctx.canvas.width;
+                    const height = ctx.canvas.height;
+                    
+                    ctx.clearRect(0, 0, width, height);
+                    
+                    // Draw frequency spectrum
+                    const barWidth = 2;
+                    const barSpacing = 1;
+                    const numBars = Math.floor(width / (barWidth + barSpacing));
+                    
+                    for (let i = 0; i < numBars; i++) {
+                        const x = i * (barWidth + barSpacing);
+                        const frequency = i * 0.1;
+                        
+                        // Base signal + target contributions
+                        let heightValue = 30 + 20 * Math.sin(frequency + Date.now() * 0.001);
+                        
+                        this.targets.forEach(target => {
+                            const targetFreq = 5 + target.id;
+                            const distance = Math.abs(frequency - targetFreq);
+                            if (distance < 3) {
+                                heightValue += (3 - distance) * 10;
+                            }
+                        });
+                        
+                        const barHeight = Math.min(heightValue, height - 20);
+                        
+                        // Gradient color based on frequency
+                        const hue = (frequency * 10) % 360;
+                        ctx.fillStyle = `hsla(${hue}, 100%, 50%, 0.7)`;
+                        ctx.fillRect(x, height - barHeight, barWidth, barHeight);
+                    }
+                },
+                
+                drawMotionVisualization() {
+                    const ctx = this.canvases.motion;
+                    const width = ctx.canvas.width;
+                    const height = ctx.canvas.height;
+                    
+                    ctx.clearRect(0, 0, width, height);
+                    
+                    // Draw motion trails
+                    this.targets.forEach(target => {
+                        ctx.beginPath();
+                        ctx.strokeStyle = target.color;
+                        ctx.lineWidth = 2;
+                        
+                        // Simulate motion path
+                        for (let i = 0; i < 50; i++) {
+                            const t = Date.now() * 0.001 - i * 0.1;
+                            const x = width/2 + Math.sin(t * target.velocity.x * 0.1) * 100;
+                            const y = height/2 + Math.cos(t * target.velocity.y * 0.1) * 100;
+                            
+                            if (i === 0) {
+                                ctx.moveTo(x, y);
+                            } else {
+                                ctx.lineTo(x, y);
+                            }
+                        }
+                        
+                        ctx.stroke();
+                        
+                        // Draw current position
+                        const currentX = width/2 + Math.sin(Date.now() * 0.001 * target.velocity.x * 0.1) * 100;
+                        const currentY = height/2 + Math.cos(Date.now() * 0.001 * target.velocity.y * 0.1) * 100;
+                        
+                        ctx.beginPath();
+                        ctx.arc(currentX, currentY, 6, 0, Math.PI * 2);
+                        ctx.fillStyle = target.color;
+                        ctx.fill();
+                        ctx.strokeStyle = 'white';
+                        ctx.stroke();
+                    });
+                },
+                
+                getStatusColor(status) {
+                    const colors = {
+                        'OPERATIONAL': 'var(--matrix-green)',
+                        'STANDBY': 'var(--cyber-yellow)',
+                        'ALERT': 'var(--cyber-orange)',
+                        'CRITICAL': 'var(--cyber-red)',
+                        'OFFLINE': 'var(--cyber-blue)'
+                    };
+                    return colors[status] || 'var(--matrix-green)';
+                },
+                
+                getSNRColor(snr) {
+                    if (snr > 25) return 'var(--matrix-green)';
+                    if (snr > 15) return 'var(--cyber-yellow)';
+                    return 'var(--cyber-red)';
+                },
+                
+                toggleSystem() {
+                    this.isRunning = !this.isRunning;
+                    this.systemStatus = this.isRunning ? 'OPERATIONAL' : 'STANDBY';
+                    
+                    if (this.isRunning) {
+                        this.updateLoop();
+                    }
+                },
+                
+                addRandomTarget() {
+                    const types = [
+                        { callsign: 'PHANTOM', type: 'Stealth Drone', icon: '👻', classification: 'drone', color: 'var(--matrix-green)' },
+                        { callsign: 'SPECTRE', type: 'EW Aircraft', icon: '🌫️', classification: 'plane', color: 'var(--cyber-blue)' },
+                        { callsign: 'REAPER', type: 'Attack UAV', icon: '💀', classification: 'uav', color: 'var(--cyber-red)' },
+                        { callsign: 'SENTRY', type: 'AWACS', icon: '👁️', classification: 'plane', color: 'var(--cyber-purple)' }
+                    ];
+                    
+                    const type = types[Math.floor(Math.random() * types.length)];
+                    const newTarget = {
+                        id: this.targets.length + 1,
+                        ...type,
+                        position: {
+                            x: (Math.random() - 0.5) * 100,
+                            y: (Math.random() - 0.5) * 100,
+                            z: Math.random() * 50
+                        },
+                        velocity: {
+                            x: (Math.random() - 0.5) * 3,
+                            y: (Math.random() - 0.5) * 3,
+                            z: (Math.random() - 0.5) * 1.5
+                        },
+                        range: (Math.random() * 40 + 5).toFixed(1),
+                        speed: Math.floor(Math.random() * 200 + 50),
+                        altitude: Math.floor(Math.random() * 10000 + 1000),
+                        snr: 10 + Math.random() * 20,
+                        doppler: (Math.random() - 0.5) * 300,
+                        confidence: Math.floor(Math.random() * 40 + 60),
+                        signature: ['steady', 'pulsed', 'modulated', 'chirp'][Math.floor(Math.random() * 4)],
+                        rcs: type.classification === 'plane' ? Math.random() * 20 + 5 : Math.random() * 0.1
+                    };
+                    
+                    this.targets.push(newTarget);
+                    this.activeTargets = this.targets.length;
+                    
+                    // Update threat level
+                    this.updateThreatLevel();
+                },
+                
+                updateThreatLevel() {
+                    const highThreatCount = this.targets.filter(t => 
+                        t.classification === 'missile' || t.classification === 'uav'
+                    ).length;
+                    
+                    if (highThreatCount >= 3) {
+                        this.threatLevel = 'HIGH';
+                        this.threatColor = 'var(--cyber-red)';
+                    } else if (highThreatCount >= 1) {
+                        this.threatLevel = 'MODERATE';
+                        this.threatColor = 'var(--cyber-yellow)';
+                    } else {
+                        this.threatLevel = 'LOW';
+                        this.threatColor = 'var(--matrix-green)';
+                    }
+                },
+                
+                simulateJammingAttack() {
+                    this.jammingResistance = 60;
+                    
+                    // Simulate jamming effects
+                    this.targets.forEach(target => {
+                        target.snr = Math.max(5, target.snr - 15);
+                    });
+                    
+                    // Recover over time
+                    const recover = () => {
+                        if (this.jammingResistance < 94) {
+                            this.jammingResistance += 2;
+                            setTimeout(recover, 200);
+                        }
+                    };
+                    recover();
+                },
+                
+                activateCountermeasures() {
+                    // Simulate countermeasures
+                    this.targets.forEach(target => {
+                        if (target.confidence > 50) {
+                            target.confidence = Math.min(100, target.confidence + 10);
+                        }
+                    });
+                    
+                    this.jammingResistance = 98;
+                },
+                
+                analyzeSignatures() {
+                    // Enhanced signature analysis
+                    this.targets.forEach(target => {
+                        target.confidence = Math.min(100, target.confidence + 15);
+                        target.snr += 5;
+                    });
+                }
+            };
+        }
+    </script>
+</body>
+</html>

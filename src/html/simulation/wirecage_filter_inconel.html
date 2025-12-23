@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Wire Cage Visualization</title>
+    <style>
+        body { margin: 0; }
+        canvas { display: block; }
+        #gui { position: absolute; top: 10px; right: 10px; }
+    </style>
+</head>
+<body>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.7.7/dat.gui.min.js"></script>
+
+<script>
+let scene, camera, renderer, controls;
+let verticalWires = [], spiralWire;
+let params = {
+    cylinderDiameter: 2,
+    verticalCount: 12,
+    verticalDiameter: 0.1,
+    verticalLength: 10,
+    spiralDiameter: 0.08,
+    spiralSpace: 0.5,
+    materialType: 'steel',
+    background: '#111111',
+    animateSpiral: true
+};
+
+init();
+animate();
+
+function init() {
+    // Scene setup
+    scene = new THREE.Scene();
+    camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+    renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    document.body.appendChild(renderer.domElement);
+
+    // Lights
+    const light1 = new THREE.PointLight(0xffffff, 1, 100);
+    light1.position.set(10, 10, 10);
+    scene.add(light1);
+
+    // Controls
+    controls = new THREE.OrbitControls(camera, renderer.domElement);
+    camera.position.set(0, params.verticalLength/2, 10);
+    controls.update();
+
+    // GUI
+    const gui = new dat.GUI();
+    gui.add(params, 'cylinderDiameter', 1, 5).onChange(updateStructure);
+    gui.add(params, 'verticalCount', 4, 36).step(1).onChange(updateStructure);
+    gui.add(params, 'verticalDiameter', 0.05, 0.3).onChange(updateStructure);
+    gui.add(params, 'verticalLength', 5, 20).onChange(updateStructure);
+    gui.add(params, 'spiralDiameter', 0.05, 0.3).onChange(updateStructure);
+    gui.add(params, 'spiralSpace', 0.2, 1).onChange(updateStructure);
+    gui.addColor(params, 'background').onChange(val => scene.background = new THREE.Color(val));
+    gui.add(params, 'materialType', ['steel', 'carbon', 'ss', 'inconel']).onChange(updateMaterials);
+
+    updateStructure();
+}
+
+function createVerticalWires() {
+    verticalWires.forEach(wire => scene.remove(wire));
+    verticalWires = [];
+
+    const radius = params.cylinderDiameter / 2;
+    const angleStep = (Math.PI * 2) / params.verticalCount;
+
+    for(let i = 0; i < params.verticalCount; i++) {
+        const angle = angleStep * i;
+        const x = Math.cos(angle) * radius;
+        const z = Math.sin(angle) * radius;
+
+        const geometry = new THREE.CylinderGeometry(
+            params.verticalDiameter/2, 
+            params.verticalDiameter/2, 
+            params.verticalLength
+        );
+        const material = new THREE.MeshStandardMaterial({ color: 0x888888 });
+        const wire = new THREE.Mesh(geometry, material);
+        wire.position.set(x, params.verticalLength/2, z);
+        verticalWires.push(wire);
+        scene.add(wire);
+    }
+}
+
+function createSpiral() {
+    if(spiralWire) scene.remove(spiralWire);
+    
+    const radius = params.cylinderDiameter / 2 + params.verticalDiameter/2;
+    const segments = 500;
+    const points = [];
+    
+    for(let i = 0; i < segments; i++) {
+        const angle = (i / 10) * Math.PI;
+        const y = (i / segments) * params.verticalLength;
+        const x = Math.cos(angle) * radius;
+        const z = Math.sin(angle) * radius;
+        points.push(new THREE.Vector3(x, y, z));
+    }
+
+    const geometry = new THREE.BufferGeometry().setFromPoints(points);
+    const material = new THREE.LineBasicMaterial({ color: 0xaaaaaa });
+    spiralWire = new THREE.Line(geometry, material);
+    scene.add(spiralWire);
+}
+
+function updateMaterials() {
+    const materialProps = {
+        steel: { color: 0x888888, metalness: 0.7, roughness: 0.3 },
+        carbon: { color: 0x333333, metalness: 0.5, roughness: 0.6 },
+        ss: { color: 0xcccccc, metalness: 0.9, roughness: 0.1 },
+        inconel: { color: 0x554422, metalness: 0.8, roughness: 0.4 }
+    };
+
+    verticalWires.forEach(wire => {
+        wire.material = new THREE.MeshStandardMaterial(materialProps[params.materialType]);
+    });
+}
+
+function updateStructure() {
+    createVerticalWires();
+    createSpiral();
+    updateMaterials();
+}
+
+function animate() {
+    requestAnimationFrame(animate);
+    controls.update();
+    renderer.render(scene, camera);
+}
+
+window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+});
+</script>
+</body>
+</html>

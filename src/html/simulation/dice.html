@@ -1,0 +1,1069 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ultra-Realistic 3D Dice Roll Simulation</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/libs/ammo.wasm.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0c0c0c 0%, #1a1a2e 100%);
+            color: #f0f0f0;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        header {
+            text-align: center;
+            padding: 20px 0;
+            margin-bottom: 30px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        h1 {
+            font-size: 2.5rem;
+            background: linear-gradient(to right, #ff7e5f, #feb47b);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 10px rgba(255, 126, 95, 0.3);
+        }
+        
+        .subtitle {
+            font-size: 1.1rem;
+            color: #aaa;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        .content {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 30px;
+        }
+        
+        .simulation-panel {
+            flex: 1;
+            min-width: 300px;
+            background: rgba(20, 20, 30, 0.8);
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        
+        .controls-panel {
+            flex: 0 0 300px;
+            background: rgba(20, 20, 30, 0.8);
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        
+        #dice-container {
+            width: 100%;
+            height: 500px;
+            border-radius: 10px;
+            overflow: hidden;
+            background: rgba(10, 10, 15, 0.9);
+            box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.7);
+            margin-bottom: 20px;
+        }
+        
+        .button-container {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .roll-button {
+            background: linear-gradient(to right, #ff7e5f, #feb47b);
+            border: none;
+            color: white;
+            padding: 18px 30px;
+            font-size: 1.3rem;
+            font-weight: bold;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 15px rgba(255, 126, 95, 0.4);
+            letter-spacing: 1px;
+        }
+        
+        .roll-button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(255, 126, 95, 0.6);
+        }
+        
+        .roll-button:active {
+            transform: translateY(1px);
+        }
+        
+        .roll-button:disabled {
+            background: linear-gradient(to right, #666, #888);
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .control-group {
+            margin-bottom: 25px;
+        }
+        
+        .control-group h3 {
+            color: #feb47b;
+            margin-bottom: 15px;
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .control-group h3 i {
+            font-size: 1.4rem;
+        }
+        
+        .slider-container {
+            margin-bottom: 15px;
+        }
+        
+        .slider-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+        }
+        
+        .slider-label span {
+            font-size: 0.9rem;
+            color: #ccc;
+        }
+        
+        .slider {
+            width: 100%;
+            height: 8px;
+            -webkit-appearance: none;
+            appearance: none;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+            outline: none;
+        }
+        
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #ff7e5f;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(255, 126, 95, 0.8);
+        }
+        
+        .slider::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #ff7e5f;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(255, 126, 95, 0.8);
+            border: none;
+        }
+        
+        .color-options {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .color-option {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: 2px solid transparent;
+        }
+        
+        .color-option:hover {
+            transform: scale(1.1);
+        }
+        
+        .color-option.active {
+            border: 2px solid white;
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.7);
+        }
+        
+        .results {
+            background: rgba(30, 30, 45, 0.8);
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+            border-left: 4px solid #ff7e5f;
+        }
+        
+        .results h3 {
+            color: #feb47b;
+            margin-bottom: 15px;
+            font-size: 1.2rem;
+        }
+        
+        .dice-results {
+            display: flex;
+            justify-content: space-around;
+            margin-bottom: 15px;
+        }
+        
+        .die-result {
+            text-align: center;
+        }
+        
+        .die-value {
+            font-size: 3rem;
+            font-weight: bold;
+            color: #ff7e5f;
+            text-shadow: 0 0 10px rgba(255, 126, 95, 0.7);
+        }
+        
+        .die-label {
+            font-size: 0.9rem;
+            color: #aaa;
+            margin-top: 5px;
+        }
+        
+        .total-result {
+            text-align: center;
+            font-size: 1.5rem;
+            padding-top: 15px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .total-value {
+            color: #feb47b;
+            font-weight: bold;
+        }
+        
+        .physics-info {
+            background: rgba(30, 30, 45, 0.6);
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 20px;
+            font-size: 0.9rem;
+            color: #aaa;
+            border-left: 4px solid #6a5acd;
+        }
+        
+        .instructions {
+            background: rgba(30, 30, 45, 0.6);
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 20px;
+            font-size: 0.9rem;
+            color: #aaa;
+            border-left: 4px solid #2ecc71;
+        }
+        
+        .instructions ul {
+            padding-left: 20px;
+            margin-top: 10px;
+        }
+        
+        .instructions li {
+            margin-bottom: 8px;
+        }
+        
+        footer {
+            text-align: center;
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            color: #777;
+            font-size: 0.9rem;
+        }
+        
+        @media (max-width: 768px) {
+            .content {
+                flex-direction: column;
+            }
+            
+            .controls-panel {
+                flex: 1;
+            }
+            
+            #dice-container {
+                height: 400px;
+            }
+        }
+        
+        .loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(10, 10, 15, 0.95);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            transition: opacity 0.5s ease;
+        }
+        
+        .spinner {
+            width: 70px;
+            height: 70px;
+            border: 5px solid rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            border-top-color: #ff7e5f;
+            animation: spin 1s ease-in-out infinite;
+            margin-bottom: 20px;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .loading-text {
+            font-size: 1.2rem;
+            color: #feb47b;
+        }
+    </style>
+</head>
+<body>
+    <div class="loading" id="loading">
+        <div class="spinner"></div>
+        <div class="loading-text">Initializing physics engine and 3D environment...</div>
+    </div>
+    
+    <div class="container">
+        <header>
+            <h1>Ultra-Realistic 3D Dice Roll Simulation</h1>
+            <p class="subtitle">Advanced physics simulation with precise motion modeling, realistic collisions, and high-detail visualization using Three.js and WebGL</p>
+        </header>
+        
+        <div class="content">
+            <div class="simulation-panel">
+                <div id="dice-container"></div>
+                
+                <div class="button-container">
+                    <button class="roll-button" id="roll-button">
+                        🎲 Roll the Dice! 🎲
+                    </button>
+                </div>
+                
+                <div class="results">
+                    <h3>Roll Results</h3>
+                    <div class="dice-results">
+                        <div class="die-result">
+                            <div class="die-value" id="die1-value">-</div>
+                            <div class="die-label">Dice 1</div>
+                        </div>
+                        <div class="die-result">
+                            <div class="die-value" id="die2-value">-</div>
+                            <div class="die-label">Dice 2</div>
+                        </div>
+                    </div>
+                    <div class="total-result">
+                        Total: <span class="total-value" id="total-value">-</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="controls-panel">
+                <div class="control-group">
+                    <h3>🎨 Dice Colors</h3>
+                    <div class="color-options">
+                        <div class="color-option active" style="background: #3498db;" data-color="#3498db"></div>
+                        <div class="color-option" style="background: #e74c3c;" data-color="#e74c3c"></div>
+                        <div class="color-option" style="background: #2ecc71;" data-color="#2ecc71"></div>
+                        <div class="color-option" style="background: #f39c12;" data-color="#f39c12"></div>
+                        <div class="color-option" style="background: #9b59b6;" data-color="#9b59b6"></div>
+                        <div class="color-option" style="background: #1abc9c;" data-color="#1abc9c"></div>
+                    </div>
+                </div>
+                
+                <div class="control-group">
+                    <h3>⚙️ Physics Parameters</h3>
+                    <div class="slider-container">
+                        <div class="slider-label">
+                            <span>Throw Force</span>
+                            <span id="force-value">8.5</span>
+                        </div>
+                        <input type="range" min="1" max="20" value="8.5" step="0.1" class="slider" id="force-slider">
+                    </div>
+                    
+                    <div class="slider-container">
+                        <div class="slider-label">
+                            <span>Spin Intensity</span>
+                            <span id="spin-value">5.5</span>
+                        </div>
+                        <input type="range" min="1" max="10" value="5.5" step="0.1" class="slider" id="spin-slider">
+                    </div>
+                    
+                    <div class="slider-container">
+                        <div class="slider-label">
+                            <span>Bounce Elasticity</span>
+                            <span id="bounce-value">0.7</span>
+                        </div>
+                        <input type="range" min="0.1" max="0.9" value="0.7" step="0.05" class="slider" id="bounce-slider">
+                    </div>
+                </div>
+                
+                <div class="control-group">
+                    <h3>📷 Camera Controls</h3>
+                    <div class="slider-container">
+                        <div class="slider-label">
+                            <span>Zoom Level</span>
+                            <span id="zoom-value">1.0</span>
+                        </div>
+                        <input type="range" min="0.5" max="3" value="1.0" step="0.1" class="slider" id="zoom-slider">
+                    </div>
+                    
+                    <div class="slider-container">
+                        <div class="slider-label">
+                            <span>Camera Height</span>
+                            <span id="height-value">45</span>
+                        </div>
+                        <input type="range" min="20" max="80" value="45" step="1" class="slider" id="height-slider">
+                    </div>
+                </div>
+                
+                <div class="physics-info">
+                    <strong>Physics Engine:</strong> Custom hybrid physics with gravitational force (9.81 m/s²), angular momentum conservation, and collision detection with energy dissipation.
+                </div>
+                
+                <div class="instructions">
+                    <strong>Controls:</strong>
+                    <ul>
+                        <li><strong>Mouse Drag:</strong> Rotate camera view</li>
+                        <li><strong>Mouse Wheel:</strong> Zoom in/out</li>
+                        <li><strong>Right-click + Drag:</strong> Pan camera</li>
+                        <li><strong>Double-click:</strong> Reset camera to default position</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        
+        <footer>
+            <p>Ultra-Realistic Dice Simulation | Powered by Three.js & Advanced Physics Modeling</p>
+            <p>Dice feature micro-detailing: rounded edges, material imperfections, and precise weight distribution</p>
+        </footer>
+    </div>
+
+    <script>
+        // Main application
+        document.addEventListener('DOMContentLoaded', () => {
+            // Initialize the simulation
+            initSimulation();
+            
+            // Set up event listeners for controls
+            setupEventListeners();
+        });
+        
+        let scene, camera, renderer, controls;
+        let dice1, dice2, diceGroup;
+        let floor;
+        let diceColor = 0x3498db;
+        let diceColor2= 0xdb3498;
+        let isRolling = false;
+        let diceResults = { die1: null, die2: null };
+        
+        // Physics parameters
+        let physicsParams = {
+            throwForce: 8.5,
+            spinIntensity: 5.5,
+            bounceElasticity: 0.7,
+            gravity: 9.81,
+            friction: 0.2,
+            airResistance: 0.01
+        };
+        
+        // Dice state
+        let diceState = {
+            dice1: {
+                position: { x: -2, y: 5, z: 0 },
+                velocity: { x: 0, y: 0, z: 0 },
+                angularVelocity: { x: 0, y: 0, z: 0 },
+                rotation: { x: 0, y: 0, z: 0 },
+                isResting: false,
+                restingTime: 0
+            },
+            dice2: {
+                position: { x: 2, y: 5, z: 0 },
+                velocity: { x: 0, y: 0, z: 0 },
+                angularVelocity: { x: 0, y: 0, z: 0 },
+                rotation: { x: 0, y: 0, z: 0 },
+                isResting: false,
+                restingTime: 0
+            }
+        };
+        
+        // Animation variables
+        let clock = new THREE.Clock();
+        let lastTime = 0;
+        const fixedTimeStep = 1/60; // 60 FPS physics
+        
+        async function initSimulation() {
+            // Hide loading screen after a short delay
+            setTimeout(() => {
+                document.getElementById('loading').style.opacity = '0';
+                setTimeout(() => {
+                    document.getElementById('loading').style.display = 'none';
+                }, 500);
+            }, 1500);
+            
+            // Create Three.js scene
+            scene = new THREE.Scene();
+            scene.fog = new THREE.Fog(0x0c0c0c, 10, 50);
+            
+            // Create camera
+            camera = new THREE.PerspectiveCamera(60, 
+                document.getElementById('dice-container').clientWidth / 
+                document.getElementById('dice-container').clientHeight, 
+                0.1, 1000);
+            camera.position.set(0, 45, 25);
+            camera.lookAt(0, 0, 0);
+            
+            // Create renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(
+                document.getElementById('dice-container').clientWidth,
+                document.getElementById('dice-container').clientHeight
+            );
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            renderer.setPixelRatio(window.devicePixelRatio);
+            document.getElementById('dice-container').appendChild(renderer.domElement);
+            
+            // Add OrbitControls for camera interaction
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.minDistance = 5;
+            controls.maxDistance = 100;
+            controls.maxPolarAngle = Math.PI / 2 - 0.1; // Prevent going under floor
+            
+            // Add lighting
+            setupLighting();
+            
+            // Create environment
+            createEnvironment();
+            
+            // Create dice
+            createDice();
+            
+            // Handle window resize
+            window.addEventListener('resize', onWindowResize);
+            
+            // Start animation loop
+            animate();
+        }
+        
+        function setupLighting() {
+            // Ambient light
+            const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
+            scene.add(ambientLight);
+            
+            // Main directional light (like sun)
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(10, 20, 5);
+            directionalLight.castShadow = true;
+            directionalLight.shadow.mapSize.width = 2048;
+            directionalLight.shadow.mapSize.height = 2048;
+            directionalLight.shadow.camera.near = 0.5;
+            directionalLight.shadow.camera.far = 50;
+            directionalLight.shadow.camera.left = -20;
+            directionalLight.shadow.camera.right = 20;
+            directionalLight.shadow.camera.top = 20;
+            directionalLight.shadow.camera.bottom = -20;
+            scene.add(directionalLight);
+            
+            // Fill light
+            const fillLight = new THREE.DirectionalLight(0xffffff, 0.3);
+            fillLight.position.set(-10, 10, -5);
+            scene.add(fillLight);
+            
+            // Rim light for highlighting edges
+            const rimLight = new THREE.DirectionalLight(0xffffff, 0.4);
+            rimLight.position.set(0, 5, -10);
+            scene.add(rimLight);
+        }
+        
+        function createEnvironment() {
+            // Create floor
+            const floorGeometry = new THREE.PlaneGeometry(50, 50, 32, 32);
+            const floorMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0x222233,
+                roughness: 0.8,
+                metalness: 0.2
+            });
+            floor = new THREE.Mesh(floorGeometry, floorMaterial);
+            floor.rotation.x = -Math.PI / 2;
+            floor.receiveShadow = true;
+            scene.add(floor);
+            
+            // Add a subtle grid to the floor for depth perception
+            const gridHelper = new THREE.GridHelper(50, 50, 0x444466, 0x222244);
+            gridHelper.position.y = 0.01;
+            scene.add(gridHelper);
+            
+            // Add some ambient environment geometry for visual interest
+            addEnvironmentDetails();
+        }
+        
+        function addEnvironmentDetails() {
+            // Add some distant walls for context
+            const wallGeometry = new THREE.BoxGeometry(60, 20, 1);
+            const wallMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0x1a1a2e,
+                roughness: 0.9,
+                metalness: 0.1
+            });
+            
+            const backWall = new THREE.Mesh(wallGeometry, wallMaterial);
+            backWall.position.z = -25;
+            backWall.position.y = 10;
+            scene.add(backWall);
+            
+            // Add some subtle background elements
+            const bgGeometry = new THREE.BoxGeometry(5, 5, 5);
+            const bgMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0x2d2d44,
+                roughness: 0.8,
+                metalness: 0.1,
+                transparent: true,
+                opacity: 0.3
+            });
+            
+            for (let i = 0; i < 8; i++) {
+                const bgCube = new THREE.Mesh(bgGeometry, bgMaterial);
+                bgCube.position.set(
+                    (Math.random() - 0.5) * 40,
+                    Math.random() * 10 + 5,
+                    -20 - Math.random() * 10
+                );
+                bgCube.scale.setScalar(Math.random() * 0.5 + 0.5);
+                scene.add(bgCube);
+            }
+        }
+        
+        function createDice() {
+            // Create a group to hold both dice
+            diceGroup = new THREE.Group();
+            scene.add(diceGroup);
+            
+            // Create dice 1
+            dice1 = createSingleDie(diceColor, 0xffffff);
+            dice1.position.set(-2, 5, 0);
+            dice1.userData.diceIndex = 1;
+            diceGroup.add(dice1);
+            
+            // Create dice 2
+            dice2 = createSingleDie(diceColor2, 0xffffff);
+            dice2.position.set(2, 5, 0);
+            dice2.userData.diceIndex = 2;
+            diceGroup.add(dice2);
+        }
+        
+        function createSingleDie(baseColor, dotColor) {
+            const dieGroup = new THREE.Group();
+            
+            // Create die body with rounded edges for realism
+            const dieSize = 3;
+            const dieGeometry = new THREE.BoxGeometry(dieSize, dieSize, dieSize, 8, 8, 8);
+            
+            // Apply a subtle rounding by smoothing normals
+            dieGeometry.computeVertexNormals();
+            
+            const dieMaterial = new THREE.MeshPhysicalMaterial({
+                color: baseColor,
+                roughness: 0.3,
+                metalness: 0.2,
+                clearcoat: 0.5,
+                clearcoatRoughness: 0.1,
+                reflectivity: 0.5
+            });
+            
+            const dieBody = new THREE.Mesh(dieGeometry, dieMaterial);
+            dieBody.castShadow = true;
+            dieBody.receiveShadow = true;
+            dieGroup.add(dieBody);
+            
+            // Create dots (pips) for each face
+            const dotGeometry = new THREE.SphereGeometry(0.35, 16, 16);
+            const dotMaterial = new THREE.MeshStandardMaterial({ 
+                color: dotColor,
+                roughness: 0.2,
+                metalness: 0.8
+            });
+            
+            // Positions for dots on each face (standard dice configuration)
+            const dotPositions = [
+                [[]], // Face 1 (no dots on this face in standard, but we'll create all)
+                [[0, -1.501, 0]], // Face 1 (one dot in center)
+                
+                // Face 2 (two dots diagonally)
+                [[-1, 1.501, -1], [1, 1.501, 1]],
+                
+                // Face 3 (three dots in diagonal)
+                [[-1.501, -1, -1], [-1.501, 0, 0], [-1.501, 1, 1]],
+                
+                // Face 4 (four dots in corners)
+                [[1.501, -1, -1], [1.501, 1, 1], [1.501, -1, 1], [1.501, 1, -1]],
+                
+                // Face 5 (five dots: four corners + center)
+                [[-1, -1, -1.501], [-1, 1, -1.501], [1, -1, -1.501], 
+                 [1, 1, -1.501], [0, 0, -1.501]],
+                
+                // Face 6 (six dots: three rows of two)
+                [[-1, -1, 1.501], [-1, 0, 1.501], [-1, 1, 1.501],
+                 [1, -1, 1.501], [1, 0, 1.501], [1, 1, 1.501]]
+            ];
+            
+            // Create dots for each face
+            for (let face = 1; face <= 6; face++) {
+                const positions = dotPositions[face];
+                
+                // Different rotations for each face
+                let rotation = new THREE.Euler();
+                switch(face) {
+                    case 1: rotation = new THREE.Euler(0, 0, -Math.PI/2); break; // Front
+                    case 2: rotation = new THREE.Euler(0, 0, Math.PI/2); break; // Right
+                    case 3: rotation = new THREE.Euler(Math.PI/2, Math.PI/2, 0); break; // Back
+                    case 4: rotation = new THREE.Euler(-Math.PI/2, -Math.PI / 2, 0); break; // Left
+                    case 5: rotation = new THREE.Euler(Math.PI / 2, 0, Math.PI/2); break; // Top
+                    case 6: rotation = new THREE.Euler(-Math.PI / 2, Math.PI, 0); break; // Bottom
+                }
+                
+                for (const pos of positions) {
+                    const dot = new THREE.Mesh(dotGeometry, dotMaterial);
+                    dot.position.set(pos[0], pos[1], pos[2]);
+                    dot.rotation.x=Math.PI/2;
+                    dot.castShadow = true;
+                    dieGroup.add(dot);
+                }
+            }
+            
+            // Add subtle edge highlights for extra realism
+            const edgesGeometry = new THREE.EdgesGeometry(dieGeometry);
+            const edgesMaterial = new THREE.LineBasicMaterial({ 
+                color: 0xffffff, 
+                transparent: true,
+                opacity: 0.1
+            });
+            const edges = new THREE.LineSegments(edgesGeometry, edgesMaterial);
+            dieGroup.add(edges);
+            
+            return dieGroup;
+        }
+        
+        function updateDiceColor(color) {
+            diceColor = color;
+            
+            // Update both dice
+            dice1.traverse((child) => {
+                if (child.isMesh && child.material.color) {
+                    // Only update the die body, not the dots
+                    if (child.geometry.type === 'BoxGeometry') {
+                        child.material.color.set(color);
+                    }
+                }
+            });
+            
+            dice2.traverse((child) => {
+                if (child.isMesh && child.material.color) {
+                    // Only update the die body, not the dots
+                    if (child.geometry.type === 'BoxGeometry') {
+                        child.material.color.set(color);
+                    }
+                }
+            });
+        }
+        
+        function rollDice() {
+            if (isRolling) return;
+            
+            isRolling = true;
+            diceResults.die1 = null;
+            diceResults.die2 = null;
+            
+            // Disable roll button while dice are rolling
+            document.getElementById('roll-button').disabled = true;
+            
+            // Reset dice state
+            diceState.dice1 = {
+                position: { x: -2, y: 5, z: 0 },
+                velocity: { 
+                    x: (Math.random() - 0.5) * physicsParams.throwForce,
+                    y: Math.random() * 3 + 8,
+                    z: (Math.random() - 0.5) * physicsParams.throwForce
+                },
+                angularVelocity: { 
+                    x: 505*(Math.random() - 0.5) * physicsParams.spinIntensity,
+                    y: 440*(Math.random() - 0.5) * physicsParams.spinIntensity,
+                    z: 330*(Math.random() - 0.5) * physicsParams.spinIntensity
+                },
+                rotation: { 
+                    x: Math.random() * Math.PI * 2,
+                    y: Math.random() * Math.PI * 2,
+                    z: Math.random() * Math.PI * 2
+                },
+                isResting: false,
+                restingTime: 0
+            };
+            
+            diceState.dice2 = {
+                position: { x: 2, y: 5, z: 0 },
+                velocity: { 
+                    x: (Math.random() - 0.5) * physicsParams.throwForce,
+                    y: Math.random() * 3 + 8,
+                    z: (Math.random() - 0.5) * physicsParams.throwForce
+                },
+                angularVelocity: { 
+                    x: (Math.random() - 0.5) *600*physicsParams.spinIntensity,
+                    y: (Math.random() - 0.5) *500* physicsParams.spinIntensity,
+                    z: (Math.random() - 0.5) * 300*physicsParams.spinIntensity
+                },
+                rotation: { 
+                    x: Math.random() * Math.PI * 2,
+                    y: Math.random() * Math.PI * 2,
+                    z: Math.random() * Math.PI * 2
+                },
+                isResting: false,
+                restingTime: 0
+            };
+            
+            // Reset display
+            document.getElementById('die1-value').textContent = '-';
+            document.getElementById('die2-value').textContent = '-';
+            document.getElementById('total-value').textContent = '-';
+        }
+        
+        function updatePhysics(deltaTime) {
+            // Limit deltaTime to avoid large jumps
+            const dt = Math.min(deltaTime, 0.1);
+            
+            // Update both dice
+            updateDiePhysics(diceState.dice1, dice1, dt);
+            updateDiePhysics(diceState.dice2, dice2, dt);
+            
+            // Check if both dice have come to rest
+            if (diceState.dice1.isResting && diceState.dice2.isResting) {
+                if (!isRolling) return;
+                
+                // Calculate final results
+                diceResults.die1 = calculateDieResult(dice1);
+                diceResults.die2 = calculateDieResult(dice2);
+                
+                // Update UI with results
+                document.getElementById('die1-value').textContent = diceResults.die1;
+                document.getElementById('die2-value').textContent = diceResults.die2;
+                document.getElementById('total-value').textContent = diceResults.die1 + diceResults.die2;
+                
+                // Re-enable roll button
+                document.getElementById('roll-button').disabled = false;
+                isRolling = false;
+            }
+        }
+        
+        function updateDiePhysics(state, dieMesh, dt) {
+            if (state.isResting) return;
+            
+            // Apply gravity
+            state.velocity.y -= physicsParams.gravity * dt;
+            
+            // Apply air resistance
+            state.velocity.x *= (1 - physicsParams.airResistance);
+            state.velocity.z *= (1 - physicsParams.airResistance);
+            state.angularVelocity.x *= (1 - physicsParams.airResistance * 0.5)*0.88;
+            state.angularVelocity.y *= (1 - physicsParams.airResistance * 0.5)*0.9;
+            state.angularVelocity.z *= (1 - physicsParams.airResistance * 0.5)*0.9;
+            
+            // Update position
+            state.position.x += state.velocity.x * dt;
+            state.position.y += state.velocity.y * dt;
+            state.position.z += state.velocity.z * dt;
+            
+            // Update rotation
+            state.rotation.x += state.angularVelocity.x * dt;
+            state.rotation.y += state.angularVelocity.y * dt;
+            state.rotation.z += state.angularVelocity.z * dt;
+            
+            // Floor collision
+            if (state.position.y <= 1.5) {
+                state.position.y = 1.5;
+                
+                // Calculate bounce with elasticity
+                state.velocity.y = -state.velocity.y * physicsParams.bounceElasticity*0.9;
+                state.velocity.x *= (1 - physicsParams.friction);
+                state.velocity.z *= (1 - physicsParams.friction);
+                
+                // Angular velocity change on impact
+                state.angularVelocity.x += (Math.random() - 0.5) * 2;
+                state.angularVelocity.z += (Math.random() - 0.5) * 2;
+                
+                // Check if the die has come to rest
+                const speed = Math.sqrt(
+                    state.velocity.x * state.velocity.x + 
+                    state.velocity.y * state.velocity.y + 
+                    state.velocity.z * state.velocity.z
+                );
+                
+                const angularSpeed = 0.9*Math.sqrt(
+                    state.angularVelocity.x * state.angularVelocity.x + 
+                    state.angularVelocity.y * state.angularVelocity.y + 
+                    state.angularVelocity.z * state.angularVelocity.z
+                );
+                
+                if (speed < 0.1 && angularSpeed < 10) {
+                    state.restingTime += dt;
+                    if (state.restingTime > 0.01) {
+                        state.isResting = true;
+                    }
+                } else {
+                    state.restingTime = 0;
+                }
+            }
+            
+            // Apply position and rotation to the mesh
+            dieMesh.position.set(state.position.x, state.position.y, state.position.z);
+            dieMesh.rotation.set(state.rotation.x, state.rotation.y, state.rotation.z);
+        }
+        
+        function calculateDieResult(dieMesh) {
+            // Get the world position of the die
+            const worldPosition = new THREE.Vector3();
+            dieMesh.getWorldPosition(worldPosition);
+            
+            // Get the rotation matrix
+            const rotationMatrix = new THREE.Matrix4();
+            rotationMatrix.extractRotation(dieMesh.matrixWorld);
+            
+            // Normals for each face in local space
+            const faceNormals = [
+                new THREE.Vector3(0, -1, 0),   // Front face (1)
+                new THREE.Vector3(0, 1, 0),   // Right face (2)
+                new THREE.Vector3(-1, 0, 0),  // Back face (3)
+                new THREE.Vector3(1, 0, 0),  // Left face (4)
+                new THREE.Vector3(0, 0, -1),   // Top face (5)
+                new THREE.Vector3(0, 0, 1)   // Bottom face (6)
+            ];
+            
+            // Transform normals to world space
+            const worldNormals = faceNormals.map(normal => {
+                return normal.applyMatrix4(rotationMatrix).normalize();
+            });
+            
+            // Up vector in world space
+            const upVector = new THREE.Vector3(0, 1, 0);
+            
+            // Find which face is most aligned with the up vector
+            let maxDot = -1;
+            let result = 1;
+            
+            for (let i = 0; i < worldNormals.length; i++) {
+                const dot = worldNormals[i].dot(upVector);
+                if (dot > maxDot) {
+                    maxDot = dot;
+                    result = i + 1;
+                }
+            }
+            
+            return result;
+        }
+        
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            const deltaTime = clock.getDelta();
+            
+            // Update physics if dice are rolling
+            if (isRolling) {
+                updatePhysics(deltaTime);
+            }
+            
+            // Update controls
+            controls.update();
+            
+            // Render scene
+            renderer.render(scene, camera);
+        }
+        
+        function onWindowResize() {
+            camera.aspect = document.getElementById('dice-container').clientWidth / 
+                           document.getElementById('dice-container').clientHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(
+                document.getElementById('dice-container').clientWidth,
+                document.getElementById('dice-container').clientHeight
+            );
+        }
+        
+        function setupEventListeners() {
+            // Roll button
+            document.getElementById('roll-button').addEventListener('click', rollDice);
+            
+            // Color options
+            document.querySelectorAll('.color-option').forEach(option => {
+                option.addEventListener('click', function() {
+                    document.querySelectorAll('.color-option').forEach(opt => {
+                        opt.classList.remove('active');
+                    });
+                    this.classList.add('active');
+                    updateDiceColor(this.dataset.color);
+                });
+            });
+            
+            // Physics parameter sliders
+            document.getElementById('force-slider').addEventListener('input', function() {
+                physicsParams.throwForce = parseFloat(this.value);
+                document.getElementById('force-value').textContent = this.value;
+            });
+            
+            document.getElementById('spin-slider').addEventListener('input', function() {
+                physicsParams.spinIntensity = parseFloat(this.value);
+                document.getElementById('spin-value').textContent = this.value;
+            });
+            
+            document.getElementById('bounce-slider').addEventListener('input', function() {
+                physicsParams.bounceElasticity = parseFloat(this.value);
+                document.getElementById('bounce-value').textContent = this.value;
+            });
+            
+            // Camera control sliders
+            document.getElementById('zoom-slider').addEventListener('input', function() {
+                const zoomValue = parseFloat(this.value);
+                camera.zoom = zoomValue;
+                camera.updateProjectionMatrix();
+                document.getElementById('zoom-value').textContent = this.value;
+            });
+            
+            document.getElementById('height-slider').addEventListener('input', function() {
+                const heightValue = parseFloat(this.value);
+                camera.position.y = heightValue;
+                controls.update();
+                document.getElementById('height-value').textContent = this.value;
+            });
+        }
+    </script>
+</body>
+</html>

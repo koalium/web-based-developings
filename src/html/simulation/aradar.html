@@ -1,0 +1,1407 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Passive Radar System - Airborne Target Tracking</title>
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --secondary: #7c3aed;
+            --danger: #dc2626;
+            --success: #16a34a;
+            --warning: #d97706;
+            --info: #0ea5e9;
+            --radar-green: #10b981;
+            --bg: #0a0a1a;
+            --card-bg: #1a1a2e;
+            --text: #e2e8f0;
+            --grid: rgba(255, 255, 255, 0.1);
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', 'Roboto Mono', monospace;
+            background: linear-gradient(135deg, var(--bg) 0%, #0f172a 100%);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 10px;
+            overflow-x: hidden;
+        }
+        
+        .container {
+            max-width: 95vw;
+            margin: 0 auto;
+        }
+        
+        /* Enhanced Header with System Status */
+        .main-header {
+            background: linear-gradient(135deg, var(--card-bg) 0%, #16213e 100%);
+            border-radius: 20px;
+            padding: 20px 30px;
+            margin-bottom: 25px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+            border: 2px solid var(--primary);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .header-gradient {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, 
+                var(--primary) 0%, 
+                var(--info) 25%, 
+                var(--secondary) 50%, 
+                var(--radar-green) 75%, 
+                var(--primary) 100%);
+            animation: gradientMove 3s linear infinite;
+        }
+        
+        @keyframes gradientMove {
+            0% { background-position: 0% 0%; }
+            100% { background-position: 200% 0%; }
+        }
+        
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            background: linear-gradient(90deg, var(--primary), var(--info), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-align: center;
+            font-weight: 800;
+            letter-spacing: 1px;
+        }
+        
+        /* Radar Screen Container */
+        .radar-container {
+            display: grid;
+            grid-template-columns: 1fr 400px;
+            gap: 25px;
+            margin-bottom: 25px;
+            height: 600px;
+        }
+        
+        .radar-screen {
+            background: radial-gradient(circle at center, #0a0a1a 0%, #000000 100%);
+            border-radius: 20px;
+            border: 3px solid var(--radar-green);
+            position: relative;
+            overflow: hidden;
+            box-shadow: 
+                0 0 50px rgba(16, 185, 129, 0.3),
+                inset 0 0 100px rgba(16, 185, 129, 0.1);
+        }
+        
+        .radar-sweep {
+            position: absolute;
+            top: 0;
+            left: 50%;
+            width: 100%;
+            height: 100%;
+            transform-origin: left center;
+            animation: radarSweep 4s linear infinite;
+        }
+        
+        @keyframes radarSweep {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        
+        .sweep-line {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 50%;
+            height: 2px;
+            background: linear-gradient(90deg, 
+                transparent 0%, 
+                var(--radar-green) 30%, 
+                transparent 100%);
+            transform-origin: left center;
+            box-shadow: 0 0 20px var(--radar-green);
+        }
+        
+        /* Target Blips */
+        .target-blip {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            filter: drop-shadow(0 0 10px currentColor);
+            transition: all 0.3s ease;
+        }
+        
+        .blip-pulse {
+            animation: blipPulse 2s infinite;
+        }
+        
+        @keyframes blipPulse {
+            0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+            50% { transform: translate(-50%, -50%) scale(1.2); opacity: 0.7; }
+        }
+        
+        /* Advanced Dashboard */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 20px;
+            margin-bottom: 25px;
+        }
+        
+        .card {
+            background: linear-gradient(145deg, var(--card-bg) 0%, rgba(26, 26, 46, 0.9) 100%);
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 
+                0 10px 30px rgba(0, 0, 0, 0.4),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            border: 1px solid var(--grid);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+        }
+        
+        /* Signal Processing Visualizations */
+        .signal-visualization {
+            height: 300px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            border: 1px solid var(--grid);
+            margin: 15px 0;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .signal-wave {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0.8;
+        }
+        
+        /* Target Classification Panel */
+        .target-panel {
+            background: linear-gradient(135deg, rgba(30, 41, 59, 0.9) 0%, rgba(15, 23, 42, 0.9) 100%);
+            border-radius: 15px;
+            padding: 20px;
+            border: 2px solid var(--info);
+            max-height: 600px;
+            overflow-y: auto;
+        }
+        
+        .target-card {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-left: 4px solid;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+        
+        .target-card:hover {
+            transform: translateX(5px);
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+        }
+        
+        .target-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .target-type {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .type-drone { background: var(--info); }
+        .type-plane { background: var(--primary); }
+        .type-helicopter { background: var(--secondary); }
+        .type-bird { background: var(--warning); }
+        
+        /* Control Panel */
+        .control-panel {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            padding: 25px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 15px;
+            border: 2px solid var(--primary);
+            margin: 25px 0;
+        }
+        
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .slider-container {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .slider-value {
+            font-family: 'Roboto Mono', monospace;
+            font-size: 0.9rem;
+            color: var(--info);
+        }
+        
+        /* Button Styles */
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 10px;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.5s;
+        }
+        
+        .btn:hover::before {
+            left: 100%;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(37, 99, 235, 0.4);
+        }
+        
+        .btn-success {
+            background: linear-gradient(135deg, var(--success) 0%, #0d9488 100%);
+        }
+        
+        .btn-danger {
+            background: linear-gradient(135deg, var(--danger) 0%, #991b1b 100%);
+        }
+        
+        .btn-warning {
+            background: linear-gradient(135deg, var(--warning) 0%, #b45309 100%);
+        }
+        
+        /* Fourier Visualization */
+        .fourier-container {
+            background: linear-gradient(180deg, #000428 0%, #004e92 100%);
+            border-radius: 10px;
+            height: 200px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .fourier-bar {
+            position: absolute;
+            bottom: 0;
+            width: 3px;
+            background: linear-gradient(180deg, transparent 0%, var(--info) 30%, #00d4ff 100%);
+            transition: height 0.1s ease;
+        }
+        
+        /* Doppler Effect Visualization */
+        .doppler-wave {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+        
+        .wave-front {
+            position: absolute;
+            border-radius: 50%;
+            border: 1px solid var(--info);
+            animation: waveExpand 2s linear infinite;
+        }
+        
+        @keyframes waveExpand {
+            to {
+                transform: scale(2);
+                opacity: 0;
+            }
+        }
+        
+        /* Anti-Jamming Visualization */
+        .jamming-container {
+            background: rgba(220, 38, 38, 0.1);
+            border: 2px solid var(--danger);
+            border-radius: 10px;
+            padding: 15px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .jamming-pattern {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: repeating-linear-gradient(
+                45deg,
+                transparent,
+                transparent 10px,
+                rgba(220, 38, 38, 0.1) 10px,
+                rgba(220, 38, 38, 0.1) 20px
+            );
+            animation: jammingMove 1s linear infinite;
+        }
+        
+        @keyframes jammingMove {
+            from { transform: translateX(0); }
+            to { transform: translateX(20px); }
+        }
+        
+        /* Responsive Design */
+        @media (max-width: 1200px) {
+            .radar-container {
+                grid-template-columns: 1fr;
+                height: auto;
+            }
+            
+            .radar-screen {
+                height: 500px;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .control-panel {
+                grid-template-columns: 1fr;
+            }
+            
+            h1 {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container" x-data="advancedRadarSystem()">
+        <!-- Enhanced Header -->
+        <header class="main-header">
+            <div class="header-gradient"></div>
+            <h1>Advanced Passive Radar System</h1>
+            <div class="subtitle">
+                Real-time Airborne Target Tracking | Multi-Target Classification | Anti-Jamming
+            </div>
+            
+            <div class="system-status">
+                <div class="status-grid">
+                    <div class="status-item">
+                        <span class="status-label">Radar Mode:</span>
+                        <span class="status-value" x-text="radarMode"></span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">Targets Tracked:</span>
+                        <span class="status-value" x-text="targets.length"></span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">Signal Quality:</span>
+                        <span class="status-value" x-text="`${system.signalQuality}%`"></span>
+                    </div>
+                    <div class="status-item">
+                        <span class="status-label">Anti-Jamming:</span>
+                        <span class="status-value" :class="system.antiJammingActive ? 'text-success' : 'text-warning'">
+                            <span x-text="system.antiJammingActive ? 'ACTIVE' : 'STANDBY'"></span>
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main Radar Interface -->
+        <div class="radar-container">
+            <!-- Radar Screen -->
+            <div class="radar-screen" id="radarScreen">
+                <!-- Radar Grid -->
+                <div class="radar-grid">
+                    <!-- Range Rings -->
+                    <div class="range-ring" style="top: 50%; left: 50%; transform: translate(-50%, -50%); width: 200px; height: 200px;"></div>
+                    <div class="range-ring" style="top: 50%; left: 50%; transform: translate(-50%, -50%); width: 300px; height: 300px;"></div>
+                    <div class="range-ring" style="top: 50%; left: 50%; transform: translate(-50%, -50%); width: 400px; height: 400px;"></div>
+                    
+                    <!-- Cardinal Directions -->
+                    <div class="direction-label" style="top: 20px; left: 50%; transform: translateX(-50%);">N</div>
+                    <div class="direction-label" style="top: 50%; right: 20px; transform: translateY(-50%);">E</div>
+                    <div class="direction-label" style="bottom: 20px; left: 50%; transform: translateX(-50%);">S</div>
+                    <div class="direction-label" style="top: 50%; left: 20px; transform: translateY(-50%);">W</div>
+                </div>
+                
+                <!-- Radar Sweep -->
+                <div class="radar-sweep">
+                    <div class="sweep-line"></div>
+                </div>
+                
+                <!-- Target Blips -->
+                <template x-for="target in targets" :key="target.id">
+                    <div class="target-blip blip-pulse"
+                         :style="`
+                            left: ${target.position.x}%;
+                            top: ${target.position.y}%;
+                            background: ${target.color};
+                            box-shadow: 0 0 20px ${target.color};
+                         `"
+                         @mouseenter="showTargetInfo(target)"
+                         @mouseleave="hideTargetInfo()">
+                         
+                        <!-- Target Label -->
+                        <div class="target-label" :style="`color: ${target.color}`"
+                             x-text="target.id"></div>
+                    </div>
+                </template>
+                
+                <!-- Target Info Display -->
+                <div class="target-info-display" x-show="selectedTarget" 
+                     :style="`
+                        left: ${selectedTarget?.position.x || 50}%;
+                        top: ${(selectedTarget?.position.y || 50) + 5}%;
+                     `">
+                    <div class="info-card" x-show="selectedTarget">
+                        <h4 x-text="selectedTarget?.id"></h4>
+                        <p x-text="selectedTarget?.type"></p>
+                        <p x-text="`Range: ${selectedTarget?.range} km`"></p>
+                        <p x-text="`Speed: ${selectedTarget?.speed} knots`"></p>
+                        <p x-text="`Bearing: ${selectedTarget?.bearing}°`"></p>
+                    </div>
+                </div>
+                
+                <!-- Doppler Wave Visualization -->
+                <div class="doppler-wave">
+                    <template x-for="target in targets" :key="'wave-' + target.id">
+                        <div class="wave-front"
+                             :style="`
+                                left: ${target.position.x}%;
+                                top: ${target.position.y}%;
+                                border-color: ${target.color};
+                                animation-delay: ${target.id * 0.3}s;
+                             `"></div>
+                    </template>
+                </div>
+            </div>
+            
+            <!-- Target Classification Panel -->
+            <div class="target-panel">
+                <h3>Tracked Targets</h3>
+                <div class="target-list">
+                    <template x-for="target in targets" :key="target.id">
+                        <div class="target-card" :style="`border-left-color: ${target.color};`">
+                            <div class="target-header">
+                                <div>
+                                    <h4 x-text="target.id"></h4>
+                                    <span class="target-type" :class="`type-${target.type}`" 
+                                          x-text="target.type"></span>
+                                </div>
+                                <div class="target-status" :class="target.status">
+                                    <span x-text="target.status"></span>
+                                </div>
+                            </div>
+                            
+                            <div class="target-info">
+                                <div class="info-grid">
+                                    <div class="info-item">
+                                        <span class="info-label">Range:</span>
+                                        <span class="info-value" x-text="`${target.range} km`"></span>
+                                    </div>
+                                    <div class="info-item">
+                                        <span class="info-label">Speed:</span>
+                                        <span class="info-value" x-text="`${target.speed} knots`"></span>
+                                    </div>
+                                    <div class="info-item">
+                                        <span class="info-label">Altitude:</span>
+                                        <span class="info-value" x-text="`${target.altitude} ft`"></span>
+                                    </div>
+                                    <div class="info-item">
+                                        <span class="info-label">Bearing:</span>
+                                        <span class="info-value" x-text="`${target.bearing}°`"></span>
+                                    </div>
+                                </div>
+                                
+                                <!-- Signal Fingerprint -->
+                                <div class="signal-fingerprint">
+                                    <div class="fingerprint-label">Signal Signature:</div>
+                                    <div class="fingerprint-bars">
+                                        <template x-for="(bar, index) in target.signalSignature" :key="index">
+                                            <div class="fingerprint-bar" 
+                                                 :style="`
+                                                    height: ${bar * 100}%;
+                                                    background: ${target.color};
+                                                 `"></div>
+                                        </template>
+                                    </div>
+                                </div>
+                                
+                                <!-- Doppler Shift Indicator -->
+                                <div class="doppler-indicator">
+                                    <span class="doppler-label">Doppler Shift:</span>
+                                    <span class="doppler-value" :class="target.dopplerShift > 0 ? 'positive' : 'negative'"
+                                          x-text="`${target.dopplerShift > 0 ? '+' : ''}${target.dopplerShift} Hz`"></span>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </div>
+
+        <!-- Signal Processing Dashboard -->
+        <div class="dashboard-grid">
+            <!-- Fourier Transform Visualization -->
+            <div class="card">
+                <h3>Frequency Domain Analysis</h3>
+                <div class="signal-visualization">
+                    <canvas id="fourierChart"></canvas>
+                </div>
+                <div class="signal-info">
+                    <div class="info-item">
+                        <span>Dominant Frequency:</span>
+                        <span x-text="`${signalAnalysis.dominantFrequency} MHz`"></span>
+                    </div>
+                    <div class="info-item">
+                        <span>Bandwidth:</span>
+                        <span x-text="`${signalAnalysis.bandwidth} MHz`"></span>
+                    </div>
+                    <div class="info-item">
+                        <span>Signal-to-Noise:</span>
+                        <span x-text="`${signalAnalysis.snr} dB`"></span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Phase Analysis -->
+            <div class="card">
+                <h3>Phase & Doppler Analysis</h3>
+                <div class="signal-visualization">
+                    <canvas id="phaseChart"></canvas>
+                </div>
+                <div class="doppler-analysis">
+                    <div class="analysis-item">
+                        <span>Doppler Resolution:</span>
+                        <span x-text="`${dopplerAnalysis.resolution} Hz`"></span>
+                    </div>
+                    <div class="analysis-item">
+                        <span>Max Doppler Shift:</span>
+                        <span x-text="`${dopplerAnalysis.maxShift} Hz`"></span>
+                    </div>
+                    <div class="analysis-item">
+                        <span>Velocity Resolution:</span>
+                        <span x-text="`${dopplerAnalysis.velocityResolution} m/s`"></span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Anti-Jamming System -->
+            <div class="card jamming-container">
+                <div class="jamming-pattern"></div>
+                <h3>Anti-Jamming System</h3>
+                <div class="jamming-status">
+                    <div class="status-item">
+                        <span>Jamming Detection:</span>
+                        <span :class="system.jammingDetected ? 'text-danger' : 'text-success'"
+                              x-text="system.jammingDetected ? 'DETECTED' : 'CLEAR'"></span>
+                    </div>
+                    <div class="status-item">
+                        <span>Countermeasures:</span>
+                        <span :class="system.antiJammingActive ? 'text-success' : ''"
+                              x-text="system.antiJammingActive ? 'ACTIVE' : 'STANDBY'"></span>
+                    </div>
+                    <div class="status-item">
+                        <span>Frequency Hopping:</span>
+                        <span x-text="system.frequencyHopping ? 'ENABLED' : 'DISABLED'"></span>
+                    </div>
+                </div>
+                <div class="chirp-controls">
+                    <button class="btn btn-warning" @click="toggleAntiJamming">
+                        <span x-text="system.antiJammingActive ? 'Deactivate Anti-Jamming' : 'Activate Anti-Jamming'"></span>
+                    </button>
+                    <button class="btn btn-info" @click="simulateJamming">
+                        Simulate Jamming Attack
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Array Processing Visualization -->
+            <div class="card">
+                <h3>Phased Array Processing</h3>
+                <div class="array-visualization">
+                    <div class="array-grid">
+                        <template x-for="row in system.antennaArray" :key="row.index">
+                            <div class="array-row">
+                                <template x-for="antenna in row" :key="antenna.id">
+                                    <div class="antenna-element"
+                                         :class="{'active': antenna.active}"
+                                         :style="`
+                                            background: ${antenna.active ? antenna.color : '#374151'};
+                                            transform: scale(${antenna.active ? 1.2 : 1});
+                                         `"></div>
+                                </template>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+                <div class="array-info">
+                    <div class="info-item">
+                        <span>Beam Steering:</span>
+                        <span x-text="`${system.beamSteering.azimuth}° / ${system.beamSteering.elevation}°`"></span>
+                    </div>
+                    <div class="info-item">
+                        <span>Array Gain:</span>
+                        <span x-text="`${system.arrayGain} dB`"></span>
+                    </div>
+                    <div class="info-item">
+                        <span>Sidelobe Suppression:</span>
+                        <span x-text="`${system.sidelobeSuppression} dB`"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Advanced Control Panel -->
+        <div class="control-panel">
+            <div class="control-group">
+                <h4>Radar Parameters</h4>
+                <div class="slider-container">
+                    <label>Range Resolution</label>
+                    <input type="range" min="1" max="100" x-model="radarParameters.rangeResolution">
+                    <span class="slider-value" x-text="`${radarParameters.rangeResolution} m`"></span>
+                </div>
+                
+                <div class="slider-container">
+                    <label>Doppler Resolution</label>
+                    <input type="range" min="1" max="100" x-model="radarParameters.dopplerResolution">
+                    <span class="slider-value" x-text="`${radarParameters.dopplerResolution} Hz`"></span>
+                </div>
+                
+                <div class="slider-container">
+                    <label>Update Rate</label>
+                    <input type="range" min="1" max="60" x-model="radarParameters.updateRate">
+                    <span class="slider-value" x-text="`${radarParameters.updateRate} Hz`"></span>
+                </div>
+            </div>
+            
+            <div class="control-group">
+                <h4>Target Simulation</h4>
+                <button class="btn btn-success" @click="addTarget('drone')">
+                    Add Drone
+                </button>
+                <button class="btn btn-primary" @click="addTarget('plane')">
+                    Add Aircraft
+                </button>
+                <button class="btn btn-secondary" @click="addTarget('helicopter')">
+                    Add Helicopter
+                </button>
+                <button class="btn btn-warning" @click="addTarget('bird')">
+                    Add Bird Flock
+                </button>
+            </div>
+            
+            <div class="control-group">
+                <h4>System Controls</h4>
+                <button class="btn" @click="startSimulation">
+                    Start Simulation
+                </button>
+                <button class="btn btn-warning" @click="stopSimulation">
+                    Pause System
+                </button>
+                <button class="btn btn-danger" @click="resetSimulation">
+                    Reset System
+                </button>
+                <button class="btn btn-info" @click="toggleAdvancedMode">
+                    <span x-text="advancedMode ? 'Basic Mode' : 'Advanced Mode'"></span>
+                </button>
+            </div>
+            
+            <div class="control-group">
+                <h4>Signal Processing</h4>
+                <div class="checkbox-group">
+                    <label>
+                        <input type="checkbox" x-model="signalProcessing.fftEnabled">
+                        FFT Processing
+                    </label>
+                    <label>
+                        <input type="checkbox" x-model="signalProcessing.musicEnabled">
+                        MUSIC Algorithm
+                    </label>
+                    <label>
+                        <input type="checkbox" x-model="signalProcessing.beamformingEnabled">
+                        Adaptive Beamforming
+                    </label>
+                    <label>
+                        <input type="checkbox" x-model="signalProcessing.cfarEnabled">
+                        CFAR Detection
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <!-- Mathematical Model Display -->
+        <div class="card">
+            <h3>Radar Equations & Processing</h3>
+            <div class="equation-display">
+                <div class="equation">
+                    \[
+                    P_r = \frac{P_t G_t G_r \lambda^2 \sigma}{(4\pi)^3 R^4}
+                    \]
+                    <span class="equation-label">Radar Range Equation</span>
+                </div>
+                <div class="equation">
+                    \[
+                    f_d = \frac{2v_r}{\lambda}
+                    \]
+                    <span class="equation-label">Doppler Shift</span>
+                </div>
+                <div class="equation">
+                    \[
+                    \Delta R = \frac{c}{2B}
+                    \]
+                    <span class="equation-label">Range Resolution</span>
+                </div>
+                <div class="equation">
+                    \[
+                    \theta_{3dB} = \frac{\lambda}{L}
+                    \]
+                    <span class="equation-label">Beamwidth</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function advancedRadarSystem() {
+            return {
+                // System State
+                radarMode: 'Airborne Target Tracking',
+                system: {
+                    signalQuality: 95,
+                    antiJammingActive: true,
+                    jammingDetected: false,
+                    frequencyHopping: true,
+                    antennaArray: [],
+                    beamSteering: { azimuth: 45, elevation: 30 },
+                    arrayGain: 24,
+                    sidelobeSuppression: 40
+                },
+                
+                // Simulation State
+                isRunning: false,
+                simulationInterval: null,
+                advancedMode: true,
+                
+                // Radar Parameters
+                radarParameters: {
+                    rangeResolution: 10,
+                    dopplerResolution: 50,
+                    updateRate: 30
+                },
+                
+                // Signal Processing
+                signalProcessing: {
+                    fftEnabled: true,
+                    musicEnabled: true,
+                    beamformingEnabled: true,
+                    cfarEnabled: true
+                },
+                
+                // Targets Data
+                targets: [
+                    {
+                        id: 'DRN-001',
+                        type: 'drone',
+                        color: '#0ea5e9',
+                        position: { x: 65, y: 35 },
+                        range: 3.2,
+                        speed: 45,
+                        altitude: 1200,
+                        bearing: 45,
+                        status: 'tracking',
+                        dopplerShift: 1200,
+                        signalSignature: [0.8, 0.6, 0.9, 0.7, 0.5, 0.8, 0.4, 0.6],
+                        characteristics: {
+                            rcs: 0.01,
+                            maneuverability: 'high',
+                            emitterType: 'commercial',
+                            threatLevel: 'low'
+                        }
+                    },
+                    {
+                        id: 'AC-789',
+                        type: 'plane',
+                        color: '#3b82f6',
+                        position: { x: 40, y: 60 },
+                        range: 25.5,
+                        speed: 450,
+                        altitude: 35000,
+                        bearing: 120,
+                        status: 'tracking',
+                        dopplerShift: -8500,
+                        signalSignature: [0.9, 0.3, 0.8, 0.4, 0.7, 0.2, 0.6, 0.1],
+                        characteristics: {
+                            rcs: 10,
+                            maneuverability: 'medium',
+                            emitterType: 'commercial',
+                            threatLevel: 'low'
+                        }
+                    },
+                    {
+                        id: 'HL-456',
+                        type: 'helicopter',
+                        color: '#8b5cf6',
+                        position: { x: 75, y: 70 },
+                        range: 8.7,
+                        speed: 120,
+                        altitude: 3000,
+                        bearing: 300,
+                        status: 'tracking',
+                        dopplerShift: 2500,
+                        signalSignature: [0.6, 0.7, 0.5, 0.8, 0.4, 0.9, 0.3, 0.7],
+                        characteristics: {
+                            rcs: 2,
+                            maneuverability: 'high',
+                            emitterType: 'military',
+                            threatLevel: 'medium'
+                        }
+                    },
+                    {
+                        id: 'BRD-001',
+                        type: 'bird',
+                        color: '#f59e0b',
+                        position: { x: 55, y: 25 },
+                        range: 1.5,
+                        speed: 35,
+                        altitude: 500,
+                        bearing: 180,
+                        status: 'monitoring',
+                        dopplerShift: 150,
+                        signalSignature: [0.3, 0.2, 0.4, 0.1, 0.5, 0.2, 0.3, 0.1],
+                        characteristics: {
+                            rcs: 0.001,
+                            maneuverability: 'very high',
+                            emitterType: 'biological',
+                            threatLevel: 'none'
+                        }
+                    }
+                ],
+                
+                // Selected Target
+                selectedTarget: null,
+                
+                // Signal Analysis
+                signalAnalysis: {
+                    dominantFrequency: 2450,
+                    bandwidth: 80,
+                    snr: 24
+                },
+                
+                // Doppler Analysis
+                dopplerAnalysis: {
+                    resolution: 25,
+                    maxShift: 12000,
+                    velocityResolution: 0.5
+                },
+                
+                // Charts
+                charts: {},
+                
+                init() {
+                    this.initializeAntennaArray();
+                    this.initializeCharts();
+                    this.startSimulation();
+                },
+                
+                initializeAntennaArray() {
+                    const colors = ['#3b82f6', '#0ea5e9', '#8b5cf6', '#10b981'];
+                    for (let i = 0; i < 8; i++) {
+                        let row = [];
+                        for (let j = 0; j < 8; j++) {
+                            row.push({
+                                id: `A${i}${j}`,
+                                active: Math.random() > 0.3,
+                                color: colors[Math.floor(Math.random() * colors.length)],
+                                phase: Math.random() * Math.PI * 2,
+                                gain: 0.8 + Math.random() * 0.2
+                            });
+                        }
+                        this.system.antennaArray.push(row);
+                    }
+                },
+                
+                initializeCharts() {
+                    // Fourier Transform Chart
+                    const fourierCtx = document.getElementById('fourierChart').getContext('2d');
+                    this.charts.fourier = new Chart(fourierCtx, {
+                        type: 'line',
+                        data: {
+                            labels: Array.from({length: 128}, (_, i) => i * 10),
+                            datasets: [{
+                                label: 'Power Spectrum',
+                                data: Array.from({length: 128}, () => 
+                                    Math.random() * 100 * Math.exp(-Math.random() * 2)
+                                ),
+                                borderColor: '#0ea5e9',
+                                backgroundColor: 'rgba(14, 165, 233, 0.2)',
+                                borderWidth: 2,
+                                tension: 0.4,
+                                fill: true
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            animation: {
+                                duration: 1000,
+                                easing: 'easeInOutQuart'
+                            },
+                            plugins: {
+                                legend: { display: false }
+                            },
+                            scales: {
+                                x: {
+                                    title: {
+                                        display: true,
+                                        text: 'Frequency (MHz)',
+                                        color: '#94a3b8'
+                                    },
+                                    grid: { color: 'rgba(255, 255, 255, 0.1)' }
+                                },
+                                y: {
+                                    title: {
+                                        display: true,
+                                        text: 'Power (dB)',
+                                        color: '#94a3b8'
+                                    },
+                                    grid: { color: 'rgba(255, 255, 255, 0.1)' }
+                                }
+                            }
+                        }
+                    });
+                    
+                    // Phase Chart
+                    const phaseCtx = document.getElementById('phaseChart').getContext('2d');
+                    this.charts.phase = new Chart(phaseCtx, {
+                        type: 'scatter',
+                        data: {
+                            datasets: [{
+                                label: 'Phase Points',
+                                data: Array.from({length: 50}, (_, i) => ({
+                                    x: i,
+                                    y: Math.sin(i * 0.3) * 180 + Math.random() * 30
+                                })),
+                                borderColor: '#8b5cf6',
+                                backgroundColor: 'rgba(139, 92, 246, 0.3)',
+                                borderWidth: 1,
+                                pointRadius: 3
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            plugins: {
+                                legend: { display: false }
+                            },
+                            scales: {
+                                x: {
+                                    title: {
+                                        display: true,
+                                        text: 'Time (ms)',
+                                        color: '#94a3b8'
+                                    },
+                                    grid: { color: 'rgba(255, 255, 255, 0.1)' }
+                                },
+                                y: {
+                                    title: {
+                                        display: true,
+                                        text: 'Phase (degrees)',
+                                        color: '#94a3b8'
+                                    },
+                                    grid: { color: 'rgba(255, 255, 255, 0.1)' }
+                                }
+                            }
+                        }
+                    });
+                },
+                
+                startSimulation() {
+                    if (this.isRunning) return;
+                    
+                    this.isRunning = true;
+                    this.simulationInterval = setInterval(() => {
+                        this.updateTargets();
+                        this.updateAntennaArray();
+                        this.updateCharts();
+                        this.updateSystemStatus();
+                        
+                        // Random events
+                        if (Math.random() < 0.01) {
+                            this.simulateRandomEvent();
+                        }
+                    }, 100);
+                },
+                
+                stopSimulation() {
+                    this.isRunning = false;
+                    clearInterval(this.simulationInterval);
+                },
+                
+                updateTargets() {
+                    this.targets.forEach(target => {
+                        // Update position with realistic motion patterns
+                        this.updateTargetPosition(target);
+                        
+                        // Update range and bearing
+                        this.updateTargetParameters(target);
+                        
+                        // Update Doppler shift based on radial velocity
+                        this.updateDopplerShift(target);
+                        
+                        // Update signal signature
+                        this.updateSignalSignature(target);
+                        
+                        // Add to activity trail
+                        this.updateActivityTrail(target);
+                    });
+                },
+                
+                updateTargetPosition(target) {
+                    // Different motion patterns based on target type
+                    const motionPatterns = {
+                        drone: () => {
+                            target.position.x += (Math.random() - 0.5) * 0.5;
+                            target.position.y += (Math.random() - 0.5) * 0.5;
+                            target.speed = 30 + Math.random() * 40;
+                        },
+                        plane: () => {
+                            target.position.x += 0.3;
+                            target.position.y += (Math.random() - 0.3) * 0.2;
+                            target.speed = 400 + Math.random() * 100;
+                        },
+                        helicopter: () => {
+                            target.position.x += (Math.random() - 0.5) * 0.4;
+                            target.position.y += (Math.random() - 0.2) * 0.3;
+                            target.speed = 80 + Math.random() * 60;
+                        },
+                        bird: () => {
+                            target.position.x += (Math.random() - 0.5) * 0.8;
+                            target.position.y += (Math.random() - 0.5) * 0.8;
+                            target.speed = 20 + Math.random() * 30;
+                        }
+                    };
+                    
+                    if (motionPatterns[target.type]) {
+                        motionPatterns[target.type]();
+                    }
+                    
+                    // Keep within bounds
+                    target.position.x = Math.max(10, Math.min(90, target.position.x));
+                    target.position.y = Math.max(10, Math.min(90, target.position.y));
+                },
+                
+                updateTargetParameters(target) {
+                    // Simulate realistic parameter updates
+                    target.range += (Math.random() - 0.5) * 0.1;
+                    target.range = Math.max(0.5, Math.min(50, target.range));
+                    
+                    target.bearing = (target.bearing + (Math.random() - 0.5) * 2) % 360;
+                    target.altitude += (Math.random() - 0.5) * 50;
+                    
+                    // Keep altitude realistic
+                    const altitudeLimits = {
+                        drone: [100, 5000],
+                        plane: [10000, 40000],
+                        helicopter: [500, 10000],
+                        bird: [100, 2000]
+                    };
+                    
+                    if (altitudeLimits[target.type]) {
+                        const [min, max] = altitudeLimits[target.type];
+                        target.altitude = Math.max(min, Math.min(max, target.altitude));
+                    }
+                },
+                
+                updateDopplerShift(target) {
+                    // Calculate Doppler shift based on radial velocity
+                    const lambda = 0.1224; // wavelength for 2.45 GHz in meters
+                    const radialVelocity = (Math.random() - 0.5) * target.speed * 0.5;
+                    target.dopplerShift = Math.round((2 * radialVelocity) / lambda);
+                },
+                
+                updateSignalSignature(target) {
+                    // Update signal signature with realistic variations
+                    target.signalSignature = target.signalSignature.map(value => 
+                        Math.max(0.1, Math.min(1, value + (Math.random() - 0.5) * 0.1))
+                    );
+                },
+                
+                updateActivityTrail(target) {
+                    // Keep trail of recent positions
+                    if (!target.activityTrail) target.activityTrail = [];
+                    
+                    target.activityTrail.unshift({
+                        x: target.position.x,
+                        y: target.position.y,
+                        timestamp: Date.now()
+                    });
+                    
+                    // Keep only recent positions
+                    if (target.activityTrail.length > 20) {
+                        target.activityTrail = target.activityTrail.slice(0, 20);
+                    }
+                },
+                
+                updateAntennaArray() {
+                    // Update antenna activity patterns
+                    this.system.antennaArray.forEach(row => {
+                        row.forEach(antenna => {
+                            antenna.active = Math.random() > 0.2;
+                            antenna.phase += (Math.random() - 0.5) * 0.3;
+                        });
+                    });
+                    
+                    // Update beam steering
+                    this.system.beamSteering.azimuth = 
+                        (this.system.beamSteering.azimuth + 0.5) % 360;
+                    this.system.beamSteering.elevation = 
+                        20 + Math.sin(Date.now() / 5000) * 10;
+                },
+                
+                updateCharts() {
+                    // Update Fourier chart
+                    const time = Date.now() / 1000;
+                    const newData = Array.from({length: 128}, (_, i) => {
+                        let value = 0;
+                        
+                        // Add peaks for each target
+                        this.targets.forEach((target, idx) => {
+                            const peakFreq = 500 + idx * 300;
+                            const distance = Math.abs(i * 10 - peakFreq);
+                            value += Math.exp(-distance / 100) * 80 * (target.signalSignature[0] || 0.5);
+                        });
+                        
+                        // Add noise
+                        value += Math.random() * 20;
+                        
+                        // Add sweeping peak (radar sweep)
+                        const sweepPos = (time * 100) % 1280;
+                        value += Math.exp(-Math.pow(i * 10 - sweepPos, 2) / 2000) * 100;
+                        
+                        return value;
+                    });
+                    
+                    this.charts.fourier.data.datasets[0].data = newData;
+                    this.charts.fourier.update('none');
+                    
+                    // Update phase chart
+                    const phaseData = Array.from({length: 50}, (_, i) => ({
+                        x: i,
+                        y: Math.sin(time + i * 0.3) * 180 + 
+                           Math.sin(time * 2 + i * 0.1) * 60 +
+                           Math.random() * 20
+                    }));
+                    
+                    this.charts.phase.data.datasets[0].data = phaseData;
+                    this.charts.phase.update('none');
+                },
+                
+                updateSystemStatus() {
+                    // Update signal quality based on various factors
+                    let quality = 95;
+                    
+                    // Reduce quality with more targets
+                    quality -= (this.targets.length - 1) * 2;
+                    
+                    // Reduce quality if jamming detected
+                    if (this.system.jammingDetected) {
+                        quality -= 20;
+                    }
+                    
+                    // Random fluctuations
+                    quality += (Math.random() - 0.5) * 5;
+                    
+                    this.system.signalQuality = Math.max(50, Math.min(100, Math.round(quality)));
+                    
+                    // Update array gain
+                    this.system.arrayGain = 20 + Math.sin(Date.now() / 3000) * 4;
+                },
+                
+                addTarget(type) {
+                    const targetTypes = {
+                        drone: {
+                            color: '#0ea5e9',
+                            speedRange: [20, 60],
+                            altitudeRange: [100, 5000],
+                            rcs: 0.01
+                        },
+                        plane: {
+                            color: '#3b82f6',
+                            speedRange: [300, 500],
+                            altitudeRange: [10000, 40000],
+                            rcs: 10
+                        },
+                        helicopter: {
+                            color: '#8b5cf6',
+                            speedRange: [80, 140],
+                            altitudeRange: [500, 10000],
+                            rcs: 2
+                        },
+                        bird: {
+                            color: '#f59e0b',
+                            speedRange: [20, 40],
+                            altitudeRange: [100, 2000],
+                            rcs: 0.001
+                        }
+                    };
+                    
+                    const config = targetTypes[type] || targetTypes.drone;
+                    const id = `${type.toUpperCase().substr(0, 3)}-${(this.targets.length + 1).toString().padStart(3, '0')}`;
+                    
+                    const newTarget = {
+                        id: id,
+                        type: type,
+                        color: config.color,
+                        position: {
+                            x: Math.random() * 60 + 20,
+                            y: Math.random() * 60 + 20
+                        },
+                        range: Math.random() * 30 + 1,
+                        speed: config.speedRange[0] + Math.random() * (config.speedRange[1] - config.speedRange[0]),
+                        altitude: config.altitudeRange[0] + Math.random() * (config.altitudeRange[1] - config.altitudeRange[0]),
+                        bearing: Math.random() * 360,
+                        status: 'tracking',
+                        dopplerShift: 0,
+                        signalSignature: Array.from({length: 8}, () => 0.3 + Math.random() * 0.7),
+                        characteristics: {
+                            rcs: config.rcs,
+                            maneuverability: type === 'drone' || type === 'bird' ? 'high' : 'medium',
+                            emitterType: type === 'bird' ? 'biological' : 'electronic',
+                            threatLevel: type === 'helicopter' ? 'medium' : 'low'
+                        },
+                        activityTrail: []
+                    };
+                    
+                    this.targets.push(newTarget);
+                },
+                
+                showTargetInfo(target) {
+                    this.selectedTarget = target;
+                },
+                
+                hideTargetInfo() {
+                    this.selectedTarget = null;
+                },
+                
+                toggleAntiJamming() {
+                    this.system.antiJammingActive = !this.system.antiJammingActive;
+                    
+                    if (this.system.antiJammingActive) {
+                        this.system.jammingDetected = false;
+                    }
+                },
+                
+                simulateJamming() {
+                    this.system.jammingDetected = true;
+                    
+                    // Auto-clear after 5 seconds
+                    setTimeout(() => {
+                        if (this.system.antiJammingActive) {
+                            this.system.jammingDetected = false;
+                        }
+                    }, 5000);
+                },
+                
+                simulateRandomEvent() {
+                    const events = [
+                        () => {
+                            // Target maneuver
+                            const target = this.targets[Math.floor(Math.random() * this.targets.length)];
+                            target.status = 'maneuvering';
+                            setTimeout(() => target.status = 'tracking', 3000);
+                        },
+                        () => {
+                            // Signal interference
+                            this.system.signalQuality -= 15;
+                            setTimeout(() => {
+                                this.system.signalQuality += 15;
+                            }, 2000);
+                        },
+                        () => {
+                            // New target appears
+                            const types = ['drone', 'plane', 'helicopter', 'bird'];
+                            this.addTarget(types[Math.floor(Math.random() * types.length)]);
+                        }
+                    ];
+                    
+                    const randomEvent = events[Math.floor(Math.random() * events.length)];
+                    randomEvent();
+                },
+                
+                resetSimulation() {
+                    this.stopSimulation();
+                    this.targets = [];
+                    this.system.signalQuality = 95;
+                    this.system.jammingDetected = false;
+                    this.selectedTarget = null;
+                },
+                
+                toggleAdvancedMode() {
+                    this.advancedMode = !this.advancedMode;
+                    
+                    if (this.advancedMode) {
+                        this.radarMode = 'Advanced Airborne Tracking';
+                    } else {
+                        this.radarMode = 'Basic Airborne Tracking';
+                    }
+                }
+            }
+        }
+    </script>
+</body>
+</html>

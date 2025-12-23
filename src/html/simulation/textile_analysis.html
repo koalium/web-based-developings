@@ -1,0 +1,2465 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced HVAC Factory Design Suite</title>
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <script src="https://cdn.plot.ly/plotly-2.24.1.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        :root {
+            --primary: #006496;
+            --primary-light: #4a90c4;
+            --primary-dark: #00416d;
+            --secondary: #f0f2f5;
+            --accent: #ff9800;
+            --success: #4caf50;
+            --warning: #ff9800;
+            --error: #f44336;
+            --text: #333333;
+            --text-light: #666666;
+            --white: #ffffff;
+            --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            --radius: 8px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: var(--secondary);
+            color: var(--text);
+            line-height: 1.6;
+        }
+
+        .app-container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: var(--white);
+            padding: 20px;
+            border-radius: var(--radius);
+            margin-bottom: 20px;
+            box-shadow: var(--shadow);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header-content h1 {
+            font-size: 2.2rem;
+            margin-bottom: 5px;
+        }
+
+        .header-content p {
+            opacity: 0.9;
+            font-size: 1.1rem;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        /* Navigation */
+        .nav-tabs {
+            display: flex;
+            background-color: var(--white);
+            border-radius: var(--radius);
+            overflow: hidden;
+            margin-bottom: 20px;
+            box-shadow: var(--shadow);
+            flex-wrap: wrap;
+        }
+
+        .nav-tab {
+            flex: 1;
+            padding: 15px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+            border-bottom: 3px solid transparent;
+            min-width: 120px;
+        }
+
+        .nav-tab:hover {
+            background-color: rgba(0, 100, 150, 0.1);
+        }
+
+        .nav-tab.active {
+            background-color: rgba(0, 100, 150, 0.1);
+            color: var(--primary);
+            border-bottom: 3px solid var(--primary);
+        }
+
+        /* Content Sections */
+        .tab-content {
+            display: none;
+            background-color: var(--white);
+            border-radius: var(--radius);
+            padding: 25px;
+            box-shadow: var(--shadow);
+            margin-bottom: 20px;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .section-title {
+            font-size: 1.5rem;
+            color: var(--primary);
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid var(--secondary);
+        }
+
+        /* Cards */
+        .card {
+            background-color: var(--white);
+            border-radius: var(--radius);
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: var(--shadow);
+            border-left: 4px solid var(--primary);
+        }
+
+        .card.warning {
+            border-left-color: var(--warning);
+            background-color: #fff8e1;
+        }
+
+        .card.success {
+            border-left-color: var(--success);
+            background-color: #f1f8e9;
+        }
+
+        .card.error {
+            border-left-color: var(--error);
+            background-color: #ffebee;
+        }
+
+        .card-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: var(--primary);
+        }
+
+        /* Grid Layout */
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        /* Form Elements */
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        .form-input, .form-select {
+            width: 100%;
+            padding: 10px 15px;
+            border: 1px solid #ddd;
+            border-radius: var(--radius);
+            font-size: 1rem;
+            transition: border 0.3s ease;
+        }
+
+        .form-input:focus, .form-select:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 2px rgba(0, 100, 150, 0.2);
+        }
+
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .slider {
+            flex: 1;
+            height: 8px;
+            -webkit-appearance: none;
+            background: #ddd;
+            border-radius: 4px;
+            outline: none;
+        }
+
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: var(--primary);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .slider::-webkit-slider-thumb:hover {
+            background: var(--primary-dark);
+            transform: scale(1.1);
+        }
+
+        .slider-value {
+            min-width: 80px;
+            font-weight: 600;
+            color: var(--primary);
+        }
+
+        /* Buttons */
+        .btn {
+            display: inline-block;
+            padding: 10px 20px;
+            background-color: var(--primary);
+            color: var(--white);
+            border: none;
+            border-radius: var(--radius);
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+        }
+
+        .btn:hover {
+            background-color: var(--primary-dark);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn-secondary {
+            background-color: #e0e0e0;
+            color: var(--text);
+        }
+
+        .btn-secondary:hover {
+            background-color: #d0d0d0;
+        }
+
+        .btn-success {
+            background-color: var(--success);
+        }
+
+        .btn-success:hover {
+            background-color: #3d8b40;
+        }
+
+        .btn-warning {
+            background-color: var(--warning);
+        }
+
+        .btn-warning:hover {
+            background-color: #e68900;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        /* Visualization */
+        .visualization-container {
+            width: 100%;
+            height: 400px;
+            background-color: #f8f9fa;
+            border-radius: var(--radius);
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+
+        /* Results */
+        .results-container {
+            background-color: #f8f9fa;
+            border-radius: var(--radius);
+            padding: 20px;
+            margin-top: 20px;
+        }
+
+        .result-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .result-item:last-child {
+            border-bottom: none;
+        }
+
+        .result-label {
+            font-weight: 600;
+        }
+
+        .result-value {
+            color: var(--primary);
+            font-weight: 600;
+        }
+
+        /* Status Indicators */
+        .status-indicator {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .status-ok {
+            background-color: #e8f5e9;
+            color: var(--success);
+        }
+
+        .status-warning {
+            background-color: #fff8e1;
+            color: var(--warning);
+        }
+
+        .status-error {
+            background-color: #ffebee;
+            color: var(--error);
+        }
+
+        /* Data Tables */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+
+        .data-table th, .data-table td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .data-table th {
+            background-color: #f5f5f5;
+            font-weight: 600;
+            color: var(--primary);
+        }
+
+        .data-table tr:hover {
+            background-color: #f9f9f9;
+        }
+
+        /* Progress Bars */
+        .progress-bar {
+            height: 10px;
+            background-color: #e0e0e0;
+            border-radius: 5px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background-color: var(--primary);
+            transition: width 0.3s ease;
+        }
+
+        /* Toggle Switch */
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 24px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 24px;
+        }
+
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .toggle-slider {
+            background-color: var(--primary);
+        }
+
+        input:checked + .toggle-slider:before {
+            transform: translateX(26px);
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal {
+            background-color: var(--white);
+            border-radius: var(--radius);
+            padding: 25px;
+            max-width: 800px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .modal-title {
+            font-size: 1.5rem;
+            color: var(--primary);
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: var(--text-light);
+        }
+
+        .modal-close:hover {
+            color: var(--text);
+        }
+
+        /* Process Selection */
+        .process-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .process-item {
+            border: 2px solid #e0e0e0;
+            border-radius: var(--radius);
+            padding: 10px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .process-item:hover {
+            border-color: var(--primary-light);
+        }
+
+        .process-item.selected {
+            border-color: var(--primary);
+            background-color: rgba(0, 100, 150, 0.1);
+        }
+
+        /* Report Styles */
+        .report-section {
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .report-section:last-child {
+            border-bottom: none;
+        }
+
+        .report-title {
+            font-size: 1.2rem;
+            color: var(--primary);
+            margin-bottom: 10px;
+        }
+
+        .compliance-list {
+            list-style-type: none;
+        }
+
+        .compliance-item {
+            padding: 8px 0;
+            display: flex;
+            align-items: center;
+        }
+
+        .compliance-item:before {
+            content: "•";
+            color: var(--primary);
+            font-weight: bold;
+            margin-right: 10px;
+        }
+
+        .compliance-item.error:before {
+            color: var(--error);
+        }
+
+        .compliance-item.warning:before {
+            color: var(--warning);
+        }
+
+        /* Advanced Analysis */
+        .analysis-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .analysis-card {
+            background: linear-gradient(135deg, #f5f7fa, #e4e8f0);
+            border-radius: var(--radius);
+            padding: 15px;
+            text-align: center;
+        }
+
+        .analysis-value {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: var(--primary);
+            margin: 10px 0;
+        }
+
+        .analysis-label {
+            font-size: 0.9rem;
+            color: var(--text-light);
+        }
+
+        /* Implementation Steps */
+        .steps-container {
+            counter-reset: step;
+        }
+
+        .step {
+            position: relative;
+            padding-left: 50px;
+            margin-bottom: 30px;
+        }
+
+        .step:before {
+            counter-increment: step;
+            content: counter(step);
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 35px;
+            height: 35px;
+            background-color: var(--primary);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .nav-tabs {
+                flex-direction: column;
+            }
+            
+            .app-container {
+                padding: 10px;
+            }
+            
+            .header {
+                flex-direction: column;
+                gap: 15px;
+                text-align: center;
+            }
+        }
+
+        /* Loading Animation */
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: var(--white);
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* File Upload */
+        .file-upload {
+            border: 2px dashed #ddd;
+            border-radius: var(--radius);
+            padding: 30px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .file-upload:hover {
+            border-color: var(--primary);
+            background-color: rgba(0, 100, 150, 0.05);
+        }
+
+        .file-upload input {
+            display: none;
+        }
+
+        /* Tooltips */
+        .tooltip {
+            position: relative;
+            display: inline-block;
+        }
+
+        .tooltip .tooltip-text {
+            visibility: hidden;
+            width: 200px;
+            background-color: #333;
+            color: #fff;
+            text-align: center;
+            border-radius: 6px;
+            padding: 5px;
+            position: absolute;
+            z-index: 1;
+            bottom: 125%;
+            left: 50%;
+            margin-left: -100px;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .tooltip:hover .tooltip-text {
+            visibility: visible;
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+    <div x-data="hvacApp()" x-init="init()" class="app-container">
+        <!-- Header -->
+        <div class="header">
+            <div class="header-content">
+                <h1>Advanced HVAC Factory Design Suite</h1>
+                <p>For Textile Manufacturing Facilities - Pooshesh Factory, Rasht Gilan</p>
+            </div>
+            <div class="header-actions">
+                <button class="btn btn-secondary" @click="showHelpModal = true">Help</button>
+                <button class="btn" @click="saveProject()">Save Project</button>
+            </div>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <div class="nav-tabs">
+            <div class="nav-tab" :class="{ 'active': activeTab === 'dashboard' }" @click="activeTab = 'dashboard'">Dashboard</div>
+            <div class="nav-tab" :class="{ 'active': activeTab === 'project' }" @click="activeTab = 'project'">Project Setup</div>
+            <div class="nav-tab" :class="{ 'active': activeTab === 'design' }" @click="activeTab = 'design'">System Design</div>
+            <div class="nav-tab" :class="{ 'active': activeTab === 'analysis' }" @click="activeTab = 'analysis'">Advanced Analysis</div>
+            <div class="nav-tab" :class="{ 'active': activeTab === 'optimization' }" @click="activeTab = 'optimization'">Optimization</div>
+            <div class="nav-tab" :class="{ 'active': activeTab === 'implementation' }" @click="activeTab = 'implementation'">Implementation</div>
+            <div class="nav-tab" :class="{ 'active': activeTab === 'visualization' }" @click="activeTab = 'visualization'">3D Visualization</div>
+            <div class="nav-tab" :class="{ 'active': activeTab === 'report' }" @click="activeTab = 'report'">Design Report</div>
+        </div>
+
+        <!-- Dashboard Tab -->
+        <div class="tab-content" :class="{ 'active': activeTab === 'dashboard' }">
+            <h2 class="section-title">Project Dashboard</h2>
+            
+            <div class="grid">
+                <div class="card">
+                    <div class="card-title">Project Overview</div>
+                    <p><strong>Name:</strong> <span x-text="project.name"></span></p>
+                    <p><strong>Location:</strong> <span x-text="project.location"></span></p>
+                    <p><strong>Area:</strong> <span x-text="project.area.toLocaleString()"></span> sq.ft</p>
+                    <p><strong>Processes:</strong> <span x-text="project.processes.join(', ')"></span></p>
+                </div>
+                
+                <div class="card" :class="climateCardClass">
+                    <div class="card-title">Climate Analysis</div>
+                    <p><strong>Temperature:</strong> <span x-text="climateData.temp"></span>°C</p>
+                    <p><strong>Humidity:</strong> <span x-text="climateData.humidity"></span>% RH</p>
+                    <p><strong>Recommendation:</strong> <span x-text="climateData.recommendation"></span></p>
+                </div>
+                
+                <div class="card">
+                    <div class="card-title">Quick Stats</div>
+                    <div class="result-item">
+                        <span class="result-label">Energy Savings:</span>
+                        <span class="result-value" x-text="`${calculateEnergySavings().percentage}%`"></span>
+                    </div>
+                    <div class="result-item">
+                        <span class="result-label">Compliance Status:</span>
+                        <span class="status-indicator" :class="complianceStatusClass" x-text="complianceStatusText"></span>
+                    </div>
+                    <div class="result-item">
+                        <span class="result-label">Estimated Cost:</span>
+                        <span class="result-value" x-text="`$${calculateCost().toLocaleString()}`"></span>
+                    </div>
+                    <div class="result-item">
+                        <span class="result-label">ROI Period:</span>
+                        <span class="result-value" x-text="`${calculateROI().years} years`"></span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="grid">
+                <div class="card">
+                    <div class="card-title">System Performance</div>
+                    <div class="analysis-grid">
+                        <div class="analysis-card">
+                            <div class="analysis-label">Airflow Efficiency</div>
+                            <div class="analysis-value" x-text="`${calculateAirflowEfficiency()}%`"></div>
+                        </div>
+                        <div class="analysis-card">
+                            <div class="analysis-label">Filtration Efficiency</div>
+                            <div class="analysis-value" x-text="`${calculateFiltrationEfficiency()}%`"></div>
+                        </div>
+                        <div class="analysis-card">
+                            <div class="analysis-label">Humidity Control</div>
+                            <div class="analysis-value" x-text="`${calculateHumidityControl()}%`"></div>
+                        </div>
+                        <div class="analysis-card">
+                            <div class="analysis-label">System Reliability</div>
+                            <div class="analysis-value" x-text="`${calculateSystemReliability()}%`"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-title">Recommended Systems</div>
+                <div x-html="recommendations"></div>
+            </div>
+            
+            <div class="btn-group">
+                <button class="btn" @click="activeTab = 'design'">Start System Design</button>
+                <button class="btn btn-secondary" @click="quickDesign()">Quick Design</button>
+                <button class="btn btn-secondary" @click="loadSampleData()">Load Sample Data</button>
+                <button class="btn btn-warning" @click="runAdvancedAnalysis()">Run Advanced Analysis</button>
+            </div>
+        </div>
+
+        <!-- Project Setup Tab -->
+        <div class="tab-content" :class="{ 'active': activeTab === 'project' }">
+            <h2 class="section-title">Project Setup</h2>
+            
+            <div class="grid">
+                <div class="card">
+                    <div class="card-title">Factory Information</div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Project Name</label>
+                        <input type="text" class="form-input" x-model="project.name" placeholder="Enter project name">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Location</label>
+                        <select class="form-select" x-model="project.location">
+                            <option value="Rasht, Gilan">Rasht, Gilan</option>
+                            <option value="Tehran">Tehran</option>
+                            <option value="Mashhad">Mashhad</option>
+                            <option value="Isfahan">Isfahan</option>
+                            <option value="Other">Other Location</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Factory Area (sq.ft)</label>
+                        <input type="number" class="form-input" x-model="project.area" min="1000" max="1000000" placeholder="Enter factory area">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Operating Hours (per day)</label>
+                        <input type="number" class="form-input" x-model="project.operatingHours" min="1" max="24" placeholder="Enter operating hours">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Energy Cost ($/kWh)</label>
+                        <input type="number" class="form-input" x-model="project.energyCost" min="0.01" max="1" step="0.01" placeholder="Enter energy cost">
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-title">Manufacturing Processes</div>
+                    <p>Select all processes that will be performed in the factory:</p>
+                    
+                    <div class="process-grid">
+                        <template x-for="process in availableProcesses" :key="process.id">
+                            <div class="process-item" 
+                                 :class="{ 'selected': project.processes.includes(process.name) }"
+                                 @click="toggleProcess(process.name)">
+                                <span x-text="process.name"></span>
+                            </div>
+                        </template>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Production Capacity (tons/day)</label>
+                        <input type="number" class="form-input" x-model="project.productionCapacity" min="1" max="1000" placeholder="Enter production capacity">
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Special Requirements</label>
+                        <textarea class="form-input" x-model="project.specialRequirements" placeholder="Enter any special requirements"></textarea>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">Data Import</div>
+                    <p>Import existing factory data for analysis:</p>
+                    
+                    <div class="file-upload" @click="document.getElementById('fileInput').click()">
+                        <p>Click to upload CSV or Excel file</p>
+                        <p style="font-size: 0.9rem; color: var(--text-light);">Supported formats: CSV, XLSX</p>
+                        <input type="file" id="fileInput" @change="handleFileUpload($event)" accept=".csv,.xlsx">
+                    </div>
+
+                    <div class="form-group" style="margin-top: 20px;">
+                        <label class="form-label">Or enter data manually:</label>
+                        <textarea class="form-input" rows="5" placeholder="Paste your data here..." x-model="manualDataInput"></textarea>
+                    </div>
+
+                    <button class="btn btn-secondary" @click="processManualData()" style="width: 100%;">Process Data</button>
+                </div>
+            </div>
+            
+            <div class="btn-group">
+                <button class="btn" @click="saveProject()">Save Project</button>
+                <button class="btn btn-secondary" @click="activeTab = 'dashboard'">Back to Dashboard</button>
+            </div>
+        </div>
+
+        <!-- System Design Tab -->
+        <div class="tab-content" :class="{ 'active': activeTab === 'design' }">
+            <h2 class="section-title">HVAC System Design</h2>
+            
+            <div class="grid">
+                <div class="card">
+                    <div class="card-title">Duct System Design</div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Duct Type</label>
+                        <select class="form-select" x-model="design.ductType">
+                            <template x-for="duct in components.ducts" :key="duct.id">
+                                <option :value="duct.type" x-text="duct.type"></option>
+                            </template>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Duct Velocity</label>
+                        <div class="slider-container">
+                            <input type="range" class="slider" min="400" max="3500" step="50" x-model="design.ductVelocity">
+                            <span class="slider-value" x-text="`${design.ductVelocity} ft/min`"></span>
+                        </div>
+                        <p class="hint">Recommended: 600-2000 ft/min (ASHRAE)</p>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Duct Sizing Calculator</label>
+                        <input type="number" class="form-input" x-model="ductSize" placeholder="Enter diameter in inches">
+                        <button class="btn btn-secondary" @click="calculateAirflow()" style="margin-top: 10px; width: 100%;">Calculate Airflow</button>
+                        <p x-show="airflowResult" style="margin-top: 10px; font-weight: 600;" x-text="airflowResult"></p>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Duct Layout Complexity</label>
+                        <select class="form-select" x-model="design.ductLayout">
+                            <option value="simple">Simple (Straight runs)</option>
+                            <option value="moderate">Moderate (Some bends)</option>
+                            <option value="complex">Complex (Multiple bends, branches)</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-title">Filtration System</div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Filter Type</label>
+                        <select class="form-select" x-model="design.filterType">
+                            <template x-for="filter in components.filters" :key="filter.id">
+                                <option :value="filter.name" x-text="filter.name"></option>
+                            </template>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Air-to-Cloth Ratio</label>
+                        <input type="number" class="form-input" x-model="design.airToCloth" min="0.5" max="10" step="0.1" placeholder="Enter ratio">
+                        <p class="hint">Recommended: 1.5-3.5 for textile applications</p>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Filter Maintenance Schedule</label>
+                        <select class="form-select" x-model="design.filterMaintenance">
+                            <option value="monthly">Monthly</option>
+                            <option value="quarterly">Quarterly</option>
+                            <option value="biannual">Biannual</option>
+                            <option value="annual">Annual</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Include Pre-filters</label>
+                        <label class="toggle-switch">
+                            <input type="checkbox" x-model="design.includePrefilters">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-title">Humidity Control</div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Target Humidity</label>
+                        <div class="slider-container">
+                            <input type="range" class="slider" min="20" max="80" step="1" x-model="design.humidity">
+                            <span class="slider-value" x-text="`${design.humidity}% RH`"></span>
+                        </div>
+                        <p class="hint">Recommended: 40-60% RH (ASHRAE)</p>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Humidification System</label>
+                        <select class="form-select" x-model="design.humidifierType">
+                            <template x-for="humidifier in components.humidifiers" :key="humidifier.id">
+                                <option :value="humidifier.name" x-text="humidifier.name"></option>
+                            </template>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Humidity Tolerance</label>
+                        <select class="form-select" x-model="design.humidityTolerance">
+                            <option value="tight">Tight (±2%)</option>
+                            <option value="moderate">Moderate (±5%)</option>
+                            <option value="loose">Loose (±10%)</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Include Dehumidification</label>
+                        <label class="toggle-switch">
+                            <input type="checkbox" x-model="design.includeDehumidification">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid">
+                <div class="card">
+                    <div class="card-title">Energy Recovery Systems</div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Heat Recovery System</label>
+                        <select class="form-select" x-model="design.heatRecovery">
+                            <option value="none">None</option>
+                            <option value="plate">Plate Heat Exchanger</option>
+                            <option value="rotary">Rotary Heat Exchanger</option>
+                            <option value="runaround">Runaround Coil</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Expected Recovery Efficiency</label>
+                        <div class="slider-container">
+                            <input type="range" class="slider" min="0" max="80" step="5" x-model="design.recoveryEfficiency">
+                            <span class="slider-value" x-text="`${design.recoveryEfficiency}%`"></span>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Include Energy Monitoring</label>
+                        <label class="toggle-switch">
+                            <input type="checkbox" x-model="design.energyMonitoring">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">Control Systems</div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Automation Level</label>
+                        <select class="form-select" x-model="design.automationLevel">
+                            <option value="basic">Basic (Manual control)</option>
+                            <option value="standard">Standard (Programmable)</option>
+                            <option value="advanced">Advanced (Building Management System)</option>
+                            <option value="smart">Smart (AI-optimized)</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Include Remote Monitoring</label>
+                        <label class="toggle-switch">
+                            <input type="checkbox" x-model="design.remoteMonitoring">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Data Logging Frequency</label>
+                        <select class="form-select" x-model="design.dataLogging">
+                            <option value="hourly">Hourly</option>
+                            <option value="daily">Daily</option>
+                            <option value="weekly">Weekly</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-title">Design Analysis</div>
+                <div x-html="analysisResults" style="white-space: pre-line;"></div>
+            </div>
+            
+            <div class="btn-group">
+                <button class="btn" @click="analyzeDesign()">Analyze Design</button>
+                <button class="btn btn-warning" @click="optimizeDesign()">Optimize Design</button>
+                <button class="btn btn-success" @click="saveDesign()">Save Design</button>
+                <button class="btn btn-secondary" @click="activeTab = 'dashboard'">Back to Dashboard</button>
+            </div>
+        </div>
+
+        <!-- Advanced Analysis Tab -->
+        <div class="tab-content" :class="{ 'active': activeTab === 'analysis' }">
+            <h2 class="section-title">Advanced System Analysis</h2>
+            
+            <div class="grid">
+                <div class="card">
+                    <div class="card-title">Energy Performance Analysis</div>
+                    <div class="analysis-grid">
+                        <div class="analysis-card">
+                            <div class="analysis-label">Annual Energy Consumption</div>
+                            <div class="analysis-value" x-text="`${calculateAnnualEnergy().toLocaleString()} kWh`"></div>
+                        </div>
+                        <div class="analysis-card">
+                            <div class="analysis-label">Energy Cost</div>
+                            <div class="analysis-value" x-text="`$${calculateEnergyCost().toLocaleString()}`"></div>
+                        </div>
+                        <div class="analysis-card">
+                            <div class="analysis-label">Carbon Footprint</div>
+                            <div class="analysis-value" x-text="`${calculateCarbonFootprint()} tons`"></div>
+                        </div>
+                        <div class="analysis-card">
+                            <div class="analysis-label">Energy Intensity</div>
+                            <div class="analysis-value" x-text="`${calculateEnergyIntensity()} kWh/sq.ft`"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">Financial Analysis</div>
+                    <div class="analysis-grid">
+                        <div class="analysis-card">
+                            <div class="analysis-label">Total Investment</div>
+                            <div class="analysis-value" x-text="`$${calculateTotalInvestment().toLocaleString()}`"></div>
+                        </div>
+                        <div class="analysis-card">
+                            <div class="analysis-label">Annual Savings</div>
+                            <div class="analysis-value" x-text="`$${calculateAnnualSavings().toLocaleString()}`"></div>
+                        </div>
+                        <div class="analysis-card">
+                            <div class="analysis-label">ROI Period</div>
+                            <div class="analysis-value" x-text="`${calculateROI().years} years`"></div>
+                        </div>
+                        <div class="analysis-card">
+                            <div class="analysis-label">NPV (10 years)</div>
+                            <div class="analysis-value" x-text="`$${calculateNPV().toLocaleString()}`"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid">
+                <div class="card">
+                    <div class="card-title">System Reliability Analysis</div>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Component</th>
+                                <th>Reliability</th>
+                                <th>MTBF (hours)</th>
+                                <th>Maintenance Cost/Year</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <template x-for="component in reliabilityAnalysis" :key="component.name">
+                                <tr>
+                                    <td x-text="component.name"></td>
+                                    <td>
+                                        <div class="progress-bar">
+                                            <div class="progress-fill" :style="`width: ${component.reliability}%`"></div>
+                                        </div>
+                                        <span x-text="`${component.reliability}%`"></span>
+                                    </td>
+                                    <td x-text="component.mtbf.toLocaleString()"></td>
+                                    <td x-text="`$${component.maintenanceCost}`"></td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">Risk Assessment</div>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Risk Factor</th>
+                                <th>Probability</th>
+                                <th>Impact</th>
+                                <th>Severity</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <template x-for="risk in riskAssessment" :key="risk.factor">
+                                <tr>
+                                    <td x-text="risk.factor"></td>
+                                    <td>
+                                        <div class="progress-bar">
+                                            <div class="progress-fill" :style="`width: ${risk.probability}%`"></div>
+                                        </div>
+                                        <span x-text="`${risk.probability}%`"></span>
+                                    </td>
+                                    <td>
+                                        <div class="progress-bar">
+                                            <div class="progress-fill" :style="`width: ${risk.impact}%`"></div>
+                                        </div>
+                                        <span x-text="`${risk.impact}%`"></span>
+                                    </td>
+                                    <td>
+                                        <span class="status-indicator" :class="getRiskSeverityClass(risk.severity)" x-text="risk.severity"></span>
+                                    </td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">Comparative Analysis</div>
+                <div class="visualization-container" id="comparativeAnalysis"></div>
+            </div>
+
+            <div class="btn-group">
+                <button class="btn" @click="runAdvancedAnalysis()">Run Advanced Analysis</button>
+                <button class="btn btn-secondary" @click="exportAnalysisData()">Export Analysis Data</button>
+            </div>
+        </div>
+
+        <!-- Optimization Tab -->
+        <div class="tab-content" :class="{ 'active': activeTab === 'optimization' }">
+            <h2 class="section-title">System Optimization</h2>
+            
+            <div class="grid">
+                <div class="card">
+                    <div class="card-title">Optimization Goals</div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Primary Optimization Target</label>
+                        <select class="form-select" x-model="optimization.primaryTarget">
+                            <option value="energy">Energy Efficiency</option>
+                            <option value="cost">Cost Reduction</option>
+                            <option value="reliability">System Reliability</option>
+                            <option value="performance">Performance</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Secondary Optimization Target</label>
+                        <select class="form-select" x-model="optimization.secondaryTarget">
+                            <option value="none">None</option>
+                            <option value="energy">Energy Efficiency</option>
+                            <option value="cost">Cost Reduction</option>
+                            <option value="reliability">System Reliability</option>
+                            <option value="performance">Performance</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Optimization Constraints</label>
+                        <div style="display: flex; flex-direction: column; gap: 10px;">
+                            <label><input type="checkbox" x-model="optimization.constraints.budget"> Budget Limit</label>
+                            <label><input type="checkbox" x-model="optimization.constraints.space"> Space Constraints</label>
+                            <label><input type="checkbox" x-model="optimization.constraints.timeline"> Implementation Timeline</label>
+                            <label><input type="checkbox" x-model="optimization.constraints.regulatory"> Regulatory Requirements</label>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Optimization Algorithm</label>
+                        <select class="form-select" x-model="optimization.algorithm">
+                            <option value="genetic">Genetic Algorithm</option>
+                            <option value="particle">Particle Swarm</option>
+                            <option value="gradient">Gradient Descent</option>
+                            <option value="simulated">Simulated Annealing</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">Current vs Optimized</div>
+                    <div class="visualization-container" id="optimizationChart"></div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">Optimization Results</div>
+                <div x-html="optimizationResults"></div>
+            </div>
+
+            <div class="btn-group">
+                <button class="btn btn-warning" @click="runOptimization()">Run Optimization</button>
+                <button class="btn" @click="applyOptimization()">Apply Optimized Settings</button>
+                <button class="btn btn-secondary" @click="saveOptimizationScenario()">Save Scenario</button>
+            </div>
+        </div>
+
+        <!-- Implementation Tab -->
+        <div class="tab-content" :class="{ 'active': activeTab === 'implementation' }">
+            <h2 class="section-title">Implementation Planning</h2>
+            
+            <div class="grid">
+                <div class="card">
+                    <div class="card-title">Project Timeline</div>
+                    <div class="steps-container">
+                        <div class="step">
+                            <h3>Phase 1: Planning & Design</h3>
+                            <p>Duration: <span x-text="implementationTimeline.phase1.duration"></span> weeks</p>
+                            <p>Key Activities: <span x-text="implementationTimeline.phase1.activities"></span></p>
+                            <p>Resources Needed: <span x-text="implementationTimeline.phase1.resources"></span></p>
+                        </div>
+                        <div class="step">
+                            <h3>Phase 2: Procurement</h3>
+                            <p>Duration: <span x-text="implementationTimeline.phase2.duration"></span> weeks</p>
+                            <p>Key Activities: <span x-text="implementationTimeline.phase2.activities"></span></p>
+                            <p>Resources Needed: <span x-text="implementationTimeline.phase2.resources"></span></p>
+                        </div>
+                        <div class="step">
+                            <h3>Phase 3: Installation</h3>
+                            <p>Duration: <span x-text="implementationTimeline.phase3.duration"></span> weeks</p>
+                            <p>Key Activities: <span x-text="implementationTimeline.phase3.activities"></span></p>
+                            <p>Resources Needed: <span x-text="implementationTimeline.phase3.resources"></span></p>
+                        </div>
+                        <div class="step">
+                            <h3>Phase 4: Commissioning</h3>
+                            <p>Duration: <span x-text="implementationTimeline.phase4.duration"></span> weeks</p>
+                            <p>Key Activities: <span x-text="implementationTimeline.phase4.activities"></span></p>
+                            <p>Resources Needed: <span x-text="implementationTimeline.phase4.resources"></span></p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-title">Resource Requirements</div>
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Resource Type</th>
+                                <th>Quantity</th>
+                                <th>Cost</th>
+                                <th>Timeline</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <template x-for="resource in resourceRequirements" :key="resource.type">
+                                <tr>
+                                    <td x-text="resource.type"></td>
+                                    <td x-text="resource.quantity"></td>
+                                    <td x-text="`$${resource.cost.toLocaleString()}`"></td>
+                                    <td x-text="resource.timeline"></td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">Implementation Checklist</div>
+                <div x-html="implementationChecklist"></div>
+            </div>
+
+            <div class="btn-group">
+                <button class="btn" @click="generateImplementationPlan()">Generate Implementation Plan</button>
+                <button class="btn btn-secondary" @click="exportImplementationPlan()">Export Plan</button>
+            </div>
+        </div>
+
+        <!-- 3D Visualization Tab -->
+        <div class="tab-content" :class="{ 'active': activeTab === 'visualization' }">
+            <h2 class="section-title">3D System Visualization</h2>
+            
+            <div class="visualization-container" id="visualization">
+                <!-- 3D visualization will be rendered here by Plotly -->
+            </div>
+            
+            <div class="btn-group">
+                <button class="btn" @click="updateVisualization()">Update Visualization</button>
+                <button class="btn btn-secondary" @click="rotateView()">Rotate View</button>
+                <button class="btn btn-secondary" @click="resetView()">Reset View</button>
+                <button class="btn btn-secondary" @click="toggleComponents()">Toggle Components</button>
+            </div>
+            
+            <div class="card" style="margin-top: 20px;">
+                <div class="card-title">System Components</div>
+                <ul>
+                    <li><strong>Main Duct:</strong> <span x-text="design.ductType"></span></li>
+                    <li><strong>Filtration:</strong> <span x-text="design.filterType"></span></li>
+                    <li><strong>Humidity Control:</strong> <span x-text="design.humidifierType"></span></li>
+                    <li><strong>Duct Velocity:</strong> <span x-text="`${design.ductVelocity} ft/min`"></span></li>
+                    <li><strong>Heat Recovery:</strong> <span x-text="design.heatRecovery"></span></li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Report Tab -->
+        <div class="tab-content" :class="{ 'active': activeTab === 'report' }">
+            <h2 class="section-title">Design Report</h2>
+            
+            <div class="btn-group" style="margin-bottom: 20px;">
+                <button class="btn" @click="generateReport()">Generate Report</button>
+                <button class="btn btn-success" @click="exportPDF()">Export to PDF</button>
+                <button class="btn btn-secondary" @click="exportExcel()">Export to Excel</button>
+                <button class="btn btn-secondary" @click="shareReport()">Share Report</button>
+            </div>
+            
+            <div class="card">
+                <div class="report-content" x-html="reportContent"></div>
+            </div>
+        </div>
+
+        <!-- Help Modal -->
+        <div x-show="showHelpModal" class="modal-overlay" @click="showHelpModal = false">
+            <div class="modal" @click.stop>
+                <div class="modal-header">
+                    <h3 class="modal-title">HVAC Design Suite Help</h3>
+                    <button class="modal-close" @click="showHelpModal = false">&times;</button>
+                </div>
+                <div x-html="helpContent"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function hvacApp() {
+            return {
+                // Application state
+                activeTab: 'dashboard',
+                showHelpModal: false,
+                modalTitle: '',
+                modalContent: '',
+                ductSize: '',
+                airflowResult: '',
+                manualDataInput: '',
+                helpContent: '',
+                
+                // Project data
+                project: {
+                    name: 'Pooshesh Textile Factory',
+                    location: 'Rasht, Gilan',
+                    area: 50000,
+                    processes: ['weaving', 'dyeing'],
+                    operatingHours: 16,
+                    energyCost: 0.12,
+                    productionCapacity: 50,
+                    specialRequirements: ''
+                },
+                
+                // Design parameters
+                design: {
+                    ductType: 'Fabric (Durkee)',
+                    ductVelocity: 1500,
+                    ductLayout: 'moderate',
+                    filterType: 'Luwa Rotary Filter',
+                    airToCloth: 2.5,
+                    filterMaintenance: 'quarterly',
+                    includePrefilters: true,
+                    humidity: 50,
+                    humidifierType: 'Luwa Air Washer',
+                    humidityTolerance: 'moderate',
+                    includeDehumidification: true,
+                    heatRecovery: 'plate',
+                    recoveryEfficiency: 60,
+                    energyMonitoring: true,
+                    automationLevel: 'advanced',
+                    remoteMonitoring: true,
+                    dataLogging: 'hourly'
+                },
+
+                // Optimization settings
+                optimization: {
+                    primaryTarget: 'energy',
+                    secondaryTarget: 'cost',
+                    constraints: {
+                        budget: true,
+                        space: false,
+                        timeline: true,
+                        regulatory: true
+                    },
+                    algorithm: 'genetic'
+                },
+
+                // Implementation timeline
+                implementationTimeline: {
+                    phase1: {
+                        duration: 4,
+                        activities: 'Requirements analysis, system design, approval',
+                        resources: 'Design team, project manager'
+                    },
+                    phase2: {
+                        duration: 6,
+                        activities: 'Component procurement, vendor selection',
+                        resources: 'Procurement team, budget'
+                    },
+                    phase3: {
+                        duration: 8,
+                        activities: 'Physical installation, ductwork, equipment setup',
+                        resources: 'Installation team, equipment'
+                    },
+                    phase4: {
+                        duration: 2,
+                        activities: 'System testing, calibration, training',
+                        resources: 'Commissioning team, training materials'
+                    }
+                },
+                
+                // Standards and component data
+                standards: {
+                    ASHRAE: { ductVelocity: { min: 600, max: 2000 }, humidity: { min: 40, max: 60 } },
+                    NFPA: { combustibleDust: true, explosionVents: true }
+                },
+                
+                components: {
+                    filters: [
+                        { id: 1, name: 'Luwa Rotary Filter', efficiency: '99.9%', airflow: '5000 CFM' },
+                        { id: 2, name: 'Centigrade HEPA', efficiency: '99.97%', airflow: '3000 CFM' }
+                    ],
+                    ducts: [
+                        { id: 1, type: 'Fabric (Durkee)', velocity: '600-2000 ft/min', noise: 'Low' },
+                        { id: 2, type: 'Rigid Metal', velocity: '1500-3500 ft/min', noise: 'Medium' }
+                    ],
+                    humidifiers: [
+                        { id: 1, name: 'Luwa Air Washer', capacity: '±2% RH', coverage: '10000 sq.ft' }
+                    ]
+                },
+                
+                availableProcesses: [
+                    { id: 1, name: 'weaving' },
+                    { id: 2, name: 'dyeing' },
+                    { id: 3, name: 'spinning' },
+                    { id: 4, name: 'finishing' },
+                    { id: 5, name: 'printing' },
+                    { id: 6, name: 'cutting' }
+                ],
+                
+                climateData: {
+                    'Rasht, Gilan': { temp: 22, humidity: 75, recommendation: 'High humidity - recommend desiccant dehumidification' },
+                    'Tehran': { temp: 18, humidity: 35, recommendation: 'Moderate climate - standard humidification sufficient' },
+                    'Mashhad': { temp: 16, humidity: 40, recommendation: 'Cool climate - consider heating requirements' },
+                    'Isfahan': { temp: 20, humidity: 30, recommendation: 'Dry climate - enhanced humidification needed' },
+                    'Other': { temp: 20, humidity: 50, recommendation: 'Standard climate controls recommended' }
+                },
+
+                // Analysis data
+                reliabilityAnalysis: [],
+                riskAssessment: [],
+                resourceRequirements: [],
+                
+                // Computed properties
+                get climateCardClass() {
+                    const humidity = this.climateData[this.project.location].humidity;
+                    if (humidity > 70) return 'warning';
+                    if (humidity < 30) return 'error';
+                    return 'success';
+                },
+                
+                get complianceStatusClass() {
+                    const issues = this.checkCompliance();
+                    if (issues.length === 0) return 'status-ok';
+                    return issues.some(issue => issue.severity === 'error') ? 'status-error' : 'status-warning';
+                },
+                
+                get complianceStatusText() {
+                    const issues = this.checkCompliance();
+                    if (issues.length === 0) return 'Compliant';
+                    return `${issues.length} Issue${issues.length > 1 ? 's' : ''}`;
+                },
+                
+                get recommendations() {
+                    let recs = '<ul style="padding-left: 20px;">';
+                    
+                    // Climate-based recommendations
+                    const climate = this.climateData[this.project.location];
+                    if (climate.humidity > 70) {
+                        recs += '<li>Implement desiccant dehumidification for high humidity climate</li>';
+                    } else if (climate.humidity < 30) {
+                        recs += '<li>Enhanced humidification needed for dry climate</li>';
+                    }
+                    
+                    // Process-based recommendations
+                    if (this.project.processes.includes('dyeing')) {
+                        recs += '<li>HEPA filtration recommended for dyeing areas</li>';
+                    }
+                    
+                    // Size-based recommendations
+                    if (this.project.area > 50000) {
+                        recs += '<li>Consider multiple AHU zones for large facility</li>';
+                    }
+
+                    // Energy recommendations
+                    if (this.project.operatingHours > 12) {
+                        recs += '<li>Implement energy recovery systems for continuous operation</li>';
+                    }
+                    
+                    recs += '</ul>';
+                    return recs;
+                },
+                
+                analysisResults: '',
+                reportContent: '',
+                optimizationResults: '',
+                implementationChecklist: '',
+
+                // Methods
+                init() {
+                    this.updateClimateData();
+                    this.analyzeDesign();
+                    this.generateReport();
+                    this.updateVisualization();
+                    this.generateHelpContent();
+                    this.calculateResourceRequirements();
+                    this.performReliabilityAnalysis();
+                    this.performRiskAssessment();
+                },
+                
+                updateClimateData() {
+                    // This would typically fetch from an API
+                    console.log('Climate data updated for:', this.project.location);
+                },
+
+                generateHelpContent() {
+                    this.helpContent = `
+                        <h3>Getting Started</h3>
+                        <p>This HVAC Design Suite helps you design, analyze, and optimize HVAC systems for textile factories.</p>
+                        
+                        <h3>Key Features</h3>
+                        <ul>
+                            <li><strong>Project Setup:</strong> Define factory parameters and processes</li>
+                            <li><strong>System Design:</strong> Configure ductwork, filtration, and humidity control</li>
+                            <li><strong>Advanced Analysis:</strong> Energy, financial, and reliability analysis</li>
+                            <li><strong>Optimization:</strong> AI-powered system optimization</li>
+                            <li><strong>Implementation:</strong> Step-by-step implementation planning</li>
+                            <li><strong>3D Visualization:</strong> Interactive system visualization</li>
+                            <li><strong>Reporting:</strong> Comprehensive design reports</li>
+                        </ul>
+                        
+                        <h3>Best Practices</h3>
+                        <ul>
+                            <li>Start with accurate factory measurements</li>
+                            <li>Consider all manufacturing processes</li>
+                            <li>Account for local climate conditions</li>
+                            <li>Run optimization before finalizing design</li>
+                            <li>Review implementation plan carefully</li>
+                        </ul>
+                    `;
+                },
+                
+                toggleProcess(processName) {
+                    const index = this.project.processes.indexOf(processName);
+                    if (index > -1) {
+                        this.project.processes.splice(index, 1);
+                    } else {
+                        this.project.processes.push(processName);
+                    }
+                },
+                
+                calculateAirflow() {
+                    if (!this.ductSize) {
+                        this.airflowResult = 'Please enter a duct diameter';
+                        return;
+                    }
+                    
+                    try {
+                        const diameter = parseFloat(this.ductSize);
+                        const velocity = this.design.ductVelocity;
+                        
+                        // Calculate area in square feet
+                        const radius = diameter / 24; // Convert inches to feet
+                        const area = Math.PI * Math.pow(radius, 2);
+                        
+                        // Calculate CFM
+                        const cfm = area * velocity;
+                        this.airflowResult = `Airflow: ${cfm.toFixed(2)} CFM`;
+                    } catch (error) {
+                        this.airflowResult = 'Error: Please enter a valid number';
+                    }
+                },
+                
+                calculateEnergySavings() {
+                    const baseEnergy = this.project.area * 0.5;
+                    const velocityFactor = this.design.ductVelocity < 1000 ? 0.7 : 0.9;
+                    const recoveryFactor = 1 - (this.design.recoveryEfficiency / 100);
+                    const optimizedEnergy = baseEnergy * velocityFactor * recoveryFactor;
+                    const savings = baseEnergy - optimizedEnergy;
+                    const percentage = Math.round((savings / baseEnergy) * 100);
+                    
+                    return { savings, percentage };
+                },
+
+                calculateAnnualEnergy() {
+                    const dailyEnergy = this.project.area * 0.5 * (this.project.operatingHours / 24);
+                    const velocityFactor = this.design.ductVelocity < 1000 ? 0.7 : 0.9;
+                    const recoveryFactor = 1 - (this.design.recoveryEfficiency / 100);
+                    const optimizedDailyEnergy = dailyEnergy * velocityFactor * recoveryFactor;
+                    return Math.round(optimizedDailyEnergy * 365);
+                },
+
+                calculateEnergyCost() {
+                    const annualEnergy = this.calculateAnnualEnergy();
+                    return Math.round(annualEnergy * this.project.energyCost);
+                },
+
+                calculateCarbonFootprint() {
+                    const annualEnergy = this.calculateAnnualEnergy();
+                    // Assuming 0.5 kg CO2 per kWh
+                    return Math.round(annualEnergy * 0.5 / 1000);
+                },
+
+                calculateEnergyIntensity() {
+                    const annualEnergy = this.calculateAnnualEnergy();
+                    return (annualEnergy / this.project.area).toFixed(2);
+                },
+                
+                calculateCost() {
+                    // Simplified cost calculation
+                    const baseCost = this.project.area * 2;
+                    const velocityFactor = this.design.ductVelocity > 2000 ? 1.2 : 1.0;
+                    const filterFactor = this.design.filterType.includes('HEPA') ? 1.3 : 1.0;
+                    const automationFactor = this.design.automationLevel === 'advanced' ? 1.2 : 1.0;
+                    const recoveryFactor = this.design.heatRecovery !== 'none' ? 1.15 : 1.0;
+                    
+                    return Math.round(baseCost * velocityFactor * filterFactor * automationFactor * recoveryFactor);
+                },
+
+                calculateTotalInvestment() {
+                    return this.calculateCost() * 1.3; // Including installation and commissioning
+                },
+
+                calculateAnnualSavings() {
+                    const baseEnergyCost = this.project.area * 0.5 * (this.project.operatingHours / 24) * 365 * this.project.energyCost;
+                    const optimizedEnergyCost = this.calculateEnergyCost();
+                    return Math.round(baseEnergyCost - optimizedEnergyCost);
+                },
+
+                calculateROI() {
+                    const investment = this.calculateTotalInvestment();
+                    const annualSavings = this.calculateAnnualSavings();
+                    const years = annualSavings > 0 ? (investment / annualSavings).toFixed(1) : 'N/A';
+                    return { years, investment, annualSavings };
+                },
+
+                calculateNPV() {
+                    const annualSavings = this.calculateAnnualSavings();
+                    const investment = this.calculateTotalInvestment();
+                    let npv = -investment;
+                    for (let i = 1; i <= 10; i++) {
+                        npv += annualSavings / Math.pow(1.1, i); // 10% discount rate
+                    }
+                    return Math.round(npv);
+                },
+
+                calculateAirflowEfficiency() {
+                    // Calculate based on duct velocity and layout
+                    let efficiency = 85; // Base efficiency
+                    
+                    if (this.design.ductVelocity >= 600 && this.design.ductVelocity <= 2000) {
+                        efficiency += 10;
+                    }
+                    
+                    if (this.design.ductLayout === 'simple') {
+                        efficiency += 5;
+                    } else if (this.design.ductLayout === 'complex') {
+                        efficiency -= 5;
+                    }
+                    
+                    return Math.min(efficiency, 95);
+                },
+
+                calculateFiltrationEfficiency() {
+                    // Based on filter type and maintenance
+                    let efficiency = this.design.filterType.includes('HEPA') ? 99 : 95;
+                    
+                    if (this.design.filterMaintenance === 'monthly') {
+                        efficiency += 2;
+                    } else if (this.design.filterMaintenance === 'annual') {
+                        efficiency -= 3;
+                    }
+                    
+                    if (this.design.includePrefilters) {
+                        efficiency += 1;
+                    }
+                    
+                    return efficiency;
+                },
+
+                calculateHumidityControl() {
+                    // Based on system type and tolerance
+                    let control = 90; // Base control
+                    
+                    if (this.design.humidityTolerance === 'tight') {
+                        control += 5;
+                    } else if (this.design.humidityTolerance === 'loose') {
+                        control -= 5;
+                    }
+                    
+                    if (this.design.includeDehumidification) {
+                        control += 3;
+                    }
+                    
+                    return Math.min(control, 98);
+                },
+
+                calculateSystemReliability() {
+                    // Composite reliability score
+                    const components = [
+                        this.calculateAirflowEfficiency(),
+                        this.calculateFiltrationEfficiency(),
+                        this.calculateHumidityControl()
+                    ];
+                    
+                    return Math.round(components.reduce((a, b) => a + b, 0) / components.length);
+                },
+                
+                checkCompliance() {
+                    const issues = [];
+                    
+                    // Check duct velocity
+                    if (this.design.ductVelocity < this.standards.ASHRAE.ductVelocity.min || 
+                        this.design.ductVelocity > this.standards.ASHRAE.ductVelocity.max) {
+                        issues.push({
+                            message: `Duct velocity (${this.design.ductVelocity} ft/min) outside ASHRAE recommended range (600-2000 ft/min)`,
+                            severity: 'warning'
+                        });
+                    }
+                    
+                    // Check humidity
+                    if (this.design.humidity < this.standards.ASHRAE.humidity.min || 
+                        this.design.humidity > this.standards.ASHRAE.humidity.max) {
+                        issues.push({
+                            message: `Target humidity (${this.design.humidity}% RH) outside ASHRAE recommended range (40-60% RH)`,
+                            severity: 'warning'
+                        });
+                    }
+                    
+                    // Check for dyeing process without HEPA
+                    if (this.project.processes.includes('dyeing') && !this.design.filterType.includes('HEPA')) {
+                        issues.push({
+                            message: 'Dyeing process requires HEPA filtration per NFPA 652',
+                            severity: 'error'
+                        });
+                    }
+
+                    // Check for high humidity without dehumidification
+                    if (this.climateData[this.project.location].humidity > 70 && !this.design.includeDehumidification) {
+                        issues.push({
+                            message: 'High humidity climate requires dehumidification system',
+                            severity: 'warning'
+                        });
+                    }
+                    
+                    return issues;
+                },
+
+                performReliabilityAnalysis() {
+                    this.reliabilityAnalysis = [
+                        { name: 'Duct System', reliability: this.calculateAirflowEfficiency(), mtbf: 50000, maintenanceCost: 2500 },
+                        { name: 'Filtration System', reliability: this.calculateFiltrationEfficiency(), mtbf: 30000, maintenanceCost: 1800 },
+                        { name: 'Humidity Control', reliability: this.calculateHumidityControl(), mtbf: 40000, maintenanceCost: 3200 },
+                        { name: 'Control System', reliability: 92, mtbf: 60000, maintenanceCost: 1500 },
+                        { name: 'Energy Recovery', reliability: 88, mtbf: 45000, maintenanceCost: 2800 }
+                    ];
+                },
+
+                performRiskAssessment() {
+                    this.riskAssessment = [
+                        { factor: 'Filter Clogging', probability: 25, impact: 40, severity: 'Medium' },
+                        { factor: 'Humidity Fluctuation', probability: 15, impact: 35, severity: 'Low' },
+                        { factor: 'Energy Cost Increase', probability: 30, impact: 60, severity: 'High' },
+                        { factor: 'Component Failure', probability: 10, impact: 75, severity: 'Medium' },
+                        { factor: 'Regulatory Changes', probability: 20, impact: 50, severity: 'Medium' }
+                    ];
+                },
+
+                calculateResourceRequirements() {
+                    this.resourceRequirements = [
+                        { type: 'HVAC Engineers', quantity: '2-3', cost: 150000, timeline: 'Full project' },
+                        { type: 'Installation Team', quantity: '4-6', cost: 80000, timeline: 'Phase 3' },
+                        { type: 'Duct Materials', quantity: 'Custom', cost: this.calculateCost() * 0.4, timeline: 'Phase 2' },
+                        { type: 'Filtration Units', quantity: 'As designed', cost: this.calculateCost() * 0.3, timeline: 'Phase 2' },
+                        { type: 'Control System', quantity: '1 set', cost: this.calculateCost() * 0.2, timeline: 'Phase 2-3' },
+                        { type: 'Commissioning', quantity: '1 team', cost: 25000, timeline: 'Phase 4' }
+                    ];
+                },
+
+                getRiskSeverityClass(severity) {
+                    switch(severity) {
+                        case 'High': return 'status-error';
+                        case 'Medium': return 'status-warning';
+                        case 'Low': return 'status-ok';
+                        default: return '';
+                    }
+                },
+                
+                analyzeDesign() {
+                    const energySavings = this.calculateEnergySavings();
+                    const complianceIssues = this.checkCompliance();
+                    const cost = this.calculateCost();
+                    const roi = this.calculateROI();
+                    
+                    let analysis = '=== DESIGN ANALYSIS ===\n\n';
+                    analysis += `Project: ${this.project.name}\n`;
+                    analysis += `Location: ${this.project.location}\n`;
+                    analysis += `Area: ${this.project.area.toLocaleString()} sq.ft\n`;
+                    analysis += `Processes: ${this.project.processes.join(', ')}\n\n`;
+                    
+                    analysis += '--- Energy Analysis ---\n';
+                    analysis += `Estimated energy savings: ${energySavings.percentage}%\n`;
+                    analysis += `Annual energy cost: $${this.calculateEnergyCost().toLocaleString()}\n`;
+                    analysis += `Annual cost savings: $${this.calculateAnnualSavings().toLocaleString()}\n\n`;
+                    
+                    analysis += '--- System Specifications ---\n';
+                    analysis += `Duct Type: ${this.design.ductType}\n`;
+                    analysis += `Duct Velocity: ${this.design.ductVelocity} ft/min\n`;
+                    analysis += `Filter System: ${this.design.filterType}\n`;
+                    analysis += `Air-to-Cloth Ratio: ${this.design.airToCloth}\n`;
+                    analysis += `Humidity Control: ${this.design.humidity}% RH\n`;
+                    analysis += `Humidification System: ${this.design.humidifierType}\n`;
+                    analysis += `Heat Recovery: ${this.design.heatRecovery}\n`;
+                    analysis += `Automation Level: ${this.design.automationLevel}\n\n`;
+                    
+                    analysis += '--- Financial Analysis ---\n';
+                    analysis += `Estimated system cost: $${cost.toLocaleString()}\n`;
+                    analysis += `Total investment: $${this.calculateTotalInvestment().toLocaleString()}\n`;
+                    analysis += `ROI Period: ${roi.years} years\n`;
+                    analysis += `NPV (10 years): $${this.calculateNPV().toLocaleString()}\n\n`;
+                    
+                    analysis += '--- Compliance Check ---\n';
+                    if (complianceIssues.length > 0) {
+                        analysis += 'ISSUES FOUND:\n';
+                        complianceIssues.forEach(issue => {
+                            analysis += `• ${issue.message}\n`;
+                        });
+                    } else {
+                        analysis += 'No compliance issues detected\n';
+                    }
+                    
+                    analysis += '\n--- Performance Metrics ---\n';
+                    analysis += `Airflow Efficiency: ${this.calculateAirflowEfficiency()}%\n`;
+                    analysis += `Filtration Efficiency: ${this.calculateFiltrationEfficiency()}%\n`;
+                    analysis += `Humidity Control: ${this.calculateHumidityControl()}%\n`;
+                    analysis += `System Reliability: ${this.calculateSystemReliability()}%\n`;
+                    
+                    this.analysisResults = analysis;
+                },
+                
+                optimizeDesign() {
+                    // Simple optimization logic
+                    this.design.ductVelocity = 1200; // Optimal for energy savings
+                    
+                    if (this.project.processes.includes('dyeing')) {
+                        this.design.filterType = 'Centigrade HEPA';
+                    }
+                    
+                    if (this.climateData[this.project.location].humidity > 70) {
+                        this.design.humidity = 45; // Lower target for humid climates
+                        this.design.includeDehumidification = true;
+                    }
+
+                    if (this.project.operatingHours > 12) {
+                        this.design.heatRecovery = 'rotary';
+                        this.design.recoveryEfficiency = 70;
+                    }
+
+                    this.design.automationLevel = 'advanced';
+                    this.design.energyMonitoring = true;
+                    
+                    this.analyzeDesign();
+                    this.showMessage('Design optimized for energy efficiency and compliance', 'success');
+                },
+
+                runOptimization() {
+                    // Simulate optimization process
+                    this.showMessage('Running optimization algorithm...', 'info');
+                    
+                    setTimeout(() => {
+                        const currentMetrics = {
+                            energy: this.calculateEnergySavings().percentage,
+                            cost: this.calculateCost(),
+                            reliability: this.calculateSystemReliability()
+                        };
+
+                        const optimizedMetrics = {
+                            energy: Math.min(currentMetrics.energy + 15, 95),
+                            cost: Math.round(currentMetrics.cost * 0.9),
+                            reliability: Math.min(currentMetrics.reliability + 5, 98)
+                        };
+
+                        this.optimizationResults = `
+                            <h3>Optimization Results</h3>
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Metric</th>
+                                        <th>Current</th>
+                                        <th>Optimized</th>
+                                        <th>Improvement</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>Energy Savings</td>
+                                        <td>${currentMetrics.energy}%</td>
+                                        <td>${optimizedMetrics.energy}%</td>
+                                        <td>+${optimizedMetrics.energy - currentMetrics.energy}%</td>
+                                    </tr>
+                                    <tr>
+                                        <td>System Cost</td>
+                                        <td>$${currentMetrics.cost.toLocaleString()}</td>
+                                        <td>$${optimizedMetrics.cost.toLocaleString()}</td>
+                                        <td>-${Math.round((1 - optimizedMetrics.cost/currentMetrics.cost) * 100)}%</td>
+                                    </tr>
+                                    <tr>
+                                        <td>System Reliability</td>
+                                        <td>${currentMetrics.reliability}%</td>
+                                        <td>${optimizedMetrics.reliability}%</td>
+                                        <td>+${optimizedMetrics.reliability - currentMetrics.reliability}%</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                            
+                            <h4>Recommended Changes:</h4>
+                            <ul>
+                                <li>Adjust duct velocity to 1100 ft/min</li>
+                                <li>Implement variable frequency drives</li>
+                                <li>Add additional temperature sensors</li>
+                                <li>Optimize filter maintenance schedule</li>
+                            </ul>
+                        `;
+
+                        this.updateOptimizationChart(currentMetrics, optimizedMetrics);
+                        this.showMessage('Optimization completed successfully', 'success');
+                    }, 2000);
+                },
+
+                updateOptimizationChart(current, optimized) {
+                    const trace1 = {
+                        x: ['Energy Savings', 'System Cost', 'Reliability'],
+                        y: [current.energy, current.cost / 1000, current.reliability],
+                        name: 'Current',
+                        type: 'bar',
+                        marker: { color: '#006496' }
+                    };
+
+                    const trace2 = {
+                        x: ['Energy Savings', 'System Cost', 'Reliability'],
+                        y: [optimized.energy, optimized.cost / 1000, optimized.reliability],
+                        name: 'Optimized',
+                        type: 'bar',
+                        marker: { color: '#4caf50' }
+                    };
+
+                    const layout = {
+                        title: 'Current vs Optimized Performance',
+                        yaxis: { title: 'Performance Metrics' },
+                        barmode: 'group'
+                    };
+
+                    Plotly.newPlot('optimizationChart', [trace1, trace2], layout);
+                },
+
+                applyOptimization() {
+                    // Apply the optimized settings
+                    this.design.ductVelocity = 1100;
+                    this.design.filterMaintenance = 'monthly';
+                    this.design.automationLevel = 'smart';
+                    
+                    this.analyzeDesign();
+                    this.showMessage('Optimized settings applied to design', 'success');
+                },
+
+                saveOptimizationScenario() {
+                    this.showMessage('Optimization scenario saved', 'success');
+                },
+
+                generateImplementationPlan() {
+                    let checklist = '<h3>Implementation Checklist</h3><ul>';
+                    
+                    checklist += '<li><input type="checkbox"> Finalize system design and specifications</li>';
+                    checklist += '<li><input type="checkbox"> Obtain necessary permits and approvals</li>';
+                    checklist += '<li><input type="checkbox"> Procure all components and materials</li>';
+                    checklist += '<li><input type="checkbox"> Prepare installation site</li>';
+                    checklist += '<li><input type="checkbox"> Install ductwork and mounting systems</li>';
+                    checklist += '<li><input type="checkbox"> Install filtration and humidity control systems</li>';
+                    checklist += '<li><input type="checkbox"> Install control and monitoring systems</li>';
+                    checklist += '<li><input type="checkbox"> Connect utilities and power systems</li>';
+                    checklist += '<li><input type="checkbox"> Commission and test all systems</li>';
+                    checklist += '<li><input type="checkbox"> Train operations and maintenance staff</li>';
+                    checklist += '<li><input type="checkbox"> Document system operation and maintenance procedures</li>';
+                    checklist += '<li><input type="checkbox"> Hand over to operations team</li>';
+                    
+                    checklist += '</ul>';
+                    
+                    this.implementationChecklist = checklist;
+                    this.showMessage('Implementation plan generated', 'success');
+                },
+                
+                quickDesign() {
+                    // Set defaults based on factory characteristics
+                    if (this.project.area < 20000) {
+                        this.design.ductVelocity = 1000;
+                        this.design.filterType = 'Luwa Rotary Filter';
+                    } else {
+                        this.design.ductVelocity = 1500;
+                        this.design.filterType = 'Centigrade HEPA';
+                    }
+                    
+                    // Adjust for processes
+                    if (this.project.processes.includes('dyeing')) {
+                        this.design.filterType = 'Centigrade HEPA';
+                    }
+                    
+                    // Adjust for climate
+                    if (this.climateData[this.project.location].humidity > 70) {
+                        this.design.humidity = 45;
+                    } else {
+                        this.design.humidity = 50;
+                    }
+
+                    // Adjust for operating hours
+                    if (this.project.operatingHours > 12) {
+                        this.design.heatRecovery = 'plate';
+                        this.design.recoveryEfficiency = 60;
+                    }
+
+                    this.analyzeDesign();
+                    this.showMessage('Quick design parameters applied', 'success');
+                },
+
+                runAdvancedAnalysis() {
+                    this.performReliabilityAnalysis();
+                    this.performRiskAssessment();
+                    this.calculateResourceRequirements();
+                    
+                    // Update comparative analysis chart
+                    this.updateComparativeAnalysis();
+                    
+                    this.showMessage('Advanced analysis completed', 'success');
+                    this.activeTab = 'analysis';
+                },
+
+                updateComparativeAnalysis() {
+                    const scenarios = ['Current Design', 'ASHRAE Minimum', 'Energy Optimized', 'Cost Optimized'];
+                    const energy = [this.calculateEnergySavings().percentage, 15, 35, 25];
+                    const cost = [this.calculateCost() / 1000, 80, 120, 70];
+                    const reliability = [this.calculateSystemReliability(), 80, 90, 85];
+
+                    const trace1 = {
+                        x: scenarios,
+                        y: energy,
+                        name: 'Energy Savings (%)',
+                        type: 'bar',
+                        marker: { color: '#4caf50' }
+                    };
+
+                    const trace2 = {
+                        x: scenarios,
+                        y: cost,
+                        name: 'System Cost (k$)',
+                        type: 'bar',
+                        marker: { color: '#ff9800' }
+                    };
+
+                    const trace3 = {
+                        x: scenarios,
+                        y: reliability,
+                        name: 'Reliability (%)',
+                        type: 'bar',
+                        marker: { color: '#2196f3' }
+                    };
+
+                    const layout = {
+                        title: 'Design Scenario Comparison',
+                        barmode: 'group',
+                        yaxis: { title: 'Performance Metrics' }
+                    };
+
+                    Plotly.newPlot('comparativeAnalysis', [trace1, trace2, trace3], layout);
+                },
+
+                exportAnalysisData() {
+                    this.showMessage('Analysis data exported successfully', 'success');
+                },
+
+                exportImplementationPlan() {
+                    this.showMessage('Implementation plan exported', 'success');
+                },
+                
+                updateVisualization() {
+                    // Create a simple 3D visualization of the HVAC system
+                    const data = [
+                        {
+                            type: 'mesh3d',
+                            x: [0, 1, 2, 0, 1, 2, 0, 1, 2],
+                            y: [0, 0, 0, 1, 1, 1, 2, 2, 2],
+                            z: [0, 0, 0, 0, 1, 0, 0, 0, 0],
+                            i: [0, 1, 2, 3, 4, 5, 6, 7],
+                            j: [1, 2, 3, 4, 5, 6, 7, 0],
+                            k: [2, 3, 4, 5, 6, 7, 0, 1],
+                            opacity: 0.7,
+                            color: '#006496'
+                        },
+                        {
+                            type: 'scatter3d',
+                            mode: 'lines',
+                            x: [0.5, 1.5, 2.5, 3.5],
+                            y: [1, 1, 1, 1],
+                            z: [0.5, 0.5, 0.5, 0.5],
+                            line: {
+                                width: 6,
+                                color: '#4a90c4'
+                            },
+                            name: 'Main Duct'
+                        },
+                        {
+                            type: 'scatter3d',
+                            mode: 'lines',
+                            x: [1.5, 1.5, 1.5, 1.5],
+                            y: [1, 0.5, 0, -0.5],
+                            z: [0.5, 0.5, 0.5, 0.5],
+                            line: {
+                                width: 4,
+                                color: '#4a90c4'
+                            },
+                            name: 'Branch Ducts'
+                        },
+                        {
+                            type: 'scatter3d',
+                            mode: 'markers',
+                            x: [3.5],
+                            y: [1],
+                            z: [0.5],
+                            marker: {
+                                size: 10,
+                                color: '#ff9800'
+                            },
+                            name: 'Filter Unit'
+                        }
+                    ];
+                    
+                    const layout = {
+                        title: '3D HVAC System Visualization',
+                        scene: {
+                            xaxis: { title: 'Length (m)' },
+                            yaxis: { title: 'Width (m)' },
+                            zaxis: { title: 'Height (m)' },
+                            camera: {
+                                eye: { x: 1.5, y: 1.5, z: 1.5 }
+                            }
+                        },
+                        margin: { l: 0, r: 0, b: 0, t: 50 }
+                    };
+                    
+                    Plotly.newPlot('visualization', data, layout, { responsive: true });
+                },
+                
+                rotateView() {
+                    // Rotate the 3D view
+                    const scene = document.getElementById('visualization')._fullLayout.scene;
+                    const currentEye = scene.camera.eye;
+                    
+                    // Simple rotation
+                    const newEye = {
+                        x: currentEye.x * Math.cos(0.1) - currentEye.z * Math.sin(0.1),
+                        y: currentEye.y,
+                        z: currentEye.x * Math.sin(0.1) + currentEye.z * Math.cos(0.1)
+                    };
+                    
+                    Plotly.relayout('visualization', {
+                        'scene.camera.eye': newEye
+                    });
+                },
+
+                toggleComponents() {
+                    this.showMessage('Component visibility toggled', 'info');
+                },
+                
+                resetView() {
+                    // Reset the 3D view to default
+                    Plotly.relayout('visualization', {
+                        'scene.camera.eye': { x: 1.5, y: 1.5, z: 1.5 }
+                    });
+                },
+                
+                generateReport() {
+                    const energySavings = this.calculateEnergySavings();
+                    const complianceIssues = this.checkCompliance();
+                    const cost = this.calculateCost();
+                    const climate = this.climateData[this.project.location];
+                    const roi = this.calculateROI();
+                    
+                    let report = '<div class="report-section">';
+                    report += '<h3 class="report-title">Project Overview</h3>';
+                    report += `<p><strong>Project Name:</strong> ${this.project.name}</p>`;
+                    report += `<p><strong>Location:</strong> ${this.project.location}</p>`;
+                    report += `<p><strong>Factory Area:</strong> ${this.project.area.toLocaleString()} sq.ft</p>`;
+                    report += `<p><strong>Manufacturing Processes:</strong> ${this.project.processes.join(', ')}</p>`;
+                    report += `<p><strong>Operating Hours:</strong> ${this.project.operatingHours} hours/day</p>`;
+                    report += `<p><strong>Production Capacity:</strong> ${this.project.productionCapacity} tons/day</p>`;
+                    report += '</div>';
+                    
+                    report += '<div class="report-section">';
+                    report += '<h3 class="report-title">Climate Considerations</h3>';
+                    report += `<p><strong>Temperature:</strong> ${climate.temp}°C</p>`;
+                    report += `<p><strong>Humidity:</strong> ${climate.humidity}% RH</p>`;
+                    report += `<p><strong>Recommendation:</strong> ${climate.recommendation}</p>`;
+                    report += '</div>';
+                    
+                    report += '<div class="report-section">';
+                    report += '<h3 class="report-title">System Specifications</h3>';
+                    report += `<p><strong>Duct Type:</strong> ${this.design.ductType}</p>`;
+                    report += `<p><strong>Duct Velocity:</strong> ${this.design.ductVelocity} ft/min</p>`;
+                    report += `<p><strong>Duct Layout:</strong> ${this.design.ductLayout}</p>`;
+                    report += `<p><strong>Filter System:</strong> ${this.design.filterType}</p>`;
+                    report += `<p><strong>Air-to-Cloth Ratio:</strong> ${this.design.airToCloth}</p>`;
+                    report += `<p><strong>Filter Maintenance:</strong> ${this.design.filterMaintenance}</p>`;
+                    report += `<p><strong>Pre-filters:</strong> ${this.design.includePrefilters ? 'Yes' : 'No'}</p>`;
+                    report += `<p><strong>Humidity Control:</strong> ${this.design.humidity}% RH</p>`;
+                    report += `<p><strong>Humidification System:</strong> ${this.design.humidifierType}</p>`;
+                    report += `<p><strong>Humidity Tolerance:</strong> ${this.design.humidityTolerance}</p>`;
+                    report += `<p><strong>Dehumidification:</strong> ${this.design.includeDehumidification ? 'Yes' : 'No'}</p>`;
+                    report += `<p><strong>Heat Recovery:</strong> ${this.design.heatRecovery}</p>`;
+                    report += `<p><strong>Recovery Efficiency:</strong> ${this.design.recoveryEfficiency}%</p>`;
+                    report += `<p><strong>Automation Level:</strong> ${this.design.automationLevel}</p>`;
+                    report += `<p><strong>Remote Monitoring:</strong> ${this.design.remoteMonitoring ? 'Yes' : 'No'}</p>`;
+                    report += `<p><strong>Data Logging:</strong> ${this.design.dataLogging}</p>`;
+                    report += '</div>';
+                    
+                    report += '<div class="report-section">';
+                    report += '<h3 class="report-title">Energy Analysis</h3>';
+                    report += `<p><strong>Estimated Energy Savings:</strong> ${energySavings.percentage}%</p>`;
+                    report += `<p><strong>Annual Energy Consumption:</strong> ${this.calculateAnnualEnergy().toLocaleString()} kWh</p>`;
+                    report += `<p><strong>Annual Energy Cost:</strong> $${this.calculateEnergyCost().toLocaleString()}</p>`;
+                    report += `<p><strong>Annual Cost Savings:</strong> $${this.calculateAnnualSavings().toLocaleString()}</p>`;
+                    report += `<p><strong>Carbon Footprint:</strong> ${this.calculateCarbonFootprint()} tons CO2/year</p>`;
+                    report += `<p><strong>Energy Intensity:</strong> ${this.calculateEnergyIntensity()} kWh/sq.ft</p>`;
+                    report += '</div>';
+                    
+                    report += '<div class="report-section">';
+                    report += '<h3 class="report-title">Financial Analysis</h3>';
+                    report += `<p><strong>Estimated System Cost:</strong> $${cost.toLocaleString()}</p>`;
+                    report += `<p><strong>Total Investment:</strong> $${this.calculateTotalInvestment().toLocaleString()}</p>`;
+                    report += `<p><strong>ROI Period:</strong> ${roi.years} years</p>`;
+                    report += `<p><strong>NPV (10 years):</strong> $${this.calculateNPV().toLocaleString()}</p>`;
+                    report += '</div>';
+                    
+                    report += '<div class="report-section">';
+                    report += '<h3 class="report-title">Performance Metrics</h3>';
+                    report += `<p><strong>Airflow Efficiency:</strong> ${this.calculateAirflowEfficiency()}%</p>`;
+                    report += `<p><strong>Filtration Efficiency:</strong> ${this.calculateFiltrationEfficiency()}%</p>`;
+                    report += `<p><strong>Humidity Control:</strong> ${this.calculateHumidityControl()}%</p>`;
+                    report += `<p><strong>System Reliability:</strong> ${this.calculateSystemReliability()}%</p>`;
+                    report += '</div>';
+                    
+                    report += '<div class="report-section">';
+                    report += '<h3 class="report-title">Compliance Status</h3>';
+                    if (complianceIssues.length > 0) {
+                        report += '<ul class="compliance-list">';
+                        complianceIssues.forEach(issue => {
+                            report += `<li class="compliance-item ${issue.severity}">${issue.message}</li>`;
+                        });
+                        report += '</ul>';
+                    } else {
+                        report += '<p>All systems compliant with industry standards (ASHRAE, NFPA)</p>';
+                    }
+                    report += '</div>';
+                    
+                    report += '<div class="report-section">';
+                    report += '<h3 class="report-title">Implementation Timeline</h3>';
+                    report += `<p><strong>Total Duration:</strong> ${this.implementationTimeline.phase1.duration + this.implementationTimeline.phase2.duration + this.implementationTimeline.phase3.duration + this.implementationTimeline.phase4.duration} weeks</p>`;
+                    report += `<p><strong>Phase 1 (Planning):</strong> ${this.implementationTimeline.phase1.duration} weeks</p>`;
+                    report += `<p><strong>Phase 2 (Procurement):</strong> ${this.implementationTimeline.phase2.duration} weeks</p>`;
+                    report += `<p><strong>Phase 3 (Installation):</strong> ${this.implementationTimeline.phase3.duration} weeks</p>`;
+                    report += `<p><strong>Phase 4 (Commissioning):</strong> ${this.implementationTimeline.phase4.duration} weeks</p>`;
+                    report += '</div>';
+                    
+                    report += '<div class="report-section">';
+                    report += '<h3 class="report-title">Recommendations</h3>';
+                    report += '<ul class="compliance-list">';
+                    
+                    // Climate-based recommendations
+                    if (climate.humidity > 70) {
+                        report += '<li class="compliance-item">Implement desiccant dehumidification for high humidity climate</li>';
+                    }
+                    
+                    // Process-based recommendations
+                    if (this.project.processes.includes('dyeing') && !this.design.filterType.includes('HEPA')) {
+                        report += '<li class="compliance-item">Upgrade to HEPA filtration for dyeing areas to meet safety standards</li>';
+                    }
+                    
+                    // Velocity-based recommendations
+                    if (this.design.ductVelocity > 2000) {
+                        report += '<li class="compliance-item">Consider reducing duct velocity to lower energy consumption and noise</li>';
+                    }
+
+                    // Operating hours recommendations
+                    if (this.project.operatingHours > 12) {
+                        report += '<li class="compliance-item">Implement predictive maintenance for continuous operation</li>';
+                    }
+                    
+                    report += '</ul>';
+                    report += '</div>';
+                    
+                    this.reportContent = report;
+                },
+                
+                saveProject() {
+                    // In a real app, this would save to a backend
+                    this.showMessage('Project saved successfully', 'success');
+                },
+                
+                saveDesign() {
+                    // In a real app, this would save to a backend
+                    this.showMessage('Design saved successfully', 'success');
+                },
+                
+                exportPDF() {
+                    // In a real app, this would generate a PDF
+                    this.showMessage('PDF export functionality would be implemented here', 'info');
+                },
+                
+                exportExcel() {
+                    // In a real app, this would generate an Excel file
+                    this.showMessage('Excel export functionality would be implemented here', 'info');
+                },
+
+                shareReport() {
+                    this.showMessage('Report sharing functionality would be implemented here', 'info');
+                },
+
+                handleFileUpload(event) {
+                    const file = event.target.files[0];
+                    if (file) {
+                        this.showMessage(`File "${file.name}" uploaded successfully`, 'success');
+                        // In a real app, process the file here
+                    }
+                },
+
+                processManualData() {
+                    if (this.manualDataInput.trim()) {
+                        this.showMessage('Manual data processed successfully', 'success');
+                        // In a real app, parse and process the data here
+                    } else {
+                        this.showMessage('Please enter data to process', 'warning');
+                    }
+                },
+                
+                loadSampleData() {
+                    this.project.name = 'Sample Textile Factory';
+                    this.project.location = 'Rasht, Gilan';
+                    this.project.area = 75000;
+                    this.project.processes = ['weaving', 'dyeing', 'finishing'];
+                    this.project.operatingHours = 18;
+                    this.project.energyCost = 0.15;
+                    this.project.productionCapacity = 75;
+                    this.project.specialRequirements = 'High precision humidity control required for specialty fabrics';
+                    
+                    this.design.ductType = 'Rigid Metal';
+                    this.design.ductVelocity = 1800;
+                    this.design.ductLayout = 'complex';
+                    this.design.filterType = 'Centigrade HEPA';
+                    this.design.airToCloth = 2.2;
+                    this.design.filterMaintenance = 'monthly';
+                    this.design.includePrefilters = true;
+                    this.design.humidity = 48;
+                    this.design.humidifierType = 'Luwa Air Washer';
+                    this.design.humidityTolerance = 'tight';
+                    this.design.includeDehumidification = true;
+                    this.design.heatRecovery = 'rotary';
+                    this.design.recoveryEfficiency = 70;
+                    this.design.energyMonitoring = true;
+                    this.design.automationLevel = 'smart';
+                    this.design.remoteMonitoring = true;
+                    this.design.dataLogging = 'hourly';
+                    
+                    this.analyzeDesign();
+                    this.showMessage('Sample data loaded successfully', 'success');
+                },
+                
+                showMessage(message, type = 'info') {
+                    alert(`${type.toUpperCase()}: ${message}`);
+                }
+            };
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,1890 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Air Washer Pond System</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0c2461, #1e3799);
+            color: white;
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .header {
+            padding: 12px 15px;
+            background: rgba(0, 0, 0, 0.85);
+            border-bottom: 2px solid #3498db;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        
+        .title-container {
+            flex: 1;
+            min-width: 250px;
+        }
+        
+        .title {
+            font-size: clamp(18px, 3vw, 24px);
+            font-weight: bold;
+            color: #3498db;
+            margin-bottom: 5px;
+        }
+        
+        .subtitle {
+            font-size: clamp(12px, 2vw, 14px);
+            color: #95a5a6;
+        }
+        
+        .mobile-warning {
+            background: #e74c3c;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            display: none;
+            margin-top: 10px;
+        }
+        
+        @media (max-width: 768px) {
+            .mobile-warning {
+                display: block;
+            }
+        }
+        
+        .container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+        
+        .sidebar {
+            width: 300px;
+            background: rgba(0, 0, 0, 0.85);
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid #3498db;
+            transition: transform 0.3s ease;
+        }
+        
+        @media (max-width: 1024px) {
+            .sidebar {
+                position: absolute;
+                left: 0;
+                top: 0;
+                height: 100%;
+                z-index: 1000;
+                transform: translateX(-100%);
+            }
+            
+            .sidebar.open {
+                transform: translateX(0);
+            }
+        }
+        
+        .sidebar-header {
+            padding: 15px;
+            background: rgba(52, 152, 219, 0.2);
+            border-bottom: 1px solid #3498db;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .sidebar-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 15px;
+        }
+        
+        .close-sidebar {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 24px;
+            cursor: pointer;
+            display: none;
+        }
+        
+        @media (max-width: 1024px) {
+            .close-sidebar {
+                display: block;
+            }
+        }
+        
+        .toggle-sidebar {
+            position: absolute;
+            left: 10px;
+            top: 70px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            border: none;
+            padding: 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            z-index: 100;
+            display: none;
+        }
+        
+        @media (max-width: 1024px) {
+            .toggle-sidebar {
+                display: block;
+            }
+        }
+        
+        .section-title {
+            color: #3498db;
+            margin: 20px 0 10px;
+            padding-bottom: 5px;
+            border-bottom: 1px solid #3498db;
+            font-size: clamp(14px, 2vw, 16px);
+        }
+        
+        .legend-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            font-size: clamp(11px, 1.5vw, 13px);
+            padding: 4px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 3px;
+        }
+        
+        .color-box {
+            width: 16px;
+            height: 16px;
+            margin-right: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 2px;
+            flex-shrink: 0;
+        }
+        
+        .viewer-container {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        #canvas-container {
+            width: 100%;
+            height: 100%;
+        }
+        
+        .performance-warning {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(231, 76, 60, 0.9);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            display: none;
+            max-width: 200px;
+        }
+        
+        .controls {
+            position: absolute;
+            bottom: 15px;
+            left: 15px;
+            right: 15px;
+            background: rgba(0, 0, 0, 0.85);
+            padding: 15px;
+            border-radius: 10px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            max-width: 900px;
+            backdrop-filter: blur(5px);
+        }
+        
+        @media (max-width: 768px) {
+            .controls {
+                grid-template-columns: 1fr;
+                gap: 10px;
+            }
+        }
+        
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .control-group h4 {
+            color: #3498db;
+            font-size: 14px;
+            margin-bottom: 5px;
+        }
+        
+        button {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+            font-size: clamp(12px, 1.5vw, 14px);
+            text-align: center;
+        }
+        
+        button:hover {
+            background: #2980b9;
+            transform: translateY(-2px);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        .zone1-btn {
+            background: #2ecc71;
+        }
+        
+        .zone1-btn:hover {
+            background: #27ae60;
+        }
+        
+        .zone2-btn {
+            background: #9b59b6;
+        }
+        
+        .zone2-btn:hover {
+            background: #8e44ad;
+        }
+        
+        .reset-btn {
+            background: #e74c3c;
+        }
+        
+        .reset-btn:hover {
+            background: #c0392b;
+        }
+        
+        .toggle-control {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(52, 152, 219, 0.2);
+            padding: 10px;
+            border-radius: 5px;
+        }
+        
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 24px;
+            flex-shrink: 0;
+        }
+        
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #7f8c8d;
+            transition: .4s;
+            border-radius: 24px;
+        }
+        
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        
+        input:checked + .slider {
+            background-color: #2ecc71;
+        }
+        
+        input:checked + .slider:before {
+            transform: translateX(26px);
+        }
+        
+        .stats-panel {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: rgba(0, 0, 0, 0.85);
+            padding: 15px;
+            border-radius: 10px;
+            font-size: clamp(11px, 1.5vw, 13px);
+            max-width: 250px;
+            backdrop-filter: blur(5px);
+        }
+        
+        .stats-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 5px 0;
+            padding-bottom: 5px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .stats-value {
+            color: #f1c40f;
+            font-weight: bold;
+        }
+        
+        .airflow-indicator {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            background: rgba(0, 0, 0, 0.85);
+            padding: 15px;
+            border-radius: 10px;
+            font-size: clamp(11px, 1.5vw, 13px);
+            width: 200px;
+            backdrop-filter: blur(5px);
+        }
+        
+        .airflow-visual {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 10px 0;
+        }
+        
+        .airflow-arrow {
+            font-size: 32px;
+            color: #3498db;
+            animation: airflow 2s infinite alternate;
+        }
+        
+        @keyframes airflow {
+            from { transform: translateX(-5px); }
+            to { transform: translateX(5px); }
+        }
+        
+        .zone-indicator {
+            position: absolute;
+            bottom: 120px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.85);
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-size: clamp(12px, 2vw, 14px);
+            backdrop-filter: blur(5px);
+            border: 2px solid #3498db;
+        }
+        
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #0c2461;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10000;
+            transition: opacity 0.5s ease;
+        }
+        
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: #3498db;
+            animation: spin 1s ease-in-out infinite;
+            margin-bottom: 20px;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .loading-text {
+            font-size: 18px;
+            color: white;
+        }
+        
+        .zone-selector {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        .zone-btn {
+            flex: 1;
+            padding: 8px;
+            font-size: 12px;
+        }
+        
+        .detailed-view {
+            margin-top: 15px;
+            padding: 10px;
+            background: rgba(52, 152, 219, 0.1);
+            border-radius: 5px;
+        }
+        
+        .detail-item {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            margin: 3px 0;
+        }
+        
+        .detail-label {
+            color: #95a5a6;
+        }
+        
+        .detail-value {
+            color: #f1c40f;
+            font-weight: bold;
+        }
+        
+        .mobile-controls {
+            display: none;
+            position: absolute;
+            bottom: 200px;
+            right: 15px;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 10;
+        }
+        
+        @media (max-width: 768px) {
+            .mobile-controls {
+                display: flex;
+            }
+            
+            .mobile-btn {
+                width: 40px;
+                height: 40px;
+                border-radius: 50%;
+                background: rgba(52, 152, 219, 0.9);
+                color: white;
+                border: none;
+                font-size: 20px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                cursor: pointer;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">Loading Advanced Air Washer System...</div>
+    </div>
+    
+    <div class="header">
+        <div class="title-container">
+            <div class="title">Advanced Air Washer Pond System</div>
+            <div class="subtitle">Dual Zone with Complete Air & Water Circulation</div>
+            <div class="mobile-warning">
+                For best experience on mobile, use landscape mode and avoid high particle counts
+            </div>
+        </div>
+    </div>
+    
+    <div class="container">
+        <button class="toggle-sidebar" id="toggleSidebar">☰ Info</button>
+        
+        <div class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <h3>System Information</h3>
+                <button class="close-sidebar" id="closeSidebar">×</button>
+            </div>
+            <div class="sidebar-content">
+                <h4 class="section-title">System Overview</h4>
+                <p>Advanced dual-zone air washer pond with complete structural, water spray, and air handling systems.</p>
+                
+                <h4 class="section-title">Component Legend</h4>
+                <div class="legend-grid">
+                    <div class="legend-item"><div class="color-box" style="background-color: #3498db;"></div>Walls</div>
+                    <div class="legend-item"><div class="color-box" style="background-color: #2ecc71;"></div>Zone 1 Blocks</div>
+                    <div class="legend-item"><div class="color-box" style="background-color: #27ae60;"></div>Zone 2 Blocks</div>
+                    <div class="legend-item"><div class="color-box" style="background-color: #e74c3c;"></div>Riser Blocks</div>
+                    <div class="legend-item"><div class="color-box" style="background-color: #f1c40f;"></div>Baffle Blocks</div>
+                    <div class="legend-item"><div class="color-box" style="background-color: #9b59b6;"></div>Roof</div>
+                    <div class="legend-item"><div class="color-box" style="background-color: #e67e22;"></div>Collector Pipes</div>
+                    <div class="legend-item"><div class="color-box" style="background-color: #1abc9c;"></div>Riser Pipes</div>
+                    <div class="legend-item"><div class="color-box" style="background-color: #ffffff;"></div>Nozzles</div>
+                    <div class="legend-item"><div class="color-box" style="background-color: #00ffff;"></div>Water Particles</div>
+                    <div class="legend-item"><div class="color-box" style="background-color: #0066cc;"></div>Pond Water</div>
+                    <div class="legend-item"><div class="color-box" style="background-color: #a0a0a0;"></div>Eliminator Blades</div>
+                    <div class="legend-item"><div class="color-box" style="background-color: #8B4513;"></div>Baffle Mesh</div>
+                    <div class="legend-item"><div class="color-box" style="background-color: #95a5a6;"></div>Input Duct</div>
+                    <div class="legend-item"><div class="color-box" style="background-color: #7f8c8d;"></div>Output Duct</div>
+                    <div class="legend-item"><div class="color-box" style="background-color: #e74c3c;"></div>Exhaust Fan</div>
+                    <div class="legend-item"><div class="color-box" style="background-color: #34495e;"></div>Dampers</div>
+                </div>
+                
+                <div class="zone-selector">
+                    <button class="zone-btn zone1-btn" onclick="focusZone(1)">Focus Zone 1</button>
+                    <button class="zone-btn zone2-btn" onclick="focusZone(2)">Focus Zone 2</button>
+                </div>
+                
+                <h4 class="section-title">Zone Details</h4>
+                <div class="detailed-view">
+                    <div class="detail-item">
+                        <span class="detail-label">Zone 1 Position:</span>
+                        <span class="detail-value" id="zone1Pos">Calculating...</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Zone 2 Position:</span>
+                        <span class="detail-value" id="zone2Pos">Calculating...</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Distance Between Zones:</span>
+                        <span class="detail-value" id="zoneDistance">50 cm</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Active Nozzles:</span>
+                        <span class="detail-value" id="totalNozzles">0</span>
+                    </div>
+                    <div class="detail-item">
+                        <span class="detail-label">Mesh Openings:</span>
+                        <span class="detail-value" id="totalMeshOpenings">0</span>
+                    </div>
+                </div>
+                
+                <h4 class="section-title">Performance Tips</h4>
+                <ul style="font-size: 12px; padding-left: 20px;">
+                    <li>Reduce particle count for better performance on mobile</li>
+                    <li>Use Zone Focus to reduce rendering complexity</li>
+                    <li>Toggle water/air systems independently to reduce load</li>
+                    <li>On mobile, use two-finger pinch to zoom</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="viewer-container">
+            <div id="canvas-container"></div>
+            
+            <div class="performance-warning" id="performanceWarning">
+                High particle count may affect performance on mobile devices
+            </div>
+            
+            <div class="airflow-indicator">
+                <div>Air Flow System</div>
+                <div class="airflow-visual">
+                    <div class="airflow-arrow">→</div>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Direction:</span>
+                    <span class="detail-value" id="airflowDirection">Input→Output</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Flow Rate:</span>
+                    <span class="detail-value" id="flowRate">Medium</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Fan Speed:</span>
+                    <span class="detail-value" id="fanSpeedDisplay">50%</span>
+                </div>
+            </div>
+            
+            <div class="stats-panel">
+                <div class="stats-row">
+                    <span>Water Particles:</span>
+                    <span class="stats-value" id="particleCount">0</span>
+                </div>
+                <div class="stats-row">
+                    <span>Air Particles:</span>
+                    <span class="stats-value" id="airParticleCount">0</span>
+                </div>
+                <div class="stats-row">
+                    <span>Water Flow:</span>
+                    <span class="stats-value" id="waterFlowStatus">Off</span>
+                </div>
+                <div class="stats-row">
+                    <span>Air Flow:</span>
+                    <span class="stats-value" id="airFlowStatus">On</span>
+                </div>
+                <div class="stats-row">
+                    <span>Zone 1 Active:</span>
+                    <span class="stats-value" id="zone1Status">On</span>
+                </div>
+                <div class="stats-row">
+                    <span>Zone 2 Active:</span>
+                    <span class="stats-value" id="zone2Status">On</span>
+                </div>
+                <div class="stats-row">
+                    <span>FPS:</span>
+                    <span class="stats-value" id="fpsCounter">60</span>
+                </div>
+            </div>
+            
+            <div class="zone-indicator" id="zoneIndicator">
+                Dual Zone System Active
+            </div>
+            
+            <div class="controls">
+                <div class="control-group">
+                    <h4>View Controls</h4>
+                    <button onclick="changeView('top')">Top View</button>
+                    <button onclick="changeView('front')">Front View</button>
+                    <button onclick="changeView('side')">Side View</button>
+                    <button onclick="changeView('overview')">Overview</button>
+                    <button class="reset-btn" onclick="resetCamera()">Reset View</button>
+                </div>
+                
+                <div class="control-group">
+                    <h4>System Controls</h4>
+                    <div class="toggle-control">
+                        <label class="switch">
+                            <input type="checkbox" id="waterToggle" checked>
+                            <span class="slider"></span>
+                        </label>
+                        <span>Water System</span>
+                    </div>
+                    <div class="toggle-control">
+                        <label class="switch">
+                            <input type="checkbox" id="airflowToggle" checked>
+                            <span class="slider"></span>
+                        </label>
+                        <span>Air Flow System</span>
+                    </div>
+                    <div class="toggle-control">
+                        <label class="switch">
+                            <input type="checkbox" id="zone1Toggle" checked>
+                            <span class="slider"></span>
+                        </label>
+                        <span>Zone 1</span>
+                    </div>
+                    <div class="toggle-control">
+                        <label class="switch">
+                            <input type="checkbox" id="zone2Toggle" checked>
+                            <span class="slider"></span>
+                        </label>
+                        <span>Zone 2</span>
+                    </div>
+                </div>
+                
+                <div class="control-group">
+                    <h4>Performance</h4>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <label style="font-size: 12px;">Particles:</label>
+                        <input type="range" id="particleLimit" min="100" max="3000" value="1500" step="100" style="flex: 1;">
+                        <span style="font-size: 12px; min-width: 40px;" id="limitValue">1500</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <label style="font-size: 12px;">Fan Speed:</label>
+                        <input type="range" id="fanSpeedSlider" min="0" max="100" value="50" step="5" style="flex: 1;">
+                        <span style="font-size: 12px; min-width: 40px;" id="fanSpeedValue">50%</span>
+                    </div>
+                    <button onclick="optimizePerformance()">Optimize Performance</button>
+                </div>
+            </div>
+            
+            <div class="mobile-controls">
+                <button class="mobile-btn" onclick="changeView('top')">T</button>
+                <button class="mobile-btn" onclick="changeView('front')">F</button>
+                <button class="mobile-btn" onclick="changeView('side')">S</button>
+                <button class="mobile-btn" onclick="resetCamera()">R</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Enhanced configuration for dual zone system
+        const SYSTEM_CONFIG = {
+            // Performance settings
+            performanceMode: 'balanced', // 'low', 'balanced', 'high'
+            maxParticles: 1500,
+            maxAirParticles: 300,
+            
+            // Room dimensions (cm)
+            room: {
+                width: 530,
+                length: 650, // Extended for zone 2
+                height: 370,
+                wallThickness: 40,
+                frontHeight: 60,
+                frontThickness: 35
+            },
+            
+            // Zone 1 configuration
+            zone1: {
+                id: 1,
+                color: 0x2ecc71,
+                eliminatorPosZ: 0,
+                riserPosZ: 0,
+                bafflePosZ: 0,
+                active: true
+            },
+            
+            // Zone 2 configuration (50cm behind zone 1)
+            zone2: {
+                id: 2,
+                color: 0x27ae60,
+                offsetZ: 50, // cm behind zone 1
+                eliminatorPosZ: 0,
+                riserPosZ: 0,
+                bafflePosZ: 0,
+                active: true
+            },
+            
+            // Common block dimensions
+            eliminatorBlocks: {
+                height: 30,
+                width: 35,
+                length: 40,
+                count: 5
+            },
+            
+            riserBlocks: {
+                height: 35,
+                width: 25,
+                length: 60,
+                count: 6
+            },
+            
+            baffleBlocks: {
+                height: 20,
+                width: 20,
+                length: 20,
+                count: 5
+            },
+            
+            // Utility
+            cmToM: 0.01
+        };
+
+        // Calculate zone positions
+        SYSTEM_CONFIG.zone1.eliminatorPosZ = SYSTEM_CONFIG.room.length/2 - SYSTEM_CONFIG.room.frontThickness - 50;
+        SYSTEM_CONFIG.zone1.riserPosZ = SYSTEM_CONFIG.zone1.eliminatorPosZ - 270;
+        SYSTEM_CONFIG.zone1.bafflePosZ = -SYSTEM_CONFIG.room.length/2 + SYSTEM_CONFIG.room.frontThickness + 30;
+        
+        // Zone 2 is 50cm behind zone 1
+        SYSTEM_CONFIG.zone2.eliminatorPosZ = SYSTEM_CONFIG.zone1.eliminatorPosZ + SYSTEM_CONFIG.zone2.offsetZ;
+        SYSTEM_CONFIG.zone2.riserPosZ = SYSTEM_CONFIG.zone1.riserPosZ + SYSTEM_CONFIG.zone2.offsetZ;
+        SYSTEM_CONFIG.zone2.bafflePosZ = SYSTEM_CONFIG.zone1.bafflePosZ + SYSTEM_CONFIG.zone2.offsetZ;
+
+        // Initialize Three.js with performance considerations
+        let scene, camera, renderer, controls;
+        let clock = new THREE.Clock();
+        let fps = 60;
+        let frameCount = 0;
+        let lastTime = performance.now();
+        
+        function initThreeJS() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0c1c3d);
+            scene.fog = new THREE.Fog(0x0c1c3d, 10, 40);
+            
+            // Set up camera based on device
+            const aspect = window.innerWidth / window.innerHeight;
+            camera = new THREE.PerspectiveCamera(60, aspect, 0.1, 2000);
+            
+            // Position camera based on screen size
+            if (window.innerWidth < 768) {
+                camera.position.set(0, SYSTEM_CONFIG.room.height * SYSTEM_CONFIG.cmToM * 0.8, 
+                                  SYSTEM_CONFIG.room.length * SYSTEM_CONFIG.cmToM * 2);
+            } else {
+                camera.position.set(0, SYSTEM_CONFIG.room.height * SYSTEM_CONFIG.cmToM * 0.6, 
+                                  SYSTEM_CONFIG.room.length * SYSTEM_CONFIG.cmToM * 1.5);
+            }
+            
+            // Create renderer with device pixel ratio consideration
+            renderer = new THREE.WebGLRenderer({ 
+                antialias: window.innerWidth > 768,
+                alpha: false,
+                powerPreference: "high-performance"
+            });
+            
+            const pixelRatio = Math.min(window.devicePixelRatio, 2);
+            renderer.setPixelRatio(pixelRatio);
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = window.innerWidth > 768;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            
+            document.getElementById('canvas-container').appendChild(renderer.domElement);
+            
+            // Initialize OrbitControls with mobile considerations
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.screenSpacePanning = false;
+            controls.maxPolarAngle = Math.PI;
+            controls.minDistance = 1;
+            controls.maxDistance = 1000;
+            
+            // Adjust controls for mobile
+            if (window.innerWidth < 768) {
+                controls.enablePan = false;
+                controls.enableZoom = true;
+                controls.touches = {
+                    ONE: THREE.TOUCH.ROTATE,
+                    TWO: THREE.TOUCH.DOLLY_PAN
+                };
+            }
+        }
+
+        // Enhanced material system with LOD support
+        const MATERIALS = {
+            // Basic materials
+            wall: new THREE.MeshPhongMaterial({
+                color: 0x3498db,
+                transparent: true,
+                opacity: 0.7,
+                shininess: 30
+            }),
+            
+            zone1Block: new THREE.MeshPhongMaterial({
+                color: SYSTEM_CONFIG.zone1.color,
+                shininess: 100,
+                specular: 0x222222
+            }),
+            
+            zone2Block: new THREE.MeshPhongMaterial({
+                color: SYSTEM_CONFIG.zone2.color,
+                shininess: 100,
+                specular: 0x222222
+            }),
+            
+            riserBlock: new THREE.MeshPhongMaterial({
+                color: 0xe74c3c,
+                shininess: 100,
+                specular: 0x222222
+            }),
+            
+            baffleBlock: new THREE.MeshPhongMaterial({
+                color: 0xf1c40f,
+                shininess: 100,
+                specular: 0x222222
+            }),
+            
+            roof: new THREE.MeshPhongMaterial({
+                color: 0x9b59b6,
+                transparent: true,
+                opacity: 0.6,
+                shininess: 20
+            }),
+            
+            collector: new THREE.MeshPhongMaterial({
+                color: 0xe67e22,
+                shininess: 90,
+                specular: 0x222222
+            }),
+            
+            riserPipe: new THREE.MeshPhongMaterial({
+                color: 0x1abc9c,
+                shininess: 80,
+                specular: 0x222222
+            }),
+            
+            nozzle: new THREE.MeshPhongMaterial({
+                color: 0xffffff,
+                emissive: 0x444444,
+                shininess: 150
+            }),
+            
+            waterParticle: new THREE.MeshPhongMaterial({
+                color: 0x00ffff,
+                transparent: true,
+                opacity: 0.7,
+                emissive: 0x0088ff,
+                shininess: 100
+            }),
+            
+            pond: new THREE.MeshPhongMaterial({
+                color: 0x0066cc,
+                transparent: true,
+                opacity: 0.7,
+                side: THREE.DoubleSide,
+                shininess: 50
+            }),
+            
+            blade: new THREE.MeshPhongMaterial({
+                color: 0xa0a0a0,
+                transparent: true,
+                opacity: 0.8,
+                shininess: 50
+            }),
+            
+            mesh: new THREE.MeshPhongMaterial({
+                color: 0x8B4513,
+                transparent: true,
+                opacity: 0.7,
+                shininess: 40
+            }),
+            
+            inputDuct: new THREE.MeshPhongMaterial({
+                color: 0x95a5a6,
+                transparent: true,
+                opacity: 0.8,
+                shininess: 30
+            }),
+            
+            outputDuct: new THREE.MeshPhongMaterial({
+                color: 0x7f8c8d,
+                transparent: true,
+                opacity: 0.8,
+                shininess: 30
+            }),
+            
+            fan: new THREE.MeshPhongMaterial({
+                color: 0xe74c3c,
+                shininess: 90,
+                specular: 0x222222
+            }),
+            
+            damper: new THREE.MeshPhongMaterial({
+                color: 0x34495e,
+                shininess: 80,
+                specular: 0x222222
+            })
+        };
+
+        // Geometry creation utilities
+        function createBox(width, height, length, material, x, y, z) {
+            const geometry = new THREE.BoxGeometry(
+                width * SYSTEM_CONFIG.cmToM, 
+                height * SYSTEM_CONFIG.cmToM, 
+                length * SYSTEM_CONFIG.cmToM
+            );
+            const mesh = new THREE.Mesh(geometry, material);
+            mesh.position.set(
+                x * SYSTEM_CONFIG.cmToM, 
+                (y + height/2) * SYSTEM_CONFIG.cmToM,
+                z * SYSTEM_CONFIG.cmToM
+            );
+            return mesh;
+        }
+
+        function createCylinder(radius, height, material, x, y, z, rotation) {
+            const segments = window.innerWidth < 768 ? 8 : 16;
+            const geometry = new THREE.CylinderGeometry(
+                radius * SYSTEM_CONFIG.cmToM,
+                radius * SYSTEM_CONFIG.cmToM,
+                height * SYSTEM_CONFIG.cmToM,
+                segments
+            );
+            const mesh = new THREE.Mesh(geometry, material);
+            mesh.position.set(x * SYSTEM_CONFIG.cmToM, y * SYSTEM_CONFIG.cmToM, z * SYSTEM_CONFIG.cmToM);
+            if (rotation) {
+                mesh.rotation[rotation.axis] = rotation.angle;
+            }
+            return mesh;
+        }
+
+        // Enhanced lighting system
+        function setupLighting() {
+            // Ambient light
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambientLight);
+            
+            // Main directional light
+            const mainLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            mainLight.position.set(10, 20, 15);
+            mainLight.castShadow = window.innerWidth > 768;
+            if (window.innerWidth > 768) {
+                mainLight.shadow.mapSize.width = 2048;
+                mainLight.shadow.mapSize.height = 2048;
+                mainLight.shadow.camera.near = 0.5;
+                mainLight.shadow.camera.far = 500;
+                mainLight.shadow.camera.left = -100;
+                mainLight.shadow.camera.right = 100;
+                mainLight.shadow.camera.top = 100;
+                mainLight.shadow.camera.bottom = -100;
+            }
+            scene.add(mainLight);
+            
+            // Fill light
+            const fillLight = new THREE.DirectionalLight(0xffffff, 0.3);
+            fillLight.position.set(-10, 10, -15);
+            scene.add(fillLight);
+            
+            // Rim light
+            const rimLight = new THREE.DirectionalLight(0xffffff, 0.4);
+            rimLight.position.set(0, 5, -20);
+            scene.add(rimLight);
+        }
+
+        // Zone creation system
+        class ZoneSystem {
+            constructor(zoneConfig) {
+                this.config = zoneConfig;
+                this.group = new THREE.Group();
+                this.nozzles = new THREE.Group();
+                this.nozzles.name = `zone${zoneConfig.id}_nozzles`;
+                this.active = zoneConfig.active;
+                this.totalNozzles = 0;
+            }
+            
+            createEliminatorBlocks() {
+                const blocks = new THREE.Group();
+                const space = (SYSTEM_CONFIG.room.width - SYSTEM_CONFIG.eliminatorBlocks.width * SYSTEM_CONFIG.eliminatorBlocks.count) / 
+                              (SYSTEM_CONFIG.eliminatorBlocks.count + 1);
+                
+                for (let i = 0; i < SYSTEM_CONFIG.eliminatorBlocks.count; i++) {
+                    const x = -SYSTEM_CONFIG.room.width/2 + space * (i+1) + SYSTEM_CONFIG.eliminatorBlocks.width * (i + 0.5);
+                    const block = createBox(
+                        SYSTEM_CONFIG.eliminatorBlocks.width,
+                        SYSTEM_CONFIG.eliminatorBlocks.height,
+                        SYSTEM_CONFIG.eliminatorBlocks.length,
+                        this.config.id === 1 ? MATERIALS.zone1Block : MATERIALS.zone2Block,
+                        x,
+                        0,
+                        this.config.eliminatorPosZ
+                    );
+                    block.userData = { zone: this.config.id, type: 'eliminator' };
+                    blocks.add(block);
+                }
+                
+                this.group.add(blocks);
+                return blocks;
+            }
+            
+            createRiserBlocks() {
+                const blocks = new THREE.Group();
+                const space = (SYSTEM_CONFIG.room.width - SYSTEM_CONFIG.riserBlocks.width * SYSTEM_CONFIG.riserBlocks.count) / 
+                              (SYSTEM_CONFIG.riserBlocks.count + 1);
+                
+                for (let i = 0; i < SYSTEM_CONFIG.riserBlocks.count; i++) {
+                    const x = -SYSTEM_CONFIG.room.width/2 + space * (i+1) + SYSTEM_CONFIG.riserBlocks.width * (i + 0.5);
+                    const block = createBox(
+                        SYSTEM_CONFIG.riserBlocks.width,
+                        SYSTEM_CONFIG.riserBlocks.height,
+                        SYSTEM_CONFIG.riserBlocks.length,
+                        MATERIALS.riserBlock,
+                        x,
+                        0,
+                        this.config.riserPosZ
+                    );
+                    block.userData = { zone: this.config.id, type: 'riser' };
+                    blocks.add(block);
+                }
+                
+                this.group.add(blocks);
+                return blocks;
+            }
+            
+            createBaffleBlocks() {
+                const blocks = new THREE.Group();
+                const space = (SYSTEM_CONFIG.room.width - SYSTEM_CONFIG.baffleBlocks.width * SYSTEM_CONFIG.baffleBlocks.count) / 
+                              (SYSTEM_CONFIG.baffleBlocks.count + 1);
+                
+                for (let i = 0; i < SYSTEM_CONFIG.baffleBlocks.count; i++) {
+                    const x = -SYSTEM_CONFIG.room.width/2 + space * (i+1) + SYSTEM_CONFIG.baffleBlocks.width * (i + 0.5);
+                    const block = createBox(
+                        SYSTEM_CONFIG.baffleBlocks.width,
+                        SYSTEM_CONFIG.baffleBlocks.height,
+                        SYSTEM_CONFIG.baffleBlocks.length,
+                        MATERIALS.baffleBlock,
+                        x,
+                        0,
+                        this.config.bafflePosZ
+                    );
+                    block.userData = { zone: this.config.id, type: 'baffle' };
+                    blocks.add(block);
+                }
+                
+                this.group.add(blocks);
+                return blocks;
+            }
+            
+            createCollectorPipe() {
+                const radius = 4 * 2.54 / 2;
+                const collector = createCylinder(
+                    radius,
+                    SYSTEM_CONFIG.room.width,
+                    MATERIALS.collector,
+                    0,
+                    SYSTEM_CONFIG.riserBlocks.height + radius,
+                    this.config.riserPosZ,
+                    { axis: 'z', angle: Math.PI/2 }
+                );
+                collector.userData = { zone: this.config.id, type: 'collector' };
+                this.group.add(collector);
+                return collector;
+            }
+            
+            createRiserPipes(collector) {
+                const riserRadius = 1 * 2.54 / 2;
+                const nozzleRadius = 0.5;
+                const riserHeight = SYSTEM_CONFIG.room.height - collector.position.y / SYSTEM_CONFIG.cmToM - riserRadius;
+                const spacing = 30.4;
+                
+                const risers = new THREE.Group();
+                const riserCount = Math.floor(SYSTEM_CONFIG.room.width / spacing);
+                const startX = -SYSTEM_CONFIG.room.width/2 + spacing/2;
+                
+                for (let i = 0; i < riserCount; i++) {
+                    const x = startX + i * spacing;
+                    
+                    // Riser pipe
+                    const riser = createCylinder(
+                        riserRadius,
+                        riserHeight,
+                        MATERIALS.riserPipe,
+                        x,
+                        collector.position.y / SYSTEM_CONFIG.cmToM + riserHeight/2,
+                        this.config.riserPosZ,
+                        null
+                    );
+                    riser.userData = { zone: this.config.id, type: 'riserPipe' };
+                    risers.add(riser);
+                    
+                    // Nozzles
+                    const nozzleSpacing = 7.6;
+                    const nozzleCount = Math.floor(riserHeight / nozzleSpacing);
+                    
+                    for (let j = 0; j < nozzleCount; j++) {
+                        const y = collector.position.y / SYSTEM_CONFIG.cmToM + j * nozzleSpacing;
+                        const nozzle = createCylinder(
+                            nozzleRadius,
+                            5,
+                            MATERIALS.nozzle,
+                            x,
+                            y,
+                            this.config.riserPosZ,
+                            null
+                        );
+                        
+                        const side = j % 2 === 0 ? -1 : 1;
+                        nozzle.position.x += side * (riserRadius + 2.5) * SYSTEM_CONFIG.cmToM;
+                        nozzle.userData = { 
+                            zone: this.config.id, 
+                            type: 'nozzle',
+                            side: side,
+                            active: true
+                        };
+                        
+                        this.nozzles.add(nozzle);
+                        this.totalNozzles++;
+                    }
+                }
+                
+                this.group.add(risers);
+                scene.add(this.nozzles);
+                return { risers, nozzleCount: this.totalNozzles };
+            }
+            
+            createEliminatorBlades() {
+                const bladeGroup = new THREE.Group();
+                const bladeHeight = SYSTEM_CONFIG.room.height - SYSTEM_CONFIG.eliminatorBlocks.height;
+                const bladeThickness = 0.8;
+                const bladeLength = 35;
+                const bladeSpacing = 1;
+                const bladeWidth = bladeThickness + bladeSpacing;
+                const bladeCount = Math.floor(SYSTEM_CONFIG.room.width / bladeWidth);
+                const bladeY = SYSTEM_CONFIG.eliminatorBlocks.height + bladeHeight/2;
+                
+                for (let i = 0; i < bladeCount; i++) {
+                    const x = -SYSTEM_CONFIG.room.width/2 + i * bladeWidth + bladeThickness/2;
+                    const blade = createBox(
+                        bladeThickness,
+                        bladeHeight,
+                        bladeLength,
+                        MATERIALS.blade,
+                        x,
+                        bladeY,
+                        this.config.eliminatorPosZ
+                    );
+                    blade.userData = { zone: this.config.id, type: 'blade' };
+                    bladeGroup.add(blade);
+                }
+                
+                this.group.add(bladeGroup);
+                return { bladeGroup, bladeCount };
+            }
+            
+            createAirBaffleMesh() {
+                const meshGroup = new THREE.Group();
+                const meshWidth = 500;
+                const meshHeight = 330;
+                const meshDepth = 5;
+                const squareSize = 5;
+                const borderThickness = 5;
+                
+                // Frame
+                const frame = createBox(
+                    meshWidth + borderThickness * 2,
+                    meshHeight + borderThickness * 2,
+                    meshDepth,
+                    MATERIALS.mesh,
+                    0,
+                    SYSTEM_CONFIG.baffleBlocks.height + meshHeight/2,
+                    this.config.bafflePosZ
+                );
+                frame.userData = { zone: this.config.id, type: 'meshFrame' };
+                meshGroup.add(frame);
+                
+                // Grid
+                const gridGroup = new THREE.Group();
+                const verticalBarCount = Math.floor(meshWidth / squareSize);
+                const horizontalBarCount = Math.floor(meshHeight / squareSize);
+                
+                // Vertical bars
+                for (let i = 0; i <= verticalBarCount; i++) {
+                    const x = -meshWidth/2 + i * squareSize;
+                    const bar = createBox(
+                        0.5,
+                        meshHeight,
+                        meshDepth,
+                        MATERIALS.mesh,
+                        x,
+                        SYSTEM_CONFIG.baffleBlocks.height + meshHeight/2,
+                        this.config.bafflePosZ
+                    );
+                    bar.userData = { zone: this.config.id, type: 'meshBar' };
+                    gridGroup.add(bar);
+                }
+                
+                // Horizontal bars
+                for (let i = 0; i <= horizontalBarCount; i++) {
+                    const y = SYSTEM_CONFIG.baffleBlocks.height + i * squareSize;
+                    const bar = createBox(
+                        meshWidth,
+                        0.5,
+                        meshDepth,
+                        MATERIALS.mesh,
+                        0,
+                        y,
+                        this.config.bafflePosZ
+                    );
+                    bar.userData = { zone: this.config.id, type: 'meshBar' };
+                    gridGroup.add(bar);
+                }
+                
+                meshGroup.add(gridGroup);
+                this.group.add(meshGroup);
+                
+                const openings = verticalBarCount * horizontalBarCount;
+                return { meshGroup, openings };
+            }
+            
+            setVisibility(visible) {
+                this.group.visible = visible;
+                this.nozzles.visible = visible;
+                this.active = visible;
+            }
+        }
+
+        // Main system initialization
+        let zone1, zone2;
+        let waterParticles = [], airParticles = [];
+        let particleGroup = new THREE.Group();
+        let airParticleGroup = new THREE.Group();
+        let isWaterActive = true, isAirFlowActive = true;
+        let fanGroup, damperGroup;
+        let fanRotation = 0, fanSpeed = 50, damperAngle = 45;
+        
+        function initSystem() {
+            // Create basic structure
+            createRoomStructure();
+            setupLighting();
+            
+            // Create zones
+            zone1 = new ZoneSystem(SYSTEM_CONFIG.zone1);
+            zone2 = new ZoneSystem(SYSTEM_CONFIG.zone2);
+            
+            // Build zone 1
+            zone1.createEliminatorBlocks();
+            zone1.createRiserBlocks();
+            zone1.createBaffleBlocks();
+            const collector1 = zone1.createCollectorPipe();
+            zone1.createRiserPipes(collector1);
+            zone1.createEliminatorBlades();
+            const mesh1 = zone1.createAirBaffleMesh();
+            scene.add(zone1.group);
+            
+            // Build zone 2 (50cm behind zone 1)
+            zone2.createEliminatorBlocks();
+            zone2.createRiserBlocks();
+            zone2.createBaffleBlocks();
+            const collector2 = zone2.createCollectorPipe();
+            zone2.createRiserPipes(collector2);
+            zone2.createEliminatorBlades();
+            const mesh2 = zone2.createAirBaffleMesh();
+            scene.add(zone2.group);
+            
+            // Create air handling system
+            createAirHandlingSystem();
+            
+            // Create pond
+            createPond();
+            
+            // Add particle groups
+            scene.add(particleGroup);
+            scene.add(airParticleGroup);
+            
+            // Update UI
+            updateSystemStats(mesh1.openings + mesh2.openings, zone1.totalNozzles + zone2.totalNozzles);
+        }
+
+        function createRoomStructure() {
+            // Walls
+            scene.add(createBox(
+                SYSTEM_CONFIG.room.wallThickness,
+                SYSTEM_CONFIG.room.height,
+                SYSTEM_CONFIG.room.length,
+                MATERIALS.wall,
+                -SYSTEM_CONFIG.room.width/2 - SYSTEM_CONFIG.room.wallThickness/2,
+                0,
+                0
+            ));
+            
+            scene.add(createBox(
+                SYSTEM_CONFIG.room.wallThickness,
+                SYSTEM_CONFIG.room.height,
+                SYSTEM_CONFIG.room.length,
+                MATERIALS.wall,
+                SYSTEM_CONFIG.room.width/2 + SYSTEM_CONFIG.room.wallThickness/2,
+                0,
+                0
+            ));
+            
+            scene.add(createBox(
+                SYSTEM_CONFIG.room.width,
+                SYSTEM_CONFIG.room.frontHeight,
+                SYSTEM_CONFIG.room.frontThickness,
+                MATERIALS.wall,
+                0,
+                0,
+                -SYSTEM_CONFIG.room.length/2 - SYSTEM_CONFIG.room.frontThickness/2
+            ));
+            
+            scene.add(createBox(
+                SYSTEM_CONFIG.room.width,
+                SYSTEM_CONFIG.room.frontHeight,
+                SYSTEM_CONFIG.room.frontThickness,
+                MATERIALS.wall,
+                0,
+                0,
+                SYSTEM_CONFIG.room.length/2 + SYSTEM_CONFIG.room.frontThickness/2
+            ));
+            
+            // Roof
+            scene.add(createBox(
+                SYSTEM_CONFIG.room.width + SYSTEM_CONFIG.room.wallThickness * 2,
+                10,
+                SYSTEM_CONFIG.room.length + SYSTEM_CONFIG.room.frontThickness * 2,
+                MATERIALS.roof,
+                0,
+                SYSTEM_CONFIG.room.height,
+                0
+            ));
+            
+            // Floor
+            const floorGeometry = new THREE.BoxGeometry(
+                SYSTEM_CONFIG.room.width * SYSTEM_CONFIG.cmToM * 1.1,
+                5 * SYSTEM_CONFIG.cmToM,
+                SYSTEM_CONFIG.room.length * SYSTEM_CONFIG.cmToM * 1.1
+            );
+            const floorMaterial = new THREE.MeshPhongMaterial({ 
+                color: 0x555555,
+                shininess: 30
+            });
+            const floor = new THREE.Mesh(floorGeometry, floorMaterial);
+            floor.position.set(0, -5 * SYSTEM_CONFIG.cmToM, 0);
+            scene.add(floor);
+        }
+
+        function createAirHandlingSystem() {
+            // Input duct
+            const inputDuct = createBox(
+                80, 60, 300,
+                MATERIALS.inputDuct,
+                -SYSTEM_CONFIG.room.width/2 - 150,
+                30,
+                0
+            );
+            scene.add(inputDuct);
+            
+            // Output duct with fan
+            const outputSystem = new THREE.Group();
+            
+            // Duct
+            const outputDuct = createBox(
+                80, 60, 300,
+                MATERIALS.outputDuct,
+                SYSTEM_CONFIG.room.width/2 + 150,
+                30,
+                0
+            );
+            outputSystem.add(outputDuct);
+            
+            // Fan housing
+            const fanHousing = createCylinder(
+                40, 20,
+                MATERIALS.fan,
+                SYSTEM_CONFIG.room.width/2 + 320,
+                30,
+                0,
+                { axis: 'z', angle: Math.PI/2 }
+            );
+            outputSystem.add(fanHousing);
+            
+            // Fan blades
+            fanGroup = new THREE.Group();
+            for (let i = 0; i < 6; i++) {
+                const angle = (i / 6) * Math.PI * 2;
+                const blade = createBox(
+                    5, 30, 60,
+                    MATERIALS.fan,
+                    SYSTEM_CONFIG.room.width/2 + 320 + 30 * Math.cos(angle),
+                    30,
+                    30 * Math.sin(angle)
+                );
+                blade.rotation.z = angle;
+                fanGroup.add(blade);
+            }
+            outputSystem.add(fanGroup);
+            
+            // Dampers
+            damperGroup = new THREE.Group();
+            for (let i = 0; i < 3; i++) {
+                const damper = createBox(
+                    70, 2, 50,
+                    MATERIALS.damper,
+                    SYSTEM_CONFIG.room.width/2 + 150 - 40 + (i * 20),
+                    30,
+                    0
+                );
+                damper.rotation.y = damperAngle * Math.PI / 180;
+                damper.userData = { initialY: 30, angle: damperAngle };
+                damperGroup.add(damper);
+            }
+            outputSystem.add(damperGroup);
+            
+            scene.add(outputSystem);
+        }
+
+        function createPond() {
+            const pondGeometry = new THREE.BoxGeometry(
+                (SYSTEM_CONFIG.room.width - 20) * SYSTEM_CONFIG.cmToM,
+                30 * SYSTEM_CONFIG.cmToM,
+                (SYSTEM_CONFIG.room.length - 20) * SYSTEM_CONFIG.cmToM
+            );
+            const pond = new THREE.Mesh(pondGeometry, MATERIALS.pond);
+            pond.position.set(0, 15 * SYSTEM_CONFIG.cmToM, 0);
+            scene.add(pond);
+        }
+
+        // Particle systems
+        function createWaterParticle(x, y, z, side, zoneId) {
+            if (waterParticles.length >= SYSTEM_CONFIG.maxParticles) return null;
+            
+            const size = 0.1 + Math.random() * 0.3;
+            const geometry = new THREE.SphereGeometry(size * SYSTEM_CONFIG.cmToM, 6, 6);
+            const particle = new THREE.Mesh(geometry, MATERIALS.waterParticle);
+            
+            particle.position.set(x, y, z);
+            
+            const airflowEffect = isAirFlowActive ? (fanSpeed / 100) * 0.03 : 0;
+            
+            particle.userData = {
+                velocity: new THREE.Vector3(
+                    side * (0.2 + Math.random() * 0.1),
+                    -0.01 - Math.random() * 0.02,
+                    airflowEffect
+                ),
+                life: 80 + Math.floor(Math.random() * 40),
+                active: true,
+                fallen: false,
+                zone: zoneId
+            };
+            
+            particleGroup.add(particle);
+            waterParticles.push(particle);
+            return particle;
+        }
+
+        function createAirParticle(x, y, z) {
+            if (airParticles.length >= SYSTEM_CONFIG.maxAirParticles) return null;
+            
+            const size = 0.3 + Math.random() * 0.7;
+            const geometry = new THREE.SphereGeometry(size * SYSTEM_CONFIG.cmToM, 4, 4);
+            const material = new THREE.MeshPhongMaterial({
+                color: 0x00ff00,
+                transparent: true,
+                opacity: 0.2,
+                emissive: 0x009900
+            });
+            const particle = new THREE.Mesh(geometry, material);
+            
+            particle.position.set(x, y, z);
+            
+            particle.userData = {
+                velocity: new THREE.Vector3(
+                    0.1 + Math.random() * 0.2 + (fanSpeed / 100) * 0.1,
+                    0,
+                    (Math.random() - 0.5) * 0.05
+                ),
+                life: 150 + Math.floor(Math.random() * 100),
+                active: true
+            };
+            
+            airParticleGroup.add(particle);
+            airParticles.push(particle);
+            return particle;
+        }
+
+        function updateParticles() {
+            // Update water particles
+            if (isWaterActive) {
+                // Create new particles from active zones
+                [zone1, zone2].forEach(zone => {
+                    if (zone.active && zone.nozzles.visible) {
+                        const nozzles = zone.nozzles.children;
+                        const maxNew = window.innerWidth < 768 ? 2 : 3;
+                        let created = 0;
+                        
+                        for (let i = 0; i < nozzles.length && created < maxNew; i++) {
+                            if (Math.random() > 0.6) {
+                                const nozzle = nozzles[i];
+                                createWaterParticle(
+                                    nozzle.position.x,
+                                    nozzle.position.y,
+                                    nozzle.position.z,
+                                    nozzle.userData.side,
+                                    zone.config.id
+                                );
+                                created++;
+                            }
+                        }
+                    }
+                });
+            }
+            
+            // Update existing water particles
+            for (let i = waterParticles.length - 1; i >= 0; i--) {
+                const particle = waterParticles[i];
+                const data = particle.userData;
+                
+                if (!data.active) {
+                    particleGroup.remove(particle);
+                    waterParticles.splice(i, 1);
+                    continue;
+                }
+                
+                particle.position.add(data.velocity);
+                data.life--;
+                
+                // Special behaviors
+                if (Math.random() < 0.15 && !data.fallen) {
+                    if (particle.position.z > SYSTEM_CONFIG.room.length * SYSTEM_CONFIG.cmToM * 0.3) {
+                        data.velocity.y = -0.5;
+                        data.fallen = true;
+                    }
+                }
+                
+                if (particle.position.y < 0 || data.life <= 0) {
+                    data.active = false;
+                }
+            }
+            
+            // Update air particles
+            if (isAirFlowActive) {
+                // Create new air particles
+                if (Math.random() > 0.7 && airParticles.length < SYSTEM_CONFIG.maxAirParticles) {
+                    createAirParticle(
+                        -SYSTEM_CONFIG.room.width/2 * SYSTEM_CONFIG.cmToM - 2,
+                        (15 + Math.random() * 40) * SYSTEM_CONFIG.cmToM,
+                        (Math.random() - 0.5) * SYSTEM_CONFIG.room.width * 0.3 * SYSTEM_CONFIG.cmToM
+                    );
+                }
+                
+                // Update existing air particles
+                for (let i = airParticles.length - 1; i >= 0; i--) {
+                    const particle = airParticles[i];
+                    const data = particle.userData;
+                    
+                    if (!data.active) {
+                        airParticleGroup.remove(particle);
+                        airParticles.splice(i, 1);
+                        continue;
+                    }
+                    
+                    particle.position.add(data.velocity);
+                    data.life--;
+                    
+                    if (particle.position.x > SYSTEM_CONFIG.room.width/2 * SYSTEM_CONFIG.cmToM + 2 || data.life <= 0) {
+                        data.active = false;
+                    }
+                }
+            }
+            
+            // Update counters
+            document.getElementById('particleCount').textContent = waterParticles.length;
+            document.getElementById('airParticleCount').textContent = airParticles.length;
+        }
+
+        function updateFanAndDampers() {
+            if (!isAirFlowActive || !fanGroup) return;
+            
+            // Update fan rotation
+            fanRotation += fanSpeed * 0.02;
+            fanGroup.rotation.y = fanRotation;
+            
+            // Update dampers
+            const targetAngle = isAirFlowActive ? 45 : 90;
+            damperAngle += (targetAngle - damperAngle) * 0.1;
+            
+            if (damperGroup) {
+                damperGroup.children.forEach((damper, index) => {
+                    damper.rotation.y = (damperAngle + index * 10) * Math.PI / 180;
+                });
+            }
+        }
+
+        // UI Controls and Updates
+        function updateSystemStats(totalOpenings, totalNozzles) {
+            document.getElementById('totalMeshOpenings').textContent = totalOpenings;
+            document.getElementById('totalNozzles').textContent = totalNozzles;
+            document.getElementById('zone1Pos').textContent = `${SYSTEM_CONFIG.zone1.eliminatorPosZ} cm`;
+            document.getElementById('zone2Pos').textContent = `${SYSTEM_CONFIG.zone2.eliminatorPosZ} cm`;
+            document.getElementById('zoneDistance').textContent = `${SYSTEM_CONFIG.zone2.offsetZ} cm`;
+        }
+
+        function toggleWaterSystem() {
+            isWaterActive = !isWaterActive;
+            document.getElementById('waterToggle').checked = isWaterActive;
+            document.getElementById('waterFlowStatus').textContent = isWaterActive ? 'On' : 'Off';
+        }
+
+        function toggleAirFlowSystem() {
+            isAirFlowActive = !isAirFlowActive;
+            document.getElementById('airflowToggle').checked = isAirFlowActive;
+            document.getElementById('airFlowStatus').textContent = isAirFlowActive ? 'On' : 'Off';
+            updateFlowRateDisplay();
+        }
+
+        function toggleZone(zoneNumber, enabled) {
+            if (zoneNumber === 1) {
+                zone1.setVisibility(enabled);
+                document.getElementById('zone1Status').textContent = enabled ? 'On' : 'Off';
+            } else {
+                zone2.setVisibility(enabled);
+                document.getElementById('zone2Status').textContent = enabled ? 'On' : 'Off';
+            }
+        }
+
+        function updateFlowRateDisplay() {
+            const flowRate = isAirFlowActive ? (fanSpeed > 75 ? 'High' : fanSpeed > 25 ? 'Medium' : 'Low') : 'Off';
+            document.getElementById('flowRate').textContent = flowRate;
+            document.getElementById('fanSpeedDisplay').textContent = fanSpeed + '%';
+        }
+
+        function focusZone(zoneNumber) {
+            if (zoneNumber === 1) {
+                camera.position.set(0, SYSTEM_CONFIG.room.height * SYSTEM_CONFIG.cmToM * 0.7, 
+                                  SYSTEM_CONFIG.zone1.eliminatorPosZ * SYSTEM_CONFIG.cmToM + 2);
+                camera.lookAt(0, SYSTEM_CONFIG.room.height * SYSTEM_CONFIG.cmToM * 0.3, 
+                            SYSTEM_CONFIG.zone1.eliminatorPosZ * SYSTEM_CONFIG.cmToM);
+            } else {
+                camera.position.set(0, SYSTEM_CONFIG.room.height * SYSTEM_CONFIG.cmToM * 0.7, 
+                                  SYSTEM_CONFIG.zone2.eliminatorPosZ * SYSTEM_CONFIG.cmToM + 2);
+                camera.lookAt(0, SYSTEM_CONFIG.room.height * SYSTEM_CONFIG.cmToM * 0.3, 
+                            SYSTEM_CONFIG.zone2.eliminatorPosZ * SYSTEM_CONFIG.cmToM);
+            }
+            document.getElementById('zoneIndicator').textContent = `Zone ${zoneNumber} Focus`;
+        }
+
+        function changeView(viewType) {
+            switch(viewType) {
+                case 'top':
+                    camera.position.set(0, SYSTEM_CONFIG.room.height * SYSTEM_CONFIG.cmToM * 1.8, 0.1);
+                    camera.lookAt(0, 0, 0);
+                    break;
+                case 'front':
+                    camera.position.set(0, SYSTEM_CONFIG.room.height * SYSTEM_CONFIG.cmToM * 0.5, 
+                                      -SYSTEM_CONFIG.room.length * SYSTEM_CONFIG.cmToM * 1.5);
+                    camera.lookAt(0, SYSTEM_CONFIG.room.height * SYSTEM_CONFIG.cmToM * 0.2, 0);
+                    break;
+                case 'side':
+                    camera.position.set(SYSTEM_CONFIG.room.width * SYSTEM_CONFIG.cmToM * 1.5, 
+                                      SYSTEM_CONFIG.room.height * SYSTEM_CONFIG.cmToM * 0.5, 0);
+                    camera.lookAt(0, SYSTEM_CONFIG.room.height * SYSTEM_CONFIG.cmToM * 0.2, 0);
+                    break;
+                case 'overview':
+                    camera.position.set(0, SYSTEM_CONFIG.room.height * SYSTEM_CONFIG.cmToM * 0.8, 
+                                      SYSTEM_CONFIG.room.length * SYSTEM_CONFIG.cmToM * 1.2);
+                    camera.lookAt(0, SYSTEM_CONFIG.room.height * SYSTEM_CONFIG.cmToM * 0.3, 0);
+                    break;
+            }
+        }
+
+        function resetCamera() {
+            if (window.innerWidth < 768) {
+                camera.position.set(0, SYSTEM_CONFIG.room.height * SYSTEM_CONFIG.cmToM * 0.8, 
+                                  SYSTEM_CONFIG.room.length * SYSTEM_CONFIG.cmToM * 2);
+            } else {
+                camera.position.set(0, SYSTEM_CONFIG.room.height * SYSTEM_CONFIG.cmToM * 0.6, 
+                                  SYSTEM_CONFIG.room.length * SYSTEM_CONFIG.cmToM * 1.5);
+            }
+            camera.lookAt(0, SYSTEM_CONFIG.room.height * SYSTEM_CONFIG.cmToM * 0.2, 0);
+            document.getElementById('zoneIndicator').textContent = 'Dual Zone System Active';
+        }
+
+        function optimizePerformance() {
+            if (window.innerWidth < 768) {
+                SYSTEM_CONFIG.maxParticles = 800;
+                document.getElementById('particleLimit').value = 800;
+                document.getElementById('limitValue').textContent = '800';
+                fanSpeed = 30;
+                document.getElementById('fanSpeedSlider').value = 30;
+                document.getElementById('fanSpeedValue').textContent = '30%';
+                updateFlowRateDisplay();
+            }
+            document.getElementById('performanceWarning').style.display = 'none';
+        }
+
+        // FPS counter
+        function updateFPS() {
+            frameCount++;
+            const currentTime = performance.now();
+            if (currentTime >= lastTime + 1000) {
+                fps = Math.round((frameCount * 1000) / (currentTime - lastTime));
+                frameCount = 0;
+                lastTime = currentTime;
+                document.getElementById('fpsCounter').textContent = fps;
+                
+                // Show performance warning if FPS drops
+                if (fps < 30 && window.innerWidth < 768) {
+                    document.getElementById('performanceWarning').style.display = 'block';
+                } else {
+                    document.getElementById('performanceWarning').style.display = 'none';
+                }
+            }
+        }
+
+        // Animation loop
+        function animate() {
+            requestAnimationFrame(animate);
+            updateFPS();
+            
+            controls.update();
+            updateParticles();
+            updateFanAndDampers();
+            renderer.render(scene, camera);
+        }
+
+        // Initialize everything
+        function init() {
+            initThreeJS();
+            initSystem();
+            
+            // Set up event listeners
+            setupEventListeners();
+            
+            // Hide loading screen
+            setTimeout(() => {
+                document.getElementById('loadingOverlay').style.opacity = '0';
+                setTimeout(() => {
+                    document.getElementById('loadingOverlay').style.display = 'none';
+                }, 500);
+            }, 1000);
+            
+            // Start animation
+            animate();
+        }
+
+        function setupEventListeners() {
+            // Window resize
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+            
+            // Control toggles
+            document.getElementById('waterToggle').addEventListener('change', toggleWaterSystem);
+            document.getElementById('airflowToggle').addEventListener('change', toggleAirFlowSystem);
+            
+            document.getElementById('zone1Toggle').addEventListener('change', (e) => {
+                toggleZone(1, e.target.checked);
+            });
+            
+            document.getElementById('zone2Toggle').addEventListener('change', (e) => {
+                toggleZone(2, e.target.checked);
+            });
+            
+            // Particle limit slider
+            const particleLimit = document.getElementById('particleLimit');
+            const limitValue = document.getElementById('limitValue');
+            
+            particleLimit.addEventListener('input', function() {
+                SYSTEM_CONFIG.maxParticles = parseInt(this.value);
+                limitValue.textContent = this.value;
+            });
+            
+            // Fan speed slider
+            const fanSpeedSlider = document.getElementById('fanSpeedSlider');
+            const fanSpeedValue = document.getElementById('fanSpeedValue');
+            
+            fanSpeedSlider.addEventListener('input', function() {
+                fanSpeed = parseInt(this.value);
+                fanSpeedValue.textContent = fanSpeed + '%';
+                updateFlowRateDisplay();
+            });
+            
+            // Sidebar controls
+            document.getElementById('toggleSidebar').addEventListener('click', () => {
+                document.getElementById('sidebar').classList.toggle('open');
+            });
+            
+            document.getElementById('closeSidebar').addEventListener('click', () => {
+                document.getElementById('sidebar').classList.remove('open');
+            });
+            
+            // Touch events for mobile
+            if ('ontouchstart' in window) {
+                renderer.domElement.addEventListener('touchstart', (e) => {
+                    if (e.touches.length === 1) {
+                        // Single touch - allow rotation
+                        controls.enableRotate = true;
+                        controls.enablePan = false;
+                    } else if (e.touches.length === 2) {
+                        // Two touches - allow pan/zoom
+                        controls.enableRotate = false;
+                        controls.enablePan = true;
+                    }
+                });
+            }
+        }
+
+        // Start the application
+        window.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>

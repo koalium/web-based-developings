@@ -1,0 +1,2158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Advanced 3D Fan Simulation with Aerodynamics</title>
+    
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Three.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    
+    <!-- OrbitControls for precise camera -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.min.js"></script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: none;
+        }
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            overflow: hidden;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            height: 100vh;
+            width: 100vw;
+        }
+        
+        #scene-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+        
+        /* Touch Zone Styles */
+        .touch-zone {
+            position: absolute;
+            z-index: 10;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            border: 3px solid rgba(255, 255, 255, 0.15);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            color: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            user-select: none;
+            overflow: hidden;
+        }
+        
+        .touch-zone::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
+            z-index: -1;
+        }
+        
+        .touch-zone.active {
+            border-width: 4px;
+            transform: scale(0.97);
+            box-shadow: 0 20px 60px -15px rgba(59, 130, 246, 0.5);
+        }
+        
+        .touch-zone.active::before {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.25) 0%, rgba(59, 130, 246, 0.1) 100%);
+        }
+        
+        .touch-zone.sliding {
+            border-color: rgba(16, 185, 129, 0.6) !important;
+            box-shadow: 0 20px 60px -15px rgba(16, 185, 129, 0.4);
+        }
+        
+        #zone-up {
+            top: 0;
+            left: 25%;
+            width: 50%;
+            height: 25%;
+            border-radius: 0 0 25px 25px;
+            border-top: none;
+        }
+        
+        #zone-down {
+            bottom: 0;
+            left: 25%;
+            width: 50%;
+            height: 25%;
+            border-radius: 25px 25px 0 0;
+            border-bottom: none;
+        }
+        
+        #zone-left {
+            top: 25%;
+            left: 0;
+            width: 25%;
+            height: 50%;
+            border-radius: 0 25px 25px 0;
+            border-left: none;
+        }
+        
+        #zone-right {
+            top: 25%;
+            right: 0;
+            width: 25%;
+            height: 50%;
+            border-radius: 25px 0 0 25px;
+            border-right: none;
+        }
+        
+        .zone-label {
+            font-size: 1.5rem;
+            text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+            letter-spacing: 0.1em;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+        
+        .zone-subtitle {
+            font-size: 0.75rem;
+            opacity: 0.8;
+            font-weight: 500;
+        }
+        
+        /* Loading Overlay */
+        #loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: opacity 0.5s ease;
+        }
+        
+        .spinner {
+            width: 60px;
+            height: 60px;
+            border: 4px solid rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            border-top-color: #3b82f6;
+            animation: spin 1s cubic-bezier(0.68, -0.55, 0.27, 1.55) infinite;
+            margin-bottom: 20px;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        /* Touch Indicators */
+        .touch-indicator {
+            position: absolute;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(239, 68, 68, 0.9) 0%, rgba(239, 68, 68, 0.4) 70%);
+            border: 3px solid rgba(255, 255, 255, 0.9);
+            pointer-events: none;
+            z-index: 999;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 0 20px rgba(239, 68, 68, 0.7);
+            animation: pulse 0.5s ease;
+        }
+        
+        .touch-trail {
+            position: absolute;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(59, 130, 246, 0.6) 0%, rgba(59, 130, 246, 0.2) 70%);
+            pointer-events: none;
+            z-index: 998;
+            transform: translate(-50%, -50%);
+            animation: fadeOut 1s forwards;
+        }
+        
+        @keyframes pulse {
+            0% { transform: translate(-50%, -50%) scale(0.8); opacity: 0.5; }
+            50% { transform: translate(-50%, -50%) scale(1.1); opacity: 1; }
+            100% { transform: translate(-50%, -50%) scale(1); opacity: 0.7; }
+        }
+        
+        @keyframes fadeOut {
+            to { opacity: 0; transform: translate(-50%, -50%) scale(0.5); }
+        }
+        
+        /* Performance Monitor */
+        .performance-monitor {
+            position: absolute;
+            bottom: 15px;
+            right: 15px;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(10px);
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 0.75rem;
+            color: #10b981;
+            z-index: 100;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        /* Loading Bar */
+        .progress-container {
+            width: 300px;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 2px;
+            margin-top: 20px;
+            overflow: hidden;
+        }
+        
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+            border-radius: 2px;
+            transition: width 0.3s ease;
+        }
+        
+        /* Airflow Visualization */
+        .airflow-particle {
+            position: absolute;
+            background: rgba(96, 165, 250, 0.6);
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 5;
+        }
+    </style>
+    
+    <!-- Tailwind Configuration -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            50: '#eff6ff',
+                            100: '#dbeafe',
+                            200: '#bfdbfe',
+                            300: '#93c5fd',
+                            400: '#60a5fa',
+                            500: '#3b82f6',
+                            600: '#2563eb',
+                            700: '#1d4ed8',
+                            800: '#1e40af',
+                            900: '#1e3a8a',
+                        },
+                        secondary: {
+                            50: '#f0fdf4',
+                            100: '#dcfce7',
+                            200: '#bbf7d0',
+                            300: '#86efac',
+                            400: '#4ade80',
+                            500: '#22c55e',
+                            600: '#16a34a',
+                            700: '#15803d',
+                            800: '#166534',
+                            900: '#14532d',
+                        }
+                    },
+                    animation: {
+                        'float': 'float 3s ease-in-out infinite',
+                        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-gray-900 text-white">
+    <!-- Loading Screen -->
+    <div id="loading">
+        <div class="spinner"></div>
+        <h1 class="text-3xl font-bold mb-2 bg-gradient-to-r from-blue-500 to-purple-500 bg-clip-text text-transparent">
+            Advanced Fan Simulation
+        </h1>
+        <p class="text-gray-400 mb-6">Initializing aerodynamic physics engine...</p>
+        <div class="progress-container">
+            <div id="loading-progress" class="progress-bar" style="width: 0%"></div>
+        </div>
+        <div id="loading-status" class="mt-2 text-sm text-gray-400">Loading 3D engine...</div>
+    </div>
+
+    <!-- Three.js Scene -->
+    <div id="scene-container"></div>
+
+    <!-- Touch Zones -->
+    <div class="touch-zone" id="zone-up">
+        <div class="zone-label">
+            <span>↑ UP</span>
+            <span class="zone-subtitle">+ RPM</span>
+        </div>
+    </div>
+    <div class="touch-zone" id="zone-down">
+        <div class="zone-label">
+            <span>↓ DOWN</span>
+            <span class="zone-subtitle">- RPM</span>
+        </div>
+    </div>
+    <div class="touch-zone" id="zone-left">
+        <div class="zone-label">
+            <span>← LEFT</span>
+            <span class="zone-subtitle">Angle -</span>
+        </div>
+    </div>
+    <div class="touch-zone" id="zone-right">
+        <div class="zone-label">
+            <span>→ RIGHT</span>
+            <span class="zone-subtitle">Angle +</span>
+        </div>
+    </div>
+
+    <!-- Main Control Panel -->
+    <div class="absolute top-4 left-4 z-20">
+        <div class="bg-gray-900/90 backdrop-blur-xl rounded-2xl shadow-2xl p-6 w-96 border border-gray-800">
+            <h2 class="text-2xl font-bold mb-4 text-white flex items-center gap-2">
+                <svg class="w-6 h-6 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                </svg>
+                Fan Controls
+            </h2>
+            
+            <div class="space-y-6">
+                <!-- RPM Control -->
+                <div>
+                    <div class="flex justify-between items-center mb-2">
+                        <label class="text-sm font-medium text-gray-300">Rotation Speed</label>
+                        <div class="flex items-center gap-2">
+                            <span id="rpm-value" class="text-2xl font-bold text-blue-400">1000</span>
+                            <span class="text-sm text-gray-400">RPM</span>
+                        </div>
+                    </div>
+                    <input type="range" id="rpm-slider" min="0" max="1500" value="1000" step="1"
+                           class="w-full h-2 bg-gray-800 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-blue-500 [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white">
+                    <div class="flex justify-between text-xs text-gray-500 mt-1">
+                        <span>0</span>
+                        <span>750</span>
+                        <span>1500</span>
+                    </div>
+                </div>
+                
+                <!-- Blade Configuration -->
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-2">Blade Count</label>
+                        <div class="flex items-center justify-between bg-gray-800/50 rounded-lg p-2">
+                            <button id="blades-minus" class="w-10 h-10 bg-gray-700 rounded-lg flex items-center justify-center hover:bg-gray-600 transition-colors">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"/>
+                                </svg>
+                            </button>
+                            <div class="text-center">
+                                <div id="blades-value" class="text-2xl font-bold">5</div>
+                                <div class="text-xs text-gray-400">blades</div>
+                            </div>
+                            <button id="blades-plus" class="w-10 h-10 bg-gray-700 rounded-lg flex items-center justify-center hover:bg-gray-600 transition-colors">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-2">Length</label>
+                        <div class="flex items-center justify-between bg-gray-800/50 rounded-lg p-2">
+                            <button id="length-minus" class="w-10 h-10 bg-gray-700 rounded-lg flex items-center justify-center hover:bg-gray-600 transition-colors">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"/>
+                                </svg>
+                            </button>
+                            <div class="text-center">
+                                <div id="length-value" class="text-2xl font-bold">60</div>
+                                <div class="text-xs text-gray-400">cm</div>
+                            </div>
+                            <button id="length-plus" class="w-10 h-10 bg-gray-700 rounded-lg flex items-center justify-center hover:bg-gray-600 transition-colors">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Angle of Attack -->
+                <div>
+                    <div class="flex justify-between items-center mb-2">
+                        <label class="text-sm font-medium text-gray-300">Angle of Attack</label>
+                        <div class="flex items-center gap-2">
+                            <span id="angle-value" class="text-2xl font-bold text-green-400">20</span>
+                            <span class="text-sm text-gray-400">°</span>
+                        </div>
+                    </div>
+                    <input type="range" id="angle-slider" min="5" max="35" value="20" step="0.1"
+                           class="w-full h-2 bg-gray-800 rounded-lg appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:h-5 [&::-webkit-slider-thumb]:w-5 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-green-500 [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white">
+                    <div class="flex justify-between text-xs text-gray-500 mt-1">
+                        <span>5°</span>
+                        <span>20°</span>
+                        <span>35°</span>
+                    </div>
+                </div>
+                
+                <!-- Background Selector -->
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-2">Environment</label>
+                    <div class="grid grid-cols-5 gap-2">
+                        <button data-bg="sky" class="h-10 rounded-lg bg-sky-500 hover:bg-sky-600 transition-colors flex items-center justify-center text-white text-sm font-medium">Sky</button>
+                        <button data-bg="night" class="h-10 rounded-lg bg-indigo-900 hover:bg-indigo-800 transition-colors flex items-center justify-center text-white text-sm font-medium">Night</button>
+                        <button data-bg="darkblue" class="h-10 rounded-lg bg-blue-900 hover:bg-blue-800 transition-colors flex items-center justify-center text-white text-sm font-medium">Dark Blue</button>
+                        <button data-bg="olive" class="h-10 rounded-lg bg-green-900 hover:bg-green-800 transition-colors flex items-center justify-center text-white text-sm font-medium">Olive</button>
+                        <button data-bg="green" class="h-10 rounded-lg bg-emerald-800 hover:bg-emerald-700 transition-colors flex items-center justify-center text-white text-sm font-medium">Green</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Physics Panel -->
+    <div class="absolute top-4 right-4 z-20">
+        <div class="bg-gray-900/90 backdrop-blur-xl rounded-2xl shadow-2xl p-6 w-96 border border-gray-800">
+            <h2 class="text-2xl font-bold mb-4 text-white flex items-center gap-2">
+                <svg class="w-6 h-6 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/>
+                </svg>
+                Aerodynamic Physics
+            </h2>
+            
+            <div class="space-y-4">
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="bg-gray-800/50 rounded-xl p-4">
+                        <div class="text-sm text-gray-400 mb-1">Air Flow Rate</div>
+                        <div class="text-2xl font-bold text-cyan-400" id="airflow-rate">125.6</div>
+                        <div class="text-xs text-gray-500">m³/min</div>
+                    </div>
+                    
+                    <div class="bg-gray-800/50 rounded-xl p-4">
+                        <div class="text-sm text-gray-400 mb-1">Power Consumption</div>
+                        <div class="text-2xl font-bold text-yellow-400" id="power-consumption">245</div>
+                        <div class="text-xs text-gray-500">Watts</div>
+                    </div>
+                </div>
+                
+                <div class="bg-gray-800/50 rounded-xl p-4">
+                    <div class="text-sm text-gray-400 mb-1">Static Pressure</div>
+                    <div class="text-2xl font-bold text-orange-400" id="static-pressure">85.2</div>
+                    <div class="text-xs text-gray-500">Pascals</div>
+                </div>
+                
+                <div class="space-y-3">
+                    <div class="flex justify-between items-center">
+                        <span class="text-gray-400">Efficiency</span>
+                        <span class="text-lg font-bold text-green-400" id="efficiency">72.5%</span>
+                    </div>
+                    <div class="w-full bg-gray-800 rounded-full h-2.5">
+                        <div id="efficiency-bar" class="bg-gradient-to-r from-green-500 to-emerald-400 h-2.5 rounded-full" style="width: 72.5%"></div>
+                    </div>
+                </div>
+                
+                <div class="pt-4 border-t border-gray-800">
+                    <div class="text-sm text-gray-400 mb-2">Current Parameters</div>
+                    <div class="space-y-2">
+                        <div class="flex justify-between">
+                            <span class="text-gray-400">RPM:</span>
+                            <span class="font-medium" id="current-rpm">1000</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-400">Blade Angle:</span>
+                            <span class="font-medium" id="current-angle">20°</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-400">Blade Count:</span>
+                            <span class="font-medium" id="current-blades">5</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-400">Blade Length:</span>
+                            <span class="font-medium" id="current-length">60 cm</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Touch Analytics Panel -->
+    <div class="absolute bottom-4 left-4 z-20">
+        <div class="bg-gray-900/90 backdrop-blur-xl rounded-2xl shadow-2xl p-6 w-96 border border-gray-800">
+            <h2 class="text-2xl font-bold mb-4 text-white flex items-center gap-2">
+                <svg class="w-6 h-6 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/>
+                </svg>
+                Touch Analytics
+            </h2>
+            
+            <div class="space-y-4">
+                <!-- Active Zones -->
+                <div>
+                    <div class="text-sm text-gray-400 mb-2">Active Zones</div>
+                    <div class="grid grid-cols-4 gap-2">
+                        <div id="zone-indicator-up" class="h-16 rounded-lg bg-gray-800/50 flex flex-col items-center justify-center border-2 border-gray-700">
+                            <div class="text-lg font-bold">↑</div>
+                            <div class="text-xs text-gray-400 mt-1">UP</div>
+                        </div>
+                        <div id="zone-indicator-down" class="h-16 rounded-lg bg-gray-800/50 flex flex-col items-center justify-center border-2 border-gray-700">
+                            <div class="text-lg font-bold">↓</div>
+                            <div class="text-xs text-gray-400 mt-1">DOWN</div>
+                        </div>
+                        <div id="zone-indicator-left" class="h-16 rounded-lg bg-gray-800/50 flex flex-col items-center justify-center border-2 border-gray-700">
+                            <div class="text-lg font-bold">←</div>
+                            <div class="text-xs text-gray-400 mt-1">LEFT</div>
+                        </div>
+                        <div id="zone-indicator-right" class="h-16 rounded-lg bg-gray-800/50 flex flex-col items-center justify-center border-2 border-gray-700">
+                            <div class="text-lg font-bold">→</div>
+                            <div class="text-xs text-gray-400 mt-1">RIGHT</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Touch Metrics -->
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="bg-gray-800/50 rounded-xl p-4">
+                        <div class="text-sm text-gray-400 mb-1">Position (x, y)</div>
+                        <div class="text-lg font-mono font-bold" id="touch-position">-</div>
+                    </div>
+                    
+                    <div class="bg-gray-800/50 rounded-xl p-4">
+                        <div class="text-sm text-gray-400 mb-1">Displacement</div>
+                        <div class="text-lg font-mono font-bold" id="touch-displacement">0 px</div>
+                    </div>
+                    
+                    <div class="bg-gray-800/50 rounded-xl p-4">
+                        <div class="text-sm text-gray-400 mb-1">Velocity</div>
+                        <div class="text-lg font-mono font-bold" id="touch-velocity">0 px/ms</div>
+                    </div>
+                    
+                    <div class="bg-gray-800/50 rounded-xl p-4">
+                        <div class="text-sm text-gray-400 mb-1">Time Δ</div>
+                        <div class="text-lg font-mono font-bold" id="touch-delta">0 ms</div>
+                    </div>
+                </div>
+                
+                <!-- Touch Details -->
+                <div class="pt-4 border-t border-gray-800">
+                    <div class="text-sm text-gray-400 mb-2">Touch Details</div>
+                    <div class="space-y-2">
+                        <div class="flex justify-between">
+                            <span class="text-gray-400">Active Touches:</span>
+                            <span class="font-medium text-green-400" id="active-touches">0</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-400">Touch Duration:</span>
+                            <span class="font-medium" id="touch-duration">0 ms</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-400">Current Zone:</span>
+                            <span class="font-medium" id="current-zone">-</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-400">Interaction Mode:</span>
+                            <span class="font-medium text-blue-400" id="interaction-mode">Touch</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Performance Monitor -->
+    <div class="performance-monitor" id="performance-monitor">
+        <div class="flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+            </svg>
+            <span id="fps-counter">60</span> FPS
+        </div>
+    </div>
+
+    <!-- Touch Visualization Container -->
+    <div id="touch-visualization"></div>
+
+    <script>
+        // ============================================
+        // GLOBAL VARIABLES AND INITIALIZATION
+        // ============================================
+        let scene, camera, renderer, controls;
+        let fanGroup, bladesGroup, motorGroup, hub, airflowParticles = [];
+        let fanRotationSpeed = 0;
+        let targetFanSpeed = 1000;
+        let currentBladeAngle = 20; // degrees
+        
+        // Touch tracking system
+        const touchZones = {
+            up: { 
+                active: false, 
+                startTime: 0, 
+                startPos: { x: 0, y: 0 }, 
+                currentPos: { x: 0, y: 0 },
+                touchId: null,
+                velocity: 0,
+                displacement: 0
+            },
+            down: { 
+                active: false, 
+                startTime: 0, 
+                startPos: { x: 0, y: 0 }, 
+                currentPos: { x: 0, y: 0 },
+                touchId: null,
+                velocity: 0,
+                displacement: 0
+            },
+            left: { 
+                active: false, 
+                startTime: 0, 
+                startPos: { x: 0, y: 0 }, 
+                currentPos: { x: 0, y: 0 },
+                touchId: null,
+                velocity: 0,
+                displacement: 0
+            },
+            right: { 
+                active: false, 
+                startTime: 0, 
+                startPos: { x: 0, y: 0 }, 
+                currentPos: { x: 0, y: 0 },
+                touchId: null,
+                velocity: 0,
+                displacement: 0
+            }
+        };
+        
+        // Multi-touch tracking
+        const activeTouches = new Map();
+        const touchHistory = new Map();
+        const touchVisualizations = new Map();
+        
+        // Performance tracking
+        let frameCount = 0;
+        let lastFpsUpdate = Date.now();
+        let currentFps = 60;
+        
+        // Fan parameters (all in centimeters)
+        const fanParams = {
+            rpm: 1000,
+            bladeCount: 5,
+            bladeLength: 60,
+            bladeWidth: 15,
+            bladeThickness: 4,
+            hubDiameter: 25,
+            hubThickness: 15,
+            motorDiameter: 40,
+            motorLength: 50,
+            shaftDiameter: 5,
+            maxRPM: 1500,
+            bladeAngle: 20, // degrees
+            minAngle: 5,
+            maxAngle: 35
+        };
+        
+        // Aerodynamic constants
+        const AERODYNAMICS = {
+            airDensity: 1.225, // kg/m³
+            efficiencyFactor: 0.85,
+            powerCoefficient: 0.4,
+            thrustCoefficient: 0.7,
+            dragCoefficient: 0.05
+        };
+        
+        // Background options
+        const backgrounds = {
+            sky: { color: 0x87CEEB, fog: 0x87CEEB },
+            night: { color: 0x0A0A2A, fog: 0x0A0A2A },
+            darkblue: { color: 0x001F3F, fog: 0x001F3F },
+            olive: { color: 0x556B2F, fog: 0x556B2F },
+            green: { color: 0x006400, fog: 0x006400 }
+        };
+        
+        // ============================================
+        // INITIALIZATION FUNCTIONS
+        // ============================================
+        
+        async function init() {
+            updateLoadingProgress(5, "Initializing 3D engine...");
+            
+            // Create scene with high precision
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(backgrounds.sky.color);
+            scene.fog = new THREE.Fog(backgrounds.sky.fog, 100, 800);
+            
+            updateLoadingProgress(15, "Setting up advanced camera...");
+            
+            // Create precision camera with isometric perspective
+            const aspect = window.innerWidth / window.innerHeight;
+            camera = new THREE.PerspectiveCamera(35, aspect, 0.1, 5000);
+            camera.position.set(300, 200, 300);
+            
+            updateLoadingProgress(25, "Creating high-quality renderer...");
+            
+            // Create high-performance renderer
+            renderer = new THREE.WebGLRenderer({ 
+                antialias: true,
+                alpha: false,
+                powerPreference: "high-performance",
+                precision: "highp",
+                stencil: true,
+                depth: true
+            });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            renderer.outputEncoding = THREE.sRGBEncoding;
+            renderer.toneMapping = THREE.ACESFilmicToneMapping;
+            renderer.toneMappingExposure = 1.2;
+            
+            document.getElementById('scene-container').appendChild(renderer.domElement);
+            
+            // Add OrbitControls for precise camera manipulation
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.screenSpacePanning = true;
+            controls.minDistance = 50;
+            controls.maxDistance = 1000;
+            controls.maxPolarAngle = Math.PI / 2;
+            controls.enablePan = true;
+            controls.enableZoom = true;
+            controls.enableRotate = true;
+            
+            updateLoadingProgress(35, "Creating advanced lighting system...");
+            
+            // Setup sophisticated lighting
+            setupAdvancedLighting();
+            
+            updateLoadingProgress(50, "Building precision fan model...");
+            
+            // Create ultra-detailed fan model
+            createUltraDetailedFan();
+            
+            updateLoadingProgress(70, "Creating aerodynamic environment...");
+            
+            // Create detailed environment
+            createDetailedEnvironment();
+            
+            updateLoadingProgress(85, "Initializing touch system...");
+            
+            // Setup event listeners
+            setupAdvancedEventListeners();
+            
+            updateLoadingProgress(95, "Starting physics simulation...");
+            
+            // Initialize airflow simulation
+            initAirflowSimulation();
+            
+            updateLoadingProgress(100, "Simulation ready!");
+            
+            // Hide loading screen
+            setTimeout(() => {
+                document.getElementById('loading').style.opacity = '0';
+                setTimeout(() => {
+                    document.getElementById('loading').style.display = 'none';
+                }, 500);
+            }, 500);
+            
+            // Start animation loop
+            animate();
+        }
+        
+        function updateLoadingProgress(percent, message) {
+            document.getElementById('loading-progress').style.width = `${percent}%`;
+            document.getElementById('loading-status').textContent = message;
+        }
+        
+        // ============================================
+        // ADVANCED LIGHTING SYSTEM
+        // ============================================
+        
+        function setupAdvancedLighting() {
+            // Ambient light for base illumination
+            const ambientLight = new THREE.AmbientLight(0x404040, 0.4);
+            scene.add(ambientLight);
+            
+            // Random colored corner lights
+            const cornerColors = [
+                0xFF6B6B, 0x4ECDC4, 0xFFD166, 0x06D6A0,
+                0x118AB2, 0xEF476F, 0x7209B7, 0xF15BB5
+            ];
+            
+            const cornerPositions = [
+                { x: 200, y: 150, z: 200 },
+                { x: -200, y: 150, z: 200 },
+                { x: 200, y: 150, z: -200 },
+                { x: -200, y: 150, z: -200 }
+            ];
+            
+            cornerPositions.forEach((pos, i) => {
+                const color = cornerColors[Math.floor(Math.random() * cornerColors.length)];
+                const intensity = 0.6 + Math.random() * 0.4;
+                
+                const light = new THREE.PointLight(color, intensity, 400);
+                light.position.set(pos.x, pos.y, pos.z);
+                light.castShadow = true;
+                light.shadow.mapSize.width = 1024;
+                light.shadow.mapSize.height = 1024;
+                scene.add(light);
+                
+                // Visual indicator with lens flare effect
+                const lightSphere = new THREE.Mesh(
+                    new THREE.SphereGeometry(4, 32, 32),
+                    new THREE.MeshBasicMaterial({ 
+                        color: color,
+                        transparent: true,
+                        opacity: 0.8
+                    })
+                );
+                lightSphere.position.set(pos.x, pos.y, pos.z);
+                scene.add(lightSphere);
+                
+                // Add lens flare effect
+                const flareGeometry = new THREE.SphereGeometry(8, 16, 16);
+                const flareMaterial = new THREE.MeshBasicMaterial({
+                    color: color,
+                    transparent: true,
+                    opacity: 0.2
+                });
+                const flare = new THREE.Mesh(flareGeometry, flareMaterial);
+                flare.position.set(pos.x, pos.y, pos.z);
+                scene.add(flare);
+            });
+            
+            // Top light - randomly choose sunlight or moonlight
+            const isSunlight = Math.random() > 0.5;
+            const topColor = isSunlight ? 0xFFEAA7 : 0xCAD2E0;
+            const topIntensity = isSunlight ? 1.0 : 0.7;
+            
+            const topLight = new THREE.DirectionalLight(topColor, topIntensity);
+            topLight.position.set(0, 300, 0);
+            topLight.castShadow = true;
+            topLight.shadow.mapSize.width = 4096;
+            topLight.shadow.mapSize.height = 4096;
+            topLight.shadow.camera.near = 0.5;
+            topLight.shadow.camera.far = 1000;
+            topLight.shadow.camera.left = -150;
+            topLight.shadow.camera.right = 150;
+            topLight.shadow.camera.top = 150;
+            topLight.shadow.camera.bottom = -150;
+            topLight.shadow.bias = -0.0001;
+            scene.add(topLight);
+            
+            // Bottom fill light with blue tint
+            const bottomLight = new THREE.DirectionalLight(0x3498db, 0.5);
+            bottomLight.position.set(0, -200, 0);
+            scene.add(bottomLight);
+            
+            // Rim lights for edge definition
+            const rimLight1 = new THREE.DirectionalLight(0xFFFFFF, 0.4);
+            rimLight1.position.set(-150, 100, -150);
+            scene.add(rimLight1);
+            
+            const rimLight2 = new THREE.DirectionalLight(0xFFFFFF, 0.3);
+            rimLight2.position.set(150, 100, 150);
+            scene.add(rimLight2);
+            
+            // Accent lights for fan
+            const fanAccentLight = new THREE.SpotLight(0x4ECDC4, 0.6);
+            fanAccentLight.position.set(0, 100, 150);
+            fanAccentLight.angle = Math.PI / 6;
+            fanAccentLight.penumbra = 0.5;
+            fanAccentLight.decay = 2;
+            fanAccentLight.distance = 500;
+            fanAccentLight.castShadow = true;
+            scene.add(fanAccentLight);
+        }
+        
+        // ============================================
+        // ULTRA-DETAILED FAN MODEL
+        // ============================================
+        
+        function createUltraDetailedFan() {
+            fanGroup = new THREE.Group();
+            scene.add(fanGroup);
+            
+            // Create motor with extreme detail
+            createPrecisionMotor();
+            
+            // Create hub with mechanical details
+            createPrecisionHub();
+            
+            // Create blades with aerodynamic profiles
+            createPrecisionBlades();
+            
+            // Position fan at center
+            fanGroup.position.y = 25;
+        }
+        
+        function createPrecisionMotor() {
+            motorGroup = new THREE.Group();
+            fanGroup.add(motorGroup);
+            
+            const scale = 0.01; // Convert cm to meters
+            
+            // Main motor housing (precision cylinder)
+            const motorGeometry = new THREE.CylinderGeometry(
+                fanParams.motorDiameter * scale / 2,
+                fanParams.motorDiameter * scale / 2,
+                fanParams.motorLength * scale,
+                64, 8, false
+            );
+            
+            const motorMaterial = new THREE.MeshPhysicalMaterial({
+                color: 0x333333,
+                roughness: 0.3,
+                metalness: 0.8,
+                clearcoat: 1.0,
+                clearcoatRoughness: 0.1,
+                reflectivity: 0.5
+            });
+            
+            const motorBody = new THREE.Mesh(motorGeometry, motorMaterial);
+            motorBody.castShadow = true;
+            motorBody.receiveShadow = true;
+            motorBody.position.y = -fanParams.motorLength * scale / 2;
+            motorGroup.add(motorBody);
+            
+            // Motor end caps with detailed features
+            const capGeometry = new THREE.CylinderGeometry(
+                (fanParams.motorDiameter + 2) * scale / 2,
+                (fanParams.motorDiameter + 2) * scale / 2,
+                2 * scale,
+                64
+            );
+            
+            const capMaterial = new THREE.MeshPhysicalMaterial({
+                color: 0x555555,
+                roughness: 0.2,
+                metalness: 0.9,
+                clearcoat: 1.0,
+                clearcoatRoughness: 0.05
+            });
+            
+            const topCap = new THREE.Mesh(capGeometry, capMaterial);
+            topCap.castShadow = true;
+            topCap.position.y = 0;
+            motorGroup.add(topCap);
+            
+            const bottomCap = new THREE.Mesh(capGeometry, capMaterial);
+            bottomCap.castShadow = true;
+            bottomCap.position.y = -fanParams.motorLength * scale;
+            motorGroup.add(bottomCap);
+            
+            // Precision shaft with bearing details
+            const shaftGeometry = new THREE.CylinderGeometry(
+                fanParams.shaftDiameter * scale / 2,
+                fanParams.shaftDiameter * scale / 2,
+                12 * scale,
+                48
+            );
+            
+            const shaftMaterial = new THREE.MeshPhysicalMaterial({
+                color: 0xCCCCCC,
+                roughness: 0.1,
+                metalness: 0.95,
+                clearcoat: 1.0,
+                clearcoatRoughness: 0.02
+            });
+            
+            const shaft = new THREE.Mesh(shaftGeometry, shaftMaterial);
+            shaft.castShadow = true;
+            shaft.position.y = 6 * scale;
+            motorGroup.add(shaft);
+            
+            // Bearing assembly
+            const bearingGeometry = new THREE.TorusGeometry(
+                (fanParams.shaftDiameter + 2) * scale / 2,
+                1 * scale,
+                16, 32
+            );
+            
+            const bearingMaterial = new THREE.MeshPhysicalMaterial({
+                color: 0x888888,
+                roughness: 0.3,
+                metalness: 0.7
+            });
+            
+            for (let i = 0; i < 2; i++) {
+                const bearing = new THREE.Mesh(bearingGeometry, bearingMaterial);
+                bearing.castShadow = true;
+                bearing.position.y = i * 8 * scale;
+                bearing.rotation.x = Math.PI / 2;
+                motorGroup.add(bearing);
+            }
+            
+            // Detailed cooling fins
+            const finCount = 16;
+            const finGeometry = new THREE.BoxGeometry(
+                2.5 * scale,
+                (fanParams.motorLength - 15) * scale,
+                6 * scale
+            );
+            
+            const finMaterial = new THREE.MeshPhysicalMaterial({
+                color: 0x444444,
+                roughness: 0.4,
+                metalness: 0.6
+            });
+            
+            for (let i = 0; i < finCount; i++) {
+                const fin = new THREE.Mesh(finGeometry, finMaterial);
+                fin.castShadow = true;
+                
+                const angle = (i / finCount) * Math.PI * 2;
+                const radius = (fanParams.motorDiameter / 2 + 4) * scale;
+                
+                fin.position.x = Math.cos(angle) * radius;
+                fin.position.z = Math.sin(angle) * radius;
+                fin.position.y = -fanParams.motorLength * scale / 2;
+                
+                // Align fin radially with precision
+                fin.lookAt(
+                    fin.position.x * 2,
+                    fin.position.y,
+                    fin.position.z * 2
+                );
+                fin.rotateX(Math.PI / 2);
+                
+                motorGroup.add(fin);
+            }
+            
+            // Motor mounting flange with bolt holes
+            const flangeGeometry = new THREE.CylinderGeometry(
+                (fanParams.motorDiameter + 10) * scale / 2,
+                (fanParams.motorDiameter + 10) * scale / 2,
+                1.5 * scale,
+                64
+            );
+            
+            const flange = new THREE.Mesh(flangeGeometry, finMaterial);
+            flange.castShadow = true;
+            flange.position.y = -fanParams.motorLength * scale;
+            motorGroup.add(flange);
+            
+            // Bolt holes
+            const boltHoleCount = 6;
+            const boltHoleGeometry = new THREE.CylinderGeometry(
+                0.6 * scale,
+                0.6 * scale,
+                2 * scale,
+                24
+            );
+            
+            for (let i = 0; i < boltHoleCount; i++) {
+                const angle = (i / boltHoleCount) * Math.PI * 2;
+                const radius = (fanParams.motorDiameter / 2 + 4) * scale;
+                
+                const boltHole = new THREE.Mesh(boltHoleGeometry, shaftMaterial);
+                boltHole.position.x = Math.cos(angle) * radius;
+                boltHole.position.z = Math.sin(angle) * radius;
+                boltHole.position.y = -fanParams.motorLength * scale;
+                
+                motorGroup.add(boltHole);
+            }
+            
+            // Motor windings visualization
+            const windingGeometry = new THREE.TorusKnotGeometry(
+                8 * scale,
+                1 * scale,
+                64, 8, 3, 4
+            );
+            
+            const windingMaterial = new THREE.MeshBasicMaterial({
+                color: 0xFF6B6B,
+                transparent: true,
+                opacity: 0.3
+            });
+            
+            const winding = new THREE.Mesh(windingGeometry, windingMaterial);
+            winding.position.y = -fanParams.motorLength * scale / 2;
+            motorGroup.add(winding);
+        }
+        
+        function createPrecisionHub() {
+            hub = new THREE.Group();
+            fanGroup.add(hub);
+            
+            const scale = 0.01;
+            
+            // Main hub body with high detail
+            const hubGeometry = new THREE.CylinderGeometry(
+                fanParams.hubDiameter * scale / 2,
+                fanParams.hubDiameter * scale / 2,
+                fanParams.hubThickness * scale,
+                64, 8, false
+            );
+            
+            const hubMaterial = new THREE.MeshPhysicalMaterial({
+                color: 0x888888,
+                roughness: 0.4,
+                metalness: 0.8,
+                clearcoat: 0.5,
+                clearcoatRoughness: 0.1
+            });
+            
+            const hubBody = new THREE.Mesh(hubGeometry, hubMaterial);
+            hubBody.castShadow = true;
+            hubBody.receiveShadow = true;
+            hub.add(hubBody);
+            
+            // Flanges for blade attachment
+            const flangeGeometry = new THREE.CylinderGeometry(
+                (fanParams.hubDiameter + 6) * scale / 2,
+                (fanParams.hubDiameter + 6) * scale / 2,
+                2.5 * scale,
+                64
+            );
+            
+            const flangeMaterial = new THREE.MeshPhysicalMaterial({
+                color: 0x666666,
+                roughness: 0.3,
+                metalness: 0.9
+            });
+            
+            const topFlange = new THREE.Mesh(flangeGeometry, flangeMaterial);
+            topFlange.castShadow = true;
+            topFlange.position.y = fanParams.hubThickness * scale / 2;
+            hub.add(topFlange);
+            
+            const bottomFlange = new THREE.Mesh(flangeGeometry, flangeMaterial);
+            bottomFlange.castShadow = true;
+            bottomFlange.position.y = -fanParams.hubThickness * scale / 2;
+            hub.add(bottomFlange);
+            
+            // Blade connection arms with mechanical details
+            createBladeConnectionArms();
+            
+            // Center locking mechanism
+            const lockGeometry = new THREE.CylinderGeometry(
+                (fanParams.shaftDiameter + 2) * scale / 2,
+                (fanParams.shaftDiameter + 2) * scale / 2,
+                3 * scale,
+                32
+            );
+            
+            const lock = new THREE.Mesh(lockGeometry, hubMaterial);
+            lock.castShadow = true;
+            lock.position.y = -fanParams.hubThickness * scale / 2 - 1.5 * scale;
+            hub.add(lock);
+            
+            // Locking pin
+            const pinGeometry = new THREE.CylinderGeometry(
+                0.3 * scale,
+                0.3 * scale,
+                3 * scale,
+                16
+            );
+            
+            const pinMaterial = new THREE.MeshPhysicalMaterial({
+                color: 0xFF6B6B,
+                roughness: 0.3,
+                metalness: 0.8
+            });
+            
+            const pin = new THREE.Mesh(pinGeometry, pinMaterial);
+            pin.castShadow = true;
+            pin.position.x = (fanParams.shaftDiameter + 1) * scale / 2;
+            pin.position.y = -fanParams.hubThickness * scale / 2 - 1.5 * scale;
+            pin.rotation.z = Math.PI / 2;
+            hub.add(pin);
+        }
+        
+        function createBladeConnectionArms() {
+            const scale = 0.01;
+            const armCount = fanParams.bladeCount;
+            
+            for (let i = 0; i < armCount; i++) {
+                const armGroup = new THREE.Group();
+                const angle = (i / armCount) * Math.PI * 2;
+                
+                // Main arm structure
+                const armLength = (fanParams.hubDiameter / 2 + fanParams.bladeWidth / 2) * scale;
+                const armGeometry = new THREE.BoxGeometry(
+                    4 * scale,
+                    2.5 * scale,
+                    armLength
+                );
+                
+                const armMaterial = new THREE.MeshPhysicalMaterial({
+                    color: 0x555555,
+                    roughness: 0.4,
+                    metalness: 0.7
+                });
+                
+                const arm = new THREE.Mesh(armGeometry, armMaterial);
+                arm.castShadow = true;
+                arm.position.z = armLength / 2;
+                armGroup.add(arm);
+                
+                // Bolts for blade attachment
+                const boltGeometry = new THREE.CylinderGeometry(
+                    0.8 * scale,
+                    0.8 * scale,
+                    5 * scale,
+                    24
+                );
+                
+                const boltMaterial = new THREE.MeshPhysicalMaterial({
+                    color: 0xAAAAAA,
+                    roughness: 0.2,
+                    metalness: 0.95,
+                    clearcoat: 1.0
+                });
+                
+                // Two bolts per arm
+                for (let j = 0; j < 2; j++) {
+                    const bolt = new THREE.Mesh(boltGeometry, boltMaterial);
+                    bolt.castShadow = true;
+                    
+                    const boltOffset = j === 0 ? 2 * scale : armLength - 2 * scale;
+                    bolt.position.z = boltOffset;
+                    bolt.position.y = (j === 0 ? 1.5 : -1.5) * scale;
+                    
+                    bolt.rotation.x = Math.PI / 2;
+                    armGroup.add(bolt);
+                    
+                    // Bolt heads
+                    const headGeometry = new THREE.CylinderGeometry(
+                        1.2 * scale,
+                        1.2 * scale,
+                        0.8 * scale,
+                        6
+                    );
+                    
+                    const head = new THREE.Mesh(headGeometry, boltMaterial);
+                    head.position.z = boltOffset;
+                    head.position.y = (j === 0 ? 1.5 : -1.5) * scale;
+                    head.rotation.x = Math.PI / 2;
+                    armGroup.add(head);
+                }
+                
+                // Reinforcing gussets
+                const gussetGeometry = new THREE.ConeGeometry(
+                    2 * scale,
+                    4 * scale,
+                    4
+                );
+                
+                const gussetMaterial = new THREE.MeshPhysicalMaterial({
+                    color: 0x666666,
+                    roughness: 0.5,
+                    metalness: 0.6
+                });
+                
+                for (let j = 0; j < 2; j++) {
+                    const gusset = new THREE.Mesh(gussetGeometry, gussetMaterial);
+                    gusset.castShadow = true;
+                    gusset.position.z = armLength - 2 * scale;
+                    gusset.position.y = (j === 0 ? 2 : -2) * scale;
+                    gusset.rotation.x = Math.PI / 2;
+                    gusset.rotation.z = j === 0 ? Math.PI / 4 : -Math.PI / 4;
+                    armGroup.add(gusset);
+                }
+                
+                // Position and rotate arm group
+                const radius = (fanParams.hubDiameter / 2) * scale;
+                armGroup.position.x = Math.cos(angle) * radius;
+                armGroup.position.z = Math.sin(angle) * radius;
+                armGroup.rotation.y = angle + Math.PI / 2;
+                
+                hub.add(armGroup);
+            }
+        }
+        
+        function createPrecisionBlades() {
+            bladesGroup = new THREE.Group();
+            hub.add(bladesGroup);
+            
+            updateBlades();
+        }
+        
+        function updateBlades() {
+            // Remove existing blades
+            while(bladesGroup.children.length > 0) {
+                bladesGroup.remove(bladesGroup.children[0]);
+            }
+            
+            // Create precision airfoil blades
+            for (let i = 0; i < fanParams.bladeCount; i++) {
+                const blade = createPrecisionAirfoilBlade();
+                const angle = (i / fanParams.bladeCount) * Math.PI * 2;
+                blade.rotation.y = angle;
+                bladesGroup.add(blade);
+            }
+            
+            updateUI();
+        }
+        
+        function createPrecisionAirfoilBlade() {
+            const bladeGroup = new THREE.Group();
+            const scale = 0.01;
+            
+            // Create NACA 0012 airfoil profile
+            const airfoilPoints = generateNACA0012Profile(
+                fanParams.bladeWidth * scale,
+                fanParams.bladeThickness * scale
+            );
+            
+            // Create blade geometry by extruding airfoil along length
+            const bladeShape = new THREE.Shape();
+            bladeShape.moveTo(airfoilPoints[0].x, airfoilPoints[0].y);
+            
+            for (let i = 1; i < airfoilPoints.length; i++) {
+                bladeShape.lineTo(airfoilPoints[i].x, airfoilPoints[i].y);
+            }
+            bladeShape.closePath();
+            
+            const extrudeSettings = {
+                depth: fanParams.bladeLength * scale,
+                bevelEnabled: true,
+                bevelThickness: 0.2 * scale,
+                bevelSize: 0.2 * scale,
+                bevelSegments: 3,
+                curveSegments: 32
+            };
+            
+            const bladeGeometry = new THREE.ExtrudeGeometry(bladeShape, extrudeSettings);
+            
+            // Rotate to proper orientation
+            bladeGeometry.rotateX(Math.PI / 2);
+            bladeGeometry.rotateY(-Math.PI / 2);
+            
+            const bladeMaterial = new THREE.MeshPhysicalMaterial({
+                color: 0x1E88E5,
+                roughness: 0.3,
+                metalness: 0.7,
+                clearcoat: 0.5,
+                clearcoatRoughness: 0.1,
+                side: THREE.DoubleSide
+            });
+            
+            const bladeMesh = new THREE.Mesh(bladeGeometry, bladeMaterial);
+            bladeMesh.castShadow = true;
+            bladeMesh.receiveShadow = true;
+            
+            // Position blade at arm connection point
+            const bladePosition = (fanParams.hubDiameter / 2 + fanParams.bladeWidth / 2) * scale;
+            bladeMesh.position.z = bladePosition;
+            
+            // Apply angle of attack
+            bladeMesh.rotation.x = currentBladeAngle * Math.PI / 180;
+            
+            bladeGroup.add(bladeMesh);
+            
+            // Add leading edge reinforcement
+            const leadingEdgeGeometry = new THREE.CylinderGeometry(
+                0.5 * scale,
+                0.5 * scale,
+                fanParams.bladeLength * scale * 0.9,
+                16
+            );
+            
+            const leadingEdge = new THREE.Mesh(leadingEdgeGeometry, bladeMaterial);
+            leadingEdge.position.x = -fanParams.bladeWidth * scale / 2;
+            leadingEdge.position.z = bladePosition;
+            leadingEdge.rotation.x = Math.PI / 2;
+            bladeGroup.add(leadingEdge);
+            
+            // Add trailing edge
+            const trailingEdgeGeometry = new THREE.BoxGeometry(
+                0.3 * scale,
+                fanParams.bladeThickness * scale * 0.3,
+                fanParams.bladeLength * scale * 0.9
+            );
+            
+            const trailingEdge = new THREE.Mesh(trailingEdgeGeometry, bladeMaterial);
+            trailingEdge.position.x = fanParams.bladeWidth * scale / 2;
+            trailingEdge.position.z = bladePosition;
+            bladeGroup.add(trailingEdge);
+            
+            // Add surface details (rivets, labels, etc.)
+            addBladeSurfaceDetails(bladeGroup, scale, bladePosition);
+            
+            return bladeGroup;
+        }
+        
+        function generateNACA0012Profile(chord, thickness) {
+            const points = [];
+            const segments = 32;
+            
+            // Generate NACA 0012 coordinates
+            for (let i = 0; i <= segments; i++) {
+                const x = (i / segments - 0.5) * chord;
+                const t = Math.abs(2 * x / chord) + 0.001;
+                
+                // NACA 0012 thickness distribution
+                const yt = thickness * (0.2969 * Math.sqrt(t) - 0.1260 * t - 
+                        0.3516 * t * t + 0.2843 * t * t * t - 0.1015 * t * t * t * t);
+                
+                points.push({ x: x, y: yt });
+            }
+            
+            for (let i = segments - 1; i > 0; i--) {
+                const x = (i / segments - 0.5) * chord;
+                const t = Math.abs(2 * x / chord) + 0.001;
+                const yt = thickness * (0.2969 * Math.sqrt(t) - 0.1260 * t - 
+                        0.3516 * t * t + 0.2843 * t * t * t - 0.1015 * t * t * t * t);
+                
+                points.push({ x: x, y: -yt });
+            }
+            
+            return points;
+        }
+        
+        function addBladeSurfaceDetails(bladeGroup, scale, position) {
+            // Add rivets along blade
+            const rivetGeometry = new THREE.SphereGeometry(0.2 * scale, 8, 8);
+            const rivetMaterial = new THREE.MeshPhysicalMaterial({
+                color: 0x333333,
+                roughness: 0.4,
+                metalness: 0.8
+            });
+            
+            const rivetRows = 3;
+            const rivetsPerRow = 5;
+            
+            for (let row = 0; row < rivetRows; row++) {
+                for (let rivet = 0; rivet < rivetsPerRow; rivet++) {
+                    const rivetMesh = new THREE.Mesh(rivetGeometry, rivetMaterial);
+                    rivetMesh.castShadow = true;
+                    
+                    const xPos = (rivet / (rivetsPerRow - 1) - 0.5) * fanParams.bladeWidth * scale * 0.8;
+                    const yPos = (row / (rivetRows - 1) - 0.5) * fanParams.bladeThickness * scale * 0.6;
+                    const zPos = position + (rivet / (rivetsPerRow - 1) - 0.5) * fanParams.bladeLength * scale * 0.8;
+                    
+                    rivetMesh.position.set(xPos, yPos, zPos);
+                    bladeGroup.add(rivetMesh);
+                }
+            }
+            
+            // Add manufacturer label
+            const labelGeometry = new THREE.PlaneGeometry(10 * scale, 2 * scale);
+            const labelMaterial = new THREE.MeshBasicMaterial({
+                color: 0xFFD166,
+                transparent: true,
+                opacity: 0.8,
+                side: THREE.DoubleSide
+            });
+            
+            const label = new THREE.Mesh(labelGeometry, labelMaterial);
+            label.position.set(0, fanParams.bladeThickness * scale / 2 + 0.1 * scale, position);
+            label.rotation.x = Math.PI / 2;
+            bladeGroup.add(label);
+        }
+        
+        // ============================================
+        // AERODYNAMIC PHYSICS SIMULATION
+        // ============================================
+        
+        function calculateAerodynamicParameters() {
+            const scale = 0.01;
+            const rpm = fanParams.rpm;
+            const angleRad = currentBladeAngle * Math.PI / 180;
+            
+            // Basic aerodynamic calculations
+            const bladeArea = fanParams.bladeWidth * scale * fanParams.bladeLength * scale;
+            const totalArea = bladeArea * fanParams.bladeCount;
+            const angularVelocity = (rpm * 2 * Math.PI) / 60; // rad/s
+            
+            // Lift coefficient based on angle of attack (simplified)
+            const Cl = 2 * Math.PI * Math.sin(angleRad) * Math.cos(angleRad);
+            
+            // Drag coefficient
+            const Cd = AERODYNAMICS.dragCoefficient + 0.1 * Math.pow(Math.sin(angleRad), 2);
+            
+            // Dynamic pressure
+            const tipSpeed = angularVelocity * fanParams.bladeLength * scale;
+            const dynamicPressure = 0.5 * AERODYNAMICS.airDensity * Math.pow(tipSpeed, 2);
+            
+            // Calculate forces
+            const liftForce = Cl * dynamicPressure * totalArea;
+            const dragForce = Cd * dynamicPressure * totalArea;
+            
+            // Calculate performance metrics
+            const airflowRate = liftForce * tipSpeed * AERODYNAMICS.efficiencyFactor;
+            const powerRequired = dragForce * tipSpeed;
+            const staticPressure = liftForce / totalArea;
+            const efficiency = (airflowRate / (powerRequired + 0.001)) * 100;
+            
+            return {
+                airflowRate: airflowRate * 60, // Convert to m³/min
+                powerConsumption: powerRequired,
+                staticPressure: staticPressure,
+                efficiency: Math.min(95, Math.max(0, efficiency)),
+                liftCoefficient: Cl,
+                dragCoefficient: Cd,
+                tipSpeed: tipSpeed
+            };
+        }
+        
+        function updateAerodynamicDisplay() {
+            const aero = calculateAerodynamicParameters();
+            
+            // Update display values
+            document.getElementById('airflow-rate').textContent = aero.airflowRate.toFixed(1);
+            document.getElementById('power-consumption').textContent = Math.round(aero.powerConsumption);
+            document.getElementById('static-pressure').textContent = aero.staticPressure.toFixed(1);
+            document.getElementById('efficiency').textContent = aero.efficiency.toFixed(1) + '%';
+            document.getElementById('efficiency-bar').style.width = aero.efficiency.toFixed(1) + '%';
+        }
+        
+        function initAirflowSimulation() {
+            // Create airflow particles
+            for (let i = 0; i < 50; i++) {
+                createAirflowParticle();
+            }
+        }
+        
+        function createAirflowParticle() {
+            const particle = document.createElement('div');
+            particle.className = 'airflow-particle';
+            particle.style.width = Math.random() * 6 + 4 + 'px';
+            particle.style.height = particle.style.width;
+            particle.style.opacity = Math.random() * 0.6 + 0.4;
+            
+            // Random starting position around fan
+            const angle = Math.random() * Math.PI * 2;
+            const distance = Math.random() * 100 + 50;
+            const x = window.innerWidth / 2 + Math.cos(angle) * distance;
+            const y = window.innerHeight / 2 + Math.sin(angle) * distance;
+            
+            particle.style.left = x + 'px';
+            particle.style.top = y + 'px';
+            
+            document.body.appendChild(particle);
+            airflowParticles.push({
+                element: particle,
+                x: x,
+                y: y,
+                vx: 0,
+                vy: 0,
+                life: 1
+            });
+        }
+        
+        function updateAirflowParticles() {
+            const aero = calculateAerodynamicParameters();
+            const airflowStrength = aero.airflowRate / 200;
+            
+            airflowParticles.forEach((particle, index) => {
+                // Calculate distance from fan center
+                const dx = particle.x - window.innerWidth / 2;
+                const dy = particle.y - window.innerHeight / 2;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                // Calculate radial force
+                const force = airflowStrength * 100 / (distance + 50);
+                const angle = Math.atan2(dy, dx);
+                
+                // Update velocity
+                particle.vx += Math.cos(angle) * force * 0.1;
+                particle.vy += Math.sin(angle) * force * 0.1;
+                
+                // Apply damping
+                particle.vx *= 0.95;
+                particle.vy *= 0.95;
+                
+                // Update position
+                particle.x += particle.vx;
+                particle.y += particle.vy;
+                
+                // Update life
+                particle.life -= 0.005;
+                
+                // Update visual
+                particle.element.style.left = particle.x + 'px';
+                particle.element.style.top = particle.y + 'px';
+                particle.element.style.opacity = particle.life * 0.6;
+                
+                // Reset particle if it goes off screen or dies
+                if (particle.life <= 0 || 
+                    particle.x < -100 || particle.x > window.innerWidth + 100 ||
+                    particle.y < -100 || particle.y > window.innerHeight + 100) {
+                    
+                    particle.element.remove();
+                    airflowParticles.splice(index, 1);
+                    createAirflowParticle();
+                }
+            });
+        }
+        
+        // ============================================
+        // ADVANCED TOUCH HANDLING
+        // ============================================
+        
+        function setupAdvancedEventListeners() {
+            // Touch zone event listeners
+            ['up', 'down', 'left', 'right'].forEach(zone => {
+                const zoneElement = document.getElementById(`zone-${zone}`);
+                
+                // Touch events
+                zoneElement.addEventListener('touchstart', (e) => handleZoneTouchStart(e, zone));
+                zoneElement.addEventListener('touchmove', (e) => handleZoneTouchMove(e, zone));
+                zoneElement.addEventListener('touchend', (e) => handleZoneTouchEnd(e, zone));
+                zoneElement.addEventListener('touchcancel', (e) => handleZoneTouchEnd(e, zone));
+                
+                // Mouse events for desktop
+                zoneElement.addEventListener('mousedown', (e) => handleZoneMouseDown(e, zone));
+                zoneElement.addEventListener('mousemove', (e) => handleZoneMouseMove(e, zone));
+                zoneElement.addEventListener('mouseup', (e) => handleZoneMouseUp(e, zone));
+                zoneElement.addEventListener('mouseleave', (e) => handleZoneMouseUp(e, zone));
+            });
+            
+            // UI Controls
+            setupUIControls();
+            
+            // Performance monitoring
+            setInterval(updatePerformanceMetrics, 1000);
+            
+            // Window resize
+            window.addEventListener('resize', onWindowResize);
+        }
+        
+        function handleZoneTouchStart(e, zone) {
+            e.preventDefault();
+            const touch = e.touches[0];
+            
+            // Calculate precise touch position
+            const rect = e.target.getBoundingClientRect();
+            const x = touch.clientX - rect.left;
+            const y = touch.clientY - rect.top;
+            
+            // Initialize touch tracking
+            touchZones[zone].active = true;
+            touchZones[zone].startTime = Date.now();
+            touchZones[zone].startPos = { x: x, y: y };
+            touchZones[zone].currentPos = { x: x, y: y };
+            touchZones[zone].touchId = touch.identifier;
+            touchZones[zone].velocity = 0;
+            touchZones[zone].displacement = 0;
+            
+            // Create touch visualization
+            createTouchVisualization(touch.clientX, touch.clientY, touch.identifier);
+            
+            // Update UI
+            updateZoneIndicator(zone, true);
+            updateFanControl(zone, true);
+            updateTouchAnalytics();
+            
+            // Add active class to zone
+            document.getElementById(`zone-${zone}`).classList.add('active');
+        }
+        
+        function handleZoneTouchMove(e, zone) {
+            e.preventDefault();
+            
+            // Find the touch for this zone
+            const zoneData = touchZones[zone];
+            if (!zoneData.active) return;
+            
+            for (let i = 0; i < e.touches.length; i++) {
+                const touch = e.touches[i];
+                if (touch.identifier === zoneData.touchId) {
+                    const rect = e.target.getBoundingClientRect();
+                    const x = touch.clientX - rect.left;
+                    const y = touch.clientY - rect.top;
+                    const currentTime = Date.now();
+                    
+                    // Calculate displacement
+                    const dx = x - zoneData.startPos.x;
+                    const dy = y - zoneData.startPos.y;
+                    const displacement = Math.sqrt(dx * dx + dy * dy);
+                    
+                    // Calculate velocity
+                    const dt = currentTime - zoneData.startTime;
+                    const velocity = dt > 0 ? displacement / dt : 0;
+                    
+                    // Calculate instantaneous velocity (dxt, dyt)
+                    const prevPos = zoneData.currentPos;
+                    const dxt = x - prevPos.x;
+                    const dyt = y - prevPos.y;
+                    const dtInstant = currentTime - zoneData.startTime;
+                    
+                    // Update zone data
+                    zoneData.currentPos = { x, y };
+                    zoneData.displacement = displacement;
+                    zoneData.velocity = velocity;
+                    
+                    // Update touch visualization
+                    updateTouchVisualization(touch.clientX, touch.clientY, touch.identifier);
+                    
+                    // Update analytics display
+                    updateTouchMetrics(x, y, displacement, velocity, dtInstant, dxt, dyt);
+                    
+                    // Add sliding class if significant movement
+                    if (displacement > 15) {
+                        document.getElementById(`zone-${zone}`).classList.add('sliding');
+                    }
+                    
+                    // Update fan control based on movement
+                    if (displacement > 10) {
+                        updateFanControlWithMovement(zone, dx, dy, displacement);
+                    }
+                    
+                    break;
+                }
+            }
+        }
+        
+        function handleZoneTouchEnd(e, zone) {
+            e.preventDefault();
+            
+            const zoneData = touchZones[zone];
+            zoneData.active = false;
+            
+            // Remove touch visualization
+            if (zoneData.touchId !== null) {
+                removeTouchVisualization(zoneData.touchId);
+            }
+            
+            // Update UI
+            updateZoneIndicator(zone, false);
+            updateFanControl(zone, false);
+            
+            // Remove active classes
+            document.getElementById(`zone-${zone}`).classList.remove('active', 'sliding');
+            
+            // Reset zone data
+            zoneData.touchId = null;
+            zoneData.velocity = 0;
+            zoneData.displacement = 0;
+            
+            updateTouchAnalytics();
+        }
+        
+        // Mouse handlers for desktop
+        function handleZoneMouseDown(e, zone) {
+            e.preventDefault();
+            
+            const rect = e.target.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            touchZones[zone].active = true;
+            touchZones[zone].startTime = Date.now();
+            touchZones[zone].startPos = { x, y };
+            touchZones[zone].currentPos = { x, y };
+            touchZones[zone].touchId = 'mouse';
+            
+            createTouchVisualization(e.clientX, e.clientY, 'mouse');
+            updateZoneIndicator(zone, true);
+            updateFanControl(zone, true);
+            document.getElementById(`zone-${zone}`).classList.add('active');
+        }
+        
+        function handleZoneMouseMove(e, zone) {
+            if (!touchZones[zone].active) return;
+            e.preventDefault();
+            
+            const rect = e.target.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            const currentTime = Date.now();
+            const zoneData = touchZones[zone];
+            
+            const dx = x - zoneData.startPos.x;
+            const dy = y - zoneData.startPos.y;
+            const displacement = Math.sqrt(dx * dx + dy * dy);
+            const dt = currentTime - zoneData.startTime;
+            const velocity = dt > 0 ? displacement / dt : 0;
+            
+            const prevPos = zoneData.currentPos;
+            const dxt = x - prevPos.x;
+            const dyt = y - prevPos.y;
+            
+            zoneData.currentPos = { x, y };
+            zoneData.displacement = displacement;
+            zoneData.velocity = velocity;
+            
+            updateTouchVisualization(e.clientX, e.clientY, 'mouse');
+            updateTouchMetrics(x, y, displacement, velocity, dt, dxt, dyt);
+            
+            if (displacement > 15) {
+                document.getElementById(`zone-${zone}`).classList.add('sliding');
+                updateFanControlWithMovement(zone, dx, dy, displacement);
+            }
+        }
+        
+        function handleZoneMouseUp(e, zone) {
+            e.preventDefault();
+            
+            touchZones[zone].active = false;
+            removeTouchVisualization('mouse');
+            updateZoneIndicator(zone, false);
+            updateFanControl(zone, false);
+            document.getElementById(`zone-${zone}`).classList.remove('active', 'sliding');
+            
+            touchZones[zone].touchId = null;
+            touchZones[zone].velocity = 0;
+            touchZones[zone].displacement = 0;
+        }
+        
+        function updateFanControl(zone, isActive) {
+            switch(zone) {
+                case 'up':
+                    if (isActive) {
+                        fanParams.rpm = Math.min(1500, fanParams.rpm + 50);
+                    }
+                    break;
+                case 'down':
+                    if (isActive) {
+                        fanParams.rpm = Math.max(0, fanParams.rpm - 50);
+                    }
+                    break;
+                case 'left':
+                    if (isActive) {
+                        currentBladeAngle = Math.max(5, currentBladeAngle - 1);
+                    }
+                    break;
+                case 'right':
+                    if (isActive) {
+                        currentBladeAngle = Math.min(35, currentBladeAngle + 1);
+                    }
+                    break;
+            }
+            
+            updateUI();
+            updateAerodynamicDisplay();
+        }
+        
+        function updateFanControlWithMovement(zone, dx, dy, displacement) {
+            // Fine control based on movement direction and distance
+            const sensitivity = 0.1;
+            
+            switch(zone) {
+                case 'up':
+                    fanParams.rpm = Math.min(1500, fanParams.rpm + displacement * sensitivity);
+                    break;
+                case 'down':
+                    fanParams.rpm = Math.max(0, fanParams.rpm - displacement * sensitivity);
+                    break;
+                case 'left':
+                    currentBladeAngle = Math.max(5, currentBladeAngle - displacement * sensitivity * 0.2);
+                    break;
+                case 'right':
+                    currentBladeAngle = Math.min(35, currentBladeAngle + displacement * sensitivity * 0.2);
+                    break;
+            }
+            
+            updateUI();
+            updateAerodynamicDisplay();
+        }
+        
+        // ============================================
+        // UI CONTROLS AND UPDATES
+        // ============================================
+        
+        function setupUIControls() {
+            // RPM Slider
+            document.getElementById('rpm-slider').addEventListener('input', (e) => {
+                fanParams.rpm = parseInt(e.target.value);
+                updateUI();
+                updateAerodynamicDisplay();
+            });
+            
+            // Blade Count Controls
+            document.getElementById('blades-plus').addEventListener('click', () => {
+                if (fanParams.bladeCount < 10) {
+                    fanParams.bladeCount++;
+                    updateBlades();
+                    updateAerodynamicDisplay();
+                }
+            });
+            
+            document.getElementById('blades-minus').addEventListener('click', () => {
+                if (fanParams.bladeCount > 3) {
+                    fanParams.bladeCount--;
+                    updateBlades();
+                    updateAerodynamicDisplay();
+                }
+            });
+            
+            // Length Controls
+            document.getElementById('length-plus').addEventListener('click', () => {
+                if (fanParams.bladeLength < 80) {
+                    fanParams.bladeLength += 5;
+                    updateBlades();
+                    updateAerodynamicDisplay();
+                }
+            });
+            
+            document.getElementById('length-minus').addEventListener('click', () => {
+                if (fanParams.bladeLength > 40) {
+                    fanParams.bladeLength -= 5;
+                    updateBlades();
+                    updateAerodynamicDisplay();
+                }
+            });
+            
+            // Angle Slider
+            document.getElementById('angle-slider').addEventListener('input', (e) => {
+                currentBladeAngle = parseFloat(e.target.value);
+                updateBlades();
+                updateAerodynamicDisplay();
+            });
+            
+            // Background Buttons
+            document.querySelectorAll('[data-bg]').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const bg = btn.dataset.bg;
+                    scene.background = new THREE.Color(backgrounds[bg].color);
+                    scene.fog.color = new THREE.Color(backgrounds[bg].fog);
+                    
+                    // Update active state
+                    document.querySelectorAll('[data-bg]').forEach(b => {
+                        b.classList.remove('ring-4', 'ring-blue-400');
+                    });
+                    btn.classList.add('ring-4', 'ring-blue-400');
+                });
+            });
+        }
+        
+        function updateUI() {
+            // Update control values
+            document.getElementById('rpm-value').textContent = fanParams.rpm;
+            document.getElementById('blades-value').textContent = fanParams.bladeCount;
+            document.getElementById('length-value').textContent = fanParams.bladeLength;
+            document.getElementById('angle-value').textContent = currentBladeAngle.toFixed(1);
+            
+            // Update sliders
+            document.getElementById('rpm-slider').value = fanParams.rpm;
+            document.getElementById('angle-slider').value = currentBladeAngle;
+            
+            // Update current parameters
+            document.getElementById('current-rpm').textContent = fanParams.rpm;
+            document.getElementById('current-angle').textContent = currentBladeAngle.toFixed(1) + '°';
+            document.getElementById('current-blades').textContent = fanParams.bladeCount;
+            document.getElementById('current-length').textContent = fanParams.bladeLength + ' cm';
+        }
+        
+        function updateZoneIndicator(zone, active) {
+            const indicator = document.getElementById(`zone-indicator-${zone}`);
+            if (active) {
+                indicator.classList.add('bg-green-500', 'border-green-400', 'text-white');
+                indicator.classList.remove('bg-gray-800/50', 'border-gray-700');
+            } else {
+                indicator.classList.remove('bg-green-500', 'border-green-400', 'text-white');
+                indicator.classList.add('bg-gray-800/50', 'border-gray-700');
+            }
+        }
+        
+        function updateTouchMetrics(x, y, displacement, velocity, deltaTime, dx, dy) {
+            document.getElementById('touch-position').textContent = 
+                `${Math.round(x)}, ${Math.round(y)}`;
+            document.getElementById('touch-displacement').textContent = 
+                `${displacement.toFixed(1)} px`;
+            document.getElementById('touch-velocity').textContent = 
+                `${velocity.toFixed(2)} px/ms`;
+            document.getElementById('touch-delta').textContent = 
+                `${deltaTime} ms`;
+        }
+        
+        function updateTouchAnalytics() {
+            const activeZones = Object.values(touchZones).filter(z => z.active).length;
+            document.getElementById('active-touches').textContent = activeZones;
+            
+            // Find current zone
+            let currentZone = '-';
+            for (const [zone, data] of Object.entries(touchZones)) {
+                if (data.active) {
+                    currentZone = zone.toUpperCase();
+                    break;
+                }
+            }
+            document.getElementById('current-zone').textContent = currentZone;
+            
+            // Update interaction mode
+            const mode = activeZones > 0 ? 'Touch Control' : 'Manual Control';
+            document.getElementById('interaction-mode').textContent = mode;
+        }
+        
+        // ============================================
+        // TOUCH VISUALIZATION
+        // ============================================
+        
+        function createTouchVisualization(x, y, id) {
+            const indicator = document.createElement('div');
+            indicator.className = 'touch-indicator';
+            indicator.id = `touch-${id}`;
+            indicator.style.left = `${x}px`;
+            indicator.style.top = `${y}px`;
+            
+            document.getElementById('touch-visualization').appendChild(indicator);
+            touchVisualizations.set(id, indicator);
+            
+            // Create trail
+            const trail = document.createElement('div');
+            trail.className = 'touch-trail';
+            trail.style.left = `${x}px`;
+            trail.style.top = `${y}px`;
+            trail.style.width = '16px';
+            trail.style.height = '16px';
+            
+            document.getElementById('touch-visualization').appendChild(trail);
+        }
+        
+        function updateTouchVisualization(x, y, id) {
+            const indicator = touchVisualizations.get(id);
+            if (indicator) {
+                indicator.style.left = `${x}px`;
+                indicator.style.top = `${y}px`;
+            }
+        }
+        
+        function removeTouchVisualization(id) {
+            const indicator = touchVisualizations.get(id);
+            if (indicator) {
+                indicator.style.opacity = '0';
+                indicator.style.transform = 'translate(-50%, -50%) scale(0.5)';
+                setTimeout(() => {
+                    if (indicator.parentNode) {
+                        indicator.parentNode.removeChild(indicator);
+                    }
+                }, 300);
+                touchVisualizations.delete(id);
+            }
+        }
+        
+        // ============================================
+        // PERFORMANCE AND UTILITIES
+        // ============================================
+        
+        function updatePerformanceMetrics() {
+            const now = Date.now();
+            const elapsed = (now - lastFpsUpdate) / 1000;
+            const fps = Math.round(frameCount / elapsed);
+            
+            currentFps = fps;
+            frameCount = 0;
+            lastFpsUpdate = now;
+            
+            document.getElementById('fps-counter').textContent = fps;
+            
+            // Update performance monitor color based on FPS
+            const perfMonitor = document.getElementById('performance-monitor');
+            if (fps < 30) {
+                perfMonitor.style.color = '#ef4444';
+            } else if (fps < 50) {
+                perfMonitor.style.color = '#f59e0b';
+            } else {
+                perfMonitor.style.color = '#10b981';
+            }
+        }
+        
+        function createDetailedEnvironment() {
+            // Ground plane
+            const groundGeometry = new THREE.PlaneGeometry(1000, 1000, 50, 50);
+            const groundMaterial = new THREE.MeshPhysicalMaterial({
+                color: 0x3a5f40,
+                roughness: 0.8,
+                metalness: 0.1
+            });
+            
+            const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+            ground.rotation.x = -Math.PI / 2;
+            ground.position.y = -15;
+            ground.receiveShadow = true;
+            scene.add(ground);
+            
+            // Detailed grid
+            const gridHelper = new THREE.GridHelper(500, 50, 0x444444, 0x222222);
+            gridHelper.position.y = -14.9;
+            scene.add(gridHelper);
+            
+            // Sky dome
+            const skyGeometry = new THREE.SphereGeometry(800, 64, 64);
+            const skyMaterial = new THREE.MeshBasicMaterial({
+                color: 0x87CEEB,
+                side: THREE.BackSide,
+                transparent: true,
+                opacity: 0.2
+            });
+            
+            const sky = new THREE.Mesh(skyGeometry, skyMaterial);
+            scene.add(sky);
+        }
+        
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+        
+        // ============================================
+        // ANIMATION LOOP
+        // ============================================
+        
+        function animate() {
+            frameCount++;
+            requestAnimationFrame(animate);
+            
+            // Smooth fan rotation
+            const acceleration = 0.08;
+            fanRotationSpeed += (fanParams.rpm - fanRotationSpeed) * acceleration;
+            
+            // Rotate blades with physics-based motion
+            if (bladesGroup) {
+                const rotationSpeed = (fanRotationSpeed / 60) * Math.PI * 2 / 60;
+                bladesGroup.rotation.y += rotationSpeed;
+                
+                // Add subtle blade flex at high speeds
+                const flexAmount = Math.min(0.15, fanRotationSpeed / 4000);
+                bladesGroup.children.forEach((blade, i) => {
+                    const timeOffset = Date.now() * 0.001 + i;
+                    const flexX = Math.sin(timeOffset) * flexAmount * 0.5;
+                    const flexZ = Math.cos(timeOffset * 1.3) * flexAmount;
+                    
+                    // Apply blade deformation
+                    blade.children[0].rotation.x = currentBladeAngle * Math.PI / 180 + flexX;
+                    blade.children[0].position.x = flexZ * 0.1;
+                });
+            }
+            
+            // Motor vibration
+            if (motorGroup) {
+                const vibration = Math.min(0.005, fanRotationSpeed / 300000);
+                motorGroup.position.y = -fanParams.motorLength * 0.01 / 2 + 
+                    Math.sin(Date.now() * 0.01) * vibration * fanRotationSpeed;
+            }
+            
+            // Update controls
+            controls.update();
+            
+            // Update airflow particles
+            updateAirflowParticles();
+            
+            // Render scene
+            renderer.render(scene, camera);
+        }
+        
+        // Initialize the application
+        window.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>

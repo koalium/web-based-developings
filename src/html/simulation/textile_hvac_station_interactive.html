@@ -1,0 +1,1729 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive AC Station Designer - طراحی تعاملی ایستگاه</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1800px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            padding: 25px;
+            border-radius: 20px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            margin-bottom: 20px;
+        }
+
+        .header h1 {
+            color: #2c3e50;
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+
+        .main-layout {
+            display: grid;
+            grid-template-columns: 450px 1fr;
+            gap: 20px;
+        }
+
+        .sidebar {
+            background: white;
+            border-radius: 20px;
+            padding: 25px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            height: fit-content;
+            position: sticky;
+            top: 20px;
+        }
+
+        .content-area {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 20px;
+            padding: 25px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .card-title {
+            color: #2c3e50;
+            font-size: 1.3em;
+            font-weight: 600;
+        }
+
+        .section-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            overflow-x: auto;
+        }
+
+        .tab-btn {
+            padding: 12px 20px;
+            border: none;
+            background: #f8f9fa;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+            white-space: nowrap;
+            font-weight: 500;
+        }
+
+        .tab-btn:hover {
+            background: #e9ecef;
+            transform: translateY(-2px);
+        }
+
+        .tab-btn.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        .input-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        .input-group {
+            margin-bottom: 15px;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #2c3e50;
+            font-weight: 600;
+            font-size: 0.9em;
+        }
+
+        .input-group input, .input-group select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 0.95em;
+            transition: all 0.3s;
+        }
+
+        .input-group input:focus, .input-group select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .status-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: 600;
+        }
+
+        .status-good {
+            background: rgba(46, 204, 113, 0.15);
+            color: #27ae60;
+            border: 2px solid #27ae60;
+        }
+
+        .status-warning {
+            background: rgba(243, 156, 18, 0.15);
+            color: #f39c12;
+            border: 2px solid #f39c12;
+        }
+
+        .status-critical {
+            background: rgba(231, 76, 60, 0.15);
+            color: #e74c3c;
+            border: 2px solid #e74c3c;
+        }
+
+        .metric-box {
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 15px;
+            border-left: 4px solid #667eea;
+        }
+
+        .metric-label {
+            color: #7f8c8d;
+            font-size: 0.85em;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+
+        .metric-value {
+            color: #2c3e50;
+            font-size: 2em;
+            font-weight: 700;
+            display: flex;
+            align-items: baseline;
+            gap: 10px;
+        }
+
+        .metric-unit {
+            font-size: 0.5em;
+            color: #7f8c8d;
+            font-weight: 500;
+        }
+
+        .metric-change {
+            font-size: 0.4em;
+            padding: 4px 8px;
+            border-radius: 5px;
+            background: rgba(46, 204, 113, 0.15);
+            color: #27ae60;
+        }
+
+        .gauge-container {
+            position: relative;
+            height: 150px;
+            margin: 20px 0;
+        }
+
+        .gauge {
+            width: 100%;
+            height: 100%;
+        }
+
+        .gauge-label {
+            position: absolute;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .recommendation-box {
+            background: linear-gradient(135deg, rgba(46, 204, 113, 0.1) 0%, rgba(39, 174, 96, 0.1) 100%);
+            padding: 15px;
+            border-radius: 12px;
+            margin-top: 15px;
+            border-left: 4px solid #27ae60;
+        }
+
+        .recommendation-box h4 {
+            color: #27ae60;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .recommendation-box ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        .recommendation-box li {
+            padding: 8px 0;
+            color: #2c3e50;
+            display: flex;
+            align-items: start;
+            gap: 10px;
+        }
+
+        .recommendation-box li:before {
+            content: "✓";
+            color: #27ae60;
+            font-weight: bold;
+            font-size: 1.2em;
+        }
+
+        .warning-box {
+            background: linear-gradient(135deg, rgba(231, 76, 60, 0.1) 0%, rgba(192, 57, 43, 0.1) 100%);
+            padding: 15px;
+            border-radius: 12px;
+            margin-top: 15px;
+            border-left: 4px solid #e74c3c;
+        }
+
+        .warning-box h4 {
+            color: #e74c3c;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .warning-box ul {
+            list-style: none;
+            padding: 0;
+        }
+
+        .warning-box li {
+            padding: 8px 0;
+            color: #c0392b;
+            display: flex;
+            align-items: start;
+            gap: 10px;
+        }
+
+        .warning-box li:before {
+            content: "⚠";
+            font-size: 1.2em;
+        }
+
+        .space-item {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 10px;
+            border: 2px solid #e0e0e0;
+            transition: all 0.3s;
+        }
+
+        .space-item:hover {
+            border-color: #667eea;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+        }
+
+        .space-item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-success {
+            background: #27ae60;
+            color: white;
+        }
+
+        .btn-danger {
+            background: #e74c3c;
+            color: white;
+        }
+
+        .btn-sm {
+            padding: 6px 12px;
+            font-size: 0.85em;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 350px;
+            margin-top: 20px;
+        }
+
+        .fan-selector {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+            margin: 15px 0;
+        }
+
+        .fan-option {
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .fan-option:hover {
+            border-color: #667eea;
+            background: rgba(102, 126, 234, 0.05);
+        }
+
+        .fan-option.selected {
+            border-color: #667eea;
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+        }
+
+        .fan-option .diameter {
+            font-size: 1.5em;
+            font-weight: 700;
+            color: #2c3e50;
+        }
+
+        .fan-option .rpm {
+            font-size: 0.85em;
+            color: #7f8c8d;
+        }
+
+        .operating-point {
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            background: #e74c3c;
+            border: 3px solid white;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 0 10px rgba(231, 76, 60, 0.5);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: translate(-50%, -50%) scale(1); }
+            50% { transform: translate(-50%, -50%) scale(1.2); }
+        }
+
+        .air-washer-control {
+            background: linear-gradient(135deg, rgba(52, 152, 219, 0.1) 0%, rgba(41, 128, 185, 0.1) 100%);
+            padding: 20px;
+            border-radius: 15px;
+            margin-top: 15px;
+        }
+
+        .nozzle-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, 20px);
+            gap: 5px;
+            margin: 20px 0;
+            padding: 15px;
+            background: white;
+            border-radius: 10px;
+        }
+
+        .nozzle {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #3498db;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+
+        .nozzle:hover {
+            transform: scale(1.2);
+            box-shadow: 0 0 10px rgba(52, 152, 219, 0.5);
+        }
+
+        .nozzle.active {
+            background: #27ae60;
+            box-shadow: 0 0 8px rgba(39, 174, 96, 0.5);
+        }
+
+        .water-flow-indicator {
+            height: 40px;
+            background: linear-gradient(90deg, #3498db 0%, #2ecc71 100%);
+            border-radius: 20px;
+            position: relative;
+            overflow: hidden;
+            margin: 15px 0;
+        }
+
+        .water-flow-level {
+            height: 100%;
+            background: linear-gradient(90deg, rgba(255,255,255,0.3) 0%, rgba(255,255,255,0) 100%);
+            border-radius: 20px;
+            transition: width 0.5s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+        }
+
+        .velocity-meter {
+            position: relative;
+            height: 100px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            margin: 15px 0;
+            overflow: hidden;
+        }
+
+        .velocity-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #27ae60 0%, #f39c12 50%, #e74c3c 100%);
+            transition: width 0.5s;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding: 0 15px;
+            color: white;
+            font-weight: bold;
+            font-size: 1.2em;
+        }
+
+        .range-indicator {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            border: 2px dashed rgba(0,0,0,0.3);
+            pointer-events: none;
+        }
+
+        .range-good {
+            left: 30%;
+            right: 30%;
+            background: rgba(46, 204, 113, 0.1);
+        }
+
+        .info-card {
+            background: linear-gradient(135deg, rgba(52, 152, 219, 0.1) 0%, rgba(41, 128, 185, 0.1) 100%);
+            padding: 15px;
+            border-radius: 12px;
+            margin-top: 10px;
+        }
+
+        .info-card h5 {
+            color: #3498db;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .info-card p {
+            color: #2c3e50;
+            font-size: 0.9em;
+            line-height: 1.6;
+        }
+
+        .calculation-summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .summary-item {
+            text-align: center;
+            padding: 15px;
+            background: white;
+            border-radius: 10px;
+            border: 2px solid #e0e0e0;
+        }
+
+        .summary-value {
+            font-size: 1.8em;
+            font-weight: 700;
+            color: #667eea;
+        }
+
+        .summary-label {
+            font-size: 0.85em;
+            color: #7f8c8d;
+            margin-top: 5px;
+        }
+
+        @media (max-width: 1200px) {
+            .main-layout {
+                grid-template-columns: 1fr;
+            }
+            .sidebar {
+                position: relative;
+                top: 0;
+            }
+        }
+
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .loading-overlay.show {
+            display: flex;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="loading-overlay" id="loading">
+        <div class="spinner"></div>
+    </div>
+
+    <div class="container">
+        <div class="header">
+            <h1>🏭 Interactive AC Station Designer</h1>
+            <p>Real-time Design Feedback & Optimization - بازخورد و بهینه‌سازی طراحی</p>
+        </div>
+
+        <div class="main-layout">
+            <!-- Sidebar - Live Results & Recommendations -->
+            <div class="sidebar">
+                <h3 style="color: #2c3e50; margin-bottom: 20px;">📊 Live Results</h3>
+                
+                <!-- Main Airflow Metric -->
+                <div class="metric-box">
+                    <div class="metric-label">Total Airflow / جریان هوای کل</div>
+                    <div class="metric-value">
+                        <span id="totalAirflow">0.000</span>
+                        <span class="metric-unit">m³/s</span>
+                        <span class="metric-change" id="airflowChange">+0%</span>
+                    </div>
+                </div>
+
+                <!-- Status Indicators -->
+                <div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px;">
+                    <div class="status-indicator" id="statusOverall">
+                        <span>●</span>
+                        <span>Overall Status</span>
+                    </div>
+                    <div class="status-indicator" id="statusVelocity">
+                        <span>●</span>
+                        <span>Air Velocity</span>
+                    </div>
+                    <div class="status-indicator" id="statusPressure">
+                        <span>●</span>
+                        <span>System Pressure</span>
+                    </div>
+                </div>
+
+                <!-- Calculation Summary -->
+                <div class="calculation-summary">
+                    <div class="summary-item">
+                        <div class="summary-value" id="totalVolume">0</div>
+                        <div class="summary-label">Volume m³</div>
+                    </div>
+                    <div class="summary-item">
+                        <div class="summary-value" id="totalPower">0</div>
+                        <div class="summary-label">Power kW</div>
+                    </div>
+                    <div class="summary-item">
+                        <div class="summary-value" id="efficiency">0</div>
+                        <div class="summary-label">Efficiency %</div>
+                    </div>
+                </div>
+
+                <!-- Recommendations -->
+                <div class="recommendation-box" id="recommendations" style="display: none;">
+                    <h4>💡 Recommendations</h4>
+                    <ul id="recommendationsList"></ul>
+                </div>
+
+                <!-- Warnings -->
+                <div class="warning-box" id="warnings" style="display: none;">
+                    <h4>⚠️ Warnings</h4>
+                    <ul id="warningsList"></ul>
+                </div>
+            </div>
+
+            <!-- Main Content Area -->
+            <div class="content-area">
+                <!-- Section Tabs -->
+                <div class="card">
+                    <div class="section-tabs">
+                        <button class="tab-btn active" onclick="showSection('spaces')">
+                            📦 Spaces
+                        </button>
+                        <button class="tab-btn" onclick="showSection('ducts')">
+                            🔧 Ducts & Vents
+                        </button>
+                        <button class="tab-btn" onclick="showSection('arf')">
+                            🔄 Rotary Filters
+                        </button>
+                        <button class="tab-btn" onclick="showSection('dampers')">
+                            🚪 Dampers
+                        </button>
+                        <button class="tab-btn" onclick="showSection('coil')">
+                            🔥 Heating Coil
+                        </button>
+                        <button class="tab-btn" onclick="showSection('washer')">
+                            💧 Air Washer
+                        </button>
+                        <button class="tab-btn" onclick="showSection('fans')">
+                            🌀 Fans
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Spaces Section -->
+                <div class="card section-content" id="section-spaces">
+                    <div class="card-header">
+                        <h3 class="card-title">Spaces Configuration</h3>
+                        <button class="btn btn-success btn-sm" onclick="addSpace()">
+                            + Add Space
+                        </button>
+                    </div>
+                    <div id="spacesList"></div>
+                </div>
+
+                <!-- Ducts & Vents Section -->
+                <div class="card section-content" id="section-ducts" style="display: none;">
+                    <div class="card-header">
+                        <h3 class="card-title">Ducts & Vents</h3>
+                    </div>
+                    
+                    <h4 style="margin: 20px 0 15px 0; color: #2c3e50;">Feed Ducts</h4>
+                    <div class="input-row">
+                        <div class="input-group">
+                            <label>Main Diameter (m)</label>
+                            <input type="number" id="ductFeedMainDia" value="1.5" step="0.1" oninput="calculate()">
+                        </div>
+                        <div class="input-group">
+                            <label>Branch Diameter (m)</label>
+                            <input type="number" id="ductFeedBranchDia" value="1.0" step="0.1" oninput="calculate()">
+                        </div>
+                        <div class="input-group">
+                            <label>Branch Count</label>
+                            <input type="number" id="ductFeedBranchCount" value="3" min="1" oninput="calculate()">
+                        </div>
+                    </div>
+
+                    <h4 style="margin: 20px 0 15px 0; color: #2c3e50;">Vents</h4>
+                    <div class="input-row">
+                        <div class="input-group">
+                            <label>Feed Vent Width (m)</label>
+                            <input type="number" id="ventFeedWidth" value="0.7" step="0.1" oninput="calculate()">
+                        </div>
+                        <div class="input-group">
+                            <label>Feed Vent Length (m)</label>
+                            <input type="number" id="ventFeedLength" value="1.4" step="0.1" oninput="calculate()">
+                        </div>
+                        <div class="input-group">
+                            <label>Feed Vent Number</label>
+                            <input type="number" id="ventFeedNumber" value="10" min="1" oninput="calculate()">
+                        </div>
+                    </div>
+
+                    <!-- Feed Vent Velocity Meter -->
+                    <h5 style="margin-top: 20px; color: #2c3e50;">Feed Vent Air Velocity</h5>
+                    <div class="velocity-meter">
+                        <div class="range-indicator range-good"></div>
+                        <div class="velocity-bar" id="feedVentVelocityBar" style="width: 0%;">
+                            <span id="feedVentVelocity">0.0 m/s</span>
+                        </div>
+                    </div>
+                    <div class="info-card">
+                        <h5>ℹ️ Optimal Range</h5>
+                        <p>Feed vent velocity should be around <strong>2.0-2.5 m/s</strong>. Values above 4 m/s require velocity breakers.</p>
+                    </div>
+                </div>
+
+                <!-- ARF Section -->
+                <div class="card section-content" id="section-arf" style="display: none;">
+                    <div class="card-header">
+                        <h3 class="card-title">Rotary Air Filters (ARF)</h3>
+                    </div>
+                    
+                    <div class="input-row">
+                        <div class="input-group">
+                            <label>Diameter (m)</label>
+                            <select id="arfDiameter" onchange="calculate()">
+                                <option value="2">2.0 m</option>
+                                <option value="2.5" selected>2.5 m</option>
+                                <option value="3">3.0 m</option>
+                            </select>
+                        </div>
+                        <div class="input-group">
+                            <label>Length (m)</label>
+                            <select id="arfLength" onchange="calculate()">
+                                <option value="1.7">1.7 m</option>
+                                <option value="3.4">3.4 m</option>
+                                <option value="5.1" selected>5.1 m</option>
+                            </select>
+                        </div>
+                        <div class="input-group">
+                            <label>Count</label>
+                            <input type="number" id="arfCount" value="2" min="1" oninput="calculate()">
+                        </div>
+                    </div>
+
+                    <!-- ARF Velocity Meter -->
+                    <h5 style="margin-top: 20px; color: #2c3e50;">ARF Air Velocity</h5>
+                    <div class="velocity-meter">
+                        <div class="range-indicator range-good" style="left: 20%; right: 60%;"></div>
+                        <div class="velocity-bar" id="arfVelocityBar" style="width: 0%;">
+                            <span id="arfVelocity">0.0 m/s</span>
+                        </div>
+                    </div>
+                    <div class="info-card">
+                        <h5>ℹ️ Design Guidelines</h5>
+                        <p>ARF velocity should be <strong>0.8-1.2 m/s</strong>. Never exceed 1.22 m/s to ensure proper filtration efficiency.</p>
+                    </div>
+
+                    <div class="chart-container">
+                        <canvas id="arfChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Dampers Section -->
+                <div class="card section-content" id="section-dampers" style="display: none;">
+                    <div class="card-header">
+                        <h3 class="card-title">Air Dampers</h3>
+                    </div>
+                    
+                    <div class="input-row">
+                        <div class="input-group">
+                            <label>Fresh Air Height (m)</label>
+                            <input type="number" id="damperFreshHeight" value="2.82" step="0.1" oninput="calculate()">
+                        </div>
+                        <div class="input-group">
+                            <label>Fresh Air Width (m)</label>
+                            <input type="number" id="damperFreshWidth" value="1.52" step="0.1" oninput="calculate()">
+                        </div>
+                        <div class="input-group">
+                            <label>Fresh Air Count</label>
+                            <input type="number" id="damperFreshCount" value="3" min="1" oninput="calculate()">
+                        </div>
+                    </div>
+
+                    <!-- Damper Velocity -->
+                    <h5 style="margin-top: 20px; color: #2c3e50;">Damper Air Velocity</h5>
+                    <div class="velocity-meter">
+                        <div class="range-indicator range-good" style="left: 40%; right: 20%;"></div>
+                        <div class="velocity-bar" id="damperVelocityBar" style="width: 0%;">
+                            <span id="damperVelocity">0.0 m/s</span>
+                        </div>
+                    </div>
+                    <div class="info-card">
+                        <h5>ℹ️ Design Guidelines</h5>
+                        <p>Damper velocity should be <strong>5.0-6.5 m/s</strong>. Maximum allowable is 6.6 m/s.</p>
+                    </div>
+                </div>
+
+                <!-- Heating Coil Section -->
+                <div class="card section-content" id="section-coil" style="display: none;">
+                    <div class="card-header">
+                        <h3 class="card-title">Heating Coil</h3>
+                    </div>
+                    
+                    <div class="input-row">
+                        <div class="input-group">
+                            <label>Number of Rows</label>
+                            <select id="coilRows" onchange="calculate()">
+                                <option value="1">1 Row</option>
+                                <option value="2" selected>2 Rows</option>
+                                <option value="3">3 Rows</option>
+                            </select>
+                        </div>
+                        <div class="input-group">
+                            <label>Width (m)</label>
+                            <input type="number" id="coilWidth" value="2.5" step="0.1" oninput="calculate()">
+                        </div>
+                        <div class="input-group">
+                            <label>Height (m) - Max 1.52</label>
+                            <input type="number" id="coilHeight" value="1.52" step="0.1" max="1.52" oninput="calculate()">
+                        </div>
+                        <div class="input-group">
+                            <label>Count</label>
+                            <input type="number" id="coilCount" value="4" min="1" oninput="calculate()">
+                        </div>
+                    </div>
+
+                    <div class="info-card">
+                        <h5>ℹ️ Heating Capacity</h5>
+                        <p id="coilCapacity">Calculating...</p>
+                    </div>
+                </div>
+
+                <!-- Air Washer Section (Enhanced) -->
+                <div class="card section-content" id="section-washer" style="display: none;">
+                    <div class="card-header">
+                        <h3 class="card-title">Air Washer - Advanced Control</h3>
+                    </div>
+                    
+                    <div class="input-row">
+                        <div class="input-group">
+                            <label>Height (m)</label>
+                            <input type="number" id="washerHeight" value="3.2" step="0.1" min="1" max="5" oninput="calculate()">
+                        </div>
+                        <div class="input-group">
+                            <label>Width (m)</label>
+                            <input type="number" id="washerWidth" value="5.1" step="0.1" min="1" max="10" oninput="calculate()">
+                        </div>
+                        <div class="input-group">
+                            <label>Zones</label>
+                            <input type="number" id="washerZones" value="2" min="1" max="4" oninput="calculate()">
+                        </div>
+                    </div>
+
+                    <div class="air-washer-control">
+                        <h4 style="color: #3498db; margin-bottom: 15px;">Water System</h4>
+                        
+                        <!-- Water Flow Indicator -->
+                        <div>
+                            <label style="display: block; margin-bottom: 8px; color: #2c3e50; font-weight: 600;">
+                                Water Flow Rate
+                            </label>
+                            <div class="water-flow-indicator">
+                                <div class="water-flow-level" id="waterFlowLevel" style="width: 0%;">
+                                    <span id="waterFlowValue">0 m³/hr</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Nozzle Visualization -->
+                        <div style="margin-top: 20px;">
+                            <h5 style="color: #2c3e50; margin-bottom: 10px;">
+                                Nozzle Configuration (<span id="nozzleCount">0</span> nozzles)
+                            </h5>
+                            <div class="nozzle-grid" id="nozzleGrid"></div>
+                        </div>
+
+                        <!-- Pump Details -->
+                        <div class="input-row" style="margin-top: 20px;">
+                            <div class="input-group">
+                                <label>Pump Head (m)</label>
+                                <input type="number" id="pumpHead" value="35" step="1" oninput="calculate()">
+                            </div>
+                            <div class="input-group">
+                                <label>Pump RPM</label>
+                                <select id="pumpRPM" onchange="calculate()">
+                                    <option value="1000" selected>1000 RPM</option>
+                                    <option value="1500">1500 RPM</option>
+                                </select>
+                            </div>
+                            <div class="input-group">
+                                <label>Motor Power (kW)</label>
+                                <input type="number" id="pumpPower" value="0" readonly>
+                            </div>
+                        </div>
+
+                        <!-- Risers & Collectors -->
+                        <div class="calculation-summary" style="margin-top: 20px;">
+                            <div class="summary-item">
+                                <div class="summary-value" id="riserCount">0</div>
+                                <div class="summary-label">Risers</div>
+                            </div>
+                            <div class="summary-item">
+                                <div class="summary-value" id="collectorCount">0</div>
+                                <div class="summary-label">Collectors</div>
+                            </div>
+                            <div class="summary-item">
+                                <div class="summary-value" id="eliminatorCount">0</div>
+                                <div class="summary-label">Eliminators</div>
+                            </div>
+                            <div class="summary-item">
+                                <div class="summary-value" id="baffleCount">0</div>
+                                <div class="summary-label">Baffles</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Air Washer Velocity -->
+                    <h5 style="margin-top: 20px; color: #2c3e50;">Air Washer Velocity</h5>
+                    <div class="velocity-meter">
+                        <div class="range-indicator range-good" style="left: 35%; right: 35%;"></div>
+                        <div class="velocity-bar" id="washerVelocityBar" style="width: 0%;">
+                            <span id="washerVelocity">0.0 m/s</span>
+                        </div>
+                    </div>
+                    <div class="info-card">
+                        <h5>ℹ️ Design Guidelines</h5>
+                        <p>Air washer velocity should be <strong>2.5-3.8 m/s</strong>. Never exceed 4.0 m/s to prevent water carryover.</p>
+                    </div>
+                </div>
+
+                <!-- Fans Section (Enhanced) -->
+                <div class="card section-content" id="section-fans" style="display: none;">
+                    <div class="card-header">
+                        <h3 class="card-title">Fan Selection & Performance</h3>
+                    </div>
+                    
+                    <h4 style="margin: 20px 0 15px 0; color: #2c3e50;">Feed Fans</h4>
+                    <div class="fan-selector" id="feedFanSelector"></div>
+                    
+                    <div class="input-row" style="margin-top: 15px;">
+                        <div class="input-group">
+                            <label>Blade Angle (°)</label>
+                            <input type="number" id="feedFanAngle" value="21" min="10" max="45" oninput="updateFanPower('feed')">
+                        </div>
+                        <div class="input-group">
+                            <label>Motor Power (kW)</label>
+                            <input type="number" id="feedFanPower" value="22" readonly>
+                        </div>
+                        <div class="input-group">
+                            <label>Fan Count</label>
+                            <input type="number" id="feedFanCount" value="2" min="1" oninput="calculate()">
+                        </div>
+                    </div>
+
+                    <!-- Feed Fan Performance Curve -->
+                    <div class="chart-container">
+                        <canvas id="feedFanChart"></canvas>
+                    </div>
+
+                    <h4 style="margin: 30px 0 15px 0; color: #2c3e50;">Return Fans</h4>
+                    <div class="fan-selector" id="returnFanSelector"></div>
+                    
+                    <div class="input-row" style="margin-top: 15px;">
+                        <div class="input-group">
+                            <label>Blade Angle (°)</label>
+                            <input type="number" id="returnFanAngle" value="20" min="10" max="45" oninput="updateFanPower('return')">
+                        </div>
+                        <div class="input-group">
+                            <label>Motor Power (kW)</label>
+                            <input type="number" id="returnFanPower" value="30" readonly>
+                        </div>
+                        <div class="input-group">
+                            <label>Fan Count</label>
+                            <input type="number" id="returnFanCount" value="2" min="1" oninput="calculate()">
+                        </div>
+                    </div>
+
+                    <!-- Return Fan Performance Curve -->
+                    <div class="chart-container">
+                        <canvas id="returnFanChart"></canvas>
+                    </div>
+
+                    <div class="info-card">
+                        <h5>💡 Fan Selection Tips</h5>
+                        <p id="fanSelectionTip">Select fan diameter and blade angle for optimal efficiency...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Data structures
+        let spaces = [];
+        let calculations = {};
+        let charts = {};
+        let selectedFeedFan = 1400;
+        let selectedReturnFan = 1600;
+
+        // Fan specifications database
+        const fanSpecs = {
+            1120: { rpm: 1500, blades: 10, powers: {10: 5, 18: 12, 21: 15, 23: 18, 26: 22, 29: 25} },
+            1400: { rpm: 1000, blades: 10, powers: {10: 8, 18: 18, 21: 22, 23: 30, 26: 30, 29: 37} },
+            1600: { rpm: 1000, blades: 10, powers: {10: 12, 15: 18, 18: 30, 21: 37, 23: 45, 26: 50, 29: 55} }
+        };
+
+        // Initialize
+        function init() {
+            initializeSpaces();
+            initializeFanSelectors();
+            initializeCharts();
+            calculate();
+        }
+
+        // Initialize with default space
+        function initializeSpaces() {
+            spaces = [
+                { name: 'Spinning Area', length: 44, width: 21, height: 5, ach: 35 }
+            ];
+            renderSpaces();
+        }
+
+        // Add new space
+        function addSpace() {
+            spaces.push({
+                name: 'New Space',
+                length: 20,
+                width: 10,
+                height: 4,
+                ach: 35
+            });
+            renderSpaces();
+            calculate();
+        }
+
+        // Remove space
+        function removeSpace(index) {
+            spaces.splice(index, 1);
+            renderSpaces();
+            calculate();
+        }
+
+        // Render spaces
+        function renderSpaces() {
+            const container = document.getElementById('spacesList');
+            container.innerHTML = '';
+            
+            spaces.forEach((space, index) => {
+                const div = document.createElement('div');
+                div.className = 'space-item';
+                div.innerHTML = `
+                    <div class="space-item-header">
+                        <input type="text" value="${space.name}" 
+                               onchange="spaces[${index}].name = this.value; calculate()"
+                               style="border: none; background: transparent; font-weight: 600; font-size: 1.1em;">
+                        <button class="btn btn-danger btn-sm" onclick="removeSpace(${index})">
+                            Delete
+                        </button>
+                    </div>
+                    <div class="input-row">
+                        <div class="input-group">
+                            <label>Length (m)</label>
+                            <input type="number" value="${space.length}" step="0.1"
+                                   onchange="spaces[${index}].length = parseFloat(this.value); calculate()">
+                        </div>
+                        <div class="input-group">
+                            <label>Width (m)</label>
+                            <input type="number" value="${space.width}" step="0.1"
+                                   onchange="spaces[${index}].width = parseFloat(this.value); calculate()">
+                        </div>
+                        <div class="input-group">
+                            <label>Height (m)</label>
+                            <input type="number" value="${space.height}" step="0.1"
+                                   onchange="spaces[${index}].height = parseFloat(this.value); calculate()">
+                        </div>
+                        <div class="input-group">
+                            <label>ACH</label>
+                            <input type="number" value="${space.ach}" step="1"
+                                   onchange="spaces[${index}].ach = parseFloat(this.value); calculate()">
+                        </div>
+                    </div>
+                    <div style="margin-top: 10px; padding: 10px; background: white; border-radius: 8px;">
+                        <small style="color: #7f8c8d;">
+                            Area: <strong>${(space.length * space.width).toFixed(2)} m²</strong> | 
+                            Volume: <strong>${(space.length * space.width * space.height).toFixed(2)} m³</strong> |
+                            Airflow: <strong>${((space.length * space.width * space.height * space.ach) / 3600).toFixed(3)} m³/s</strong>
+                        </small>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        // Initialize fan selectors
+        function initializeFanSelectors() {
+            // Feed fans
+            const feedContainer = document.getElementById('feedFanSelector');
+            [1120, 1400, 1600].forEach(diameter => {
+                const option = document.createElement('div');
+                option.className = 'fan-option' + (diameter === 1400 ? ' selected' : '');
+                option.onclick = () => selectFan('feed', diameter);
+                option.innerHTML = `
+                    <div class="diameter">${diameter}</div>
+                    <div class="rpm">${fanSpecs[diameter].rpm} RPM</div>
+                `;
+                feedContainer.appendChild(option);
+            });
+
+            // Return fans
+            const returnContainer = document.getElementById('returnFanSelector');
+            [1120, 1400, 1600].forEach(diameter => {
+                const option = document.createElement('div');
+                option.className = 'fan-option' + (diameter === 1600 ? ' selected' : '');
+                option.onclick = () => selectFan('return', diameter);
+                option.innerHTML = `
+                    <div class="diameter">${diameter}</div>
+                    <div class="rpm">${fanSpecs[diameter].rpm} RPM</div>
+                `;
+                returnContainer.appendChild(option);
+            });
+        }
+
+        // Select fan
+        function selectFan(type, diameter) {
+            if (type === 'feed') {
+                selectedFeedFan = diameter;
+                document.querySelectorAll('#feedFanSelector .fan-option').forEach(opt => {
+                    opt.classList.remove('selected');
+                });
+                document.querySelectorAll('#feedFanSelector .fan-option')[
+                    [1120, 1400, 1600].indexOf(diameter)
+                ].classList.add('selected');
+            } else {
+                selectedReturnFan = diameter;
+                document.querySelectorAll('#returnFanSelector .fan-option').forEach(opt => {
+                    opt.classList.remove('selected');
+                });
+                document.querySelectorAll('#returnFanSelector .fan-option')[
+                    [1120, 1400, 1600].indexOf(diameter)
+                ].classList.add('selected');
+            }
+            updateFanPower(type);
+        }
+
+        // Update fan power based on angle
+        function updateFanPower(type) {
+            const angle = parseInt(document.getElementById(type + 'FanAngle').value);
+            const diameter = type === 'feed' ? selectedFeedFan : selectedReturnFan;
+            const spec = fanSpecs[diameter];
+            
+            // Find closest angle
+            let closestAngle = Object.keys(spec.powers).reduce((prev, curr) => {
+                return Math.abs(curr - angle) < Math.abs(prev - angle) ? curr : prev;
+            });
+            
+            const power = spec.powers[closestAngle];
+            document.getElementById(type + 'FanPower').value = power;
+            
+            calculate();
+        }
+
+        // Main calculation function
+        function calculate() {
+            showLoading();
+            
+            setTimeout(() => {
+                try {
+                    // Calculate spaces
+                    let totalAFH = 0;
+                    let totalVolume = 0;
+                    
+                    spaces.forEach(space => {
+                        const area = space.length * space.width;
+                        const volume = area * space.height;
+                        const afh = volume * space.ach;
+                        totalAFH += afh;
+                        totalVolume += volume;
+                    });
+                    
+                    const afst = totalAFH / 3600;
+                    calculations.airflow = afst;
+                    calculations.volume = totalVolume;
+                    
+                    // Calculate feed vent velocity
+                    const feedVentWidth = parseFloat(document.getElementById('ventFeedWidth')?.value || 0.7);
+                    const feedVentLength = parseFloat(document.getElementById('ventFeedLength')?.value || 1.4);
+                    const feedVentNumber = parseFloat(document.getElementById('ventFeedNumber')?.value || 10);
+                    const feedVentCS = feedVentWidth * feedVentLength * feedVentNumber;
+                    const feedVentVelocity = afst / feedVentCS;
+                    calculations.feedVentVelocity = feedVentVelocity;
+                    
+                    // Calculate ARF velocity
+                    const arfDia = parseFloat(document.getElementById('arfDiameter')?.value || 2.5);
+                    const arfLength = parseFloat(document.getElementById('arfLength')?.value || 5.1);
+                    const arfCount = parseFloat(document.getElementById('arfCount')?.value || 2);
+                    const arfCS = Math.PI * arfDia * arfLength * arfCount;
+                    const arfVelocity = afst / arfCS;
+                    calculations.arfVelocity = arfVelocity;
+                    
+                    // Calculate damper velocity
+                    const damperH = parseFloat(document.getElementById('damperFreshHeight')?.value || 2.82);
+                    const damperW = parseFloat(document.getElementById('damperFreshWidth')?.value || 1.52);
+                    const damperC = parseFloat(document.getElementById('damperFreshCount')?.value || 3);
+                    const damperCS = damperH * damperW * damperC * 0.92;
+                    const damperVelocity = afst / damperCS;
+                    calculations.damperVelocity = damperVelocity;
+                    
+                    // Calculate air washer
+                    const washerH = parseFloat(document.getElementById('washerHeight')?.value || 3.2);
+                    const washerW = parseFloat(document.getElementById('washerWidth')?.value || 5.1);
+                    const washerZones = parseFloat(document.getElementById('washerZones')?.value || 2);
+                    const washerCS = washerH * washerW;
+                    const washerVelocity = afst / washerCS;
+                    calculations.washerVelocity = washerVelocity;
+                    
+                    // Calculate nozzles and risers
+                    const risers = Math.floor((2 * washerW) / 0.304);
+                    const riserLength = washerH - (4 * 0.0254) - 0.05;
+                    const nozzles = Math.floor(risers * (riserLength / 0.076));
+                    const waterFlow = (nozzles * 2.5 * 60) / 1000;
+                    calculations.risers = risers;
+                    calculations.nozzles = nozzles;
+                    calculations.waterFlow = waterFlow;
+                    
+                    // Calculate pump power (simplified)
+                    const pumpHead = parseFloat(document.getElementById('pumpHead')?.value || 35);
+                    const pumpPower = (waterFlow * pumpHead * 9.81) / (3600 * 0.75); // 75% efficiency
+                    calculations.pumpPower = pumpPower;
+                    
+                    // Calculate eliminators and baffles
+                    const eliminators = Math.ceil((washerW / 0.076) * Math.round(washerH / 1.52));
+                    const baffles = Math.floor(washerW / 0.3) * Math.floor(washerH / 0.4);
+                    calculations.eliminators = eliminators;
+                    calculations.baffles = baffles;
+                    
+                    // Calculate total power
+                    const feedPower = parseFloat(document.getElementById('feedFanPower')?.value || 0);
+                    const feedCount = parseFloat(document.getElementById('feedFanCount')?.value || 2);
+                    const returnPower = parseFloat(document.getElementById('returnFanPower')?.value || 0);
+                    const returnCount = parseFloat(document.getElementById('returnFanCount')?.value || 2);
+                    const totalPower = (feedPower * feedCount) + (returnPower * returnCount) + pumpPower;
+                    calculations.totalPower = totalPower;
+                    
+                    // Calculate efficiency
+                    const efficiency = (afst * 3600 * 100) / (totalPower || 1);
+                    calculations.efficiency = efficiency;
+                    
+                    // Update displays
+                    updateDisplays();
+                    updateRecommendations();
+                    updateCharts();
+                    
+                } catch (error) {
+                    console.error('Calculation error:', error);
+                }
+                
+                hideLoading();
+            }, 300);
+        }
+
+        // Update all displays
+        function updateDisplays() {
+            // Main metrics
+            document.getElementById('totalAirflow').textContent = calculations.airflow.toFixed(3);
+            document.getElementById('totalVolume').textContent = Math.round(calculations.volume);
+            document.getElementById('totalPower').textContent = Math.round(calculations.totalPower);
+            document.getElementById('efficiency').textContent = Math.round(calculations.efficiency);
+            
+            // Feed vent velocity
+            updateVelocityBar('feedVentVelocity', calculations.feedVentVelocity, 0, 6, 2.0, 2.5);
+            
+            // ARF velocity
+            updateVelocityBar('arfVelocity', calculations.arfVelocity, 0, 2, 0.8, 1.2);
+            
+            // Damper velocity
+            updateVelocityBar('damperVelocity', calculations.damperVelocity, 0, 8, 5.0, 6.5);
+            
+            // Air washer velocity
+            updateVelocityBar('washerVelocity', calculations.washerVelocity, 0, 5, 2.5, 3.8);
+            
+            // Water flow
+            const waterFlowPercent = Math.min(100, (calculations.waterFlow / 50) * 100);
+            document.getElementById('waterFlowLevel').style.width = waterFlowPercent + '%';
+            document.getElementById('waterFlowValue').textContent = calculations.waterFlow.toFixed(1) + ' m³/hr';
+            
+            // Nozzle grid
+            renderNozzleGrid();
+            
+            // Air washer components
+            document.getElementById('nozzleCount').textContent = calculations.nozzles;
+            document.getElementById('riserCount').textContent = calculations.risers;
+            document.getElementById('collectorCount').textContent = document.getElementById('washerZones')?.value || 2;
+            document.getElementById('eliminatorCount').textContent = calculations.eliminators;
+            document.getElementById('baffleCount').textContent = calculations.baffles;
+            document.getElementById('pumpPower').value = calculations.pumpPower.toFixed(1);
+            
+            // Status indicators
+            updateStatusIndicators();
+        }
+
+        // Update velocity bar
+        function updateVelocityBar(id, value, min, max, optMin, optMax) {
+            const percent = Math.min(100, ((value - min) / (max - min)) * 100);
+            const bar = document.getElementById(id + 'Bar');
+            const display = document.getElementById(id);
+            
+            if (bar) {
+                bar.style.width = percent + '%';
+                
+                // Color coding
+                if (value >= optMin && value <= optMax) {
+                    bar.style.background = 'linear-gradient(90deg, #27ae60 0%, #2ecc71 100%)';
+                } else if (value < optMin || value > optMax) {
+                    bar.style.background = 'linear-gradient(90deg, #f39c12 0%, #e67e22 100%)';
+                }
+                if (value > max * 0.9) {
+                    bar.style.background = 'linear-gradient(90deg, #e74c3c 0%, #c0392b 100%)';
+                }
+            }
+            
+            if (display) {
+                display.textContent = value.toFixed(2) + ' m/s';
+            }
+        }
+
+        // Render nozzle grid
+        function renderNozzleGrid() {
+            const grid = document.getElementById('nozzleGrid');
+            if (!grid) return;
+            
+            grid.innerHTML = '';
+            const nozzleCount = Math.min(calculations.nozzles, 200); // Limit display
+            
+            for (let i = 0; i < nozzleCount; i++) {
+                const nozzle = document.createElement('div');
+                nozzle.className = 'nozzle active';
+                nozzle.title = `Nozzle ${i + 1}`;
+                grid.appendChild(nozzle);
+            }
+        }
+
+        // Update status indicators
+        function updateStatusIndicators() {
+            const statusOverall = document.getElementById('statusOverall');
+            const statusVelocity = document.getElementById('statusVelocity');
+            const statusPressure = document.getElementById('statusPressure');
+            
+            // Overall status
+            let warnings = 0;
+            let criticals = 0;
+            
+            if (calculations.feedVentVelocity > 4) criticals++;
+            else if (calculations.feedVentVelocity < 2 || calculations.feedVentVelocity > 2.5) warnings++;
+            
+            if (calculations.arfVelocity > 1.22) criticals++;
+            else if (calculations.arfVelocity < 0.8 || calculations.arfVelocity > 1.2) warnings++;
+            
+            if (calculations.washerVelocity > 4) criticals++;
+            else if (calculations.washerVelocity < 2.5 || calculations.washerVelocity > 3.8) warnings++;
+            
+            if (criticals > 0) {
+                statusOverall.className = 'status-indicator status-critical';
+                statusOverall.innerHTML = '<span>●</span><span>Critical Issues</span>';
+            } else if (warnings > 0) {
+                statusOverall.className = 'status-indicator status-warning';
+                statusOverall.innerHTML = '<span>●</span><span>Needs Optimization</span>';
+            } else {
+                statusOverall.className = 'status-indicator status-good';
+                statusOverall.innerHTML = '<span>●</span><span>Optimal Design</span>';
+            }
+            
+            // Velocity status
+            if (calculations.feedVentVelocity >= 2.0 && calculations.feedVentVelocity <= 2.5 &&
+                calculations.arfVelocity >= 0.8 && calculations.arfVelocity <= 1.2) {
+                statusVelocity.className = 'status-indicator status-good';
+                statusVelocity.innerHTML = '<span>●</span><span>Velocity: Good</span>';
+            } else {
+                statusVelocity.className = 'status-indicator status-warning';
+                statusVelocity.innerHTML = '<span>●</span><span>Velocity: Adjust</span>';
+            }
+            
+            // Pressure estimate
+            const pressureDrop = 150 + (calculations.arfVelocity * 100) + (calculations.washerVelocity * 80);
+            statusPressure.className = 'status-indicator status-good';
+            statusPressure.innerHTML = `<span>●</span><span>Pressure: ${Math.round(pressureDrop)} Pa</span>`;
+        }
+
+        // Update recommendations
+        function updateRecommendations() {
+            const recommendations = [];
+            const warnings = [];
+            
+            // Feed vent recommendations
+            if (calculations.feedVentVelocity > 4) {
+                warnings.push('Feed vent velocity is too high! Add velocity breakers or increase vent count.');
+            } else if (calculations.feedVentVelocity < 2.0) {
+                recommendations.push('Feed vent velocity is low. Consider reducing vent count to improve air distribution.');
+            } else if (calculations.feedVentVelocity > 2.5) {
+                recommendations.push('Feed vent velocity is slightly high. Optimal range is 2.0-2.5 m/s.');
+            }
+            
+            // ARF recommendations
+            if (calculations.arfVelocity > 1.22) {
+                warnings.push('ARF velocity exceeds maximum! Increase filter count or size immediately.');
+            } else if (calculations.arfVelocity < 0.8) {
+                recommendations.push('ARF velocity is low. You can reduce filter size to save costs.');
+            } else if (calculations.arfVelocity > 1.0 && calculations.arfVelocity <= 1.22) {
+                recommendations.push('ARF velocity is good but approaching limit. Monitor closely.');
+            } else {
+                recommendations.push('ARF velocity is optimal (0.8-1.0 m/s). Good filtration efficiency expected.');
+            }
+            
+            // Air washer recommendations
+            if (calculations.washerVelocity > 4) {
+                warnings.push('Air washer velocity too high! Increase dimensions to prevent water carryover.');
+            } else if (calculations.washerVelocity < 2.5) {
+                recommendations.push('Air washer velocity is low. Consider reducing dimensions.');
+            } else if (calculations.washerVelocity >= 2.5 && calculations.washerVelocity <= 3.8) {
+                recommendations.push('Air washer velocity is optimal. Good humidification expected.');
+            }
+            
+            // Water system
+            if (calculations.waterFlow > 40) {
+                recommendations.push(`High water flow (${calculations.waterFlow.toFixed(1)} m³/hr). Consider using larger pump or multiple pumps.`);
+            }
+            
+            // Power efficiency
+            if (calculations.efficiency < 50) {
+                warnings.push('System efficiency is low. Consider optimizing fan selection.');
+            } else if (calculations.efficiency > 100) {
+                recommendations.push('Excellent efficiency! System is well-designed.');
+            }
+            
+            // Fan selection
+            const airflowPerFan = calculations.airflow / (parseFloat(document.getElementById('feedFanCount')?.value || 2));
+            if (airflowPerFan > 15) {
+                recommendations.push('High airflow per fan. Consider adding more fans or selecting larger diameter.');
+            }
+            
+            // Display recommendations
+            const recBox = document.getElementById('recommendations');
+            const recList = document.getElementById('recommendationsList');
+            if (recommendations.length > 0) {
+                recBox.style.display = 'block';
+                recList.innerHTML = recommendations.map(r => `<li>${r}</li>`).join('');
+            } else {
+                recBox.style.display = 'none';
+            }
+            
+            // Display warnings
+            const warnBox = document.getElementById('warnings');
+            const warnList = document.getElementById('warningsList');
+            if (warnings.length > 0) {
+                warnBox.style.display = 'block';
+                warnList.innerHTML = warnings.map(w => `<li>${w}</li>`).join('');
+            } else {
+                warnBox.style.display = 'none';
+            }
+        }
+
+        // Initialize charts
+        function initializeCharts() {
+            // ARF Chart
+            const arfCtx = document.getElementById('arfChart');
+            if (arfCtx) {
+                charts.arf = new Chart(arfCtx, {
+                    type: 'line',
+                    data: {
+                        labels: [0, 0.5, 1.0, 1.5, 2.0],
+                        datasets: [{
+                            label: 'Airflow vs Velocity',
+                            data: [0, 5, 10, 15, 20],
+                            borderColor: '#3498db',
+                            backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                            tension: 0.4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            title: { display: true, text: 'ARF Performance' }
+                        },
+                        scales: {
+                            x: { title: { display: true, text: 'Velocity (m/s)' } },
+                            y: { title: { display: true, text: 'Airflow (m³/s)' } }
+                        }
+                    }
+                });
+            }
+            
+            // Feed Fan Chart
+            const feedFanCtx = document.getElementById('feedFanChart');
+            if (feedFanCtx) {
+                charts.feedFan = new Chart(feedFanCtx, {
+                    type: 'line',
+                    data: {
+                        datasets: [{
+                            label: 'Fan Curve',
+                            data: generateFanCurve(selectedFeedFan),
+                            borderColor: '#e74c3c',
+                            borderWidth: 3,
+                            pointRadius: 0,
+                            fill: false
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            title: { display: true, text: 'Feed Fan Performance Curve' },
+                            tooltip: {
+                                callbacks: {
+                                    label: (context) => {
+                                        return `Flow: ${context.parsed.x.toFixed(1)} m³/s, Pressure: ${context.parsed.y.toFixed(0)} Pa`;
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            x: { 
+                                type: 'linear',
+                                title: { display: true, text: 'Airflow (m³/s)' },
+                                min: 0,
+                                max: 20
+                            },
+                            y: { 
+                                title: { display: true, text: 'Static Pressure (Pa)' },
+                                min: 0,
+                                max: 800
+                            }
+                        }
+                    }
+                });
+            }
+            
+            // Return Fan Chart
+            const returnFanCtx = document.getElementById('returnFanChart');
+            if (returnFanCtx) {
+                charts.returnFan = new Chart(returnFanCtx, {
+                    type: 'line',
+                    data: {
+                        datasets: [{
+                            label: 'Fan Curve',
+                            data: generateFanCurve(selectedReturnFan),
+                            borderColor: '#9b59b6',
+                            borderWidth: 3,
+                            pointRadius: 0,
+                            fill: false
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            title: { display: true, text: 'Return Fan Performance Curve' }
+                        },
+                        scales: {
+                            x: { 
+                                type: 'linear',
+                                title: { display: true, text: 'Airflow (m³/s)' },
+                                min: 0,
+                                max: 20
+                            },
+                            y: { 
+                                title: { display: true, text: 'Static Pressure (Pa)' },
+                                min: 0,
+                                max: 800
+                            }
+                        }
+                    }
+                });
+            }
+        }
+
+        // Generate fan curve data
+        function generateFanCurve(diameter) {
+            const curve = [];
+            const maxFlow = diameter / 100; // Simplified
+            const maxPressure = 600 + (diameter - 1120) / 2;
+            
+            for (let flow = 0; flow <= maxFlow * 1.5; flow += 0.5) {
+                const pressure = maxPressure * (1 - Math.pow(flow / (maxFlow * 1.2), 2));
+                curve.push({ x: flow, y: Math.max(0, pressure) });
+            }
+            
+            return curve;
+        }
+
+        // Update charts
+        function updateCharts() {
+            // Update fan curves
+            if (charts.feedFan) {
+                charts.feedFan.data.datasets[0].data = generateFanCurve(selectedFeedFan);
+                
+                // Add operating point
+                const feedCount = parseFloat(document.getElementById('feedFanCount')?.value || 2);
+                const operatingFlow = calculations.airflow / feedCount;
+                const operatingPressure = 350; // Estimated
+                
+                if (charts.feedFan.data.datasets.length > 1) {
+                    charts.feedFan.data.datasets.splice(1);
+                }
+                
+                charts.feedFan.data.datasets.push({
+                    label: 'Operating Point',
+                    data: [{ x: operatingFlow, y: operatingPressure }],
+                    backgroundColor: '#e74c3c',
+                    borderColor: '#c0392b',
+                    pointRadius: 10,
+                    pointHoverRadius: 15,
+                    showLine: false
+                });
+                
+                charts.feedFan.update('none');
+            }
+            
+            if (charts.returnFan) {
+                charts.returnFan.data.datasets[0].data = generateFanCurve(selectedReturnFan);
+                
+                const returnCount = parseFloat(document.getElementById('returnFanCount')?.value || 2);
+                const operatingFlow = calculations.airflow / returnCount;
+                const operatingPressure = 280;
+                
+                if (charts.returnFan.data.datasets.length > 1) {
+                    charts.returnFan.data.datasets.splice(1);
+                }
+                
+                charts.returnFan.data.datasets.push({
+                    label: 'Operating Point',
+                    data: [{ x: operatingFlow, y: operatingPressure }],
+                    backgroundColor: '#9b59b6',
+                    borderColor: '#8e44ad',
+                    pointRadius: 10,
+                    pointHoverRadius: 15,
+                    showLine: false
+                });
+                
+                charts.returnFan.update('none');
+            }
+            
+            // Update fan selection tip
+            const tip = document.getElementById('fanSelectionTip');
+            if (tip) {
+                const feedCount = parseFloat(document.getElementById('feedFanCount')?.value || 2);
+                const flowPerFan = calculations.airflow / feedCount;
+                
+                if (flowPerFan < 5) {
+                    tip.textContent = '💡 Current airflow is low per fan. You can use smaller fan diameter (1120mm) to save energy.';
+                } else if (flowPerFan > 12) {
+                    tip.textContent = '⚠️ High airflow per fan. Consider adding more fans or using larger diameter (1600mm) for better efficiency.';
+                } else {
+                    tip.textContent = '✓ Fan selection is appropriate for the required airflow. Operating in efficient range.';
+                }
+            }
+        }
+
+        // Show/hide sections
+        function showSection(section) {
+            document.querySelectorAll('.section-content').forEach(s => s.style.display = 'none');
+            document.getElementById('section-' + section).style.display = 'block';
+            
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+        }
+
+        // Loading overlay
+        function showLoading() {
+            document.getElementById('loading').classList.add('show');
+        }
+
+        function hideLoading() {
+            document.getElementById('loading').classList.remove('show');
+        }
+
+        // Initialize on load
+        window.addEventListener('load', init);
+    </script>
+</body>
+</html>

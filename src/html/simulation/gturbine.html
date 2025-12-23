@@ -1,0 +1,2533 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Professional Power Plant Simulator - 1000MW Gas Plant</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@2.0.1/dist/chartjs-plugin-annotation.min.js"></script>
+    <style>
+        :root {
+            --primary: #4a9eff;
+            --primary-dark: #2d5aa0;
+            --secondary: #0c2461;
+            --success: #4cd964;
+            --warning: #ffcc00;
+            --danger: #ff3b30;
+            --danger-dark: #c0392b;
+            --dark: #0a0a1a;
+            --light: #f8f9fa;
+            --surface: rgba(20, 25, 45, 0.97);
+            --grid-color: #2ecc71;
+            --turbine-color: #3498db;
+            --generator-color: #9b59b6;
+            --compressor-color: #1abc9c;
+            --combustor-color: #e74c3c;
+            --steam-color: #95a5a6;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+            -webkit-user-select: none;
+            user-select: none;
+            touch-action: manipulation;
+        }
+        
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: radial-gradient(circle at top, #0c2461 0%, #0a0a1a 100%);
+            color: var(--light);
+            min-height: 100vh;
+            overflow-x: hidden;
+            line-height: 1.6;
+            font-size: 14px;
+        }
+        
+        /* Professional Container */
+        .professional-container {
+            width: 100%;
+            max-width: 100vw;
+            min-height: 100vh;
+            padding: 0;
+            position: relative;
+            background: linear-gradient(180deg, rgba(10,10,26,0.8) 0%, rgba(12,36,97,0.4) 100%);
+        }
+        
+        /* Enhanced Professional Header */
+        .professional-header {
+            background: linear-gradient(135deg, 
+                rgba(0, 10, 30, 0.95) 0%, 
+                rgba(20, 40, 80, 0.9) 100%);
+            backdrop-filter: blur(25px);
+            padding: 15px 20px;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            border-bottom: 2px solid rgba(74, 158, 255, 0.3);
+            box-shadow: 0 5px 30px rgba(0, 0, 0, 0.5);
+        }
+        
+        .header-main {
+            display: grid;
+            grid-template-columns: auto 1fr auto;
+            gap: 20px;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .plant-logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 8px 16px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 12px;
+            border: 1px solid rgba(74, 158, 255, 0.2);
+        }
+        
+        .logo-icon {
+            width: 44px;
+            height: 44px;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.4rem;
+            box-shadow: 0 4px 15px rgba(74, 158, 255, 0.3);
+        }
+        
+        .logo-text {
+            font-size: 1.1rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+        
+        .logo-subtext {
+            font-size: 0.75rem;
+            opacity: 0.8;
+            margin-top: 2px;
+        }
+        
+        .plant-info {
+            text-align: center;
+        }
+        
+        .plant-title {
+            font-size: 1.4rem;
+            font-weight: 800;
+            color: var(--primary);
+            margin-bottom: 4px;
+            text-shadow: 0 2px 10px rgba(74, 158, 255, 0.5);
+            letter-spacing: 1px;
+        }
+        
+        .plant-specs {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            font-size: 0.85rem;
+            opacity: 0.9;
+        }
+        
+        .spec-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .header-controls {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .control-btn {
+            width: 46px;
+            height: 46px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, 
+                rgba(255, 255, 255, 0.1) 0%, 
+                rgba(255, 255, 255, 0.05) 100%);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+        }
+        
+        .control-btn:active {
+            transform: scale(0.95);
+            background: rgba(255, 255, 255, 0.2);
+        }
+        
+        .control-btn.badge::after {
+            content: '';
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            width: 8px;
+            height: 8px;
+            background: var(--danger);
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.2); }
+        }
+        
+        /* Status Bar */
+        .status-bar {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 10px;
+            padding-top: 15px;
+            border-top: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        
+        .status-item {
+            text-align: center;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        
+        .status-label {
+            font-size: 0.75rem;
+            opacity: 0.7;
+            margin-bottom: 6px;
+            letter-spacing: 0.5px;
+        }
+        
+        .status-value {
+            font-size: 1.1rem;
+            font-weight: 700;
+        }
+        
+        .status-trend {
+            font-size: 0.7rem;
+            margin-top: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+        }
+        
+        /* Main Dashboard */
+        .dashboard-main {
+            padding: 20px 15px;
+            padding-bottom: 120px;
+            display: grid;
+            gap: 20px;
+        }
+        
+        /* Enhanced Grid Layout */
+        .grid-section {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+        }
+        
+        @media (min-width: 768px) {
+            .grid-section {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        
+        /* Professional Card */
+        .pro-card {
+            background: var(--surface);
+            backdrop-filter: blur(20px);
+            border-radius: 16px;
+            padding: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .pro-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, 
+                var(--primary) 0%, 
+                rgba(74, 158, 255, 0) 100%);
+        }
+        
+        .pro-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid rgba(74, 158, 255, 0.2);
+        }
+        
+        .card-title {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .card-title i {
+            width: 36px;
+            height: 36px;
+            background: rgba(74, 158, 255, 0.1);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .card-actions {
+            display: flex;
+            gap: 10px;
+        }
+        
+        /* Enhanced Turbine Display */
+        .turbine-detail-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-top: 15px;
+        }
+        
+        @media (min-width: 480px) {
+            .turbine-detail-grid {
+                grid-template-columns: repeat(4, 1fr);
+            }
+        }
+        
+        .turbine-unit {
+            background: linear-gradient(135deg, 
+                rgba(0, 0, 0, 0.3) 0%, 
+                rgba(52, 152, 219, 0.1) 100%);
+            border-radius: 12px;
+            padding: 15px;
+            border: 2px solid rgba(52, 152, 219, 0.2);
+            transition: all 0.3s;
+        }
+        
+        .turbine-unit.active {
+            border-color: var(--turbine-color);
+            box-shadow: 0 0 30px rgba(52, 152, 219, 0.3);
+            animation: glow 2s infinite alternate;
+        }
+        
+        @keyframes glow {
+            from { box-shadow: 0 0 20px rgba(52, 152, 219, 0.3); }
+            to { box-shadow: 0 0 40px rgba(52, 152, 219, 0.5); }
+        }
+        
+        .turbine-unit.tripped {
+            border-color: var(--danger);
+            background: linear-gradient(135deg, 
+                rgba(0, 0, 0, 0.3) 0%, 
+                rgba(231, 76, 60, 0.2) 100%);
+            animation: alarm-pulse 1s infinite;
+        }
+        
+        @keyframes alarm-pulse {
+            0%, 100% { border-color: var(--danger); }
+            50% { border-color: rgba(231, 76, 60, 0.5); }
+        }
+        
+        .turbine-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        
+        .turbine-name {
+            font-weight: 700;
+            font-size: 1.1rem;
+            color: var(--turbine-color);
+        }
+        
+        .turbine-status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #7f8c8d;
+        }
+        
+        .status-dot.online { background: var(--success); animation: pulse 2s infinite; }
+        .status-dot.starting { background: var(--warning); animation: pulse 1s infinite; }
+        .status-dot.syncing { background: #9b59b6; animation: pulse 0.5s infinite; }
+        .status-dot.tripped { background: var(--danger); animation: pulse 0.3s infinite; }
+        
+        /* Detailed Visualization */
+        .visualization-container {
+            height: 180px;
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 10px;
+            margin: 15px 0;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .turbine-schematic {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        /* Detailed Metrics */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+        
+        .metric-item {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 8px;
+            padding: 10px;
+            text-align: center;
+        }
+        
+        .metric-label {
+            font-size: 0.75rem;
+            opacity: 0.7;
+            margin-bottom: 5px;
+        }
+        
+        .metric-value {
+            font-size: 1rem;
+            font-weight: 600;
+        }
+        
+        .metric-trend {
+            font-size: 0.7rem;
+            margin-top: 3px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 3px;
+        }
+        
+        /* Enhanced Control Panel */
+        .control-panel {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin-top: 15px;
+        }
+        
+        .control-btn-small {
+            height: 50px;
+            border-radius: 10px;
+            border: none;
+            background: linear-gradient(135deg, 
+                rgba(74, 158, 255, 0.1) 0%, 
+                rgba(74, 158, 255, 0.05) 100%);
+            color: var(--light);
+            font-size: 0.85rem;
+            font-weight: 600;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 1px solid rgba(74, 158, 255, 0.2);
+        }
+        
+        .control-btn-small:active {
+            transform: scale(0.97);
+            background: rgba(74, 158, 255, 0.2);
+        }
+        
+        .control-btn-small.danger {
+            background: linear-gradient(135deg, 
+                rgba(231, 76, 60, 0.1) 0%, 
+                rgba(231, 76, 60, 0.05) 100%);
+            border-color: rgba(231, 76, 60, 0.2);
+        }
+        
+        .control-btn-small.success {
+            background: linear-gradient(135deg, 
+                rgba(46, 204, 113, 0.1) 0%, 
+                rgba(46, 204, 113, 0.05) 100%);
+            border-color: rgba(46, 204, 113, 0.2);
+        }
+        
+        /* Advanced Control Systems */
+        .system-controls {
+            display: grid;
+            gap: 20px;
+        }
+        
+        .control-system {
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 12px;
+            padding: 15px;
+        }
+        
+        .system-title {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 15px;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .control-group {
+            margin-bottom: 15px;
+        }
+        
+        .control-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+        }
+        
+        .control-value {
+            font-weight: 600;
+            color: var(--primary);
+        }
+        
+        /* Professional Slider */
+        .pro-slider {
+            width: 100%;
+            height: 8px;
+            -webkit-appearance: none;
+            appearance: none;
+            background: linear-gradient(90deg, 
+                rgba(255, 59, 48, 0.5) 0%, 
+                rgba(255, 204, 0, 0.5) 50%, 
+                rgba(76, 217, 100, 0.5) 100%);
+            border-radius: 4px;
+            outline: none;
+        }
+        
+        .pro-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: var(--primary);
+            cursor: pointer;
+            border: 2px solid white;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);
+        }
+        
+        .slider-labels {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 5px;
+            font-size: 0.75rem;
+            opacity: 0.7;
+        }
+        
+        /* Enhanced Charts */
+        .chart-container {
+            height: 250px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+            padding: 15px;
+        }
+        
+        /* Alarm System */
+        .alarm-system {
+            background: linear-gradient(135deg, 
+                rgba(231, 76, 60, 0.1) 0%, 
+                rgba(231, 76, 60, 0.05) 100%);
+            border: 1px solid rgba(231, 76, 60, 0.3);
+            border-radius: 12px;
+            padding: 20px;
+        }
+        
+        .alarm-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 15px;
+        }
+        
+        .alarm-title {
+            color: var(--danger);
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .alarm-list {
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        
+        .alarm-item {
+            padding: 12px;
+            margin-bottom: 10px;
+            background: rgba(231, 76, 60, 0.1);
+            border-radius: 8px;
+            border-left: 4px solid var(--danger);
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        .alarm-content h4 {
+            font-size: 0.9rem;
+            margin-bottom: 5px;
+        }
+        
+        .alarm-content p {
+            font-size: 0.8rem;
+            opacity: 0.9;
+        }
+        
+        .alarm-time {
+            font-size: 0.75rem;
+            opacity: 0.7;
+            text-align: right;
+        }
+        
+        /* Bottom Navigation */
+        .pro-navigation {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(180deg, 
+                rgba(0, 0, 0, 0) 0%, 
+                rgba(0, 0, 0, 0.9) 20%);
+            backdrop-filter: blur(20px);
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            justify-content: space-around;
+            padding: 15px 10px;
+            z-index: 1000;
+        }
+        
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            padding: 10px 15px;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s;
+            min-width: 70px;
+        }
+        
+        .nav-item.active {
+            background: rgba(74, 158, 255, 0.2);
+            transform: translateY(-5px);
+        }
+        
+        .nav-icon {
+            font-size: 1.3rem;
+            width: 40px;
+            height: 40px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .nav-label {
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+        
+        /* Modal Systems */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(10px);
+            z-index: 2000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s;
+        }
+        
+        .modal-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        .modal-content {
+            background: var(--surface);
+            border-radius: 20px;
+            width: 100%;
+            max-width: 500px;
+            max-height: 90vh;
+            overflow-y: auto;
+            padding: 25px;
+            transform: translateY(20px);
+            transition: transform 0.3s;
+        }
+        
+        .modal-overlay.active .modal-content {
+            transform: translateY(0);
+        }
+        
+        /* Responsive Design */
+        @media (min-width: 768px) {
+            .dashboard-main {
+                padding: 30px;
+                grid-template-columns: 1fr 1fr;
+            }
+            
+            .grid-section {
+                grid-column: span 2;
+            }
+            
+            .turbine-detail-grid {
+                grid-template-columns: repeat(4, 1fr);
+            }
+            
+            .system-controls {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        
+        @media (min-width: 1024px) {
+            .dashboard-main {
+                grid-template-columns: 2fr 1fr;
+            }
+            
+            .grid-section {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        /* Loading Animation */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: var(--dark);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 3000;
+            transition: opacity 0.5s;
+        }
+        
+        .loading-spinner {
+            width: 80px;
+            height: 80px;
+            border: 4px solid rgba(74, 158, 255, 0.3);
+            border-top: 4px solid var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .loading-text {
+            margin-top: 20px;
+            font-size: 1.2rem;
+            color: var(--primary);
+        }
+    </style>
+</head>
+<body>
+    <!-- Loading Screen -->
+    <div class="loading-overlay" id="loading-screen">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">Initializing Power Plant Systems...</div>
+    </div>
+
+    <!-- Main Application -->
+    <div class="professional-container" id="app-container" style="display: none;">
+        <!-- Professional Header -->
+        <header class="professional-header">
+            <div class="header-main">
+                <div class="plant-logo">
+                    <div class="logo-icon">
+                        <i class="fas fa-bolt"></i>
+                    </div>
+                    <div>
+                        <div class="logo-text">PPS v3.0</div>
+                        <div class="logo-subtext">Professional Edition</div>
+                    </div>
+                </div>
+                
+                <div class="plant-info">
+                    <h1 class="plant-title">1000MW GAS POWER PLANT</h1>
+                    <div class="plant-specs">
+                        <div class="spec-item">
+                            <i class="fas fa-tachometer-alt"></i>
+                            <span>4 x 250MW Units</span>
+                        </div>
+                        <div class="spec-item">
+                            <i class="fas fa-thermometer-half"></i>
+                            <span>Combined Cycle</span>
+                        </div>
+                        <div class="spec-item">
+                            <i class="fas fa-cogs"></i>
+                            <span>GT-M701F4</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="header-controls">
+                    <div class="control-btn" id="alarm-btn">
+                        <i class="fas fa-exclamation-triangle"></i>
+                    </div>
+                    <div class="control-btn" id="help-btn">
+                        <i class="fas fa-question-circle"></i>
+                    </div>
+                    <div class="control-btn badge" id="alert-btn">
+                        <i class="fas fa-bell"></i>
+                    </div>
+                    <div class="control-btn" id="settings-btn">
+                        <i class="fas fa-cog"></i>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="status-bar">
+                <div class="status-item">
+                    <div class="status-label">PLANT STATUS</div>
+                    <div class="status-value" id="plant-status">OFFLINE</div>
+                    <div class="status-trend" id="plant-trend">
+                        <i class="fas fa-circle"></i>
+                        <span>Ready</span>
+                    </div>
+                </div>
+                
+                <div class="status-item">
+                    <div class="status-label">TOTAL OUTPUT</div>
+                    <div class="status-value" id="total-output">0 MW</div>
+                    <div class="status-trend" id="output-trend">
+                        <i class="fas fa-arrow-right"></i>
+                        <span>Target: 0 MW</span>
+                    </div>
+                </div>
+                
+                <div class="status-item">
+                    <div class="status-label">GRID FREQ</div>
+                    <div class="status-value" id="grid-frequency">50.00 Hz</div>
+                    <div class="status-trend" id="freq-trend">
+                        <i class="fas fa-wave-square"></i>
+                        <span>±0.00 Hz</span>
+                    </div>
+                </div>
+                
+                <div class="status-item">
+                    <div class="status-label">VOLTAGE</div>
+                    <div class="status-value" id="system-voltage">0 kV</div>
+                    <div class="status-trend" id="volt-trend">
+                        <i class="fas fa-bolt"></i>
+                        <span>Stable</span>
+                    </div>
+                </div>
+                
+                <div class="status-item">
+                    <div class="status-label">EFFICIENCY</div>
+                    <div class="status-value" id="plant-efficiency">0%</div>
+                    <div class="status-trend" id="eff-trend">
+                        <i class="fas fa-chart-line"></i>
+                        <span>Optimal</span>
+                    </div>
+                </div>
+            </div>
+        </header>
+        
+        <!-- Main Dashboard -->
+        <main class="dashboard-main">
+            <!-- Turbine Control Section -->
+            <section class="pro-card">
+                <div class="pro-card-header">
+                    <div class="card-title">
+                        <i class="fas fa-industry"></i>
+                        <span>Turbine Generator Units</span>
+                    </div>
+                    <div class="card-actions">
+                        <button class="control-btn-small success" id="start-sequence">
+                            <i class="fas fa-play-circle"></i>
+                            <span>Start Sequence</span>
+                        </button>
+                        <button class="control-btn-small danger" id="emergency-stop">
+                            <i class="fas fa-stop-circle"></i>
+                            <span>E-Stop</span>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="turbine-detail-grid" id="turbine-grid">
+                    <!-- Turbine units will be generated here -->
+                </div>
+            </section>
+            
+            <!-- Load Control Section -->
+            <section class="pro-card">
+                <div class="pro-card-header">
+                    <div class="card-title">
+                        <i class="fas fa-sliders-h"></i>
+                        <span>Load Dispatch Control</span>
+                    </div>
+                    <div class="card-actions">
+                        <button class="control-btn-small" id="auto-dispatch">
+                            <i class="fas fa-robot"></i>
+                            <span>Auto</span>
+                        </button>
+                        <button class="control-btn-small" id="manual-dispatch">
+                            <i class="fas fa-hand-paper"></i>
+                            <span>Manual</span>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="system-controls">
+                    <div class="control-system">
+                        <div class="system-title">
+                            <i class="fas fa-balance-scale"></i>
+                            <span>Load Distribution</span>
+                        </div>
+                        
+                        <div class="control-group">
+                            <div class="control-label">
+                                <span>Grid Demand</span>
+                                <span class="control-value" id="grid-demand">0 MW</span>
+                            </div>
+                            <input type="range" class="pro-slider" id="load-slider" min="0" max="1000" value="0" step="10">
+                            <div class="slider-labels">
+                                <span>Min (200MW)</span>
+                                <span>Optimal (600MW)</span>
+                                <span>Max (1000MW)</span>
+                            </div>
+                        </div>
+                        
+                        <div class="control-group">
+                            <div class="control-label">
+                                <span>Load Factor</span>
+                                <span class="control-value" id="load-factor">0%</span>
+                            </div>
+                            <div class="progress-bar" style="height: 10px; background: rgba(255,255,255,0.1); border-radius: 5px; overflow: hidden;">
+                                <div id="load-progress" style="height: 100%; width: 0%; background: linear-gradient(90deg, #4cd964, #4a9eff); transition: width 0.5s;"></div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="control-system">
+                        <div class="system-title">
+                            <i class="fas fa-tachometer-alt"></i>
+                            <span>Frequency Control</span>
+                        </div>
+                        
+                        <div class="control-group">
+                            <div class="control-label">
+                                <span>Frequency Deviation</span>
+                                <span class="control-value" id="freq-deviation">±0.00 Hz</span>
+                            </div>
+                            <input type="range" class="pro-slider" id="freq-slider" min="-0.5" max="0.5" value="0" step="0.01">
+                            <div class="slider-labels">
+                                <span>-0.5 Hz</span>
+                                <span>0 Hz</span>
+                                <span>+0.5 Hz</span>
+                            </div>
+                        </div>
+                        
+                        <div class="control-group">
+                            <div class="control-label">
+                                <span>Governor Response</span>
+                                <span class="control-value" id="governor-response">Idle</span>
+                            </div>
+                            <div class="progress-bar" style="height: 10px; background: rgba(255,255,255,0.1); border-radius: 5px; overflow: hidden;">
+                                <div id="gov-progress" style="height: 100%; width: 0%; background: linear-gradient(90deg, #ffcc00, #4cd964); transition: width 0.5s;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- Advanced Systems -->
+            <section class="grid-section">
+                <!-- Combustion Control -->
+                <div class="pro-card">
+                    <div class="pro-card-header">
+                        <div class="card-title">
+                            <i class="fas fa-fire"></i>
+                            <span>Combustion System</span>
+                        </div>
+                    </div>
+                    
+                    <div class="system-controls">
+                        <div class="control-system">
+                            <div class="control-group">
+                                <div class="control-label">
+                                    <span>Fuel Flow Rate</span>
+                                    <span class="control-value" id="fuel-flow">0 kg/s</span>
+                                </div>
+                                <input type="range" class="pro-slider" id="fuel-slider" min="0" max="100" value="0">
+                            </div>
+                            
+                            <div class="control-group">
+                                <div class="control-label">
+                                    <span>Air-Fuel Ratio</span>
+                                    <span class="control-value" id="air-fuel-ratio">15.0:1</span>
+                                </div>
+                                <input type="range" class="pro-slider" id="ratio-slider" min="10" max="20" value="15" step="0.1">
+                            </div>
+                            
+                            <div class="control-group">
+                                <div class="control-label">
+                                    <span>Combustion Temp</span>
+                                    <span class="control-value" id="combustion-temp">25°C</span>
+                                </div>
+                                <div class="progress-bar" style="height: 10px; background: rgba(255,255,255,0.1); border-radius: 5px; overflow: hidden;">
+                                    <div id="temp-progress" style="height: 100%; width: 0%; background: linear-gradient(90deg, #4a9eff, #ff9500, #ff3b30); transition: width 0.5s;"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Cooling System -->
+                <div class="pro-card">
+                    <div class="pro-card-header">
+                        <div class="card-title">
+                            <i class="fas fa-snowflake"></i>
+                            <span>Cooling System</span>
+                        </div>
+                    </div>
+                    
+                    <div class="system-controls">
+                        <div class="control-system">
+                            <div class="control-group">
+                                <div class="control-label">
+                                    <span>Coolant Flow</span>
+                                    <span class="control-value" id="coolant-flow">0%</span>
+                                </div>
+                                <input type="range" class="pro-slider" id="coolant-slider" min="0" max="100" value="0">
+                            </div>
+                            
+                            <div class="control-group">
+                                <div class="control-label">
+                                    <span>Heat Rate</span>
+                                    <span class="control-value" id="heat-rate">0 kJ/kWh</span>
+                                </div>
+                                <div class="progress-bar" style="height: 10px; background: rgba(255,255,255,0.1); border-radius: 5px; overflow: hidden;">
+                                    <div id="heat-progress" style="height: 100%; width: 0%; background: linear-gradient(90deg, #4cd964, #ffcc00, #ff3b30); transition: width 0.5s;"></div>
+                                </div>
+                            </div>
+                            
+                            <div class="control-group">
+                                <div class="control-label">
+                                    <span>Exhaust Temp</span>
+                                    <span class="control-value" id="exhaust-temp">25°C</span>
+                                </div>
+                                <div class="progress-bar" style="height: 10px; background: rgba(255,255,255,0.1); border-radius: 5px; overflow: hidden;">
+                                    <div id="exhaust-progress" style="height: 100%; width: 0%; background: linear-gradient(90deg, #4a9eff, #ff9500, #ff3b30); transition: width 0.5s;"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- Generator & Grid Section -->
+            <section class="pro-card">
+                <div class="pro-card-header">
+                    <div class="card-title">
+                        <i class="fas fa-plug"></i>
+                        <span>Generator & Grid Interface</span>
+                    </div>
+                    <div class="card-actions">
+                        <button class="control-btn-small warning" id="sync-generators">
+                            <i class="fas fa-sync-alt"></i>
+                            <span>Sync</span>
+                        </button>
+                        <button class="control-btn-small success" id="connect-grid">
+                            <i class="fas fa-bolt"></i>
+                            <span>Connect</span>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="system-controls">
+                    <div class="control-system">
+                        <div class="control-group">
+                            <div class="control-label">
+                                <span>Generator Voltage</span>
+                                <span class="control-value" id="gen-voltage">0 kV</span>
+                            </div>
+                            <input type="range" class="pro-slider" id="voltage-slider" min="0" max="500" value="0" step="10">
+                        </div>
+                        
+                        <div class="control-group">
+                            <div class="control-label">
+                                <span>Power Factor</span>
+                                <span class="control-value" id="power-factor">0.00</span>
+                            </div>
+                            <input type="range" class="pro-slider" id="pf-slider" min="0.8" max="1.0" value="0.9" step="0.01">
+                        </div>
+                    </div>
+                    
+                    <div class="control-system">
+                        <div class="control-group">
+                            <div class="control-label">
+                                <span>Reactive Power</span>
+                                <span class="control-value" id="reactive-power">0 MVAR</span>
+                            </div>
+                            <input type="range" class="pro-slider" id="reactive-slider" min="-200" max="200" value="0" step="10">
+                        </div>
+                        
+                        <div class="control-group">
+                            <div class="control-label">
+                                <span>Grid Stability</span>
+                                <span class="control-value" id="grid-stability">100%</span>
+                            </div>
+                            <div class="progress-bar" style="height: 10px; background: rgba(255,255,255,0.1); border-radius: 5px; overflow: hidden;">
+                                <div id="stability-progress" style="height: 100%; width: 100%; background: linear-gradient(90deg, #ff3b30, #ffcc00, #4cd964); transition: width 0.5s;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- Charts Section -->
+            <section class="grid-section">
+                <div class="pro-card">
+                    <div class="pro-card-header">
+                        <div class="card-title">
+                            <i class="fas fa-chart-line"></i>
+                            <span>Performance Analytics</span>
+                        </div>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="performance-chart"></canvas>
+                    </div>
+                </div>
+                
+                <div class="pro-card">
+                    <div class="pro-card-header">
+                        <div class="card-title">
+                            <i class="fas fa-chart-bar"></i>
+                            <span>Efficiency Monitor</span>
+                        </div>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="efficiency-chart"></canvas>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- Alarm System -->
+            <section class="alarm-system" id="alarm-panel" style="display: none;">
+                <div class="alarm-header">
+                    <div class="alarm-title">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        <span>ACTIVE ALARMS</span>
+                    </div>
+                    <button class="control-btn-small" id="ack-alarms">
+                        <i class="fas fa-check"></i>
+                        <span>Acknowledge</span>
+                    </button>
+                </div>
+                
+                <div class="alarm-list" id="alarm-list">
+                    <!-- Alarms will appear here -->
+                </div>
+            </section>
+        </main>
+        
+        <!-- Professional Navigation -->
+        <nav class="pro-navigation">
+            <div class="nav-item active" data-view="dashboard">
+                <div class="nav-icon">
+                    <i class="fas fa-tachometer-alt"></i>
+                </div>
+                <div class="nav-label">Dashboard</div>
+            </div>
+            <div class="nav-item" data-view="control">
+                <div class="nav-icon">
+                    <i class="fas fa-gamepad"></i>
+                </div>
+                <div class="nav-label">Control</div>
+            </div>
+            <div class="nav-item" data-view="analytics">
+                <div class="nav-icon">
+                    <i class="fas fa-chart-pie"></i>
+                </div>
+                <div class="nav-label">Analytics</div>
+            </div>
+            <div class="nav-item" data-view="maintenance">
+                <div class="nav-icon">
+                    <i class="fas fa-tools"></i>
+                </div>
+                <div class="nav-label">Maintenance</div>
+            </div>
+            <div class="nav-item" data-view="reports">
+                <div class="nav-icon">
+                    <i class="fas fa-clipboard-list"></i>
+                </div>
+                <div class="nav-label">Reports</div>
+            </div>
+        </nav>
+        
+        <!-- Modal Windows -->
+        <div class="modal-overlay" id="help-modal">
+            <div class="modal-content">
+                <!-- Help content would go here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Professional Power Plant Simulator - Extreme Detail
+        class ProfessionalPowerPlant {
+            constructor() {
+                this.state = {
+                    // Plant Status
+                    status: "OFFLINE",
+                    mode: "MANUAL",
+                    totalOutput: 0,
+                    totalCapacity: 1000,
+                    gridFrequency: 50.00,
+                    systemVoltage: 0,
+                    plantEfficiency: 0,
+                    availability: 100,
+                    reliability: 100,
+                    
+                    // Grid Parameters
+                    gridConnected: false,
+                    gridDemand: 0,
+                    frequencyDeviation: 0,
+                    gridStability: 100,
+                    spinningReserve: 0,
+                    
+                    // Turbine Units
+                    turbines: [],
+                    generators: [],
+                    
+                    // Combustion System
+                    fuelFlowRate: 0,
+                    airFuelRatio: 15.0,
+                    combustionTemperature: 25,
+                    exhaustTemperature: 25,
+                    compressorPressure: 1.0,
+                    turbineInletTemp: 25,
+                    
+                    // Cooling System
+                    coolantFlow: 0,
+                    heatRate: 0,
+                    condenserPressure: 0,
+                    feedwaterTemp: 25,
+                    
+                    // Generator System
+                    generatorVoltage: 0,
+                    powerFactor: 0.9,
+                    reactivePower: 0,
+                    fieldCurrent: 0,
+                    excitationVoltage: 0,
+                    syncStatus: "NOT_SYNCHED",
+                    
+                    // Control Systems
+                    governorResponse: 0,
+                    avrStatus: "OFF",
+                    protectionStatus: "ARMED",
+                    autoDispatch: false,
+                    loadFollowing: false,
+                    
+                    // Performance Metrics
+                    heatRateActual: 0,
+                    efficiencyActual: 0,
+                    fuelConsumption: 0,
+                    emissionsRate: 0,
+                    
+                    // Alarms & Faults
+                    alarms: [],
+                    faults: [],
+                    warnings: [],
+                    tripHistory: [],
+                    
+                    // Maintenance
+                    maintenanceSchedule: [],
+                    componentHealth: {},
+                    runtimeHours: 0,
+                    startCycles: 0,
+                    
+                    // Environmental
+                    ambientTemp: 25,
+                    ambientPressure: 101.3,
+                    humidity: 50,
+                    windSpeed: 0,
+                    
+                    // Economic
+                    generationCost: 0,
+                    fuelCost: 0,
+                    revenue: 0,
+                    profit: 0
+                };
+                
+                // Initialize systems
+                this.initTurbines();
+                this.initGenerators();
+                this.initCharts();
+                this.initUI();
+                this.startSimulation();
+            }
+            
+            initTurbines() {
+                const turbineTypes = [
+                    {
+                        model: "GT-M701F4",
+                        maxOutput: 250,
+                        minOutput: 50,
+                        efficiency: 0.38,
+                        heatRate: 6400,
+                        pressureRatio: 18.4,
+                        exhaustFlow: 650,
+                        exhaustTemp: 610
+                    }
+                ];
+                
+                for (let i = 0; i < 4; i++) {
+                    const type = turbineTypes[0];
+                    this.state.turbines.push({
+                        id: i + 1,
+                        name: `GT-${i + 1}`,
+                        model: type.model,
+                        status: "OFFLINE",
+                        mode: "STANDBY",
+                        
+                        // Mechanical Parameters
+                        speed: 0,
+                        ratedSpeed: 3000,
+                        acceleration: 0,
+                        vibration: {
+                            axial: 0,
+                            radial: 0,
+                            thrust: 0
+                        },
+                        
+                        // Thermal Parameters
+                        temperatures: {
+                            compressorInlet: 25,
+                            compressorOutlet: 25,
+                            combustion: 25,
+                            turbineInlet: 25,
+                            turbineOutlet: 25,
+                            bearing: 25,
+                            lubeOil: 25
+                        },
+                        
+                        // Pressure Parameters
+                        pressures: {
+                            compressorInlet: 1.013,
+                            compressorOutlet: 1.013,
+                            combustion: 1.013,
+                            turbineInlet: 1.013,
+                            turbineOutlet: 1.013
+                        },
+                        
+                        // Performance Parameters
+                        output: 0,
+                        maxOutput: type.maxOutput,
+                        efficiency: type.efficiency,
+                        heatRate: type.heatRate,
+                        fuelConsumption: 0,
+                        
+                        // Control Parameters
+                        igvPosition: 0,
+                        fuelValve: 0,
+                        bleedValve: 0,
+                        bypassValve: 0,
+                        
+                        // Protection Status
+                        protections: {
+                            overspeed: true,
+                            overtemperature: true,
+                            vibrationHigh: true,
+                            flameFailure: true,
+                            lowOilPressure: true
+                        },
+                        
+                        // Fault Status
+                        faults: [],
+                        trips: [],
+                        maintenanceRequired: false,
+                        runtime: 0,
+                        starts: 0,
+                        availability: 100,
+                        
+                        // Synchronization
+                        synchronized: false,
+                        syncParameters: {
+                            voltage: 0,
+                            frequency: 0,
+                            phase: 0,
+                            slip: 0
+                        },
+                        
+                        // Auxiliary Systems
+                        auxiliaries: {
+                            lubeOilPump: false,
+                            hydraulicPump: false,
+                            coolingPump: false,
+                            fuelPump: false,
+                            ignition: false
+                        }
+                    });
+                }
+            }
+            
+            initGenerators() {
+                for (let i = 0; i < 4; i++) {
+                    this.state.generators.push({
+                        id: i + 1,
+                        turbineId: i + 1,
+                        status: "OFFLINE",
+                        
+                        // Electrical Parameters
+                        voltage: 0,
+                        frequency: 0,
+                        activePower: 0,
+                        reactivePower: 0,
+                        powerFactor: 0.9,
+                        current: 0,
+                        
+                        // Excitation System
+                        excitation: {
+                            voltage: 0,
+                            current: 0,
+                            status: "OFF",
+                            mode: "MANUAL",
+                            avrOutput: 0
+                        },
+                        
+                        // Protection System
+                        protections: {
+                            overcurrent: true,
+                            overvoltage: true,
+                            undervoltage: true,
+                            reversePower: true,
+                            lossOfExcitation: true,
+                            differential: true
+                        },
+                        
+                        // Cooling System
+                        cooling: {
+                            statorTemp: 25,
+                            rotorTemp: 25,
+                            hydrogenPressure: 0,
+                            waterTemp: 25,
+                            flowRate: 0
+                        },
+                        
+                        // Synchronization
+                        syncStatus: "NOT_SYNCHED",
+                        syncParameters: {
+                            gridVoltage: 0,
+                            gridFrequency: 0,
+                            phaseDifference: 0,
+                            slipFrequency: 0
+                        },
+                        
+                        // Maintenance
+                        insulationResistance: 1000,
+                        windingTemp: 25,
+                        bearingCondition: "GOOD",
+                        lastMaintenance: null,
+                        runtime: 0
+                    });
+                }
+            }
+            
+            initUI() {
+                this.cacheElements();
+                this.setupEventListeners();
+                this.renderTurbineGrid();
+                this.updateUI();
+                
+                // Hide loading screen
+                setTimeout(() => {
+                    document.getElementById('loading-screen').style.opacity = '0';
+                    setTimeout(() => {
+                        document.getElementById('loading-screen').style.display = 'none';
+                        document.getElementById('app-container').style.display = 'block';
+                    }, 500);
+                }, 2000);
+            }
+            
+            initCharts() {
+                // Performance Chart
+                const perfCtx = document.getElementById('performance-chart').getContext('2d');
+                this.performanceChart = new Chart(perfCtx, {
+                    type: 'line',
+                    data: {
+                        labels: Array(30).fill(''),
+                        datasets: [
+                            {
+                                label: 'Output (MW)',
+                                data: Array(30).fill(0),
+                                borderColor: '#4cd964',
+                                backgroundColor: 'rgba(76, 217, 100, 0.1)',
+                                fill: true,
+                                tension: 0.4,
+                                borderWidth: 2
+                            },
+                            {
+                                label: 'Demand (MW)',
+                                data: Array(30).fill(0),
+                                borderColor: '#4a9eff',
+                                backgroundColor: 'rgba(74, 158, 255, 0.1)',
+                                fill: true,
+                                tension: 0.4,
+                                borderWidth: 2
+                            },
+                            {
+                                label: 'Frequency (Hz x 10)',
+                                data: Array(30).fill(500),
+                                borderColor: '#ffcc00',
+                                backgroundColor: 'transparent',
+                                borderWidth: 1,
+                                borderDash: [5, 5],
+                                yAxisID: 'y1'
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                labels: { color: '#fff', font: { size: 11 } }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                                ticks: { color: '#aaa', font: { size: 10 } }
+                            },
+                            y: {
+                                type: 'linear',
+                                display: true,
+                                position: 'left',
+                                grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                                ticks: { color: '#aaa', font: { size: 10 } },
+                                title: {
+                                    display: true,
+                                    text: 'Power (MW)',
+                                    color: '#aaa',
+                                    font: { size: 11 }
+                                },
+                                min: 0,
+                                max: 1000
+                            },
+                            y1: {
+                                type: 'linear',
+                                display: true,
+                                position: 'right',
+                                grid: { drawOnChartArea: false },
+                                ticks: { color: '#ffcc00', font: { size: 10 } },
+                                title: {
+                                    display: true,
+                                    text: 'Frequency (Hz x 10)',
+                                    color: '#ffcc00',
+                                    font: { size: 11 }
+                                },
+                                min: 495,
+                                max: 505
+                            }
+                        }
+                    }
+                });
+                
+                // Efficiency Chart
+                const effCtx = document.getElementById('efficiency-chart').getContext('2d');
+                this.efficiencyChart = new Chart(effCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['T1', 'T2', 'T3', 'T4', 'Plant'],
+                        datasets: [
+                            {
+                                label: 'Thermal Efficiency (%)',
+                                data: [0, 0, 0, 0, 0],
+                                backgroundColor: [
+                                    'rgba(52, 152, 219, 0.8)',
+                                    'rgba(155, 89, 182, 0.8)',
+                                    'rgba(46, 204, 113, 0.8)',
+                                    'rgba(241, 196, 15, 0.8)',
+                                    'rgba(231, 76, 60, 0.8)'
+                                ],
+                                borderColor: [
+                                    'rgb(52, 152, 219)',
+                                    'rgb(155, 89, 182)',
+                                    'rgb(46, 204, 113)',
+                                    'rgb(241, 196, 15)',
+                                    'rgb(231, 76, 60)'
+                                ],
+                                borderWidth: 1
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                labels: { color: '#fff', font: { size: 11 } }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                                ticks: { color: '#aaa', font: { size: 10 } }
+                            },
+                            y: {
+                                grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                                ticks: { color: '#aaa', font: { size: 10 } },
+                                title: {
+                                    display: true,
+                                    text: 'Efficiency (%)',
+                                    color: '#aaa',
+                                    font: { size: 11 }
+                                },
+                                min: 0,
+                                max: 50
+                            }
+                        }
+                    }
+                });
+            }
+            
+            cacheElements() {
+                // Status elements
+                this.elements = {
+                    plantStatus: document.getElementById('plant-status'),
+                    totalOutput: document.getElementById('total-output'),
+                    gridFrequency: document.getElementById('grid-frequency'),
+                    systemVoltage: document.getElementById('system-voltage'),
+                    plantEfficiency: document.getElementById('plant-efficiency'),
+                    
+                    // Load control
+                    gridDemand: document.getElementById('grid-demand'),
+                    loadSlider: document.getElementById('load-slider'),
+                    loadFactor: document.getElementById('load-factor'),
+                    loadProgress: document.getElementById('load-progress'),
+                    
+                    // Frequency control
+                    freqDeviation: document.getElementById('freq-deviation'),
+                    freqSlider: document.getElementById('freq-slider'),
+                    governorResponse: document.getElementById('governor-response'),
+                    govProgress: document.getElementById('gov-progress'),
+                    
+                    // Combustion system
+                    fuelFlow: document.getElementById('fuel-flow'),
+                    fuelSlider: document.getElementById('fuel-slider'),
+                    airFuelRatio: document.getElementById('air-fuel-ratio'),
+                    ratioSlider: document.getElementById('ratio-slider'),
+                    combustionTemp: document.getElementById('combustion-temp'),
+                    tempProgress: document.getElementById('temp-progress'),
+                    
+                    // Cooling system
+                    coolantFlow: document.getElementById('coolant-flow'),
+                    coolantSlider: document.getElementById('coolant-slider'),
+                    heatRate: document.getElementById('heat-rate'),
+                    heatProgress: document.getElementById('heat-progress'),
+                    exhaustTemp: document.getElementById('exhaust-temp'),
+                    exhaustProgress: document.getElementById('exhaust-progress'),
+                    
+                    // Generator system
+                    genVoltage: document.getElementById('gen-voltage'),
+                    voltageSlider: document.getElementById('voltage-slider'),
+                    powerFactor: document.getElementById('power-factor'),
+                    pfSlider: document.getElementById('pf-slider'),
+                    reactivePower: document.getElementById('reactive-power'),
+                    reactiveSlider: document.getElementById('reactive-slider'),
+                    gridStability: document.getElementById('grid-stability'),
+                    stabilityProgress: document.getElementById('stability-progress'),
+                    
+                    // Turbine grid
+                    turbineGrid: document.getElementById('turbine-grid'),
+                    
+                    // Alarm system
+                    alarmPanel: document.getElementById('alarm-panel'),
+                    alarmList: document.getElementById('alarm-list'),
+                    
+                    // Buttons
+                    startSequence: document.getElementById('start-sequence'),
+                    emergencyStop: document.getElementById('emergency-stop'),
+                    autoDispatch: document.getElementById('auto-dispatch'),
+                    manualDispatch: document.getElementById('manual-dispatch'),
+                    syncGenerators: document.getElementById('sync-generators'),
+                    connectGrid: document.getElementById('connect-grid'),
+                    ackAlarms: document.getElementById('ack-alarms')
+                };
+            }
+            
+            setupEventListeners() {
+                // Control buttons
+                this.elements.startSequence.addEventListener('click', () => this.startPlant());
+                this.elements.emergencyStop.addEventListener('click', () => this.emergencyStop());
+                this.elements.autoDispatch.addEventListener('click', () => this.toggleAutoDispatch());
+                this.elements.manualDispatch.addEventListener('click', () => this.toggleManualDispatch());
+                this.elements.syncGenerators.addEventListener('click', () => this.synchronizeAll());
+                this.elements.connectGrid.addEventListener('click', () => this.connectToGrid());
+                this.elements.ackAlarms.addEventListener('click', () => this.acknowledgeAlarms());
+                
+                // Sliders
+                this.elements.loadSlider.addEventListener('input', (e) => {
+                    this.state.gridDemand = parseInt(e.target.value);
+                    this.updateLoadControl();
+                });
+                
+                this.elements.freqSlider.addEventListener('input', (e) => {
+                    this.state.frequencyDeviation = parseFloat(e.target.value);
+                    this.updateFrequencyControl();
+                });
+                
+                this.elements.fuelSlider.addEventListener('input', (e) => {
+                    this.state.fuelFlowRate = parseInt(e.target.value);
+                    this.updateCombustionSystem();
+                });
+                
+                this.elements.ratioSlider.addEventListener('input', (e) => {
+                    this.state.airFuelRatio = parseFloat(e.target.value);
+                    this.updateCombustionSystem();
+                });
+                
+                this.elements.coolantSlider.addEventListener('input', (e) => {
+                    this.state.coolantFlow = parseInt(e.target.value);
+                    this.updateCoolingSystem();
+                });
+                
+                this.elements.voltageSlider.addEventListener('input', (e) => {
+                    this.state.generatorVoltage = parseInt(e.target.value);
+                    this.updateGeneratorSystem();
+                });
+                
+                this.elements.pfSlider.addEventListener('input', (e) => {
+                    this.state.powerFactor = parseFloat(e.target.value);
+                    this.updateGeneratorSystem();
+                });
+                
+                this.elements.reactiveSlider.addEventListener('input', (e) => {
+                    this.state.reactivePower = parseInt(e.target.value);
+                    this.updateGeneratorSystem();
+                });
+                
+                // Navigation
+                document.querySelectorAll('.nav-item').forEach(item => {
+                    item.addEventListener('click', () => {
+                        document.querySelectorAll('.nav-item').forEach(i => i.classList.remove('active'));
+                        item.classList.add('active');
+                        this.switchView(item.dataset.view);
+                    });
+                });
+                
+                // Header controls
+                document.getElementById('alarm-btn').addEventListener('click', () => this.showAlarms());
+                document.getElementById('help-btn').addEventListener('click', () => this.showHelp());
+                document.getElementById('alert-btn').addEventListener('click', () => this.showAlerts());
+                document.getElementById('settings-btn').addEventListener('click', () => this.showSettings());
+            }
+            
+            renderTurbineGrid() {
+                this.elements.turbineGrid.innerHTML = '';
+                
+                this.state.turbines.forEach(turbine => {
+                    const unit = document.createElement('div');
+                    unit.className = `turbine-unit ${turbine.status.toLowerCase()} ${turbine.faults.length > 0 ? 'tripped' : ''}`;
+                    
+                    unit.innerHTML = `
+                        <div class="turbine-header">
+                            <div class="turbine-name">${turbine.name}</div>
+                            <div class="turbine-status-indicator">
+                                <div class="status-dot ${turbine.status.toLowerCase()}"></div>
+                                <span>${turbine.status}</span>
+                            </div>
+                        </div>
+                        
+                        <div class="visualization-container">
+                            <div class="turbine-schematic" id="turbine-schematic-${turbine.id}">
+                                <!-- Schematic will be drawn by JS -->
+                            </div>
+                        </div>
+                        
+                        <div class="metrics-grid">
+                            <div class="metric-item">
+                                <div class="metric-label">Output</div>
+                                <div class="metric-value">${Math.round(turbine.output)} MW</div>
+                                <div class="metric-trend">
+                                    <i class="fas fa-bolt"></i>
+                                    <span>${((turbine.output / turbine.maxOutput) * 100).toFixed(0)}%</span>
+                                </div>
+                            </div>
+                            <div class="metric-item">
+                                <div class="metric-label">Speed</div>
+                                <div class="metric-value">${Math.round(turbine.speed)} RPM</div>
+                                <div class="metric-trend">
+                                    <i class="fas fa-tachometer-alt"></i>
+                                    <span>${((turbine.speed / turbine.ratedSpeed) * 100).toFixed(0)}%</span>
+                                </div>
+                            </div>
+                            <div class="metric-item">
+                                <div class="metric-label">Temp</div>
+                                <div class="metric-value">${Math.round(turbine.temperatures.turbineOutlet)}°C</div>
+                                <div class="metric-trend">
+                                    <i class="fas fa-thermometer-half"></i>
+                                    <span>${turbine.temperatures.turbineOutlet > 600 ? 'HIGH' : 'OK'}</span>
+                                </div>
+                            </div>
+                            <div class="metric-item">
+                                <div class="metric-label">Eff</div>
+                                <div class="metric-value">${(turbine.efficiency * 100).toFixed(1)}%</div>
+                                <div class="metric-trend">
+                                    <i class="fas fa-chart-line"></i>
+                                    <span>${turbine.efficiency > 0.35 ? 'GOOD' : 'LOW'}</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="control-panel">
+                            <button class="control-btn-small" onclick="powerPlant.startTurbine(${turbine.id})" 
+                                    ${turbine.status !== 'OFFLINE' ? 'disabled' : ''}>
+                                <i class="fas fa-play"></i>
+                                <span>Start</span>
+                            </button>
+                            <button class="control-btn-small warning" onclick="powerPlant.syncTurbine(${turbine.id})" 
+                                    ${!['RUNNING', 'ONLINE'].includes(turbine.status) ? 'disabled' : ''}>
+                                <i class="fas fa-sync-alt"></i>
+                                <span>Sync</span>
+                            </button>
+                            <button class="control-btn-small" onclick="powerPlant.loadTurbine(${turbine.id}, 50)" 
+                                    ${turbine.status !== 'ONLINE' ? 'disabled' : ''}>
+                                <i class="fas fa-chart-line"></i>
+                                <span>Load</span>
+                            </button>
+                            <button class="control-btn-small danger" onclick="powerPlant.tripTurbine(${turbine.id})" 
+                                    ${turbine.status === 'OFFLINE' ? 'disabled' : ''}>
+                                <i class="fas fa-power-off"></i>
+                                <span>Trip</span>
+                            </button>
+                        </div>
+                    `;
+                    
+                    this.elements.turbineGrid.appendChild(unit);
+                    
+                    // Draw schematic
+                    this.drawTurbineSchematic(turbine.id);
+                });
+            }
+            
+            drawTurbineSchematic(turbineId) {
+                const container = document.getElementById(`turbine-schematic-${turbineId}`);
+                if (!container) return;
+                
+                const canvas = document.createElement('canvas');
+                canvas.width = container.clientWidth * 2;
+                canvas.height = container.clientHeight * 2;
+                canvas.style.width = '100%';
+                canvas.style.height = '100%';
+                container.innerHTML = '';
+                container.appendChild(canvas);
+                
+                const ctx = canvas.getContext('2d');
+                const turbine = this.state.turbines.find(t => t.id === turbineId);
+                
+                // Draw turbine schematic
+                this.renderTurbineSchematic(ctx, canvas.width, canvas.height, turbine);
+            }
+            
+            renderTurbineSchematic(ctx, width, height, turbine) {
+                ctx.clearRect(0, 0, width, height);
+                
+                const centerX = width / 2;
+                const centerY = height / 2;
+                
+                // Draw compressor section
+                ctx.fillStyle = turbine.status === 'OFFLINE' ? '#555' : '#3498db';
+                ctx.fillRect(centerX - 60, centerY - 15, 40, 30);
+                
+                // Draw combustion chamber
+                ctx.fillStyle = turbine.status === 'OFFLINE' ? '#666' : '#e74c3c';
+                ctx.fillRect(centerX - 20, centerY - 20, 40, 40);
+                
+                // Draw turbine section
+                ctx.fillStyle = turbine.status === 'OFFLINE' ? '#777' : '#9b59b6';
+                ctx.fillRect(centerX + 20, centerY - 15, 40, 30);
+                
+                // Draw rotating blades if running
+                if (['STARTING', 'RUNNING', 'ONLINE'].includes(turbine.status)) {
+                    ctx.save();
+                    ctx.translate(centerX - 40, centerY);
+                    ctx.rotate(Date.now() / 1000 * (turbine.speed / 3000));
+                    ctx.fillStyle = '#2c3e50';
+                    for (let i = 0; i < 8; i++) {
+                        ctx.rotate(Math.PI / 4);
+                        ctx.fillRect(-2, -20, 4, 20);
+                    }
+                    ctx.restore();
+                    
+                    ctx.save();
+                    ctx.translate(centerX + 40, centerY);
+                    ctx.rotate(Date.now() / 1000 * (turbine.speed / 3000) * 1.1);
+                    ctx.fillStyle = '#2c3e50';
+                    for (let i = 0; i < 8; i++) {
+                        ctx.rotate(Math.PI / 4);
+                        ctx.fillRect(-2, -20, 4, 20);
+                    }
+                    ctx.restore();
+                }
+                
+                // Draw exhaust
+                if (turbine.temperatures.turbineOutlet > 100) {
+                    const gradient = ctx.createLinearGradient(centerX + 60, centerY, centerX + 100, centerY);
+                    gradient.addColorStop(0, `rgba(255, ${150 - turbine.temperatures.turbineOutlet / 10}, 0, 0.8)`);
+                    gradient.addColorStop(1, 'rgba(255, 100, 0, 0)');
+                    ctx.fillStyle = gradient;
+                    ctx.beginPath();
+                    ctx.ellipse(centerX + 80, centerY, 20, 10, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                
+                // Draw status indicator
+                ctx.fillStyle = turbine.status === 'ONLINE' ? '#2ecc71' :
+                               turbine.status === 'RUNNING' ? '#3498db' :
+                               turbine.status === 'STARTING' ? '#f39c12' :
+                               turbine.faults.length > 0 ? '#e74c3c' : '#95a5a6';
+                ctx.beginPath();
+                ctx.arc(centerX, centerY - 40, 6, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Request next frame
+                requestAnimationFrame(() => this.renderTurbineSchematic(ctx, width, height, turbine));
+            }
+            
+            startPlant() {
+                if (this.state.status !== 'OFFLINE') return;
+                
+                this.state.status = 'STARTING';
+                this.addLog('Plant startup sequence initiated');
+                
+                // Start turbines in sequence
+                this.state.turbines.forEach((turbine, index) => {
+                    setTimeout(() => {
+                        this.startTurbine(turbine.id);
+                    }, index * 5000); // 5 second delay between starts
+                });
+                
+                this.updateUI();
+            }
+            
+            startTurbine(id) {
+                const turbine = this.state.turbines.find(t => t.id === id);
+                if (!turbine || turbine.status !== 'OFFLINE') return;
+                
+                turbine.status = 'STARTING';
+                turbine.auxiliaries.lubeOilPump = true;
+                turbine.auxiliaries.hydraulicPump = true;
+                turbine.auxiliaries.coolingPump = true;
+                
+                this.addLog(`${turbine.name}: Auxiliary systems started`);
+                
+                // Start rotation
+                const startInterval = setInterval(() => {
+                    if (turbine.speed < turbine.ratedSpeed * 0.95) {
+                        turbine.speed += 100;
+                        turbine.temperatures.combustion = Math.min(1400, turbine.temperatures.combustion + 10);
+                        turbine.temperatures.turbineOutlet = Math.min(600, turbine.temperatures.turbineOutlet + 8);
+                    } else {
+                        clearInterval(startInterval);
+                        turbine.status = 'RUNNING';
+                        turbine.auxiliaries.ignition = true;
+                        this.addLog(`${turbine.name}: Running at ${turbine.speed} RPM`);
+                        this.checkSynchronization(turbine.id);
+                    }
+                }, 100);
+                
+                this.updateUI();
+            }
+            
+            checkSynchronization(turbineId) {
+                const turbine = this.state.turbines.find(t => t.id === turbineId);
+                const generator = this.state.generators.find(g => g.turbineId === turbineId);
+                
+                if (!turbine || !generator) return;
+                
+                if (turbine.status === 'RUNNING' && turbine.speed >= turbine.ratedSpeed * 0.95) {
+                    this.addLog(`${turbine.name}: Ready for synchronization`);
+                }
+            }
+            
+            syncTurbine(id) {
+                const turbine = this.state.turbines.find(t => t.id === id);
+                const generator = this.state.generators.find(g => g.turbineId === id);
+                
+                if (!turbine || !generator) return;
+                
+                if (turbine.status === 'RUNNING') {
+                    turbine.status = 'SYNCHRONIZING';
+                    generator.status = 'SYNCHRONIZING';
+                    
+                    // Simulate synchronization process
+                    const syncInterval = setInterval(() => {
+                        generator.voltage = this.approachValue(generator.voltage, 400, 10);
+                        generator.frequency = this.approachValue(generator.frequency, 50, 0.1);
+                        
+                        if (Math.abs(generator.voltage - 400) < 5 && Math.abs(generator.frequency - 50) < 0.1) {
+                            clearInterval(syncInterval);
+                            turbine.status = 'ONLINE';
+                            generator.status = 'ONLINE';
+                            turbine.synchronized = true;
+                            generator.syncStatus = 'SYNCHED';
+                            this.addLog(`${turbine.name}: Synchronized with grid`);
+                            this.checkGridConnection();
+                        }
+                    }, 100);
+                }
+                
+                this.updateUI();
+            }
+            
+            synchronizeAll() {
+                this.state.turbines.forEach(turbine => {
+                    if (turbine.status === 'RUNNING') {
+                        this.syncTurbine(turbine.id);
+                    }
+                });
+            }
+            
+            checkGridConnection() {
+                const synchronizedTurbines = this.state.turbines.filter(t => t.synchronized);
+                
+                if (synchronizedTurbines.length >= 2 && !this.state.gridConnected) {
+                    this.addLog('Minimum synchronized turbines reached. Ready for grid connection.');
+                }
+            }
+            
+            connectToGrid() {
+                if (this.state.gridConnected) return;
+                
+                const synchronizedTurbines = this.state.turbines.filter(t => t.synchronized);
+                
+                if (synchronizedTurbines.length >= 2) {
+                    this.state.gridConnected = true;
+                    this.state.status = 'ONLINE';
+                    this.state.systemVoltage = 400;
+                    this.addLog('Connected to power grid');
+                    this.dispatchLoad();
+                } else {
+                    this.addAlarm('Grid Connection Failed', 'Minimum 2 synchronized turbines required', 'warning');
+                }
+                
+                this.updateUI();
+            }
+            
+            dispatchLoad() {
+                if (!this.state.gridConnected) return;
+                
+                const onlineTurbines = this.state.turbines.filter(t => t.status === 'ONLINE');
+                if (onlineTurbines.length === 0) return;
+                
+                // Distribute load based on capability
+                const loadPerTurbine = this.state.gridDemand / onlineTurbines.length;
+                
+                onlineTurbines.forEach(turbine => {
+                    const targetOutput = Math.min(turbine.maxOutput, loadPerTurbine);
+                    turbine.output = this.approachValue(turbine.output, targetOutput, 5);
+                    
+                    // Update turbine parameters based on load
+                    this.updateTurbinePerformance(turbine);
+                });
+                
+                this.updatePlantOutput();
+            }
+            
+            updateTurbinePerformance(turbine) {
+                // Calculate efficiency based on load
+                const loadFactor = turbine.output / turbine.maxOutput;
+                turbine.efficiency = 0.38 * (0.7 + 0.3 * loadFactor); // Base 38% efficiency
+                
+                // Update temperatures
+                turbine.temperatures.combustion = 800 + loadFactor * 600;
+                turbine.temperatures.turbineOutlet = 400 + loadFactor * 200;
+                
+                // Update fuel consumption
+                turbine.fuelConsumption = turbine.output * 3.6 / (turbine.efficiency * 42); // MJ/s
+                
+                // Check for alarms
+                if (turbine.temperatures.combustion > 1400) {
+                    this.addAlarm(`${turbine.name} High Temperature`, 
+                                `Combustion temperature: ${Math.round(turbine.temperatures.combustion)}°C`, 'warning');
+                }
+                
+                if (turbine.temperatures.turbineOutlet > 650) {
+                    this.tripTurbine(turbine.id, 'Over temperature protection');
+                }
+                
+                // Update vibration
+                turbine.vibration.radial = 1 + loadFactor * 3 + Math.random();
+                if (turbine.vibration.radial > 5) {
+                    this.addAlarm(`${turbine.name} High Vibration`, 
+                                `Radial vibration: ${turbine.vibration.radial.toFixed(1)} mm/s`, 'warning');
+                }
+            }
+            
+            tripTurbine(id, reason = 'Manual trip') {
+                const turbine = this.state.turbines.find(t => t.id === id);
+                if (!turbine) return;
+                
+                turbine.status = 'TRIPPED';
+                turbine.output = 0;
+                turbine.speed = 0;
+                turbine.synchronized = false;
+                turbine.faults.push({ time: new Date(), reason });
+                
+                const generator = this.state.generators.find(g => g.turbineId === id);
+                if (generator) {
+                    generator.status = 'TRIPPED';
+                    generator.voltage = 0;
+                    generator.activePower = 0;
+                }
+                
+                this.addAlarm(`${turbine.name} Tripped`, reason, 'danger');
+                this.addLog(`${turbine.name}: ${reason}`);
+                
+                // Check if plant should trip
+                const onlineTurbines = this.state.turbines.filter(t => t.status === 'ONLINE');
+                if (onlineTurbines.length === 0 && this.state.gridConnected) {
+                    this.state.gridConnected = false;
+                    this.state.status = 'TRIPPED';
+                    this.addAlarm('Plant Tripped', 'All generating units offline', 'danger');
+                }
+                
+                this.updatePlantOutput();
+                this.updateUI();
+            }
+            
+            emergencyStop() {
+                this.addAlarm('EMERGENCY STOP', 'Manual emergency stop activated', 'danger');
+                
+                // Trip all turbines
+                this.state.turbines.forEach(turbine => {
+                    if (turbine.status !== 'OFFLINE') {
+                        this.tripTurbine(turbine.id, 'Emergency stop');
+                    }
+                });
+                
+                this.state.gridConnected = false;
+                this.state.status = 'TRIPPED';
+                this.state.gridDemand = 0;
+                
+                setTimeout(() => {
+                    this.addLog('Emergency stop sequence completed');
+                }, 1000);
+                
+                this.updateUI();
+            }
+            
+            toggleAutoDispatch() {
+                this.state.autoDispatch = true;
+                this.state.loadFollowing = true;
+                this.elements.autoDispatch.classList.add('active');
+                this.elements.manualDispatch.classList.remove('active');
+                this.addLog('Auto dispatch mode enabled');
+            }
+            
+            toggleManualDispatch() {
+                this.state.autoDispatch = false;
+                this.state.loadFollowing = false;
+                this.elements.manualDispatch.classList.add('active');
+                this.elements.autoDispatch.classList.remove('active');
+                this.addLog('Manual dispatch mode enabled');
+            }
+            
+            updateLoadControl() {
+                this.elements.gridDemand.textContent = `${this.state.gridDemand} MW`;
+                this.elements.loadFactor.textContent = `${((this.state.gridDemand / 1000) * 100).toFixed(0)}%`;
+                this.elements.loadProgress.style.width = `${(this.state.gridDemand / 1000) * 100}%`;
+                
+                if (this.state.gridConnected) {
+                    this.dispatchLoad();
+                }
+                
+                // Check for overload
+                const availableCapacity = this.state.turbines
+                    .filter(t => t.status === 'ONLINE')
+                    .reduce((sum, t) => sum + t.maxOutput, 0);
+                
+                if (this.state.gridDemand > availableCapacity * 1.1) {
+                    this.addAlarm('Overload Warning', 
+                                `Demand (${this.state.gridDemand}MW) exceeds capacity`, 'warning');
+                    
+                    if (this.state.gridDemand > availableCapacity * 1.2) {
+                        setTimeout(() => {
+                            this.overloadTrip();
+                        }, 3000);
+                    }
+                }
+            }
+            
+            overloadTrip() {
+                // Randomly trip one turbine
+                const onlineTurbines = this.state.turbines.filter(t => t.status === 'ONLINE');
+                if (onlineTurbines.length === 0) return;
+                
+                const turbine = onlineTurbines[Math.floor(Math.random() * onlineTurbines.length)];
+                this.tripTurbine(turbine.id, 'Overload protection trip');
+                
+                this.addAlarm('Overload Protection', 'System tripped due to overload', 'danger');
+            }
+            
+            updateFrequencyControl() {
+                this.state.gridFrequency = 50.00 + this.state.frequencyDeviation;
+                this.elements.freqDeviation.textContent = `±${Math.abs(this.state.frequencyDeviation).toFixed(2)} Hz`;
+                
+                // Update governor response
+                const response = Math.min(100, Math.abs(this.state.frequencyDeviation) * 200);
+                this.state.governorResponse = response;
+                this.elements.governorResponse.textContent = response > 50 ? 'Active' : 'Idle';
+                this.elements.govProgress.style.width = `${response}%`;
+                
+                // Adjust turbine outputs for frequency control
+                if (Math.abs(this.state.frequencyDeviation) > 0.1) {
+                    this.state.turbines.forEach(turbine => {
+                        if (turbine.status === 'ONLINE') {
+                            const adjustment = this.state.frequencyDeviation * -20; // MW/Hz
+                            turbine.output = Math.max(0, Math.min(turbine.maxOutput, turbine.output + adjustment));
+                        }
+                    });
+                    this.updatePlantOutput();
+                }
+            }
+            
+            updateCombustionSystem() {
+                this.elements.fuelFlow.textContent = `${this.state.fuelFlowRate} kg/s`;
+                this.elements.airFuelRatio.textContent = `${this.state.airFuelRatio.toFixed(1)}:1`;
+                
+                // Update combustion temperature
+                this.state.combustionTemperature = 800 + (this.state.fuelFlowRate / 100) * 600;
+                this.elements.combustionTemp.textContent = `${Math.round(this.state.combustionTemperature)}°C`;
+                this.elements.tempProgress.style.width = `${(this.state.combustionTemperature / 1500) * 100}%`;
+                
+                // Update efficiency based on air-fuel ratio
+                const optimalRatio = 15.0;
+                const ratioDeviation = Math.abs(this.state.airFuelRatio - optimalRatio);
+                const efficiencyPenalty = ratioDeviation * 0.02; // 2% per unit deviation
+                this.state.plantEfficiency = Math.max(0.30, 0.38 - efficiencyPenalty);
+            }
+            
+            updateCoolingSystem() {
+                this.elements.coolantFlow.textContent = `${this.state.coolantFlow}%`;
+                
+                // Update exhaust temperature
+                const coolantEffect = this.state.coolantFlow / 100;
+                this.state.exhaustTemperature = 600 - coolantEffect * 100;
+                this.elements.exhaustTemp.textContent = `${Math.round(this.state.exhaustTemperature)}°C`;
+                this.elements.exhaustProgress.style.width = `${(this.state.exhaustTemperature / 700) * 100}%`;
+                
+                // Update heat rate
+                this.state.heatRate = 6400 + (100 - this.state.coolantFlow) * 20;
+                this.elements.heatRate.textContent = `${Math.round(this.state.heatRate)} kJ/kWh`;
+                this.elements.heatProgress.style.width = `${(this.state.heatRate / 8000) * 100}%`;
+            }
+            
+            updateGeneratorSystem() {
+                this.elements.genVoltage.textContent = `${this.state.generatorVoltage} kV`;
+                this.elements.powerFactor.textContent = this.state.powerFactor.toFixed(2);
+                this.elements.reactivePower.textContent = `${this.state.reactivePower} MVAR`;
+                
+                // Update grid stability
+                const voltageStability = Math.min(100, (1 - Math.abs(400 - this.state.generatorVoltage) / 400) * 100);
+                const frequencyStability = Math.min(100, (1 - Math.abs(50 - this.state.gridFrequency) / 50) * 100);
+                const powerFactorStability = Math.min(100, this.state.powerFactor * 100);
+                
+                this.state.gridStability = (voltageStability + frequencyStability + powerFactorStability) / 3;
+                this.elements.gridStability.textContent = `${Math.round(this.state.gridStability)}%`;
+                this.elements.stabilityProgress.style.width = `${this.state.gridStability}%`;
+                
+                // Update generator status
+                this.state.generators.forEach(gen => {
+                    if (gen.status === 'ONLINE') {
+                        gen.voltage = this.state.generatorVoltage;
+                        gen.powerFactor = this.state.powerFactor;
+                        gen.reactivePower = this.state.reactivePower;
+                    }
+                });
+            }
+            
+            updatePlantOutput() {
+                this.state.totalOutput = this.state.turbines.reduce((sum, turbine) => sum + turbine.output, 0);
+                
+                // Update grid frequency based on power balance
+                if (this.state.gridConnected) {
+                    const powerDifference = this.state.totalOutput - this.state.gridDemand;
+                    this.state.gridFrequency = 50.00 - (powerDifference / 1000) * 0.5;
+                    this.state.gridFrequency += (Math.random() * 0.1 - 0.05); // Add noise
+                    this.state.gridFrequency = Math.max(49.5, Math.min(50.5, this.state.gridFrequency));
+                    
+                    // Update system voltage
+                    const onlineCount = this.state.turbines.filter(t => t.status === 'ONLINE').length;
+                    this.state.systemVoltage = onlineCount > 0 ? 400 : 0;
+                }
+                
+                // Update efficiency
+                const totalFuel = this.state.turbines.reduce((sum, t) => sum + t.fuelConsumption, 0);
+                const totalEnergy = this.state.totalOutput * 3.6; // Convert MW to MJ/s
+                this.state.plantEfficiency = totalFuel > 0 ? (totalEnergy / (totalFuel * 42)) * 100 : 0;
+                
+                this.updateUI();
+            }
+            
+            updateUI() {
+                // Update status
+                this.elements.plantStatus.textContent = this.state.status;
+                this.elements.totalOutput.textContent = `${Math.round(this.state.totalOutput)} MW`;
+                this.elements.gridFrequency.textContent = `${this.state.gridFrequency.toFixed(2)} Hz`;
+                this.elements.systemVoltage.textContent = `${this.state.systemVoltage} kV`;
+                this.elements.plantEfficiency.textContent = `${this.state.plantEfficiency.toFixed(1)}%`;
+                
+                // Update trends
+                this.updateTrends();
+                
+                // Update charts
+                this.updateCharts();
+                
+                // Update turbine grid
+                this.renderTurbineGrid();
+            }
+            
+            updateTrends() {
+                // This would update trend indicators based on recent data
+                // For now, we'll use simple logic
+                const trends = {
+                    plant: this.state.status === 'ONLINE' ? 'success' : 'warning',
+                    output: this.state.totalOutput > 0 ? 'success' : 'neutral',
+                    frequency: Math.abs(this.state.gridFrequency - 50) < 0.1 ? 'success' : 'warning',
+                    voltage: Math.abs(this.state.systemVoltage - 400) < 20 ? 'success' : 'warning',
+                    efficiency: this.state.plantEfficiency > 35 ? 'success' : 'warning'
+                };
+                
+                // Update trend indicators
+                // Implementation would depend on specific trend display elements
+            }
+            
+            updateCharts() {
+                // Add new data point
+                const now = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                
+                // Performance chart
+                this.performanceChart.data.labels.push(now);
+                this.performanceChart.data.labels.shift();
+                
+                this.performanceChart.data.datasets[0].data.push(this.state.totalOutput);
+                this.performanceChart.data.datasets[0].data.shift();
+                
+                this.performanceChart.data.datasets[1].data.push(this.state.gridDemand);
+                this.performanceChart.data.datasets[1].data.shift();
+                
+                this.performanceChart.data.datasets[2].data.push(this.state.gridFrequency * 10);
+                this.performanceChart.data.datasets[2].data.shift();
+                
+                this.performanceChart.update('none');
+                
+                // Efficiency chart
+                const efficiencies = this.state.turbines.map(t => t.efficiency * 100);
+                efficiencies.push(this.state.plantEfficiency);
+                this.efficiencyChart.data.datasets[0].data = efficiencies;
+                this.efficiencyChart.update('none');
+            }
+            
+            addAlarm(title, message, type = 'warning') {
+                const alarm = {
+                    id: Date.now(),
+                    title,
+                    message,
+                    type,
+                    time: new Date().toLocaleTimeString(),
+                    acknowledged: false
+                };
+                
+                this.state.alarms.unshift(alarm);
+                
+                // Show alarm panel
+                this.elements.alarmPanel.style.display = 'block';
+                
+                // Update alarm list
+                this.updateAlarmList();
+                
+                // Flash alarm button
+                document.getElementById('alert-btn').classList.add('badge');
+            }
+            
+            addLog(message) {
+                console.log(`[LOG] ${new Date().toLocaleTimeString()}: ${message}`);
+                // In a full implementation, this would add to a log database
+            }
+            
+            updateAlarmList() {
+                this.elements.alarmList.innerHTML = '';
+                
+                this.state.alarms.slice(0, 5).forEach(alarm => {
+                    const alarmEl = document.createElement('div');
+                    alarmEl.className = 'alarm-item';
+                    alarmEl.innerHTML = `
+                        <div class="alarm-content">
+                            <h4>${alarm.title}</h4>
+                            <p>${alarm.message}</p>
+                        </div>
+                        <div class="alarm-time">${alarm.time}</div>
+                    `;
+                    this.elements.alarmList.appendChild(alarmEl);
+                });
+            }
+            
+            acknowledgeAlarms() {
+                this.state.alarms.forEach(alarm => alarm.acknowledged = true);
+                this.elements.alarmPanel.style.display = 'none';
+                document.getElementById('alert-btn').classList.remove('badge');
+            }
+            
+            showAlarms() {
+                this.elements.alarmPanel.style.display = this.elements.alarmPanel.style.display === 'none' ? 'block' : 'none';
+            }
+            
+            showHelp() {
+                // Implement help modal
+                alert('Professional Power Plant Simulator v3.0\n\nUse the controls to start, synchronize, and load the turbines. Monitor system parameters and respond to alarms.\n\nFor detailed documentation, please refer to the user manual.');
+            }
+            
+            showAlerts() {
+                this.showAlarms();
+            }
+            
+            showSettings() {
+                // Implement settings modal
+                alert('Settings menu would appear here.\n\nAvailable options:\n- Display settings\n- Alarm thresholds\n- Control parameters\n- System configuration');
+            }
+            
+            switchView(view) {
+                // In a full implementation, this would switch between different views
+                console.log(`Switching to ${view} view`);
+                // For now, we'll just log it
+            }
+            
+            approachValue(current, target, step) {
+                if (current < target) {
+                    return Math.min(current + step, target);
+                } else if (current > target) {
+                    return Math.max(current - step, target);
+                }
+                return current;
+            }
+            
+            startSimulation() {
+                // Main simulation loop
+                setInterval(() => {
+                    // Update ambient conditions
+                    this.state.ambientTemp = 25 + Math.sin(Date.now() / 3600000) * 10;
+                    this.state.ambientPressure = 101.3 + (Math.random() * 2 - 1);
+                    
+                    // Update turbine parameters
+                    this.state.turbines.forEach(turbine => {
+                        if (turbine.status === 'STARTING' || turbine.status === 'RUNNING' || turbine.status === 'ONLINE') {
+                            // Small random variations
+                            turbine.temperatures.combustion += (Math.random() * 2 - 1);
+                            turbine.temperatures.turbineOutlet += (Math.random() * 1 - 0.5);
+                            turbine.vibration.radial += (Math.random() * 0.2 - 0.1);
+                            
+                            // Update runtime
+                            turbine.runtime += 1;
+                        }
+                    });
+                    
+                    // Auto dispatch if enabled
+                    if (this.state.autoDispatch && this.state.gridConnected) {
+                        this.dispatchLoad();
+                    }
+                    
+                    // Random event generation (1% chance per second)
+                    if (Math.random() < 0.01) {
+                        this.generateRandomEvent();
+                    }
+                    
+                    this.updatePlantOutput();
+                    
+                }, 1000); // Run every second
+            }
+            
+            generateRandomEvent() {
+                const events = [
+                    { type: 'FUEL_QUALITY', message: 'Fuel quality variation detected', severity: 'warning' },
+                    { type: 'AMBIENT_CHANGE', message: 'Ambient temperature change affecting performance', severity: 'info' },
+                    { type: 'GRID_DISTURBANCE', message: 'Minor grid disturbance detected', severity: 'warning' },
+                    { type: 'COOLING_SYSTEM', message: 'Cooling system performance variation', severity: 'info' }
+                ];
+                
+                const event = events[Math.floor(Math.random() * events.length)];
+                this.addLog(`System event: ${event.message}`);
+                
+                if (event.severity === 'warning') {
+                    this.addAlarm('System Event', event.message, 'warning');
+                }
+            }
+            
+            // Public methods for button handlers
+            loadTurbine(id, load) {
+                const turbine = this.state.turbines.find(t => t.id === id);
+                if (turbine && turbine.status === 'ONLINE') {
+                    turbine.output = Math.min(turbine.maxOutput, load);
+                    this.updateTurbinePerformance(turbine);
+                    this.updatePlantOutput();
+                }
+            }
+        }
+        
+        // Initialize simulator when page loads
+        let powerPlant;
+        window.addEventListener('DOMContentLoaded', () => {
+            powerPlant = new ProfessionalPowerPlant();
+            window.powerPlant = powerPlant; // Make available globally for button handlers
+        });
+    </script>
+</body>
+</html>

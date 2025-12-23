@@ -1,0 +1,2338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>3D Power Plant Visualization | Professional Simulation</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/libs/stats.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/libs/dat.gui.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/effects/OutlineEffect.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+            touch-action: manipulation;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: linear-gradient(135deg, #0a1929 0%, #001e3c 100%);
+            color: #e6f7ff;
+            overflow: hidden;
+            height: 100vh;
+        }
+
+        /* Loading Screen */
+        #loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #0a1929 0%, #001e3c 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            transition: opacity 1s ease-out;
+        }
+
+        .loading-logo {
+            width: 120px;
+            height: 120px;
+            background: linear-gradient(135deg, #00b4d8 0%, #0077b6 100%);
+            border-radius: 30px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 30px;
+            animation: pulse 2s infinite;
+        }
+
+        .loading-logo i {
+            font-size: 60px;
+            color: white;
+        }
+
+        .loading-text {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #90e0ef;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .loading-progress {
+            width: 300px;
+            height: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 5px;
+            overflow: hidden;
+            margin: 20px 0;
+        }
+
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #00b4d8, #0077b6);
+            width: 0%;
+            transition: width 0.5s ease;
+        }
+
+        .loading-details {
+            color: #90e0ef;
+            font-size: 0.9rem;
+            text-align: center;
+            max-width: 300px;
+            line-height: 1.6;
+        }
+
+        /* Main Container */
+        .visualization-container {
+            display: flex;
+            height: 100vh;
+            width: 100vw;
+            position: relative;
+        }
+
+        /* 3D Viewport */
+        #viewport3d {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .canvas-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            outline: none;
+        }
+
+        /* Overlay UI */
+        .overlay-ui {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            pointer-events: none;
+            z-index: 100;
+        }
+
+        /* Control Panel */
+        .control-panel {
+            width: 380px;
+            background: rgba(0, 29, 61, 0.95);
+            backdrop-filter: blur(20px);
+            border-left: 3px solid #00b4d8;
+            padding: 25px;
+            overflow-y: auto;
+            box-shadow: -5px 0 30px rgba(0, 0, 0, 0.5);
+            pointer-events: auto;
+        }
+
+        .panel-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid rgba(0, 180, 216, 0.3);
+        }
+
+        .panel-logo {
+            width: 50px;
+            height: 50px;
+            background: linear-gradient(135deg, #00b4d8, #0077b6);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            color: white;
+        }
+
+        .panel-title {
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: #00b4d8;
+            line-height: 1.3;
+        }
+
+        .panel-subtitle {
+            font-size: 0.9rem;
+            color: #90e0ef;
+            opacity: 0.8;
+        }
+
+        /* Control Sections */
+        .control-section {
+            margin-bottom: 30px;
+            background: rgba(0, 53, 102, 0.3);
+            border-radius: 15px;
+            padding: 20px;
+            border: 1px solid rgba(0, 180, 216, 0.2);
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid rgba(0, 180, 216, 0.2);
+        }
+
+        .section-icon {
+            width: 40px;
+            height: 40px;
+            background: rgba(0, 180, 216, 0.2);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #00b4d8;
+            font-size: 18px;
+        }
+
+        .section-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: white;
+        }
+
+        /* Control Groups */
+        .control-group {
+            margin-bottom: 20px;
+        }
+
+        .control-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            font-size: 0.95rem;
+            color: #90e0ef;
+        }
+
+        .control-value {
+            font-weight: 700;
+            color: #00b4d8;
+            font-family: 'Courier New', monospace;
+        }
+
+        .slider-container {
+            margin: 15px 0;
+        }
+
+        .range-slider {
+            width: 100%;
+            height: 8px;
+            -webkit-appearance: none;
+            appearance: none;
+            background: linear-gradient(90deg, #d00000 0%, #ff9e00 50%, #38b000 100%);
+            border-radius: 4px;
+            outline: none;
+        }
+
+        .range-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: #00b4d8;
+            border: 3px solid white;
+            cursor: pointer;
+            box-shadow: 0 0 15px rgba(0, 180, 216, 0.8);
+        }
+
+        .slider-limits {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 8px;
+            font-size: 0.8rem;
+            color: #90e0ef;
+            opacity: 0.7;
+        }
+
+        /* Status Indicators */
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .status-item {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            padding: 15px;
+            text-align: center;
+            border: 1px solid rgba(0, 180, 216, 0.1);
+            transition: all 0.3s;
+        }
+
+        .status-item.active {
+            border-color: #00b4d8;
+            box-shadow: 0 0 20px rgba(0, 180, 216, 0.3);
+        }
+
+        .status-label {
+            font-size: 0.85rem;
+            color: #90e0ef;
+            margin-bottom: 8px;
+        }
+
+        .status-value {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: white;
+            font-family: 'Courier New', monospace;
+        }
+
+        .status-unit {
+            font-size: 0.8rem;
+            color: #90e0ef;
+            margin-left: 3px;
+        }
+
+        /* Control Buttons */
+        .button-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin-top: 20px;
+        }
+
+        .control-button {
+            padding: 15px;
+            border: none;
+            border-radius: 10px;
+            background: linear-gradient(135deg, rgba(0, 180, 216, 0.2), rgba(0, 119, 182, 0.1));
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            border: 1px solid rgba(0, 180, 216, 0.3);
+        }
+
+        .control-button i {
+            font-size: 20px;
+            color: #00b4d8;
+        }
+
+        .control-button:hover {
+            background: linear-gradient(135deg, rgba(0, 180, 216, 0.3), rgba(0, 119, 182, 0.2));
+            transform: translateY(-2px);
+        }
+
+        .control-button:active {
+            transform: translateY(0);
+        }
+
+        .control-button.danger {
+            background: linear-gradient(135deg, rgba(208, 0, 0, 0.2), rgba(157, 2, 8, 0.1));
+            border-color: rgba(208, 0, 0, 0.3);
+        }
+
+        .control-button.danger i {
+            color: #d00000;
+        }
+
+        .control-button.success {
+            background: linear-gradient(135deg, rgba(56, 176, 0, 0.2), rgba(0, 104, 55, 0.1));
+            border-color: rgba(56, 176, 0, 0.3);
+        }
+
+        .control-button.success i {
+            color: #38b000;
+        }
+
+        /* 3D Navigation Controls */
+        .view-controls {
+            position: absolute;
+            bottom: 30px;
+            left: 30px;
+            display: flex;
+            gap: 15px;
+            z-index: 200;
+        }
+
+        .view-button {
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            background: rgba(0, 29, 61, 0.8);
+            backdrop-filter: blur(10px);
+            border: 2px solid rgba(0, 180, 216, 0.3);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 20px;
+        }
+
+        .view-button:hover {
+            background: rgba(0, 180, 216, 0.3);
+            transform: scale(1.1);
+        }
+
+        /* Camera Info */
+        .camera-info {
+            position: absolute;
+            top: 30px;
+            right: 30px;
+            background: rgba(0, 29, 61, 0.8);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 15px 20px;
+            border: 2px solid rgba(0, 180, 216, 0.3);
+            color: white;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            min-width: 200px;
+            pointer-events: auto;
+        }
+
+        .camera-label {
+            color: #90e0ef;
+            margin-bottom: 5px;
+            font-size: 0.8rem;
+        }
+
+        /* Component Selection */
+        .component-list {
+            position: absolute;
+            top: 100px;
+            right: 30px;
+            background: rgba(0, 29, 61, 0.9);
+            backdrop-filter: blur(20px);
+            border-radius: 15px;
+            padding: 20px;
+            border: 2px solid rgba(0, 180, 216, 0.3);
+            max-height: 400px;
+            overflow-y: auto;
+            min-width: 250px;
+            pointer-events: auto;
+        }
+
+        .component-item {
+            padding: 12px 15px;
+            margin-bottom: 10px;
+            background: rgba(0, 53, 102, 0.3);
+            border-radius: 10px;
+            border: 1px solid rgba(0, 180, 216, 0.1);
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .component-item:hover {
+            background: rgba(0, 180, 216, 0.2);
+            border-color: #00b4d8;
+        }
+
+        .component-item.selected {
+            background: rgba(0, 180, 216, 0.3);
+            border-color: #00b4d8;
+            box-shadow: 0 0 15px rgba(0, 180, 216, 0.3);
+        }
+
+        .component-status {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #777;
+        }
+
+        .component-status.online { background: #38b000; animation: pulse 2s infinite; }
+        .component-status.offline { background: #777; }
+        .component-status.starting { background: #ff9e00; animation: pulse 1s infinite; }
+        .component-status.tripped { background: #d00000; animation: pulse 0.5s infinite; }
+
+        /* Animations */
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        /* Mobile Responsive */
+        @media (max-width: 1024px) {
+            .control-panel {
+                width: 350px;
+                padding: 20px;
+            }
+
+            .view-controls {
+                bottom: 20px;
+                left: 20px;
+            }
+
+            .camera-info {
+                top: 20px;
+                right: 20px;
+            }
+
+            .component-list {
+                top: 90px;
+                right: 20px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .visualization-container {
+                flex-direction: column;
+            }
+
+            .control-panel {
+                width: 100%;
+                height: 300px;
+                order: 2;
+            }
+
+            #viewport3d {
+                height: calc(100vh - 300px);
+                order: 1;
+            }
+        }
+
+        /* Utility Classes */
+        .hidden {
+            display: none !important;
+        }
+
+        .text-center {
+            text-align: center;
+        }
+
+        .mt-20 {
+            margin-top: 20px;
+        }
+
+        .mb-10 {
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Loading Screen -->
+    <div id="loading-screen">
+        <div class="loading-logo">
+            <i class="fas fa-industry"></i>
+        </div>
+        <div class="loading-text">Loading 3D Power Plant Simulation</div>
+        <div class="loading-progress">
+            <div class="progress-bar" id="progress-bar"></div>
+        </div>
+        <div class="loading-details" id="loading-details">
+            Initializing Three.js engine...
+        </div>
+    </div>
+
+    <!-- Main Visualization Container -->
+    <div class="visualization-container">
+        <!-- 3D Viewport -->
+        <div id="viewport3d">
+            <div class="canvas-container" id="canvas-container"></div>
+            
+            <!-- Overlay UI -->
+            <div class="overlay-ui">
+                <!-- Camera Information -->
+                <div class="camera-info">
+                    <div class="camera-label">CAMERA POSITION</div>
+                    <div>X: <span id="cam-x">0.00</span></div>
+                    <div>Y: <span id="cam-y">0.00</span></div>
+                    <div>Z: <span id="cam-z">0.00</span></div>
+                    <div>Mode: <span id="cam-mode">Orbit</span></div>
+                </div>
+
+                <!-- Component Selection -->
+                <div class="component-list">
+                    <div class="component-item" data-component="turbine1">
+                        <div class="component-status offline"></div>
+                        <div>
+                            <div>Gas Turbine #1</div>
+                            <div style="font-size: 0.8rem; color: #90e0ef;">SGT-6000G</div>
+                        </div>
+                    </div>
+                    <div class="component-item" data-component="turbine2">
+                        <div class="component-status offline"></div>
+                        <div>
+                            <div>Gas Turbine #2</div>
+                            <div style="font-size: 0.8rem; color: #90e0ef;">SGT-6000G</div>
+                        </div>
+                    </div>
+                    <div class="component-item" data-component="turbine3">
+                        <div class="component-status offline"></div>
+                        <div>
+                            <div>Gas Turbine #3</div>
+                            <div style="font-size: 0.8rem; color: #90e0ef;">SGT-6000G</div>
+                        </div>
+                    </div>
+                    <div class="component-item" data-component="turbine4">
+                        <div class="component-status offline"></div>
+                        <div>
+                            <div>Gas Turbine #4</div>
+                            <div style="font-size: 0.8rem; color: #90e0ef;">SGT-6000G</div>
+                        </div>
+                    </div>
+                    <div class="component-item" data-component="generator">
+                        <div class="component-status offline"></div>
+                        <div>
+                            <div>Generator Bank</div>
+                            <div style="font-size: 0.8rem; color: #90e0ef;">500 MVA</div>
+                        </div>
+                    </div>
+                    <div class="component-item" data-component="hrsg">
+                        <div class="component-status offline"></div>
+                        <div>
+                            <div>HRSG System</div>
+                            <div style="font-size: 0.8rem; color: #90e0ef;">Triple Pressure</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- View Controls -->
+                <div class="view-controls">
+                    <button class="view-button" id="view-front">
+                        <i class="fas fa-cube"></i>
+                    </button>
+                    <button class="view-button" id="view-top">
+                        <i class="fas fa-map"></i>
+                    </button>
+                    <button class="view-button" id="view-side">
+                        <i class="fas fa-th"></i>
+                    </button>
+                    <button class="view-button" id="view-iso">
+                        <i class="fas fa-camera"></i>
+                    </button>
+                    <button class="view-button" id="view-reset">
+                        <i class="fas fa-redo"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Control Panel -->
+        <div class="control-panel">
+            <div class="panel-header">
+                <div class="panel-logo">
+                    <i class="fas fa-tachometer-alt"></i>
+                </div>
+                <div>
+                    <div class="panel-title">3D POWER PLANT CONTROL</div>
+                    <div class="panel-subtitle">Real-time 3D Visualization & Control</div>
+                </div>
+            </div>
+
+            <!-- Plant Control Section -->
+            <div class="control-section">
+                <div class="section-header">
+                    <div class="section-icon">
+                        <i class="fas fa-industry"></i>
+                    </div>
+                    <div class="section-title">Plant Control</div>
+                </div>
+
+                <div class="control-group">
+                    <div class="control-label">
+                        <span>Plant Status</span>
+                        <span class="control-value" id="plant-status">OFFLINE</span>
+                    </div>
+                    <div class="slider-container">
+                        <input type="range" class="range-slider" id="load-slider" min="0" max="1000" value="0" step="10">
+                        <div class="slider-limits">
+                            <span>0 MW</span>
+                            <span>500 MW</span>
+                            <span>1000 MW</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="button-grid">
+                    <button class="control-button" id="start-plant">
+                        <i class="fas fa-play-circle"></i>
+                        <span>Start Plant</span>
+                    </button>
+                    <button class="control-button danger" id="stop-plant">
+                        <i class="fas fa-stop-circle"></i>
+                        <span>Emergency Stop</span>
+                    </button>
+                    <button class="control-button" id="sync-grid">
+                        <i class="fas fa-sync-alt"></i>
+                        <span>Synchronize</span>
+                    </button>
+                    <button class="control-button success" id="connect-grid">
+                        <i class="fas fa-plug"></i>
+                        <span>Connect Grid</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Turbine Control Section -->
+            <div class="control-section">
+                <div class="section-header">
+                    <div class="section-icon">
+                        <i class="fas fa-cog"></i>
+                    </div>
+                    <div class="section-title">Turbine Control</div>
+                </div>
+
+                <div class="status-grid">
+                    <div class="status-item" id="turbine1-status">
+                        <div class="status-label">TURBINE #1</div>
+                        <div class="status-value">0<span class="status-unit">MW</span></div>
+                    </div>
+                    <div class="status-item" id="turbine2-status">
+                        <div class="status-label">TURBINE #2</div>
+                        <div class="status-value">0<span class="status-unit">MW</span></div>
+                    </div>
+                    <div class="status-item" id="turbine3-status">
+                        <div class="status-label">TURBINE #3</div>
+                        <div class="status-value">0<span class="status-unit">MW</span></div>
+                    </div>
+                    <div class="status-item" id="turbine4-status">
+                        <div class="status-label">TURBINE #4</div>
+                        <div class="status-value">0<span class="status-unit">MW</span></div>
+                    </div>
+                </div>
+
+                <div class="control-group">
+                    <div class="control-label">
+                        <span>Turbine Speed</span>
+                        <span class="control-value" id="turbine-speed">0<span style="font-size: 0.9em;"> RPM</span></span>
+                    </div>
+                    <div class="slider-container">
+                        <input type="range" class="range-slider" id="speed-slider" min="0" max="3600" value="0" step="10">
+                        <div class="slider-limits">
+                            <span>0 RPM</span>
+                            <span>1800 RPM</span>
+                            <span>3600 RPM</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Performance Metrics -->
+            <div class="control-section">
+                <div class="section-header">
+                    <div class="section-icon">
+                        <i class="fas fa-chart-line"></i>
+                    </div>
+                    <div class="section-title">Performance Metrics</div>
+                </div>
+
+                <div class="status-grid">
+                    <div class="status-item">
+                        <div class="status-label">TOTAL OUTPUT</div>
+                        <div class="status-value">0<span class="status-unit">MW</span></div>
+                    </div>
+                    <div class="status-item">
+                        <div class="status-label">GRID FREQUENCY</div>
+                        <div class="status-value">50.00<span class="status-unit">Hz</span></div>
+                    </div>
+                    <div class="status-item">
+                        <div class="status-label">PLANT EFFICIENCY</div>
+                        <div class="status-value">0<span class="status-unit">%</span></div>
+                    </div>
+                    <div class="status-item">
+                        <div class="status-label">HEAT RATE</div>
+                        <div class="status-value">0<span class="status-unit">kJ/kWh</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Visualization Settings -->
+            <div class="control-section">
+                <div class="section-header">
+                    <div class="section-icon">
+                        <i class="fas fa-eye"></i>
+                    </div>
+                    <div class="section-title">Visualization Settings</div>
+                </div>
+
+                <div class="control-group">
+                    <div class="control-label">
+                        <span>Animation Speed</span>
+                        <span class="control-value" id="anim-speed">1.0x</span>
+                    </div>
+                    <div class="slider-container">
+                        <input type="range" class="range-slider" id="anim-slider" min="0" max="2" value="1" step="0.1">
+                        <div class="slider-limits">
+                            <span>0.5x</span>
+                            <span>1.0x</span>
+                            <span>2.0x</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="button-grid">
+                    <button class="control-button" id="toggle-wireframe">
+                        <i class="fas fa-cube"></i>
+                        <span>Wireframe</span>
+                    </button>
+                    <button class="control-button" id="toggle-labels">
+                        <i class="fas fa-tag"></i>
+                        <span>Labels</span>
+                    </button>
+                    <button class="control-button" id="toggle-particles">
+                        <i class="fas fa-fire"></i>
+                        <span>Effects</span>
+                    </button>
+                    <button class="control-button" id="toggle-grid">
+                        <i class="fas fa-th"></i>
+                        <span>Grid</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <script>
+        // Professional 3D Power Plant Visualization with Three.js
+        class PowerPlant3DVisualization {
+            constructor() {
+                // Three.js Core Components
+                this.scene = null;
+                this.camera = null;
+                this.renderer = null;
+                this.controls = null;
+                this.clock = null;
+                
+                // Plant Components
+                this.turbines = [];
+                this.generators = [];
+                this.hrsg = null;
+                this.transformers = [];
+                this.pipes = [];
+                this.structures = [];
+                
+                // Visualization State
+                this.visualizationState = {
+                    plantStatus: 'offline',
+                    totalOutput: 0,
+                    gridFrequency: 50.00,
+                    efficiency: 0,
+                    heatRate: 0,
+                    
+                    turbines: [
+                        { id: 1, status: 'offline', output: 0, speed: 0, temperature: 25 },
+                        { id: 2, status: 'offline', output: 0, speed: 0, temperature: 25 },
+                        { id: 3, status: 'offline', output: 0, speed: 0, temperature: 25 },
+                        { id: 4, status: 'offline', output: 0, speed: 0, temperature: 25 }
+                    ],
+                    
+                    // Visualization Settings
+                    animationSpeed: 1.0,
+                    showWireframe: false,
+                    showLabels: true,
+                    showParticles: true,
+                    showGrid: true,
+                    
+                    // Camera State
+                    cameraMode: 'orbit',
+                    selectedComponent: null
+                };
+                
+                // Animation Properties
+                this.rotationSpeeds = [0, 0, 0, 0];
+                this.particleSystems = [];
+                this.glowEffects = [];
+                this.exhaustEffects = [];
+                
+                // Initialize
+                this.init();
+            }
+            
+            async init() {
+                // Update loading screen
+                this.updateLoading('Initializing Three.js Engine...', 10);
+                
+                // Initialize Three.js
+                await this.initThreeJS();
+                
+                this.updateLoading('Creating 3D Scene...', 30);
+                
+                // Create scene
+                this.createScene();
+                
+                this.updateLoading('Building Power Plant Models...', 50);
+                
+                // Build plant components
+                await this.buildPowerPlant();
+                
+                this.updateLoading('Setting Up Lighting...', 70);
+                
+                // Setup lighting
+                this.setupLighting();
+                
+                this.updateLoading('Configuring Camera Controls...', 85);
+                
+                // Setup camera controls
+                this.setupControls();
+                
+                this.updateLoading('Starting Animation Loop...', 95);
+                
+                // Start animation loop
+                this.animate();
+                
+                // Setup UI interactions
+                this.setupUI();
+                
+                // Hide loading screen
+                setTimeout(() => {
+                    this.updateLoading('3D Visualization Ready!', 100);
+                    setTimeout(() => {
+                        document.getElementById('loading-screen').style.opacity = '0';
+                        setTimeout(() => {
+                            document.getElementById('loading-screen').style.display = 'none';
+                        }, 1000);
+                    }, 500);
+                }, 1000);
+            }
+            
+            updateLoading(message, progress) {
+                document.getElementById('loading-details').textContent = message;
+                document.getElementById('progress-bar').style.width = `${progress}%`;
+            }
+            
+            initThreeJS() {
+                return new Promise((resolve) => {
+                    // Scene
+                    this.scene = new THREE.Scene();
+                    this.scene.background = new THREE.Color(0x001e3c);
+                    this.scene.fog = new THREE.Fog(0x001e3c, 100, 500);
+                    
+                    // Camera
+                    this.camera = new THREE.PerspectiveCamera(
+                        60,
+                        window.innerWidth / window.innerHeight,
+                        0.1,
+                        10000
+                    );
+                    this.camera.position.set(150, 100, 150);
+                    this.camera.lookAt(0, 0, 0);
+                    
+                    // Renderer
+                    this.renderer = new THREE.WebGLRenderer({
+                        antialias: true,
+                        alpha: true,
+                        powerPreference: "high-performance"
+                    });
+                    this.renderer.setSize(window.innerWidth, window.innerHeight);
+                    this.renderer.setPixelRatio(window.devicePixelRatio);
+                    this.renderer.shadowMap.enabled = true;
+                    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+                    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+                    this.renderer.toneMappingExposure = 1.0;
+                    
+                    // Add canvas to container
+                    const container = document.getElementById('canvas-container');
+                    container.appendChild(this.renderer.domElement);
+                    
+                    // Clock
+                    this.clock = new THREE.Clock();
+                    
+                    resolve();
+                });
+            }
+            
+            createScene() {
+                // Add environmental lighting
+                const ambientLight = new THREE.AmbientLight(0xffffff, 0.3);
+                this.scene.add(ambientLight);
+                
+                // Main directional light (simulating sun)
+                const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+                directionalLight.position.set(100, 200, 50);
+                directionalLight.castShadow = true;
+                directionalLight.shadow.mapSize.width = 2048;
+                directionalLight.shadow.mapSize.height = 2048;
+                directionalLight.shadow.camera.near = 0.5;
+                directionalLight.shadow.camera.far = 500;
+                directionalLight.shadow.camera.left = -100;
+                directionalLight.shadow.camera.right = 100;
+                directionalLight.shadow.camera.top = 100;
+                directionalLight.shadow.camera.bottom = -100;
+                this.scene.add(directionalLight);
+                
+                // Add grid helper
+                const gridHelper = new THREE.GridHelper(200, 20, 0x00b4d8, 0x003566);
+                gridHelper.position.y = -0.1;
+                this.scene.add(gridHelper);
+                
+                // Add coordinate axes
+                const axesHelper = new THREE.AxesHelper(50);
+                this.scene.add(axesHelper);
+                
+                // Create ground plane
+                const groundGeometry = new THREE.PlaneGeometry(500, 500);
+                const groundMaterial = new THREE.MeshStandardMaterial({
+                    color: 0x1a3a5f,
+                    roughness: 0.8,
+                    metalness: 0.2
+                });
+                const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+                ground.rotation.x = -Math.PI / 2;
+                ground.receiveShadow = true;
+                this.scene.add(ground);
+                
+                // Add some background buildings
+                this.createBackgroundBuildings();
+            }
+            
+            async buildPowerPlant() {
+                // Create gas turbines
+                for (let i = 0; i < 4; i++) {
+                    const turbine = await this.createGasTurbine(i);
+                    turbine.position.set(-120 + i * 80, 10, 0);
+                    this.scene.add(turbine);
+                    this.turbines.push(turbine);
+                    
+                    // Add exhaust effect
+                    const exhaust = this.createExhaustEffect();
+                    exhaust.position.set(-120 + i * 80, 12, 10);
+                    this.scene.add(exhaust);
+                    this.exhaustEffects.push(exhaust);
+                }
+                
+                // Create generators
+                for (let i = 0; i < 4; i++) {
+                    const generator = this.createGenerator();
+                    generator.position.set(-120 + i * 80, 10, 25);
+                    this.scene.add(generator);
+                    this.generators.push(generator);
+                }
+                
+                // Create HRSG system
+                this.hrsg = this.createHRSG();
+                this.hrsg.position.set(0, 15, 40);
+                this.scene.add(this.hrsg);
+                
+                // Create steam turbine
+                const steamTurbine = this.createSteamTurbine();
+                steamTurbine.position.set(40, 12, 40);
+                this.scene.add(steamTurbine);
+                
+                // Create transformers
+                for (let i = 0; i < 2; i++) {
+                    const transformer = this.createTransformer();
+                    transformer.position.set(-60 + i * 120, 8, 60);
+                    this.scene.add(transformer);
+                    this.transformers.push(transformer);
+                }
+                
+                // Create piping system
+                this.createPipingSystem();
+                
+                // Create control building
+                const controlBuilding = this.createControlBuilding();
+                controlBuilding.position.set(120, 0, -40);
+                this.scene.add(controlBuilding);
+                
+                // Add particle effects
+                this.createParticleEffects();
+            }
+            
+            createGasTurbine(index) {
+                return new Promise((resolve) => {
+                    const group = new THREE.Group();
+                    group.name = `turbine_${index + 1}`;
+                    
+                    // Turbine base
+                    const baseGeometry = new THREE.CylinderGeometry(8, 10, 4, 32);
+                    const baseMaterial = new THREE.MeshStandardMaterial({
+                        color: 0x333333,
+                        roughness: 0.7,
+                        metalness: 0.8
+                    });
+                    const base = new THREE.Mesh(baseGeometry, baseMaterial);
+                    base.castShadow = true;
+                    base.receiveShadow = true;
+                    base.position.y = 2;
+                    group.add(base);
+                    
+                    // Turbine body
+                    const bodyGeometry = new THREE.CylinderGeometry(6, 8, 20, 32);
+                    const bodyMaterial = new THREE.MeshStandardMaterial({
+                        color: 0x2c3e50,
+                        roughness: 0.6,
+                        metalness: 0.9
+                    });
+                    const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+                    body.castShadow = true;
+                    body.receiveShadow = true;
+                    body.position.y = 14;
+                    group.add(body);
+                    
+                    // Compressor section
+                    const compressorGeometry = new THREE.CylinderGeometry(6, 6, 8, 32);
+                    const compressorMaterial = new THREE.MeshStandardMaterial({
+                        color: 0x3498db,
+                        roughness: 0.5,
+                        metalness: 0.7
+                    });
+                    const compressor = new THREE.Mesh(compressorGeometry, compressorMaterial);
+                    compressor.castShadow = true;
+                    compressor.position.y = 24;
+                    group.add(compressor);
+                    
+                    // Turbine blades (will rotate)
+                    const bladesGroup = new THREE.Group();
+                    bladesGroup.name = 'blades';
+                    
+                    // Create multiple blade rows
+                    for (let row = 0; row < 3; row++) {
+                        const bladeGroup = new THREE.Group();
+                        const bladeCount = 12;
+                        
+                        for (let i = 0; i < bladeCount; i++) {
+                            const bladeGeometry = new THREE.BoxGeometry(0.5, 8, 0.2);
+                            const bladeMaterial = new THREE.MeshStandardMaterial({
+                                color: 0x7f8c8d,
+                                roughness: 0.4,
+                                metalness: 0.9
+                            });
+                            const blade = new THREE.Mesh(bladeGeometry, bladeMaterial);
+                            
+                            // Position blades in a circle
+                            const angle = (i / bladeCount) * Math.PI * 2;
+                            blade.position.x = Math.cos(angle) * 6;
+                            blade.position.z = Math.sin(angle) * 6;
+                            blade.position.y = row * 3;
+                            blade.lookAt(new THREE.Vector3(0, row * 3, 0));
+                            
+                            blade.castShadow = true;
+                            bladeGroup.add(blade);
+                        }
+                        
+                        bladeGroup.position.y = 8 + row * 3;
+                        bladesGroup.add(bladeGroup);
+                    }
+                    
+                    group.add(bladesGroup);
+                    
+                    // Combustion chamber
+                    const combustorGeometry = new THREE.SphereGeometry(5, 32, 32, 0, Math.PI);
+                    const combustorMaterial = new THREE.MeshStandardMaterial({
+                        color: 0xe74c3c,
+                        emissive: 0x8b0000,
+                        emissiveIntensity: 0.2,
+                        roughness: 0.3,
+                        metalness: 0.2
+                    });
+                    const combustor = new THREE.Mesh(combustorGeometry, combustorMaterial);
+                    combustor.castShadow = true;
+                    combustor.position.y = 20;
+                    combustor.position.z = 5;
+                    combustor.rotation.x = Math.PI;
+                    group.add(combustor);
+                    
+                    // Status indicator light
+                    const lightGeometry = new THREE.SphereGeometry(0.5, 16, 16);
+                    const lightMaterial = new THREE.MeshStandardMaterial({
+                        color: 0xff0000,
+                        emissive: 0xff0000,
+                        emissiveIntensity: 0.5
+                    });
+                    const statusLight = new THREE.Mesh(lightGeometry, lightMaterial);
+                    statusLight.position.set(-7, 25, 0);
+                    statusLight.name = 'statusLight';
+                    group.add(statusLight);
+                    
+                    // Add bounding box for selection
+                    const bbox = new THREE.Box3().setFromObject(group);
+                    const bboxHelper = new THREE.Box3Helper(bbox, 0x00b4d8);
+                    bboxHelper.visible = false;
+                    group.add(bboxHelper);
+                    
+                    resolve(group);
+                });
+            }
+            
+            createExhaustEffect() {
+                const group = new THREE.Group();
+                
+                // Exhaust plume geometry
+                const plumeGeometry = new THREE.ConeGeometry(3, 15, 32);
+                const plumeMaterial = new THREE.MeshStandardMaterial({
+                    color: 0xff6600,
+                    transparent: true,
+                    opacity: 0.3,
+                    side: THREE.DoubleSide,
+                    emissive: 0xff3300,
+                    emissiveIntensity: 0.3
+                });
+                
+                // Create multiple plume layers for depth
+                for (let i = 0; i < 3; i++) {
+                    const plume = new THREE.Mesh(plumeGeometry, plumeMaterial.clone());
+                    plume.scale.set(1 - i * 0.2, 1 + i * 0.5, 1 - i * 0.2);
+                    plume.position.y = i * 2;
+                    plume.rotation.x = Math.PI;
+                    group.add(plume);
+                }
+                
+                // Heat shimmer particles
+                const particleCount = 100;
+                const particleGeometry = new THREE.BufferGeometry();
+                const particlePositions = new Float32Array(particleCount * 3);
+                const particleSizes = new Float32Array(particleCount);
+                
+                for (let i = 0; i < particleCount; i++) {
+                    const i3 = i * 3;
+                    particlePositions[i3] = (Math.random() - 0.5) * 10;
+                    particlePositions[i3 + 1] = Math.random() * 20;
+                    particlePositions[i3 + 2] = (Math.random() - 0.5) * 10;
+                    particleSizes[i] = Math.random() * 2 + 0.5;
+                }
+                
+                particleGeometry.setAttribute('position', new THREE.BufferAttribute(particlePositions, 3));
+                particleGeometry.setAttribute('size', new THREE.BufferAttribute(particleSizes, 1));
+                
+                const particleMaterial = new THREE.PointsMaterial({
+                    color: 0xff9900,
+                    size: 0.5,
+                    transparent: true,
+                    opacity: 0.6,
+                    blending: THREE.AdditiveBlending
+                });
+                
+                const particles = new THREE.Points(particleGeometry, particleMaterial);
+                group.add(particles);
+                
+                return group;
+            }
+            
+            createGenerator() {
+                const group = new THREE.Group();
+                
+                // Generator stator
+                const statorGeometry = new THREE.CylinderGeometry(6, 6, 15, 32);
+                const statorMaterial = new THREE.MeshStandardMaterial({
+                    color: 0x34495e,
+                    roughness: 0.5,
+                    metalness: 0.8
+                });
+                const stator = new THREE.Mesh(statorGeometry, statorMaterial);
+                stator.castShadow = true;
+                stator.receiveShadow = true;
+                group.add(stator);
+                
+                // Generator rotor
+                const rotorGeometry = new THREE.CylinderGeometry(4, 4, 12, 32);
+                const rotorMaterial = new THREE.MeshStandardMaterial({
+                    color: 0x7f8c8d,
+                    roughness: 0.4,
+                    metalness: 0.9
+                });
+                const rotor = new THREE.Mesh(rotorGeometry, rotorMaterial);
+                rotor.castShadow = true;
+                rotor.position.y = 0;
+                group.add(rotor);
+                
+                // Cooling fins
+                const finCount = 12;
+                for (let i = 0; i < finCount; i++) {
+                    const finGeometry = new THREE.BoxGeometry(0.3, 15, 2);
+                    const finMaterial = new THREE.MeshStandardMaterial({
+                        color: 0x2c3e50,
+                        roughness: 0.6,
+                        metalness: 0.7
+                    });
+                    const fin = new THREE.Mesh(finGeometry, finMaterial);
+                    
+                    const angle = (i / finCount) * Math.PI * 2;
+                    fin.position.x = Math.cos(angle) * 6.5;
+                    fin.position.z = Math.sin(angle) * 6.5;
+                    fin.lookAt(new THREE.Vector3(0, 0, 0));
+                    
+                    fin.castShadow = true;
+                    group.add(fin);
+                }
+                
+                // Terminal bushings
+                const bushingGeometry = new THREE.CylinderGeometry(0.8, 0.8, 4, 16);
+                const bushingMaterial = new THREE.MeshStandardMaterial({
+                    color: 0xecf0f1,
+                    roughness: 0.3,
+                    metalness: 0.2
+                });
+                
+                for (let i = 0; i < 3; i++) {
+                    const bushing = new THREE.Mesh(bushingGeometry, bushingMaterial);
+                    bushing.position.set((i - 1) * 3, 10, 8);
+                    bushing.castShadow = true;
+                    group.add(bushing);
+                }
+                
+                return group;
+            }
+            
+            createHRSG() {
+                const group = new THREE.Group();
+                
+                // Main HRSG structure
+                const structureGeometry = new THREE.BoxGeometry(40, 50, 20);
+                const structureMaterial = new THREE.MeshStandardMaterial({
+                    color: 0x2c3e50,
+                    roughness: 0.7,
+                    metalness: 0.5
+                });
+                const structure = new THREE.Mesh(structureGeometry, structureMaterial);
+                structure.castShadow = true;
+                structure.receiveShadow = true;
+                structure.position.y = 25;
+                group.add(structure);
+                
+                // Heat recovery tubes
+                const tubeGeometry = new THREE.CylinderGeometry(0.3, 0.3, 50, 8);
+                const tubeMaterial = new THREE.MeshStandardMaterial({
+                    color: 0x95a5a6,
+                    roughness: 0.4,
+                    metalness: 0.8
+                });
+                
+                // Create tube bundles
+                for (let x = -15; x <= 15; x += 3) {
+                    for (let z = -8; z <= 8; z += 3) {
+                        const tube = new THREE.Mesh(tubeGeometry, tubeMaterial);
+                        tube.position.set(x, 25, z);
+                        tube.rotation.z = Math.PI / 2;
+                        tube.castShadow = true;
+                        group.add(tube);
+                    }
+                }
+                
+                // Steam drums
+                const drumGeometry = new THREE.CylinderGeometry(3, 3, 10, 32);
+                const drumMaterial = new THREE.MeshStandardMaterial({
+                    color: 0x3498db,
+                    roughness: 0.5,
+                    metalness: 0.7
+                });
+                
+                // HP, IP, LP drums
+                const drums = [
+                    { position: [-12, 45, 0], color: 0x3498db }, // HP
+                    { position: [0, 40, 0], color: 0x2980b9 },   // IP
+                    { position: [12, 35, 0], color: 0x1f618d }    // LP
+                ];
+                
+                drums.forEach((drum, i) => {
+                    const drumMesh = new THREE.Mesh(drumGeometry, drumMaterial.clone());
+                    drumMesh.material.color.setHex(drum.color);
+                    drumMesh.position.set(drum.position[0], drum.position[1], drum.position[2]);
+                    drumMesh.rotation.z = Math.PI / 2;
+                    drumMesh.castShadow = true;
+                    group.add(drumMesh);
+                });
+                
+                return group;
+            }
+            
+            createSteamTurbine() {
+                const group = new THREE.Group();
+                
+                // Steam turbine casing
+                const casingGeometry = new THREE.CylinderGeometry(8, 10, 30, 32);
+                const casingMaterial = new THREE.MeshStandardMaterial({
+                    color: 0x7f8c8d,
+                    roughness: 0.6,
+                    metalness: 0.8
+                });
+                const casing = new THREE.Mesh(casingGeometry, casingMaterial);
+                casing.castShadow = true;
+                casing.receiveShadow = true;
+                casing.rotation.z = Math.PI / 2;
+                group.add(casing);
+                
+                // Steam inlet
+                const inletGeometry = new THREE.CylinderGeometry(2, 2, 10, 16);
+                const inletMaterial = new THREE.MeshStandardMaterial({
+                    color: 0x3498db,
+                    roughness: 0.4,
+                    metalness: 0.7
+                });
+                const inlet = new THREE.Mesh(inletGeometry, inletMaterial);
+                inlet.position.set(0, 0, -20);
+                inlet.rotation.z = Math.PI / 2;
+                inlet.castShadow = true;
+                group.add(inlet);
+                
+                // Exhaust diffuser
+                const exhaustGeometry = new THREE.ConeGeometry(6, 15, 32);
+                const exhaustMaterial = new THREE.MeshStandardMaterial({
+                    color: 0x95a5a6,
+                    roughness: 0.5,
+                    metalness: 0.6
+                });
+                const exhaust = new THREE.Mesh(exhaustGeometry, exhaustMaterial);
+                exhaust.position.set(0, 0, 20);
+                exhaust.rotation.z = Math.PI / 2;
+                exhaust.castShadow = true;
+                group.add(exhaust);
+                
+                return group;
+            }
+            
+            createTransformer() {
+                const group = new THREE.Group();
+                
+                // Transformer tank
+                const tankGeometry = new THREE.BoxGeometry(10, 15, 8);
+                const tankMaterial = new THREE.MeshStandardMaterial({
+                    color: 0x2c3e50,
+                    roughness: 0.7,
+                    metalness: 0.3
+                });
+                const tank = new THREE.Mesh(tankGeometry, tankMaterial);
+                tank.castShadow = true;
+                tank.receiveShadow = true;
+                tank.position.y = 7.5;
+                group.add(tank);
+                
+                // Bushings
+                const bushingGeometry = new THREE.CylinderGeometry(0.5, 0.5, 6, 16);
+                const bushingMaterial = new THREE.MeshStandardMaterial({
+                    color: 0xecf0f1,
+                    roughness: 0.2,
+                    metalness: 0.1
+                });
+                
+                // High voltage bushings
+                for (let i = 0; i < 3; i++) {
+                    const bushing = new THREE.Mesh(bushingGeometry, bushingMaterial);
+                    bushing.position.set((i - 1) * 3, 18, 3);
+                    bushing.castShadow = true;
+                    group.add(bushing);
+                }
+                
+                // Low voltage bushings
+                for (let i = 0; i < 3; i++) {
+                    const bushing = new THREE.Mesh(bushingGeometry, bushingMaterial);
+                    bushing.position.set((i - 1) * 2, 18, -3);
+                    bushing.castShadow = true;
+                    group.add(bushing);
+                }
+                
+                // Cooling radiators
+                const radiatorGeometry = new THREE.BoxGeometry(2, 12, 0.3);
+                const radiatorMaterial = new THREE.MeshStandardMaterial({
+                    color: 0x7f8c8d,
+                    roughness: 0.6,
+                    metalness: 0.5
+                });
+                
+                for (let i = -1; i <= 1; i += 2) {
+                    for (let j = 0; j < 3; j++) {
+                        const radiator = new THREE.Mesh(radiatorGeometry, radiatorMaterial);
+                        radiator.position.set(i * 6, 6 + j * 4, 5);
+                        radiator.castShadow = true;
+                        group.add(radiator);
+                    }
+                }
+                
+                return group;
+            }
+            
+            createControlBuilding() {
+                const group = new THREE.Group();
+                
+                // Main building
+                const buildingGeometry = new THREE.BoxGeometry(30, 20, 40);
+                const buildingMaterial = new THREE.MeshStandardMaterial({
+                    color: 0x34495e,
+                    roughness: 0.6,
+                    metalness: 0.2
+                });
+                const building = new THREE.Mesh(buildingGeometry, buildingMaterial);
+                building.castShadow = true;
+                building.receiveShadow = true;
+                building.position.y = 10;
+                group.add(building);
+                
+                // Windows
+                const windowGeometry = new THREE.BoxGeometry(2, 3, 0.1);
+                const windowMaterial = new THREE.MeshStandardMaterial({
+                    color: 0x3498db,
+                    emissive: 0x00b4d8,
+                    emissiveIntensity: 0.5,
+                    transparent: true,
+                    opacity: 0.8
+                });
+                
+                for (let x = -12; x <= 12; x += 6) {
+                    for (let y = 5; y <= 15; y += 5) {
+                        const window = new THREE.Mesh(windowGeometry, windowMaterial);
+                        window.position.set(x, y, 20.1);
+                        group.add(window);
+                    }
+                }
+                
+                // Control room addition
+                const controlRoomGeometry = new THREE.BoxGeometry(40, 10, 30);
+                const controlRoomMaterial = new THREE.MeshStandardMaterial({
+                    color: 0x2c3e50,
+                    roughness: 0.5,
+                    metalness: 0.3
+                });
+                const controlRoom = new THREE.Mesh(controlRoomGeometry, controlRoomMaterial);
+                controlRoom.position.set(0, 5, -5);
+                controlRoom.castShadow = true;
+                controlRoom.receiveShadow = true;
+                group.add(controlRoom);
+                
+                return group;
+            }
+            
+            createPipingSystem() {
+                // Create piping between components
+                const pipeMaterial = new THREE.MeshStandardMaterial({
+                    color: 0x95a5a6,
+                    roughness: 0.4,
+                    metalness: 0.7
+                });
+                
+                // Gas turbine to HRSG piping
+                for (let i = 0; i < 4; i++) {
+                    const path = new THREE.CurvePath();
+                    
+                    // Start at turbine exhaust
+                    const start = new THREE.Vector3(-120 + i * 80, 12, 10);
+                    // Mid point
+                    const mid = new THREE.Vector3(-120 + i * 80, 25, 20);
+                    // End at HRSG
+                    const end = new THREE.Vector3(-60 + i * 40, 30, 40);
+                    
+                    const curve = new THREE.QuadraticBezierCurve3(start, mid, end);
+                    path.add(curve);
+                    
+                    const geometry = new THREE.TubeGeometry(curve, 20, 2, 8, false);
+                    const pipe = new THREE.Mesh(geometry, pipeMaterial);
+                    pipe.castShadow = true;
+                    this.scene.add(pipe);
+                    this.pipes.push(pipe);
+                }
+                
+                // HRSG to steam turbine piping
+                const steamCurve = new THREE.QuadraticBezierCurve3(
+                    new THREE.Vector3(20, 45, 40),
+                    new THREE.Vector3(30, 35, 30),
+                    new THREE.Vector3(40, 25, 40)
+                );
+                
+                const steamGeometry = new THREE.TubeGeometry(steamCurve, 20, 1.5, 8, false);
+                const steamPipe = new THREE.Mesh(steamGeometry, pipeMaterial);
+                steamPipe.castShadow = true;
+                this.scene.add(steamPipe);
+                this.pipes.push(steamPipe);
+            }
+            
+            createBackgroundBuildings() {
+                // Create some background structures
+                const buildingMaterial = new THREE.MeshStandardMaterial({
+                    color: 0x2c3e50,
+                    roughness: 0.7,
+                    metalness: 0.2
+                });
+                
+                // Create several buildings in the background
+                for (let i = 0; i < 5; i++) {
+                    const width = 20 + Math.random() * 20;
+                    const height = 30 + Math.random() * 30;
+                    const depth = 15 + Math.random() * 15;
+                    
+                    const buildingGeometry = new THREE.BoxGeometry(width, height, depth);
+                    const building = new THREE.Mesh(buildingGeometry, buildingMaterial);
+                    
+                    building.position.set(
+                        -200 + Math.random() * 400,
+                        height / 2,
+                        -150 - Math.random() * 100
+                    );
+                    
+                    building.castShadow = true;
+                    building.receiveShadow = true;
+                    this.scene.add(building);
+                    this.structures.push(building);
+                }
+            }
+            
+            createParticleEffects() {
+                // Create particle effects for steam, smoke, etc.
+                
+                // Steam particles from cooling towers
+                const steamGeometry = new THREE.BufferGeometry();
+                const steamCount = 200;
+                const steamPositions = new Float32Array(steamCount * 3);
+                const steamSizes = new Float32Array(steamCount);
+                
+                for (let i = 0; i < steamCount; i++) {
+                    const i3 = i * 3;
+                    steamPositions[i3] = (Math.random() - 0.5) * 50;
+                    steamPositions[i3 + 1] = Math.random() * 50;
+                    steamPositions[i3 + 2] = (Math.random() - 0.5) * 50;
+                    steamSizes[i] = Math.random() * 3 + 1;
+                }
+                
+                steamGeometry.setAttribute('position', new THREE.BufferAttribute(steamPositions, 3));
+                steamGeometry.setAttribute('size', new THREE.BufferAttribute(steamSizes, 1));
+                
+                const steamMaterial = new THREE.PointsMaterial({
+                    color: 0xffffff,
+                    size: 0.5,
+                    transparent: true,
+                    opacity: 0.6,
+                    blending: THREE.AdditiveBlending
+                });
+                
+                const steamParticles = new THREE.Points(steamGeometry, steamMaterial);
+                steamParticles.position.set(100, 0, 80);
+                this.scene.add(steamParticles);
+                this.particleSystems.push(steamParticles);
+            }
+            
+            setupLighting() {
+                // Additional point lights for interior illumination
+                const pointLight1 = new THREE.PointLight(0x00b4d8, 0.5, 100);
+                pointLight1.position.set(-50, 30, 0);
+                this.scene.add(pointLight1);
+                
+                const pointLight2 = new THREE.PointLight(0xff3300, 0.3, 50);
+                pointLight2.position.set(0, 20, 30);
+                this.scene.add(pointLight2);
+                
+                // Add light near turbines
+                for (let i = 0; i < 4; i++) {
+                    const turbineLight = new THREE.PointLight(0x00b4d8, 0.4, 30);
+                    turbineLight.position.set(-120 + i * 80, 20, 0);
+                    this.scene.add(turbineLight);
+                }
+            }
+            
+            setupControls() {
+                // Orbit controls
+                this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
+                this.controls.enableDamping = true;
+                this.controls.dampingFactor = 0.05;
+                this.controls.screenSpacePanning = false;
+                this.controls.minDistance = 50;
+                this.controls.maxDistance = 500;
+                this.controls.maxPolarAngle = Math.PI / 2 - 0.1;
+                
+                // Handle window resize
+                window.addEventListener('resize', this.onWindowResize.bind(this));
+                
+                // Handle mouse events for component selection
+                this.renderer.domElement.addEventListener('click', this.onMouseClick.bind(this));
+            }
+            
+            onWindowResize() {
+                this.camera.aspect = window.innerWidth / window.innerHeight;
+                this.camera.updateProjectionMatrix();
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
+            }
+            
+            onMouseClick(event) {
+                // Calculate mouse position in normalized device coordinates
+                const rect = this.renderer.domElement.getBoundingClientRect();
+                const x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+                const y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+                
+                // Create raycaster
+                const raycaster = new THREE.Raycaster();
+                raycaster.setFromCamera(new THREE.Vector2(x, y), this.camera);
+                
+                // Find intersections
+                const intersects = raycaster.intersectObjects(this.scene.children, true);
+                
+                if (intersects.length > 0) {
+                    const object = intersects[0].object;
+                    
+                    // Find parent turbine or component
+                    let component = object;
+                    while (component && !component.name.startsWith('turbine_')) {
+                        component = component.parent;
+                    }
+                    
+                    if (component) {
+                        this.selectComponent(component);
+                    }
+                }
+            }
+            
+            selectComponent(component) {
+                // Deselect previous component
+                if (this.visualizationState.selectedComponent) {
+                    const previous = this.visualizationState.selectedComponent;
+                    const bbox = previous.getObjectByName('bbox');
+                    if (bbox) bbox.visible = false;
+                    
+                    // Reset status light color
+                    const statusLight = previous.getObjectByName('statusLight');
+                    if (statusLight) {
+                        statusLight.material.emissive.setHex(0xff0000);
+                    }
+                }
+                
+                // Select new component
+                this.visualizationState.selectedComponent = component;
+                
+                // Show bounding box
+                const bbox = component.getObjectByName('bbox');
+                if (bbox) bbox.visible = true;
+                
+                // Change status light to blue
+                const statusLight = component.getObjectByName('statusLight');
+                if (statusLight) {
+                    statusLight.material.emissive.setHex(0x00b4d8);
+                }
+                
+                // Update component list UI
+                this.updateComponentSelection(component.name);
+            }
+            
+            updateComponentSelection(componentName) {
+                // Update component list in UI
+                const items = document.querySelectorAll('.component-item');
+                items.forEach(item => {
+                    item.classList.remove('selected');
+                    if (item.dataset.component === componentName) {
+                        item.classList.add('selected');
+                    }
+                });
+            }
+            
+            setupUI() {
+                // Plant control buttons
+                document.getElementById('start-plant').addEventListener('click', () => {
+                    this.startPlant();
+                });
+                
+                document.getElementById('stop-plant').addEventListener('click', () => {
+                    this.stopPlant();
+                });
+                
+                document.getElementById('sync-grid').addEventListener('click', () => {
+                    this.synchronizeGrid();
+                });
+                
+                document.getElementById('connect-grid').addEventListener('click', () => {
+                    this.connectToGrid();
+                });
+                
+                // Sliders
+                document.getElementById('load-slider').addEventListener('input', (e) => {
+                    const value = parseInt(e.target.value);
+                    this.setPlantLoad(value);
+                });
+                
+                document.getElementById('speed-slider').addEventListener('input', (e) => {
+                    const value = parseInt(e.target.value);
+                    this.setTurbineSpeed(value);
+                });
+                
+                document.getElementById('anim-slider').addEventListener('input', (e) => {
+                    const value = parseFloat(e.target.value);
+                    this.setAnimationSpeed(value);
+                });
+                
+                // View controls
+                document.getElementById('view-front').addEventListener('click', () => {
+                    this.setCameraView('front');
+                });
+                
+                document.getElementById('view-top').addEventListener('click', () => {
+                    this.setCameraView('top');
+                });
+                
+                document.getElementById('view-side').addEventListener('click', () => {
+                    this.setCameraView('side');
+                });
+                
+                document.getElementById('view-iso').addEventListener('click', () => {
+                    this.setCameraView('iso');
+                });
+                
+                document.getElementById('view-reset').addEventListener('click', () => {
+                    this.resetCamera();
+                });
+                
+                // Visualization toggles
+                document.getElementById('toggle-wireframe').addEventListener('click', () => {
+                    this.toggleWireframe();
+                });
+                
+                document.getElementById('toggle-labels').addEventListener('click', () => {
+                    this.toggleLabels();
+                });
+                
+                document.getElementById('toggle-particles').addEventListener('click', () => {
+                    this.toggleParticles();
+                });
+                
+                document.getElementById('toggle-grid').addEventListener('click', () => {
+                    this.toggleGrid();
+                });
+                
+                // Component selection
+                const componentItems = document.querySelectorAll('.component-item');
+                componentItems.forEach(item => {
+                    item.addEventListener('click', () => {
+                        const componentName = item.dataset.component;
+                        this.focusOnComponent(componentName);
+                    });
+                });
+                
+                // Start simulation
+                setTimeout(() => {
+                    this.startPlant();
+                }, 2000);
+            }
+            
+            startPlant() {
+                this.visualizationState.plantStatus = 'starting';
+                document.getElementById('plant-status').textContent = 'STARTING';
+                
+                // Start turbines in sequence
+                for (let i = 0; i < 4; i++) {
+                    setTimeout(() => {
+                        this.startTurbine(i);
+                    }, i * 2000);
+                }
+                
+                // Update status after all turbines started
+                setTimeout(() => {
+                    this.visualizationState.plantStatus = 'running';
+                    document.getElementById('plant-status').textContent = 'RUNNING';
+                }, 10000);
+            }
+            
+            startTurbine(index) {
+                this.visualizationState.turbines[index].status = 'starting';
+                this.visualizationState.turbines[index].speed = 100;
+                
+                // Update status indicator
+                const statusItem = document.getElementById(`turbine${index + 1}-status`);
+                if (statusItem) {
+                    statusItem.classList.add('active');
+                    const valueElement = statusItem.querySelector('.status-value');
+                    valueElement.textContent = '0';
+                }
+                
+                // Update component status
+                const componentItems = document.querySelectorAll('.component-item');
+                componentItems[index].querySelector('.component-status').className = 'component-status starting';
+                
+                // Gradually increase speed
+                const interval = setInterval(() => {
+                    const turbine = this.visualizationState.turbines[index];
+                    if (turbine.speed < 3600) {
+                        turbine.speed += 100;
+                        this.rotationSpeeds[index] = turbine.speed / 3600;
+                        
+                        // Update temperature
+                        turbine.temperature = 25 + (turbine.speed / 3600) * 600;
+                        
+                        // Update output
+                        turbine.output = (turbine.speed / 3600) * 250;
+                        
+                        // Update UI
+                        if (statusItem) {
+                            const valueElement = statusItem.querySelector('.status-value');
+                            valueElement.textContent = Math.round(turbine.output);
+                        }
+                    } else {
+                        clearInterval(interval);
+                        turbine.status = 'online';
+                        componentItems[index].querySelector('.component-status').className = 'component-status online';
+                    }
+                }, 50);
+            }
+            
+            stopPlant() {
+                this.visualizationState.plantStatus = 'stopping';
+                document.getElementById('plant-status').textContent = 'STOPPING';
+                
+                // Stop all turbines
+                for (let i = 0; i < 4; i++) {
+                    this.stopTurbine(i);
+                }
+                
+                // Update status
+                setTimeout(() => {
+                    this.visualizationState.plantStatus = 'offline';
+                    document.getElementById('plant-status').textContent = 'OFFLINE';
+                    
+                    // Reset status indicators
+                    const statusItems = document.querySelectorAll('.status-item');
+                    statusItems.forEach(item => item.classList.remove('active'));
+                    
+                    // Reset component status
+                    const componentItems = document.querySelectorAll('.component-item');
+                    componentItems.forEach(item => {
+                        item.querySelector('.component-status').className = 'component-status offline';
+                    });
+                }, 5000);
+            }
+            
+            stopTurbine(index) {
+                const turbine = this.visualizationState.turbines[index];
+                turbine.status = 'stopping';
+                
+                // Gradually decrease speed
+                const interval = setInterval(() => {
+                    if (turbine.speed > 0) {
+                        turbine.speed -= 200;
+                        this.rotationSpeeds[index] = turbine.speed / 3600;
+                        
+                        // Update temperature
+                        turbine.temperature = Math.max(25, turbine.temperature - 10);
+                        
+                        // Update output
+                        turbine.output = (turbine.speed / 3600) * 250;
+                        
+                        // Update UI
+                        const statusItem = document.getElementById(`turbine${index + 1}-status`);
+                        if (statusItem) {
+                            const valueElement = statusItem.querySelector('.status-value');
+                            valueElement.textContent = Math.round(turbine.output);
+                        }
+                    } else {
+                        clearInterval(interval);
+                        turbine.status = 'offline';
+                        turbine.speed = 0;
+                        this.rotationSpeeds[index] = 0;
+                        
+                        // Update component status
+                        const componentItems = document.querySelectorAll('.component-item');
+                        componentItems[index].querySelector('.component-status').className = 'component-status offline';
+                    }
+                }, 50);
+            }
+            
+            synchronizeGrid() {
+                // Simulate grid synchronization
+                if (this.visualizationState.plantStatus === 'running') {
+                    document.getElementById('plant-status').textContent = 'SYNCHRONIZING';
+                    
+                    setTimeout(() => {
+                        this.visualizationState.plantStatus = 'synchronized';
+                        document.getElementById('plant-status').textContent = 'SYNCHRONIZED';
+                    }, 3000);
+                }
+            }
+            
+            connectToGrid() {
+                // Simulate grid connection
+                if (this.visualizationState.plantStatus === 'synchronized') {
+                    document.getElementById('plant-status').textContent = 'CONNECTED';
+                    
+                    // Update total output
+                    this.updateTotalOutput();
+                }
+            }
+            
+            setPlantLoad(value) {
+                // Update plant load
+                this.visualizationState.totalOutput = value;
+                
+                // Update turbine outputs proportionally
+                const totalTurbineOutput = this.visualizationState.turbines.reduce((sum, t) => sum + t.output, 0);
+                const scaleFactor = totalTurbineOutput > 0 ? value / totalTurbineOutput : 0;
+                
+                this.visualizationState.turbines.forEach((turbine, index) => {
+                    if (turbine.status === 'online') {
+                        turbine.output = Math.min(250, turbine.output * scaleFactor);
+                        this.rotationSpeeds[index] = turbine.output / 250;
+                        
+                        // Update UI
+                        const statusItem = document.getElementById(`turbine${index + 1}-status`);
+                        if (statusItem) {
+                            const valueElement = statusItem.querySelector('.status-value');
+                            valueElement.textContent = Math.round(turbine.output);
+                        }
+                    }
+                });
+                
+                // Update efficiency and heat rate
+                this.updatePlantMetrics();
+            }
+            
+            setTurbineSpeed(value) {
+                // Update turbine speed slider value
+                document.getElementById('turbine-speed').textContent = value + ' RPM';
+                
+                // Update all online turbines
+                this.visualizationState.turbines.forEach((turbine, index) => {
+                    if (turbine.status === 'online') {
+                        turbine.speed = value;
+                        this.rotationSpeeds[index] = value / 3600;
+                        turbine.output = (value / 3600) * 250;
+                        
+                        // Update temperature
+                        turbine.temperature = 25 + (value / 3600) * 600;
+                    }
+                });
+                
+                // Update total output
+                this.updateTotalOutput();
+            }
+            
+            updateTotalOutput() {
+                const totalOutput = this.visualizationState.turbines.reduce((sum, t) => sum + t.output, 0);
+                this.visualizationState.totalOutput = totalOutput;
+                
+                // Update grid frequency based on load
+                if (totalOutput > 0) {
+                    this.visualizationState.gridFrequency = 50.00 - (totalOutput - 500) / 10000;
+                    this.visualizationState.gridFrequency = Math.max(49.5, Math.min(50.5, this.visualizationState.gridFrequency));
+                }
+                
+                // Update UI
+                this.updatePlantMetrics();
+            }
+            
+            updatePlantMetrics() {
+                // Calculate plant efficiency (simplified)
+                const totalOutput = this.visualizationState.totalOutput;
+                const efficiency = totalOutput > 0 ? Math.min(45, 25 + (totalOutput / 1000) * 20) : 0;
+                const heatRate = totalOutput > 0 ? 10000 - (totalOutput / 1000) * 2000 : 0;
+                
+                this.visualizationState.efficiency = efficiency;
+                this.visualizationState.heatRate = heatRate;
+                
+                // Update UI displays
+                const statusItems = document.querySelectorAll('.status-item');
+                if (statusItems[4]) {
+                    statusItems[4].querySelector('.status-value').textContent = Math.round(totalOutput);
+                }
+                if (statusItems[5]) {
+                    statusItems[5].querySelector('.status-value').textContent = this.visualizationState.gridFrequency.toFixed(2);
+                }
+                if (statusItems[6]) {
+                    statusItems[6].querySelector('.status-value').textContent = efficiency.toFixed(1);
+                }
+                if (statusItems[7]) {
+                    statusItems[7].querySelector('.status-value').textContent = Math.round(heatRate);
+                }
+            }
+            
+            setAnimationSpeed(value) {
+                this.visualizationState.animationSpeed = value;
+                document.getElementById('anim-speed').textContent = value.toFixed(1) + 'x';
+            }
+            
+            setCameraView(view) {
+                switch (view) {
+                    case 'front':
+                        this.camera.position.set(0, 50, 200);
+                        this.camera.lookAt(0, 0, 0);
+                        break;
+                    case 'top':
+                        this.camera.position.set(0, 200, 0);
+                        this.camera.lookAt(0, 0, 0);
+                        break;
+                    case 'side':
+                        this.camera.position.set(200, 50, 0);
+                        this.camera.lookAt(0, 0, 0);
+                        break;
+                    case 'iso':
+                        this.camera.position.set(150, 100, 150);
+                        this.camera.lookAt(0, 0, 0);
+                        break;
+                }
+                this.controls.update();
+                document.getElementById('cam-mode').textContent = view.toUpperCase();
+            }
+            
+            resetCamera() {
+                this.camera.position.set(150, 100, 150);
+                this.camera.lookAt(0, 0, 0);
+                this.controls.reset();
+                document.getElementById('cam-mode').textContent = 'ORBIT';
+            }
+            
+            toggleWireframe() {
+                this.visualizationState.showWireframe = !this.visualizationState.showWireframe;
+                
+                // Apply wireframe to all meshes
+                this.scene.traverse((object) => {
+                    if (object.isMesh) {
+                        object.material.wireframe = this.visualizationState.showWireframe;
+                    }
+                });
+                
+                const button = document.getElementById('toggle-wireframe');
+                if (this.visualizationState.showWireframe) {
+                    button.classList.add('active');
+                } else {
+                    button.classList.remove('active');
+                }
+            }
+            
+            toggleLabels() {
+                this.visualizationState.showLabels = !this.visualizationState.showLabels;
+                // Implementation for labels would go here
+                
+                const button = document.getElementById('toggle-labels');
+                if (this.visualizationState.showLabels) {
+                    button.classList.add('active');
+                } else {
+                    button.classList.remove('active');
+                }
+            }
+            
+            toggleParticles() {
+                this.visualizationState.showParticles = !this.visualizationState.showParticles;
+                
+                // Show/hide particle systems
+                this.particleSystems.forEach(particles => {
+                    particles.visible = this.visualizationState.showParticles;
+                });
+                
+                this.exhaustEffects.forEach(exhaust => {
+                    exhaust.visible = this.visualizationState.showParticles;
+                });
+                
+                const button = document.getElementById('toggle-particles');
+                if (this.visualizationState.showParticles) {
+                    button.classList.add('active');
+                } else {
+                    button.classList.remove('active');
+                }
+            }
+            
+            toggleGrid() {
+                this.visualizationState.showGrid = !this.visualizationState.showGrid;
+                
+                // Find and toggle grid helper
+                this.scene.traverse((object) => {
+                    if (object.isGridHelper) {
+                        object.visible = this.visualizationState.showGrid;
+                    }
+                });
+                
+                const button = document.getElementById('toggle-grid');
+                if (this.visualizationState.showGrid) {
+                    button.classList.add('active');
+                } else {
+                    button.classList.remove('active');
+                }
+            }
+            
+            focusOnComponent(componentName) {
+                let targetPosition = new THREE.Vector3();
+                
+                switch (componentName) {
+                    case 'turbine1':
+                        targetPosition.set(-120, 20, 0);
+                        break;
+                    case 'turbine2':
+                        targetPosition.set(-40, 20, 0);
+                        break;
+                    case 'turbine3':
+                        targetPosition.set(40, 20, 0);
+                        break;
+                    case 'turbine4':
+                        targetPosition.set(120, 20, 0);
+                        break;
+                    case 'generator':
+                        targetPosition.set(0, 20, 25);
+                        break;
+                    case 'hrsg':
+                        targetPosition.set(0, 30, 40);
+                        break;
+                }
+                
+                // Animate camera to component
+                this.animateCameraTo(targetPosition);
+                
+                // Select component
+                const component = this.scene.getObjectByName(componentName);
+                if (component) {
+                    this.selectComponent(component);
+                }
+            }
+            
+            animateCameraTo(targetPosition) {
+                const startPosition = this.camera.position.clone();
+                const targetCameraPosition = targetPosition.clone().add(new THREE.Vector3(30, 30, 30));
+                
+                const duration = 1000; // 1 second
+                const startTime = Date.now();
+                
+                const animate = () => {
+                    const elapsed = Date.now() - startTime;
+                    const progress = Math.min(elapsed / duration, 1);
+                    
+                    // Ease function
+                    const ease = 1 - Math.pow(1 - progress, 3);
+                    
+                    // Interpolate position
+                    this.camera.position.lerpVectors(startPosition, targetCameraPosition, ease);
+                    this.camera.lookAt(targetPosition);
+                    this.controls.update();
+                    
+                    if (progress < 1) {
+                        requestAnimationFrame(animate);
+                    }
+                };
+                
+                animate();
+            }
+            
+            animate() {
+                requestAnimationFrame(this.animate.bind(this));
+                
+                const delta = this.clock.getDelta();
+                const animationFactor = delta * this.visualizationState.animationSpeed;
+                
+                // Update camera position display
+                this.updateCameraDisplay();
+                
+                // Animate turbine blades
+                this.animateTurbines(animationFactor);
+                
+                // Animate particle systems
+                this.animateParticles(animationFactor);
+                
+                // Animate exhaust effects
+                this.animateExhaustEffects(animationFactor);
+                
+                // Update controls
+                if (this.controls) {
+                    this.controls.update();
+                }
+                
+                // Render scene
+                this.renderer.render(this.scene, this.camera);
+            }
+            
+            updateCameraDisplay() {
+                const camX = this.camera.position.x.toFixed(2);
+                const camY = this.camera.position.y.toFixed(2);
+                const camZ = this.camera.position.z.toFixed(2);
+                
+                document.getElementById('cam-x').textContent = camX;
+                document.getElementById('cam-y').textContent = camY;
+                document.getElementById('cam-z').textContent = camZ;
+            }
+            
+            animateTurbines(animationFactor) {
+                // Rotate turbine blades based on speed
+                this.turbines.forEach((turbine, index) => {
+                    const blades = turbine.getObjectByName('blades');
+                    if (blades) {
+                        const rotationSpeed = this.rotationSpeeds[index] * Math.PI * 2 * animationFactor;
+                        blades.rotation.y += rotationSpeed;
+                        
+                        // Update status light based on turbine status
+                        const statusLight = turbine.getObjectByName('statusLight');
+                        if (statusLight) {
+                            const turbineState = this.visualizationState.turbines[index];
+                            if (turbineState.status === 'online') {
+                                statusLight.material.emissiveIntensity = 0.8 + Math.sin(Date.now() * 0.01) * 0.2;
+                            } else if (turbineState.status === 'starting') {
+                                statusLight.material.emissiveIntensity = 0.5 + Math.sin(Date.now() * 0.05) * 0.5;
+                            } else {
+                                statusLight.material.emissiveIntensity = 0.2;
+                            }
+                        }
+                    }
+                });
+                
+                // Rotate generators
+                this.generators.forEach((generator, index) => {
+                    const rotationSpeed = this.rotationSpeeds[index] * Math.PI * 2 * animationFactor * 1.1;
+                    generator.rotation.y += rotationSpeed;
+                });
+            }
+            
+            animateParticles(animationFactor) {
+                // Animate particle systems
+                this.particleSystems.forEach((particles, index) => {
+                    const positions = particles.geometry.attributes.position.array;
+                    
+                    for (let i = 0; i < positions.length; i += 3) {
+                        // Move particles upward
+                        positions[i + 1] += 0.5 * animationFactor;
+                        
+                        // Add some randomness
+                        positions[i] += (Math.random() - 0.5) * 0.1;
+                        positions[i + 2] += (Math.random() - 0.5) * 0.1;
+                        
+                        // Reset particles that go too high
+                        if (positions[i + 1] > 50) {
+                            positions[i + 1] = 0;
+                            positions[i] = (Math.random() - 0.5) * 50;
+                            positions[i + 2] = (Math.random() - 0.5) * 50;
+                        }
+                    }
+                    
+                    particles.geometry.attributes.position.needsUpdate = true;
+                    
+                    // Rotate particle system for visual effect
+                    particles.rotation.y += 0.1 * animationFactor;
+                });
+            }
+            
+            animateExhaustEffects(animationFactor) {
+                this.exhaustEffects.forEach((exhaust, index) => {
+                    const turbineState = this.visualizationState.turbines[index];
+                    
+                    // Scale exhaust based on turbine load
+                    const scale = turbineState.status === 'online' ? turbineState.output / 250 : 0;
+                    exhaust.scale.set(scale, scale, scale);
+                    
+                    // Make exhaust visible only when turbine is running
+                    exhaust.visible = turbineState.status === 'online' || turbineState.status === 'starting';
+                    
+                    // Animate exhaust plume
+                    exhaust.children.forEach((child, i) => {
+                        if (child.isMesh && child.material.opacity) {
+                            // Pulsing opacity
+                            child.material.opacity = 0.3 + Math.sin(Date.now() * 0.001 + i) * 0.1;
+                            
+                            // Rotate slightly
+                            child.rotation.z += 0.01 * animationFactor;
+                        }
+                    });
+                });
+            }
+        }
+        
+        // Initialize 3D visualization when page loads
+        window.addEventListener('DOMContentLoaded', () => {
+            const visualization = new PowerPlant3DVisualization();
+            window.visualization = visualization; // Make available globally
+        });
+    </script>
+</body>
+</html>
