@@ -1,0 +1,1887 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Realistic 3D Physics Simulation</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            overflow: hidden;
+            background: radial-gradient(ellipse at center, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: white;
+            height: 100vh;
+            perspective: 1000px;
+        }
+        
+        #container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+        
+        #canvas-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+        
+        canvas {
+            display: block;
+        }
+        
+        #ui {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 2;
+            pointer-events: none;
+        }
+        
+        .panel {
+            background: rgba(10, 15, 30, 0.85);
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(64, 156, 255, 0.3);
+            border-radius: 12px;
+            padding: 18px;
+            box-shadow: 0 8px 32px rgba(0, 60, 255, 0.15);
+            pointer-events: auto;
+            transition: all 0.3s ease;
+        }
+        
+        .panel:hover {
+            border-color: rgba(100, 180, 255, 0.5);
+            box-shadow: 0 8px 32px rgba(0, 100, 255, 0.25);
+        }
+        
+        #info-panel {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            width: 240px;
+        }
+        
+        #control-panel {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 280px;
+        }
+        
+        #interaction-panel {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 320px;
+            text-align: center;
+        }
+        
+        h2 {
+            font-size: 16px;
+            margin-bottom: 12px;
+            color: #6cf;
+            border-bottom: 1px solid rgba(100, 200, 255, 0.3);
+            padding-bottom: 6px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .stat {
+            display: flex;
+            justify-content: space-between;
+            margin: 10px 0;
+            font-size: 14px;
+        }
+        
+        .stat-value {
+            color: #9ef;
+            font-weight: bold;
+        }
+        
+        .control-group {
+            margin: 14px 0;
+        }
+        
+        label {
+            display: block;
+            font-size: 13px;
+            margin-bottom: 6px;
+            color: #aaf;
+        }
+        
+        input[type="range"] {
+            width: 100%;
+            margin: 6px 0;
+            -webkit-appearance: none;
+            height: 6px;
+            border-radius: 3px;
+            background: rgba(100, 150, 255, 0.2);
+            outline: none;
+        }
+        
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #4af;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(74, 175, 255, 0.5);
+        }
+        
+        .value-display {
+            font-size: 12px;
+            color: #9ef;
+            text-align: right;
+        }
+        
+        button {
+            background: linear-gradient(to bottom, #3a5a8a, #2a4a7a);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            padding: 10px 16px;
+            margin: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.2s;
+            border: 1px solid rgba(100, 150, 255, 0.3);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+        
+        button:hover {
+            background: linear-gradient(to bottom, #4a6a9a, #3a5a8a);
+            box-shadow: 0 4px 12px rgba(100, 150, 255, 0.3);
+            transform: translateY(-1px);
+        }
+        
+        button:active {
+            transform: translateY(1px);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+        
+        .button-group {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin-top: 12px;
+        }
+        
+        #instructions {
+            position: absolute;
+            bottom: 80px;
+            left: 20px;
+            width: 320px;
+            font-size: 12px;
+            line-height: 1.6;
+            color: #ccf;
+        }
+        
+        #particle-counter {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            font-size: 14px;
+            color: #9ef;
+        }
+        
+        .highlight {
+            color: #ff9;
+            font-weight: bold;
+        }
+        
+        .mode-active {
+            background: linear-gradient(to bottom, #5a7aaa, #4a6a9a) !important;
+            box-shadow: 0 0 15px rgba(100, 180, 255, 0.5) !important;
+        }
+        
+        #environment-controls {
+            position: absolute;
+            bottom: 20px;
+            left: 350px;
+            width: 280px;
+        }
+        
+        .material-property {
+            display: flex;
+            align-items: center;
+            margin: 8px 0;
+        }
+        
+        .material-label {
+            width: 120px;
+            font-size: 13px;
+            color: #aaf;
+        }
+        
+        .material-value {
+            flex: 1;
+            text-align: right;
+            font-size: 13px;
+            color: #9ef;
+        }
+        
+        #lighting-control {
+            position: absolute;
+            top: 280px;
+            left: 20px;
+            width: 240px;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <div id="canvas-container">
+            <canvas id="mainCanvas"></canvas>
+            <canvas id="lightingCanvas"></canvas>
+        </div>
+        
+        <div id="ui">
+            <div id="info-panel" class="panel">
+                <h2>Physics Simulation</h2>
+                <div class="stat">
+                    <span>Objects:</span>
+                    <span id="objectCount" class="stat-value">0</span>
+                </div>
+                <div class="stat">
+                    <span>FPS:</span>
+                    <span id="fps" class="stat-value">0</span>
+                </div>
+                <div class="stat">
+                    <span>Active Forces:</span>
+                    <span id="forceCount" class="stat-value">0</span>
+                </div>
+                <div class="stat">
+                    <span>Collisions:</span>
+                    <span id="collisionCount" class="stat-value">0</span>
+                </div>
+                <div class="stat">
+                    <span>Energy:</span>
+                    <span id="energyValue" class="stat-value">0 J</span>
+                </div>
+            </div>
+            
+            <div id="control-panel" class="panel">
+                <h2>Simulation Controls</h2>
+                
+                <div class="control-group">
+                    <label for="creationRate">Creation Rate</label>
+                    <input type="range" id="creationRate" min="0.5" max="2.0" step="0.1" value="1.0">
+                    <div class="value-display" id="creationRateValue">1.0</div>
+                </div>
+                
+                <div class="control-group">
+                    <label for="gravity">Gravity</label>
+                    <input type="range" id="gravity" min="0.1" max="2.0" step="0.1" value="0.5">
+                    <div class="value-display" id="gravityValue">0.5</div>
+                </div>
+                
+                <div class="control-group">
+                    <label for="airResistance">Air Resistance</label>
+                    <input type="range" id="airResistance" min="0.0" max="0.1" step="0.01" value="0.02">
+                    <div class="value-display" id="airResistanceValue">0.02</div>
+                </div>
+                
+                <div class="control-group">
+                    <label for="restitution">Bounciness</label>
+                    <input type="range" id="restitution" min="0.1" max="0.9" step="0.05" value="0.6">
+                    <div class="value-display" id="restitutionValue">0.6</div>
+                </div>
+                
+                <div class="button-group">
+                    <button id="explosionBtn">Create Explosion</button>
+                    <button id="vortexBtn">Create Vortex</button>
+                    <button id="clearBtn">Clear Objects</button>
+                </div>
+            </div>
+            
+            <div id="lighting-control" class="panel">
+                <h2>Lighting & Environment</h2>
+                
+                <div class="control-group">
+                    <label for="lightIntensity">Light Intensity</label>
+                    <input type="range" id="lightIntensity" min="0.1" max="2.0" step="0.1" value="1.0">
+                    <div class="value-display" id="lightIntensityValue">1.0</div>
+                </div>
+                
+                <div class="control-group">
+                    <label for="shadowStrength">Shadow Strength</label>
+                    <input type="range" id="shadowStrength" min="0.0" max="1.0" step="0.1" value="0.5">
+                    <div class="value-display" id="shadowStrengthValue">0.5</div>
+                </div>
+                
+                <div class="control-group">
+                    <label for="ambientLight">Ambient Light</label>
+                    <input type="range" id="ambientLight" min="0.0" max="0.5" step="0.05" value="0.2">
+                    <div class="value-display" id="ambientLightValue">0.2</div>
+                </div>
+            </div>
+            
+            <div id="interaction-panel" class="panel">
+                <h2>Interaction Mode</h2>
+                <div class="button-group">
+                    <button id="attractMode" class="mode-active">Attract</button>
+                    <button id="repelMode">Repel</button>
+                    <button id="freezeMode">Freeze</button>
+                    <button id="destroyMode">Destroy</button>
+                </div>
+                <p>Click and drag on the canvas to interact</p>
+            </div>
+            
+            <div id="environment-controls" class="panel">
+                <h2>Material Properties</h2>
+                <div class="material-property">
+                    <div class="material-label">Friction:</div>
+                    <div class="material-value" id="frictionValue">0.02</div>
+                </div>
+                <div class="material-property">
+                    <div class="material-label">Elasticity:</div>
+                    <div class="material-value" id="elasticityValue">0.6</div>
+                </div>
+                <div class="material-property">
+                    <div class="material-label">Density:</div>
+                    <div class="material-value" id="densityValue">1.0</div>
+                </div>
+                <div class="material-property">
+                    <div class="material-label">Air Density:</div>
+                    <div class="material-value" id="airDensityValue">1.2 kg/m³</div>
+                </div>
+            </div>
+            
+            <div id="instructions" class="panel">
+                <h2>Instructions</h2>
+                <p><span class="highlight">Click & Drag:</span> Apply force to objects</p>
+                <p><span class="highlight">Double Click:</span> Create explosion at cursor</p>
+                <p><span class="highlight">Mouse Wheel:</span> Adjust interaction strength</p>
+                <p><span class="highlight">Spacebar:</span> Pause/Resume simulation</p>
+                <p><span class="highlight">Arrow Keys:</span> Control wind direction</p>
+            </div>
+            
+            <div id="particle-counter" class="panel">
+                Particles: <span id="particleCount">0</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Main canvas setup
+        const canvas = document.getElementById('mainCanvas');
+        const ctx = canvas.getContext('2d', { alpha: false });
+        const lightingCanvas = document.getElementById('lightingCanvas');
+        const lightingCtx = lightingCanvas.getContext('2d', { alpha: true });
+        
+        canvas.width = lightingCanvas.width = window.innerWidth;
+        canvas.height = lightingCanvas.height = window.innerHeight;
+
+        // Performance tracking
+        let frameCount = 0;
+        let lastTime = performance.now();
+        let fps = 0;
+        let collisionCount = 0;
+        let activeForces = 0;
+        let totalEnergy = 0;
+
+        // UI elements
+        const objectCountElement = document.getElementById('objectCount');
+        const fpsElement = document.getElementById('fps');
+        const forceCountElement = document.getElementById('forceCount');
+        const collisionCountElement = document.getElementById('collisionCount');
+        const energyValueElement = document.getElementById('energyValue');
+        const particleCountElement = document.getElementById('particleCount');
+        const frictionValueElement = document.getElementById('frictionValue');
+        const elasticityValueElement = document.getElementById('elasticityValue');
+        const densityValueElement = document.getElementById('densityValue');
+        const airDensityValueElement = document.getElementById('airDensityValue');
+
+        // Control elements
+        const creationRateSlider = document.getElementById('creationRate');
+        const creationRateValue = document.getElementById('creationRateValue');
+        const gravitySlider = document.getElementById('gravity');
+        const gravityValue = document.getElementById('gravityValue');
+        const airResistanceSlider = document.getElementById('airResistance');
+        const airResistanceValue = document.getElementById('airResistanceValue');
+        const restitutionSlider = document.getElementById('restitution');
+        const restitutionValue = document.getElementById('restitutionValue');
+        const lightIntensitySlider = document.getElementById('lightIntensity');
+        const lightIntensityValue = document.getElementById('lightIntensityValue');
+        const shadowStrengthSlider = document.getElementById('shadowStrength');
+        const shadowStrengthValue = document.getElementById('shadowStrengthValue');
+        const ambientLightSlider = document.getElementById('ambientLight');
+        const ambientLightValue = document.getElementById('ambientLightValue');
+
+        // Buttons
+        const explosionBtn = document.getElementById('explosionBtn');
+        const vortexBtn = document.getElementById('vortexBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const attractModeBtn = document.getElementById('attractMode');
+        const repelModeBtn = document.getElementById('repelMode');
+        const freezeModeBtn = document.getElementById('freezeMode');
+        const destroyModeBtn = document.getElementById('destroyMode');
+
+        // Physics constants
+        const GRAVITY_BASE = 0.5;
+        let gravity = GRAVITY_BASE;
+        let creationRate = 1.0;
+        let airResistance = 0.02;
+        let restitution = 0.6; // Bounciness coefficient
+        let lightIntensity = 1.0;
+        let shadowStrength = 0.5;
+        let ambientLight = 0.2;
+        
+        // Material properties
+        let friction = 0.02;
+        let elasticity = 0.6;
+        let density = 1.0;
+        let airDensity = 1.2;
+
+        // Wind
+        let windX = 0;
+        let windY = 0;
+
+        // Interaction
+        let interactionMode = 'attract';
+        let interactionStrength = 1.0;
+        let mouseIsDown = false;
+        let mouseX = 0;
+        let mouseY = 0;
+        let isPaused = false;
+
+        // Object management
+        let objects = [];
+        let particles = [];
+        let objectIdCounter = 0;
+        let particleIdCounter = 0;
+
+        // Force center management
+        let forceCenters = [];
+        let lastForceCenterTime = 0;
+
+        // Lighting
+        let lightSource = {
+            x: 0.7,
+            y: -0.5,
+            z: -0.5
+        };
+
+        // Object types
+        const OBJECT_TYPES = {
+            PYRAMID: 'pyramid',
+            CUBE: 'cube',
+            PENTAHEDRON: 'pentahedron',
+            SPHERE: 'sphere'
+        };
+
+        // Material types with physical properties
+        const MATERIALS = {
+            METAL: { density: 7.8, restitution: 0.3, friction: 0.1, color: '#888' },
+            GLASS: { density: 2.5, restitution: 0.7, friction: 0.05, color: '#aaf' },
+            RUBBER: { density: 1.2, restitution: 0.8, friction: 0.8, color: '#333' },
+            WOOD: { density: 0.7, restitution: 0.5, friction: 0.4, color: '#964' }
+        };
+
+        // Color palettes for objects
+        const COLOR_PALETTES = [
+            ['#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A'],
+            ['#6A0572', '#AB83A1', '#3C3B6E', '#B22234'],
+            ['#2A9D8F', '#E9C46A', '#F4A261', '#E76F51'],
+            ['#264653', '#2A9D8F', '#E9C46A', '#F4A261'],
+            ['#5D3FD3', '#9F2B68', '#FF7F50', '#40E0D0'],
+            ['#FF9F1C', '#E71D36', '#2EC4B6', '#011627']
+        ];
+
+        // 3D Geometry class with improved lighting
+        class Geometry3D {
+            constructor(type, size, material, opacity) {
+                this.type = type;
+                this.size = size;
+                this.material = material;
+                this.opacity = opacity;
+                this.vertices = [];
+                this.edges = [];
+                this.faces = [];
+                
+                this.generateGeometry();
+            }
+            
+            generateGeometry() {
+                switch(this.type) {
+                    case OBJECT_TYPES.PYRAMID:
+                        this.generatePyramid();
+                        break;
+                    case OBJECT_TYPES.CUBE:
+                        this.generateCube();
+                        break;
+                    case OBJECT_TYPES.PENTAHEDRON:
+                        this.generatePentahedron();
+                        break;
+                    case OBJECT_TYPES.SPHERE:
+                        this.generateSphere();
+                        break;
+                }
+            }
+            
+            generatePyramid() {
+                // Square pyramid
+                const h = this.size * 1.5;
+                const s = this.size;
+                
+                this.vertices = [
+                    { x: 0, y: -h/2, z: 0 },  // Apex
+                    { x: -s, y: h/2, z: -s }, // Base vertices
+                    { x: s, y: h/2, z: -s },
+                    { x: s, y: h/2, z: s },
+                    { x: -s, y: h/2, z: s }
+                ];
+                
+                this.edges = [
+                    [0, 1], [0, 2], [0, 3], [0, 4], // Apex to base
+                    [1, 2], [2, 3], [3, 4], [4, 1]  // Base edges
+                ];
+                
+                this.faces = [
+                    { vertices: [0, 1, 2], normal: { x: 0, y: 0, z: 0 } },
+                    { vertices: [0, 2, 3], normal: { x: 0, y: 0, z: 0 } },
+                    { vertices: [0, 3, 4], normal: { x: 0, y: 0, z: 0 } },
+                    { vertices: [0, 4, 1], normal: { x: 0, y: 0, z: 0 } },
+                    { vertices: [1, 2, 3, 4], normal: { x: 0, y: 1, z: 0 } }
+                ];
+                
+                this.calculateNormals();
+            }
+            
+            generateCube() {
+                const s = this.size;
+                
+                this.vertices = [
+                    { x: -s, y: -s, z: -s },
+                    { x: s, y: -s, z: -s },
+                    { x: s, y: s, z: -s },
+                    { x: -s, y: s, z: -s },
+                    { x: -s, y: -s, z: s },
+                    { x: s, y: -s, z: s },
+                    { x: s, y: s, z: s },
+                    { x: -s, y: s, z: s }
+                ];
+                
+                this.edges = [
+                    [0, 1], [1, 2], [2, 3], [3, 0], // Front face
+                    [4, 5], [5, 6], [6, 7], [7, 4], // Back face
+                    [0, 4], [1, 5], [2, 6], [3, 7]  // Connecting edges
+                ];
+                
+                this.faces = [
+                    { vertices: [0, 1, 2, 3], normal: { x: 0, y: 0, z: -1 } }, // Front
+                    { vertices: [4, 5, 6, 7], normal: { x: 0, y: 0, z: 1 } },  // Back
+                    { vertices: [0, 1, 5, 4], normal: { x: 0, y: -1, z: 0 } }, // Bottom
+                    { vertices: [2, 3, 7, 6], normal: { x: 0, y: 1, z: 0 } },  // Top
+                    { vertices: [0, 3, 7, 4], normal: { x: -1, y: 0, z: 0 } }, // Left
+                    { vertices: [1, 2, 6, 5], normal: { x: 1, y: 0, z: 0 } }   // Right
+                ];
+            }
+            
+            generatePentahedron() {
+                // Triangular prism (simplified pentahedron)
+                const w = this.size;
+                const h = this.size * 1.5;
+                
+                this.vertices = [
+                    { x: 0, y: -h/2, z: w },     // Top triangle
+                    { x: -w, y: -h/2, z: -w/2 },
+                    { x: w, y: -h/2, z: -w/2 },
+                    { x: 0, y: h/2, z: w },      // Bottom triangle
+                    { x: -w, y: h/2, z: -w/2 },
+                    { x: w, y: h/2, z: -w/2 }
+                ];
+                
+                this.edges = [
+                    [0, 1], [1, 2], [2, 0], // Top triangle
+                    [3, 4], [4, 5], [5, 3], // Bottom triangle
+                    [0, 3], [1, 4], [2, 5]  // Connecting edges
+                ];
+                
+                this.faces = [
+                    { vertices: [0, 1, 2], normal: { x: 0, y: -1, z: 0 } }, // Top
+                    { vertices: [3, 4, 5], normal: { x: 0, y: 1, z: 0 } },  // Bottom
+                    { vertices: [0, 1, 4, 3], normal: { x: 0, y: 0, z: 0 } },
+                    { vertices: [1, 2, 5, 4], normal: { x: 0, y: 0, z: 0 } },
+                    { vertices: [2, 0, 3, 5], normal: { x: 0, y: 0, z: 0 } }
+                ];
+                
+                this.calculateNormals();
+            }
+            
+            generateSphere() {
+                // Create a sphere using recursive subdivision of an icosahedron
+                const radius = this.size;
+                const subdivisions = 2;
+                
+                // Icosahedron vertices (12 vertices)
+                const t = (1.0 + Math.sqrt(5.0)) / 2.0;
+                
+                this.vertices = [
+                    { x: -1, y: t, z: 0 }, { x: 1, y: t, z: 0 },
+                    { x: -1, y: -t, z: 0 }, { x: 1, y: -t, z: 0 },
+                    { x: 0, y: -1, z: t }, { x: 0, y: 1, z: t },
+                    { x: 0, y: -1, z: -t }, { x: 0, y: 1, z: -t },
+                    { x: t, y: 0, z: -1 }, { x: t, y: 0, z: 1 },
+                    { x: -t, y: 0, z: -1 }, { x: -t, y: 0, z: 1 }
+                ];
+                
+                // Normalize vertices to unit sphere
+                this.vertices.forEach(v => {
+                    const length = Math.sqrt(v.x*v.x + v.y*v.y + v.z*v.z);
+                    v.x /= length;
+                    v.y /= length;
+                    v.z /= length;
+                });
+                
+                // Icosahedron faces (20 faces)
+                const faces = [
+                    [0, 11, 5], [0, 5, 1], [0, 1, 7], [0, 7, 10], [0, 10, 11],
+                    [1, 5, 9], [5, 11, 4], [11, 10, 2], [10, 7, 6], [7, 1, 8],
+                    [3, 9, 4], [3, 4, 2], [3, 2, 6], [3, 6, 8], [3, 8, 9],
+                    [4, 9, 5], [2, 4, 11], [6, 2, 10], [8, 6, 7], [9, 8, 1]
+                ];
+                
+                // Subdivide faces
+                for (let i = 0; i < subdivisions; i++) {
+                    const newFaces = [];
+                    
+                    faces.forEach(face => {
+                        const v0 = this.vertices[face[0]];
+                        const v1 = this.vertices[face[1]];
+                        const v2 = this.vertices[face[2]];
+                        
+                        // Calculate midpoints
+                        const m01 = {
+                            x: (v0.x + v1.x) / 2,
+                            y: (v0.y + v1.y) / 2,
+                            z: (v0.z + v1.z) / 2
+                        };
+                        
+                        const m12 = {
+                            x: (v1.x + v2.x) / 2,
+                            y: (v1.y + v2.y) / 2,
+                            z: (v1.z + v2.z) / 2
+                        };
+                        
+                        const m20 = {
+                            x: (v2.x + v0.x) / 2,
+                            y: (v2.y + v0.y) / 2,
+                            z: (v2.z + v0.z) / 2
+                        };
+                        
+                        // Normalize midpoints to unit sphere
+                        [m01, m12, m20].forEach(v => {
+                            const length = Math.sqrt(v.x*v.x + v.y*v.y + v.z*v.z);
+                            v.x /= length;
+                            v.y /= length;
+                            v.z /= length;
+                        });
+                        
+                        // Add new vertices
+                        const i01 = this.vertices.length;
+                        this.vertices.push(m01);
+                        const i12 = this.vertices.length;
+                        this.vertices.push(m12);
+                        const i20 = this.vertices.length;
+                        this.vertices.push(m20);
+                        
+                        // Create 4 new faces
+                        newFaces.push([face[0], i01, i20]);
+                        newFaces.push([face[1], i12, i01]);
+                        newFaces.push([face[2], i20, i12]);
+                        newFaces.push([i01, i12, i20]);
+                    });
+                    
+                    faces.length = 0;
+                    faces.push(...newFaces);
+                }
+                
+                // Scale vertices to desired size
+                this.vertices.forEach(v => {
+                    v.x *= radius;
+                    v.y *= radius;
+                    v.z *= radius;
+                });
+                
+                // Create edges from faces
+                const edgeSet = new Set();
+                faces.forEach(face => {
+                    for (let i = 0; i < face.length; i++) {
+                        const a = face[i];
+                        const b = face[(i + 1) % face.length];
+                        const edge = [Math.min(a, b), Math.max(a, b)];
+                        edgeSet.add(edge.join(','));
+                    }
+                });
+                
+                this.edges = Array.from(edgeSet).map(edgeStr => 
+                    edgeStr.split(',').map(Number)
+                );
+                
+                // Create faces for rendering
+                this.faces = faces.map(face => ({
+                    vertices: face,
+                    normal: { x: 0, y: 0, z: 0 }
+                }));
+                
+                // Calculate normals for sphere faces
+                this.faces.forEach(face => {
+                    const v0 = this.vertices[face.vertices[0]];
+                    const v1 = this.vertices[face.vertices[1]];
+                    const v2 = this.vertices[face.vertices[2]];
+                    
+                    // Calculate face normal
+                    const ux = v1.x - v0.x;
+                    const uy = v1.y - v0.y;
+                    const uz = v1.z - v0.z;
+                    
+                    const vx = v2.x - v0.x;
+                    const vy = v2.y - v0.y;
+                    const vz = v2.z - v0.z;
+                    
+                    face.normal.x = uy * vz - uz * vy;
+                    face.normal.y = uz * vx - ux * vz;
+                    face.normal.z = ux * vy - uy * vx;
+                    
+                    // Normalize
+                    const length = Math.sqrt(
+                        face.normal.x * face.normal.x + 
+                        face.normal.y * face.normal.y + 
+                        face.normal.z * face.normal.z
+                    );
+                    
+                    face.normal.x /= length;
+                    face.normal.y /= length;
+                    face.normal.z /= length;
+                });
+            }
+            
+            calculateNormals() {
+                this.faces.forEach(face => {
+                    if (face.vertices.length < 3) return;
+                    
+                    const v0 = this.vertices[face.vertices[0]];
+                    const v1 = this.vertices[face.vertices[1]];
+                    const v2 = this.vertices[face.vertices[2]];
+                    
+                    // Calculate face normal
+                    const ux = v1.x - v0.x;
+                    const uy = v1.y - v0.y;
+                    const uz = v1.z - v0.z;
+                    
+                    const vx = v2.x - v0.x;
+                    const vy = v2.y - v0.y;
+                    const vz = v2.z - v0.z;
+                    
+                    face.normal.x = uy * vz - uz * vy;
+                    face.normal.y = uz * vx - ux * vz;
+                    face.normal.z = ux * vy - uy * vx;
+                    
+                    // Normalize
+                    const length = Math.sqrt(
+                        face.normal.x * face.normal.x + 
+                        face.normal.y * face.normal.y + 
+                        face.normal.z * face.normal.z
+                    );
+                    
+                    if (length > 0) {
+                        face.normal.x /= length;
+                        face.normal.y /= length;
+                        face.normal.z /= length;
+                    }
+                });
+            }
+        }
+
+        // Particle class for effects
+        class Particle {
+            constructor(x, y, color, type = 'sparkle') {
+                this.id = particleIdCounter++;
+                this.x = x;
+                this.y = y;
+                this.vx = (Math.random() - 0.5) * 8;
+                this.vy = (Math.random() - 0.5) * 8;
+                this.size = Math.random() * 4 + 1;
+                this.color = color;
+                this.type = type;
+                this.life = 1.0;
+                this.decay = Math.random() * 0.02 + 0.01;
+                this.rotation = Math.random() * Math.PI * 2;
+                this.rotationSpeed = (Math.random() - 0.5) * 0.1;
+                this.glow = Math.random() * 0.5 + 0.5;
+            }
+            
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.vy += 0.05; // Gravity
+                this.vx *= 0.98; // Air resistance
+                this.vy *= 0.98;
+                this.life -= this.decay;
+                this.rotation += this.rotationSpeed;
+                this.glow = 0.5 + 0.5 * Math.sin(this.life * 10);
+                
+                return this.life > 0;
+            }
+            
+            draw() {
+                ctx.save();
+                ctx.globalAlpha = this.life;
+                
+                if (this.type === 'sparkle') {
+                    // Draw a glowing sparkle
+                    ctx.fillStyle = this.color;
+                    ctx.shadowColor = this.color;
+                    ctx.shadowBlur = 10 * this.glow;
+                    
+                    ctx.translate(this.x, this.y);
+                    ctx.rotate(this.rotation);
+                    
+                    ctx.fillRect(-this.size/2, -this.size/2, this.size, this.size);
+                    
+                    // Add cross lines for sparkle effect
+                    ctx.strokeStyle = 'white';
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.moveTo(-this.size, 0);
+                    ctx.lineTo(this.size, 0);
+                    ctx.moveTo(0, -this.size);
+                    ctx.lineTo(0, this.size);
+                    ctx.stroke();
+                } else if (this.type === 'circle') {
+                    ctx.fillStyle = this.color;
+                    ctx.shadowColor = this.color;
+                    ctx.shadowBlur = 15 * this.glow;
+                    
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                    ctx.fill();
+                } else if (this.type === 'smoke') {
+                    ctx.fillStyle = `rgba(100, 100, 100, ${this.life * 0.5})`;
+                    ctx.beginPath();
+                    ctx.arc(this.x, this.y, this.size * (2 - this.life), 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                
+                ctx.restore();
+            }
+        }
+
+        // ForceCenter class
+        class ForceCenter {
+            constructor(x, y, type = 'repel', strength = 1.0, radius = 250, duration = 2000) {
+                this.x = x;
+                this.y = y;
+                this.type = type; // 'repel', 'attract', 'vortex'
+                this.strength = strength;
+                this.radius = radius;
+                this.created = performance.now();
+                this.duration = duration;
+                this.active = true;
+            }
+            
+            isActive() {
+                return this.active && (performance.now() - this.created < this.duration);
+            }
+            
+            applyForce(obj) {
+                if (!this.isActive()) return;
+                
+                const dx = obj.x - this.x;
+                const dy = obj.y - this.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                if (distance < this.radius) {
+                    const force = this.strength * (1 - distance / this.radius);
+                    const angle = Math.atan2(dy, dx);
+                    
+                    if (this.type === 'repel') {
+                        obj.vx += Math.cos(angle) * force;
+                        obj.vy += Math.sin(angle) * force;
+                    } else if (this.type === 'attract') {
+                        obj.vx -= Math.cos(angle) * force;
+                        obj.vy -= Math.sin(angle) * force;
+                    } else if (this.type === 'vortex') {
+                        // Vortex force - tangential to center
+                        const tangentAngle = angle + Math.PI / 2;
+                        obj.vx += Math.cos(tangentAngle) * force;
+                        obj.vy += Math.sin(tangentAngle) * force;
+                        
+                        // Also some attraction to center
+                        obj.vx -= Math.cos(angle) * force * 0.3;
+                        obj.vy -= Math.sin(angle) * force * 0.3;
+                    }
+                }
+            }
+            
+            draw() {
+                if (!this.isActive()) return;
+                
+                const progress = (performance.now() - this.created) / this.duration;
+                const alpha = 1 - progress;
+                const pulse = Math.sin(progress * Math.PI * 10) * 0.5 + 0.5;
+                
+                ctx.save();
+                
+                // Draw force field
+                ctx.globalAlpha = 0.2 * alpha;
+                const gradient = ctx.createRadialGradient(
+                    this.x, this.y, 0, 
+                    this.x, this.y, this.radius
+                );
+                
+                if (this.type === 'repel') {
+                    gradient.addColorStop(0, 'rgba(255, 100, 100, 0.8)');
+                    gradient.addColorStop(1, 'rgba(255, 100, 100, 0)');
+                } else if (this.type === 'attract') {
+                    gradient.addColorStop(0, 'rgba(100, 100, 255, 0.8)');
+                    gradient.addColorStop(1, 'rgba(100, 100, 255, 0)');
+                } else if (this.type === 'vortex') {
+                    gradient.addColorStop(0, 'rgba(100, 255, 100, 0.8)');
+                    gradient.addColorStop(1, 'rgba(100, 255, 100, 0)');
+                }
+                
+                ctx.fillStyle = gradient;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Draw center indicator
+                ctx.globalAlpha = alpha;
+                ctx.fillStyle = this.type === 'repel' ? '#f55' : 
+                               this.type === 'attract' ? '#55f' : '#5f5';
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, 10 + pulse * 5, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Draw type indicator
+                ctx.fillStyle = 'white';
+                ctx.font = '12px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(
+                    this.type === 'repel' ? 'R' : 
+                    this.type === 'attract' ? 'A' : 'V', 
+                    this.x, this.y
+                );
+                
+                ctx.restore();
+            }
+        }
+
+        // FallingObject class with realistic physics
+        class FallingObject {
+            constructor() {
+                this.id = objectIdCounter++;
+                this.type = this.getRandomType();
+                this.size = Math.random() * 20 + 10;
+                this.material = this.getRandomMaterial();
+                this.opacity = Math.random() * 0.7 + 0.3;
+                
+                // Position and velocity
+                this.x = Math.random() * canvas.width;
+                this.y = -this.size;
+                this.z = Math.random() * 1000 - 500; // Depth for 3D effect
+                this.vx = 0;
+                this.vy = Math.random() * 2 + 1;
+                this.vz = 0;
+                
+                // Rotation
+                this.rotation = {
+                    x: Math.random() * Math.PI * 2,
+                    y: Math.random() * Math.PI * 2,
+                    z: Math.random() * Math.PI * 2
+                };
+                
+                this.rotationSpeed = {
+                    x: (Math.random() - 0.5) * 0.05,
+                    y: (Math.random() - 0.5) * 0.05,
+                    z: (Math.random() - 0.5) * 0.05
+                };
+                
+                this.rotationCenter = {
+                    x: (Math.random() - 0.5) * this.size,
+                    y: (Math.random() - 0.5) * this.size,
+                    z: (Math.random() - 0.5) * this.size
+                };
+                
+                this.lastRotationChange = 0;
+                
+                // Physical properties
+                this.mass = this.material.density * (this.size * this.size * this.size) / 1000;
+                this.restitution = this.material.restitution;
+                this.friction = this.material.friction;
+                
+                // Create 3D geometry
+                this.geometry = new Geometry3D(this.type, this.size, this.material.color, this.opacity);
+                
+                // Collision properties
+                this.collided = false;
+                this.collisionTime = 0;
+                this.collisionEffect = null;
+                
+                // Force effect
+                this.forceApplied = false;
+                
+                // Special properties
+                this.isFrozen = false;
+                this.frozenTime = 0;
+                this.trail = [];
+                this.maxTrailLength = 10;
+                
+                // Visual effects
+                this.glow = 0;
+                this.pulse = 0;
+            }
+            
+            getRandomType() {
+                const types = Object.values(OBJECT_TYPES);
+                return types[Math.floor(Math.random() * types.length)];
+            }
+            
+            getRandomMaterial() {
+                const materials = Object.values(MATERIALS);
+                return materials[Math.floor(Math.random() * materials.length)];
+            }
+            
+            updateRotation() {
+                if (this.isFrozen) return;
+                
+                // Change rotation speed smoothly (max 10% change)
+                const now = performance.now();
+                if (now - this.lastRotationChange > 1000) { // Change every second
+                    this.rotationSpeed.x += (Math.random() - 0.5) * this.rotationSpeed.x * 0.2;
+                    this.rotationSpeed.y += (Math.random() - 0.5) * this.rotationSpeed.y * 0.2;
+                    this.rotationSpeed.z += (Math.random() - 0.5) * this.rotationSpeed.z * 0.2;
+                    
+                    // Change rotation center smoothly
+                    this.rotationCenter.x += (Math.random() - 0.5) * this.size * 0.1;
+                    this.rotationCenter.y += (Math.random() - 0.5) * this.size * 0.1;
+                    this.rotationCenter.z += (Math.random() - 0.5) * this.size * 0.1;
+                    
+                    this.lastRotationChange = now;
+                }
+                
+                // Apply rotation
+                this.rotation.x += this.rotationSpeed.x;
+                this.rotation.y += this.rotationSpeed.y;
+                this.rotation.z += this.rotationSpeed.z;
+            }
+            
+            applyForces() {
+                if (this.isFrozen) return;
+                
+                // Apply gravity
+                this.vy += gravity;
+                
+                // Apply wind
+                this.vx += windX;
+                this.vy += windY;
+                
+                // Apply air resistance (proportional to velocity squared)
+                const speed = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
+                if (speed > 0) {
+                    const dragForce = airResistance * speed * speed;
+                    this.vx -= (this.vx / speed) * dragForce;
+                    this.vy -= (this.vy / speed) * dragForce;
+                }
+                
+                // Apply force centers
+                forceCenters.forEach(force => {
+                    force.applyForce(this);
+                });
+                
+                // Apply mouse interaction if close enough
+                if (mouseIsDown) {
+                    const dx = this.x - mouseX;
+                    const dy = this.y - mouseY;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (distance < 150) {
+                        const force = interactionStrength * (1 - distance / 150);
+                        const angle = Math.atan2(dy, dx);
+                        
+                        if (interactionMode === 'attract') {
+                            this.vx -= Math.cos(angle) * force;
+                            this.vy -= Math.sin(angle) * force;
+                        } else if (interactionMode === 'repel') {
+                            this.vx += Math.cos(angle) * force;
+                            this.vy += Math.sin(angle) * force;
+                        } else if (interactionMode === 'freeze') {
+                            this.isFrozen = true;
+                            this.frozenTime = performance.now();
+                            this.vx *= 0.9;
+                            this.vy *= 0.9;
+                        } else if (interactionMode === 'destroy') {
+                            // Add explosion effect
+                            this.createExplosion();
+                            return false; // Mark for removal
+                        }
+                    }
+                }
+                
+                // Unfreeze after some time
+                if (this.isFrozen && performance.now() - this.frozenTime > 2000) {
+                    this.isFrozen = false;
+                }
+                
+                return true;
+            }
+            
+            update() {
+                // Update trail
+                this.trail.push({ x: this.x, y: this.y });
+                if (this.trail.length > this.maxTrailLength) {
+                    this.trail.shift();
+                }
+                
+                // Apply forces
+                if (!this.applyForces()) {
+                    return false; // Object is destroyed
+                }
+                
+                // Update position
+                this.x += this.vx;
+                this.y += this.vy;
+                this.z += this.vz;
+                
+                // Update rotation
+                this.updateRotation();
+                
+                // Reset force applied flag after some time
+                if (this.forceApplied && Math.random() < 0.01) {
+                    this.forceApplied = false;
+                }
+                
+                // Check if object is out of bounds
+                return this.y < canvas.height + this.size * 2;
+            }
+            
+            draw() {
+                // Don't draw if object is too far behind
+                if (this.z < -1000) return;
+                
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                
+                // Apply perspective
+                const scale = 1000 / (1000 + this.z);
+                ctx.scale(scale, scale);
+                
+                // Apply rotation
+                ctx.translate(this.rotationCenter.x, this.rotationCenter.y);
+                ctx.rotate(this.rotation.z);
+                ctx.translate(-this.rotationCenter.x, -this.rotationCenter.y);
+                
+                // Set opacity
+                ctx.globalAlpha = this.opacity;
+                
+                // Draw trail if moving fast enough
+                if (this.trail.length > 1 && (Math.abs(this.vx) > 0.5 || Math.abs(this.vy) > 0.5)) {
+                    ctx.save();
+                    ctx.globalAlpha = 0.3;
+                    ctx.strokeStyle = this.material.color;
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.moveTo(this.trail[0].x - this.x, this.trail[0].y - this.y);
+                    for (let i = 1; i < this.trail.length; i++) {
+                        ctx.lineTo(this.trail[i].x - this.x, this.trail[i].y - this.y);
+                    }
+                    ctx.stroke();
+                    ctx.restore();
+                }
+                
+                // Draw faces with realistic lighting
+                this.geometry.faces.forEach(face => {
+                    ctx.beginPath();
+                    
+                    // Get vertices for this face
+                    const vertices = face.vertices.map(idx => this.geometry.vertices[idx]);
+                    
+                    // Calculate lighting using face normal and light source
+                    const dotProduct = 
+                        face.normal.x * lightSource.x +
+                        face.normal.y * lightSource.y + 
+                        face.normal.z * lightSource.z;
+                    
+                    // Clamp and adjust lighting
+                    let intensity = Math.max(0, dotProduct) * lightIntensity + ambientLight;
+                    intensity = Math.min(1, intensity);
+                    
+                    // Create gradient based on lighting
+                    const baseColor = this.material.color;
+                    const litColor = this.adjustColorBrightness(baseColor, intensity * 1.5);
+                    const shadowColor = this.adjustColorBrightness(baseColor, intensity * 0.7);
+                    
+                    const gradient = ctx.createLinearGradient(
+                        -this.size, -this.size, this.size, this.size
+                    );
+                    
+                    gradient.addColorStop(0, litColor);
+                    gradient.addColorStop(1, shadowColor);
+                    
+                    ctx.fillStyle = gradient;
+                    
+                    // Draw face
+                    ctx.moveTo(vertices[0].x, vertices[0].y);
+                    for (let i = 1; i < vertices.length; i++) {
+                        ctx.lineTo(vertices[i].x, vertices[i].y);
+                    }
+                    ctx.closePath();
+                    ctx.fill();
+                });
+                
+                // Draw shiny edges with specular highlights
+                ctx.strokeStyle = this.isFrozen ? 'rgba(100, 200, 255, 0.9)' : 'rgba(255, 255, 255, 0.7)';
+                ctx.lineWidth = this.isFrozen ? 3 : 2;
+                ctx.shadowColor = 'rgba(255, 255, 255, 0.5)';
+                ctx.shadowBlur = 5;
+                
+                this.geometry.edges.forEach(edge => {
+                    const v1 = this.geometry.vertices[edge[0]];
+                    const v2 = this.geometry.vertices[edge[1]];
+                    
+                    ctx.beginPath();
+                    ctx.moveTo(v1.x, v1.y);
+                    ctx.lineTo(v2.x, v2.y);
+                    ctx.stroke();
+                });
+                
+                ctx.shadowBlur = 0;
+                
+                // Draw collision effects
+                if (this.collided) {
+                    this.drawCollisionEffect();
+                }
+                
+                ctx.restore();
+            }
+            
+            adjustColorBrightness(color, factor) {
+                // Convert hex to RGB
+                const r = parseInt(color.substr(1, 2), 16);
+                const g = parseInt(color.substr(3, 2), 16);
+                const b = parseInt(color.substr(5, 2), 16);
+                
+                // Adjust brightness
+                const newR = Math.min(255, Math.floor(r * factor));
+                const newG = Math.min(255, Math.floor(g * factor));
+                const newB = Math.min(255, Math.floor(b * factor));
+                
+                // Convert back to hex
+                return `#${newR.toString(16).padStart(2, '0')}${newG.toString(16).padStart(2, '0')}${newB.toString(16).padStart(2, '0')}`;
+            }
+            
+            drawCollisionEffect() {
+                const now = performance.now();
+                const elapsed = now - this.collisionTime;
+                const duration = 1000; // 1 second effect
+                
+                if (elapsed > duration) {
+                    this.collided = false;
+                    return;
+                }
+                
+                const progress = elapsed / duration;
+                const radius = this.size * (1 + progress * 2);
+                const alpha = 1 - progress;
+                
+                ctx.save();
+                ctx.globalAlpha = alpha;
+                
+                switch(this.collisionEffect) {
+                    case 'fireball':
+                        // Draw fireball explosion
+                        const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, radius);
+                        gradient.addColorStop(0, 'rgba(255, 255, 0, 1)');
+                        gradient.addColorStop(0.5, 'rgba(255, 100, 0, 0.8)');
+                        gradient.addColorStop(1, 'rgba(255, 0, 0, 0)');
+                        
+                        ctx.fillStyle = gradient;
+                        ctx.beginPath();
+                        ctx.arc(0, 0, radius, 0, Math.PI * 2);
+                        ctx.fill();
+                        break;
+                        
+                    case 'tron':
+                        // Draw Tron-like disc
+                        ctx.strokeStyle = '#00FFFF';
+                        ctx.lineWidth = 3;
+                        ctx.beginPath();
+                        ctx.arc(0, 0, radius, 0, Math.PI * 2);
+                        ctx.stroke();
+                        
+                        // Draw inner circle
+                        ctx.beginPath();
+                        ctx.arc(0, 0, radius * 0.7, 0, Math.PI * 2);
+                        ctx.stroke();
+                        
+                        // Draw cross lines
+                        ctx.beginPath();
+                        ctx.moveTo(-radius, 0);
+                        ctx.lineTo(radius, 0);
+                        ctx.moveTo(0, -radius);
+                        ctx.lineTo(0, radius);
+                        ctx.stroke();
+                        break;
+                        
+                    case 'ethereum':
+                        // Draw Ethereum logo
+                        ctx.strokeStyle = '#627EEA';
+                        ctx.lineWidth = 3;
+                        ctx.beginPath();
+                        
+                        // Draw hexagon
+                        for (let i = 0; i < 6; i++) {
+                            const angle = (i * Math.PI / 3) - Math.PI / 6;
+                            const x = Math.cos(angle) * radius;
+                            const y = Math.sin(angle) * radius;
+                            
+                            if (i === 0) {
+                                ctx.moveTo(x, y);
+                            } else {
+                                ctx.lineTo(x, y);
+                            }
+                        }
+                        ctx.closePath();
+                        ctx.stroke();
+                        
+                        // Draw inner lines
+                        ctx.beginPath();
+                        ctx.moveTo(0, -radius * 0.7);
+                        ctx.lineTo(0, radius * 0.7);
+                        ctx.moveTo(-radius * 0.5, -radius * 0.35);
+                        ctx.lineTo(radius * 0.5, radius * 0.35);
+                        ctx.moveTo(-radius * 0.5, radius * 0.35);
+                        ctx.lineTo(radius * 0.5, -radius * 0.35);
+                        ctx.stroke();
+                        break;
+                        
+                    case 'bitcoin':
+                        // Draw Bitcoin logo
+                        ctx.strokeStyle = '#F7931A';
+                        ctx.lineWidth = 3;
+                        ctx.beginPath();
+                        
+                        // Draw circle
+                        ctx.arc(0, 0, radius, 0, Math.PI * 2);
+                        ctx.stroke();
+                        
+                        // Draw B symbol
+                        ctx.font = `${radius * 0.8}px Arial`;
+                        ctx.textAlign = 'center';
+                        ctx.textBaseline = 'middle';
+                        ctx.fillStyle = '#F7931A';
+                        ctx.fillText('B', 0, 0);
+                        break;
+                        
+                    default:
+                        // Draw sparkles
+                        for (let i = 0; i < 10; i++) {
+                            const angle = Math.random() * Math.PI * 2;
+                            const sparkleRadius = radius * (0.5 + Math.random() * 0.5);
+                            const x = Math.cos(angle) * sparkleRadius;
+                            const y = Math.sin(angle) * sparkleRadius;
+                            
+                            ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+                            ctx.beginPath();
+                            ctx.arc(x, y, 2, 0, Math.PI * 2);
+                            ctx.fill();
+                        }
+                        break;
+                }
+                
+                ctx.restore();
+            }
+            
+            checkCollision(other) {
+                if (this === other || this.collided || other.collided) return false;
+                
+                const dx = this.x - other.x;
+                const dy = this.y - other.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                if (distance < this.size + other.size) {
+                    // Collision detected
+                    this.collided = true;
+                    other.collided = true;
+                    this.collisionTime = performance.now();
+                    other.collisionTime = performance.now();
+                    collisionCount++;
+                    
+                    // Calculate collision response with realistic physics
+                    const collisionAngle = Math.atan2(dy, dx);
+                    const speed1 = Math.sqrt(this.vx * this.vx + this.vy * this.vy);
+                    const speed2 = Math.sqrt(other.vx * other.vx + other.vy * other.vy);
+                    
+                    const direction1 = Math.atan2(this.vy, this.vx);
+                    const direction2 = Math.atan2(other.vy, other.vx);
+                    
+                    // Calculate new velocities (simplified elastic collision)
+                    const avgRestitution = (this.restitution + other.restitution) / 2;
+                    
+                    const velocityX1 = this.vx;
+                    const velocityY1 = this.vy;
+                    
+                    this.vx = other.vx * avgRestitution;
+                    this.vy = other.vy * avgRestitution;
+                    
+                    other.vx = velocityX1 * avgRestitution;
+                    other.vy = velocityY1 * avgRestitution;
+                    
+                    // Add some separation force
+                    const separationForce = 2;
+                    this.vx += Math.cos(collisionAngle) * separationForce;
+                    this.vy += Math.sin(collisionAngle) * separationForce;
+                    other.vx -= Math.cos(collisionAngle) * separationForce;
+                    other.vy -= Math.sin(collisionAngle) * separationForce;
+                    
+                    // Determine collision effect based on impact energy
+                    const impactEnergy = (this.mass * speed1 + other.mass * speed2) / 100;
+                    
+                    if (impactEnergy > 5) {
+                        this.collisionEffect = 'fireball';
+                        other.collisionEffect = 'fireball';
+                        this.createExplosion();
+                    } else if (impactEnergy > 2) {
+                        const rand = Math.random();
+                        if (rand < 0.3) {
+                            this.collisionEffect = 'tron';
+                            other.collisionEffect = 'tron';
+                        } else if (rand < 0.32) {
+                            this.collisionEffect = 'ethereum';
+                            other.collisionEffect = 'ethereum';
+                        } else if (rand < 0.325) {
+                            this.collisionEffect = 'bitcoin';
+                            other.collisionEffect = 'bitcoin';
+                        } else {
+                            this.collisionEffect = 'sparkles';
+                            other.collisionEffect = 'sparkles';
+                        }
+                    } else {
+                        this.collisionEffect = 'sparkles';
+                        other.collisionEffect = 'sparkles';
+                    }
+                    
+                    return true;
+                }
+                
+                return false;
+            }
+            
+            createExplosion() {
+                // Create particles for explosion
+                for (let i = 0; i < 25; i++) {
+                    particles.push(new Particle(
+                        this.x, 
+                        this.y, 
+                        this.material.color,
+                        Math.random() > 0.3 ? 'sparkle' : 'circle'
+                    ));
+                }
+                
+                // Add smoke particles
+                for (let i = 0; i < 10; i++) {
+                    particles.push(new Particle(
+                        this.x, 
+                        this.y, 
+                        '#888888',
+                        'smoke'
+                    ));
+                }
+            }
+            
+            calculateEnergy() {
+                const kinetic = 0.5 * this.mass * (this.vx * this.vx + this.vy * this.vy);
+                const potential = this.mass * gravity * (canvas.height - this.y);
+                return kinetic + potential;
+            }
+        }
+
+        // Create objects at a controlled rate
+        function createObjects() {
+            const targetCount = 50 * creationRate;
+            
+            if (objects.length < targetCount) {
+                const toCreate = Math.min(5, targetCount - objects.length);
+                
+                for (let i = 0; i < toCreate; i++) {
+                    objects.push(new FallingObject());
+                }
+            }
+        }
+
+        // Update force centers
+        function updateForceCenters() {
+            // Remove expired force centers
+            forceCenters = forceCenters.filter(force => force.isActive());
+            
+            // Add random force center every 2 seconds
+            const now = performance.now();
+            if (now - lastForceCenterTime > 2000) {
+                const type = Math.random() > 0.5 ? 'repel' : 'attract';
+                forceCenters.push(new ForceCenter(
+                    Math.random() * canvas.width,
+                    Math.random() * canvas.height,
+                    type,
+                    1.0,
+                    forceRadius,
+                    2000
+                ));
+                lastForceCenterTime = now;
+            }
+        }
+
+        // Check for collisions between objects
+        function checkCollisions() {
+            for (let i = 0; i < objects.length; i++) {
+                for (let j = i + 1; j < objects.length; j++) {
+                    objects[i].checkCollision(objects[j]);
+                }
+            }
+        }
+
+        // Update and draw all objects
+        function updateObjects() {
+            // Remove objects that are out of bounds or destroyed
+            objects = objects.filter(obj => obj.update());
+            
+            // Update particles
+            particles = particles.filter(particle => particle.update());
+            
+            // Calculate total energy
+            totalEnergy = objects.reduce((sum, obj) => sum + obj.calculateEnergy(), 0);
+            
+            // Update UI
+            objectCountElement.textContent = objects.length;
+            particleCountElement.textContent = particles.length;
+            forceCountElement.textContent = forceCenters.length;
+            collisionCountElement.textContent = collisionCount;
+            energyValueElement.textContent = (totalEnergy / 1000).toFixed(2) + ' J';
+            
+            // Update material properties
+            frictionValueElement.textContent = friction.toFixed(2);
+            elasticityValueElement.textContent = elasticity.toFixed(2);
+            densityValueElement.textContent = density.toFixed(1);
+            airDensityValueElement.textContent = airDensity.toFixed(1) + ' kg/m³';
+        }
+
+        // Draw force centers
+        function drawForceCenters() {
+            forceCenters.forEach(force => force.draw());
+        }
+
+        // Draw particles
+        function drawParticles() {
+            particles.forEach(particle => particle.draw());
+        }
+
+        // Draw mouse interaction indicator
+        function drawMouseInteraction() {
+            if (!mouseIsDown) return;
+            
+            ctx.save();
+            
+            // Draw interaction radius
+            ctx.globalAlpha = 0.2;
+            ctx.fillStyle = 
+                interactionMode === 'attract' ? 'rgba(100, 100, 255, 0.5)' :
+                interactionMode === 'repel' ? 'rgba(255, 100, 100, 0.5)' :
+                interactionMode === 'freeze' ? 'rgba(100, 200, 255, 0.5)' :
+                'rgba(255, 50, 50, 0.5)';
+            
+            ctx.beginPath();
+            ctx.arc(mouseX, mouseY, 150, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Draw center
+            ctx.globalAlpha = 0.8;
+            ctx.fillStyle = 
+                interactionMode === 'attract' ? '#55f' :
+                interactionMode === 'repel' ? '#f55' :
+                interactionMode === 'freeze' ? '#5af' :
+                '#f00';
+            
+            ctx.beginPath();
+            ctx.arc(mouseX, mouseY, 10, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Draw mode indicator
+            ctx.fillStyle = 'white';
+            ctx.font = '12px Arial';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(
+                interactionMode === 'attract' ? 'A' :
+                interactionMode === 'repel' ? 'R' :
+                interactionMode === 'freeze' ? 'F' : 'D',
+                mouseX, mouseY
+            );
+            
+            ctx.restore();
+        }
+
+        // Create explosion at specified position
+        function createExplosion(x, y) {
+            // Create a repel force center
+            forceCenters.push(new ForceCenter(x, y, 'repel', 2.0, 200, 500));
+            
+            // Create particles
+            for (let i = 0; i < 50; i++) {
+                particles.push(new Particle(
+                    x, y, 
+                    COLOR_PALETTES[Math.floor(Math.random() * COLOR_PALETTES.length)][0],
+                    Math.random() > 0.3 ? 'sparkle' : 'circle'
+                ));
+            }
+            
+            // Add smoke
+            for (let i = 0; i < 15; i++) {
+                particles.push(new Particle(
+                    x, y, 
+                    '#888888',
+                    'smoke'
+                ));
+            }
+        }
+
+        // Create vortex at specified position
+        function createVortex(x, y) {
+            forceCenters.push(new ForceCenter(x, y, 'vortex', 1.5, 300, 3000));
+        }
+
+        // Draw lighting effects
+        function drawLighting() {
+            lightingCtx.clearRect(0, 0, lightingCanvas.width, lightingCanvas.height);
+            
+            // Draw ambient lighting
+            lightingCtx.fillStyle = `rgba(30, 40, 80, ${ambientLight * 0.3})`;
+            lightingCtx.fillRect(0, 0, lightingCanvas.width, lightingCanvas.height);
+            
+            // Draw directional light (simplified)
+            const gradient = lightingCtx.createRadialGradient(
+                lightingCanvas.width * 0.7, 
+                lightingCanvas.height * 0.3, 
+                0,
+                lightingCanvas.width * 0.7, 
+                lightingCanvas.height * 0.3, 
+                lightingCanvas.width * 0.8
+            );
+            
+            gradient.addColorStop(0, `rgba(255, 255, 200, ${lightIntensity * 0.1})`);
+            gradient.addColorStop(1, 'rgba(255, 255, 200, 0)');
+            
+            lightingCtx.fillStyle = gradient;
+            lightingCtx.fillRect(0, 0, lightingCanvas.width, lightingCanvas.height);
+        }
+
+        // Main animation loop
+        function animate() {
+            if (!isPaused) {
+                // Clear canvas with fade effect for motion blur
+                ctx.fillStyle = 'rgba(12, 12, 46, 0.1)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                // Update physics
+                updateForceCenters();
+                createObjects();
+                checkCollisions();
+                updateObjects();
+                
+                // Draw everything
+                drawForceCenters();
+                objects.forEach(obj => obj.draw());
+                drawParticles();
+                drawMouseInteraction();
+                
+                // Draw lighting
+                drawLighting();
+            }
+            
+            // Calculate FPS
+            frameCount++;
+            const currentTime = performance.now();
+            if (currentTime - lastTime >= 1000) {
+                fps = Math.round((frameCount * 1000) / (currentTime - lastTime));
+                fpsElement.textContent = fps;
+                frameCount = 0;
+                lastTime = currentTime;
+            }
+            
+            requestAnimationFrame(animate);
+        }
+
+        // Event listeners
+        function setupEventListeners() {
+            // Window resize
+            window.addEventListener('resize', () => {
+                canvas.width = lightingCanvas.width = window.innerWidth;
+                canvas.height = lightingCanvas.height = window.innerHeight;
+            });
+            
+            // Mouse events
+            canvas.addEventListener('mousedown', (e) => {
+                mouseIsDown = true;
+                mouseX = e.clientX;
+                mouseY = e.clientY;
+            });
+            
+            canvas.addEventListener('mousemove', (e) => {
+                mouseX = e.clientX;
+                mouseY = e.clientY;
+            });
+            
+            canvas.addEventListener('mouseup', () => {
+                mouseIsDown = false;
+            });
+            
+            canvas.addEventListener('dblclick', (e) => {
+                createExplosion(e.clientX, e.clientY);
+            });
+            
+            // Mouse wheel for interaction strength
+            canvas.addEventListener('wheel', (e) => {
+                e.preventDefault();
+                interactionStrength = Math.max(0.1, Math.min(3.0, interactionStrength - e.deltaY * 0.01));
+            });
+            
+            // Keyboard events
+            window.addEventListener('keydown', (e) => {
+                if (e.code === 'Space') {
+                    e.preventDefault();
+                    isPaused = !isPaused;
+                } else if (e.code === 'ArrowUp') {
+                    windY = -0.1;
+                } else if (e.code === 'ArrowDown') {
+                    windY = 0.1;
+                } else if (e.code === 'ArrowLeft') {
+                    windX = -0.1;
+                } else if (e.code === 'ArrowRight') {
+                    windX = 0.1;
+                }
+            });
+            
+            window.addEventListener('keyup', (e) => {
+                if (e.code === 'ArrowUp' || e.code === 'ArrowDown') {
+                    windY = 0;
+                } else if (e.code === 'ArrowLeft' || e.code === 'ArrowRight') {
+                    windX = 0;
+                }
+            });
+            
+            // Control sliders
+            creationRateSlider.addEventListener('input', () => {
+                creationRate = parseFloat(creationRateSlider.value);
+                creationRateValue.textContent = creationRate.toFixed(1);
+            });
+            
+            gravitySlider.addEventListener('input', () => {
+                gravity = parseFloat(gravitySlider.value);
+                gravityValue.textContent = gravity.toFixed(1);
+            });
+            
+            airResistanceSlider.addEventListener('input', () => {
+                airResistance = parseFloat(airResistanceSlider.value);
+                airResistanceValue.textContent = airResistance.toFixed(2);
+            });
+            
+            restitutionSlider.addEventListener('input', () => {
+                restitution = parseFloat(restitutionSlider.value);
+                elasticity = restitution;
+                restitutionValue.textContent = restitution.toFixed(2);
+            });
+            
+            lightIntensitySlider.addEventListener('input', () => {
+                lightIntensity = parseFloat(lightIntensitySlider.value);
+                lightIntensityValue.textContent = lightIntensity.toFixed(1);
+            });
+            
+            shadowStrengthSlider.addEventListener('input', () => {
+                shadowStrength = parseFloat(shadowStrengthSlider.value);
+                shadowStrengthValue.textContent = shadowStrength.toFixed(1);
+            });
+            
+            ambientLightSlider.addEventListener('input', () => {
+                ambientLight = parseFloat(ambientLightSlider.value);
+                ambientLightValue.textContent = ambientLight.toFixed(2);
+            });
+            
+            // Button events
+            explosionBtn.addEventListener('click', () => {
+                createExplosion(canvas.width / 2, canvas.height / 2);
+            });
+            
+            vortexBtn.addEventListener('click', () => {
+                createVortex(canvas.width / 2, canvas.height / 2);
+            });
+            
+            clearBtn.addEventListener('click', () => {
+                objects = [];
+                particles = [];
+                forceCenters = [];
+                collisionCount = 0;
+                totalEnergy = 0;
+            });
+            
+            // Interaction mode buttons
+            attractModeBtn.addEventListener('click', () => {
+                interactionMode = 'attract';
+                updateInteractionButtons();
+            });
+            
+            repelModeBtn.addEventListener('click', () => {
+                interactionMode = 'repel';
+                updateInteractionButtons();
+            });
+            
+            freezeModeBtn.addEventListener('click', () => {
+                interactionMode = 'freeze';
+                updateInteractionButtons();
+            });
+            
+            destroyModeBtn.addEventListener('click', () => {
+                interactionMode = 'destroy';
+                updateInteractionButtons();
+            });
+        }
+        
+        function updateInteractionButtons() {
+            // Reset all buttons
+            attractModeBtn.classList.remove('mode-active');
+            repelModeBtn.classList.remove('mode-active');
+            freezeModeBtn.classList.remove('mode-active');
+            destroyModeBtn.classList.remove('mode-active');
+            
+            // Highlight active button
+            if (interactionMode === 'attract') {
+                attractModeBtn.classList.add('mode-active');
+            } else if (interactionMode === 'repel') {
+                repelModeBtn.classList.add('mode-active');
+            } else if (interactionMode === 'freeze') {
+                freezeModeBtn.classList.add('mode-active');
+            } else if (interactionMode === 'destroy') {
+                destroyModeBtn.classList.add('mode-active');
+            }
+        }
+
+        // Initialize
+        setupEventListeners();
+        updateInteractionButtons();
+        animate();
+    </script>
+</body>
+</html>

@@ -1,0 +1,1819 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Psychrometric Chart</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --accent-color: #e74c3c;
+            --light-gray: #ecf0f1;
+            --dark-gray: #7f8c8d;
+        }
+        
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f5f7fa;
+            padding: 0;
+            overflow-x: hidden;
+        }
+        
+        .container {
+            max-width: 100%;
+            margin: 0 auto;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+        
+        header {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 15px 20px;
+            text-align: center;
+        }
+        
+        h1 {
+            font-size: clamp(1.5rem, 2.5vw, 2rem);
+            margin-bottom: 5px;
+        }
+        
+        .subtitle {
+            font-size: clamp(0.9rem, 1.5vw, 1.1rem);
+            opacity: 0.9;
+        }
+        
+        .view-toggle {
+            display: flex;
+            justify-content: center;
+            background-color: var(--light-gray);
+            padding: 10px;
+        }
+        
+        .view-toggle button {
+            margin: 0 5px;
+            padding: 8px 15px;
+            border: none;
+            border-radius: 4px;
+            background-color: var(--secondary-color);
+            color: white;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        
+        .view-toggle button.active {
+            background-color: var(--accent-color);
+        }
+        
+        .view-toggle button:hover {
+            background-color: #2980b9;
+        }
+        
+        .main-content {
+            display: flex;
+            flex-direction: column;
+            padding: 15px;
+        }
+        
+        @media (min-width: 1200px) {
+            .main-content {
+                flex-direction: row;
+            }
+        }
+        
+        .chart-section {
+            flex: 1;
+            min-width: 0;
+            margin-bottom: 15px;
+        }
+        
+        @media (min-width: 1200px) {
+            .chart-section {
+                margin-bottom: 0;
+                margin-right: 15px;
+            }
+        }
+        
+        .controls-section {
+            width: 100%;
+        }
+        
+        @media (min-width: 1200px) {
+            .controls-section {
+                width: 350px;
+            }
+        }
+        
+        .chart-container {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 16/9;
+            border: 1px solid var(--light-gray);
+            background-color: white;
+        }
+        
+        #threeDContainer {
+            width: 100%;
+            height: 100%;
+            display: none;
+        }
+        
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        
+        .point-marker {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background-color: var(--accent-color);
+            border-radius: 50%;
+            transform: translate(-5px, -5px);
+            pointer-events: none;
+            z-index: 10;
+        }
+        
+        .point-label {
+            position: absolute;
+            background-color: white;
+            padding: 2px 6px;
+            border: 1px solid var(--accent-color);
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+            color: var(--accent-color);
+            pointer-events: none;
+            transform: translate(10px, -15px);
+            z-index: 10;
+        }
+        
+        .control-panel {
+            background-color: var(--light-gray);
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 15px;
+        }
+        
+        .control-group {
+            margin-bottom: 15px;
+        }
+        
+        .control-group h3 {
+            font-size: 1rem;
+            margin-bottom: 10px;
+            color: var(--primary-color);
+        }
+        
+        select, input {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        button {
+            padding: 8px 15px;
+            border: none;
+            border-radius: 4px;
+            background-color: var(--secondary-color);
+            color: white;
+            font-size: 14px;
+            cursor: pointer;
+            flex: 1;
+            transition: background-color 0.2s;
+        }
+        
+        button:hover {
+            background-color: #2980b9;
+        }
+        
+        button.danger {
+            background-color: var(--accent-color);
+        }
+        
+        button.danger:hover {
+            background-color: #c0392b;
+        }
+        
+        button.secondary {
+            background-color: var(--dark-gray);
+        }
+        
+        button.secondary:hover {
+            background-color: #6c7a7d;
+        }
+        
+        .point-info {
+            background-color: white;
+            padding: 15px;
+            border-radius: 6px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+        
+        .point-info h3 {
+            margin-bottom: 10px;
+            color: var(--primary-color);
+        }
+        
+        .property-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 10px;
+        }
+        
+        .property-item {
+            padding: 8px;
+            background-color: var(--light-gray);
+            border-radius: 4px;
+        }
+        
+        .property-name {
+            font-size: 12px;
+            color: var(--dark-gray);
+            margin-bottom: 3px;
+        }
+        
+        .property-value {
+            font-weight: bold;
+            font-size: 14px;
+        }
+        
+        .property-unit {
+            font-size: 12px;
+            color: var(--dark-gray);
+            margin-left: 3px;
+        }
+        
+        .selected-points {
+            background-color: white;
+            padding: 15px;
+            border-radius: 6px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            margin-top: 15px;
+        }
+        
+        .selected-points h3 {
+            margin-bottom: 10px;
+            color: var(--primary-color);
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+        
+        th, td {
+            padding: 8px 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--light-gray);
+        }
+        
+        th {
+            background-color: var(--light-gray);
+            font-weight: 600;
+        }
+        
+        tr:hover {
+            background-color: rgba(52, 152, 219, 0.1);
+        }
+        
+        .tab-container {
+            margin-top: 15px;
+        }
+        
+        .tab-buttons {
+            display: flex;
+            overflow-x: auto;
+            margin-bottom: -1px;
+        }
+        
+        .tab-button {
+            padding: 10px 20px;
+            background-color: var(--light-gray);
+            border: 1px solid #ddd;
+            border-bottom: none;
+            cursor: pointer;
+            font-size: 14px;
+            white-space: nowrap;
+            border-radius: 6px 6px 0 0;
+            margin-right: 5px;
+        }
+        
+        .tab-button.active {
+            background-color: white;
+            border-bottom: 1px solid white;
+            font-weight: 600;
+            color: var(--secondary-color);
+        }
+        
+        .tab-content {
+            display: none;
+            padding: 15px;
+            border: 1px solid #ddd;
+            background-color: white;
+            border-radius: 0 0 6px 6px;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .data-table-container {
+            overflow-x: auto;
+        }
+        
+        .data-table {
+            min-width: 600px;
+        }
+        
+        .footer {
+            text-align: center;
+            padding: 15px;
+            font-size: 12px;
+            color: var(--dark-gray);
+            border-top: 1px solid var(--light-gray);
+        }
+        
+        .color-controls {
+            margin-top: 15px;
+        }
+        
+        .color-option {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        
+        .color-option label {
+            margin-right: 10px;
+            font-size: 14px;
+            width: 120px;
+        }
+        
+        .color-option input {
+            width: 60px;
+            padding: 0;
+            margin-right: 10px;
+        }
+        
+        .reset-view {
+            margin-top: 10px;
+            width: 100%;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>3D Psychrometric Chart</h1>
+            <div class="subtitle">Interactive thermodynamic visualization of moist air properties</div>
+        </header>
+        
+        <div class="view-toggle">
+            <button id="view2D" class="active">2D View</button>
+            <button id="view3D">3D View</button>
+        </div>
+        
+        <div class="main-content">
+            <div class="chart-section">
+                <div class="chart-container" id="chartContainer">
+                    <canvas id="psychChart"></canvas>
+                    <div id="threeDContainer"></div>
+                </div>
+                
+                <div class="control-panel">
+                    <div class="control-group">
+                        <h3>Chart Controls</h3>
+                        <div class="btn-group">
+                            <button id="selectMode">Select Points</button>
+                            <button id="clearPoints" class="danger">Clear All</button>
+                        </div>
+                    </div>
+                    
+                    <div class="control-group">
+                        <h3>Pressure Setting</h3>
+                        <select id="pressureSelect">
+                            <option value="0.75">0.75 bar</option>
+                            <option value="0.80">0.80 bar</option>
+                            <option value="0.85">0.85 bar</option>
+                            <option value="0.90">0.90 bar</option>
+                            <option value="0.95">0.95 bar</option>
+                            <option value="1.00" selected>1.00 bar (standard)</option>
+                            <option value="1.05">1.05 bar</option>
+                            <option value="1.10">1.10 bar</option>
+                            <option value="1.15">1.15 bar</option>
+                            <option value="1.20">1.20 bar</option>
+                            <option value="1.25">1.25 bar</option>
+                            <option value="1.30">1.30 bar</option>
+                            <option value="1.33">1.33 bar</option>
+                        </select>
+                    </div>
+                    
+                    <div class="control-group">
+                        <h3>Data Tables</h3>
+                        <div class="btn-group">
+                            <button id="showData" class="secondary">Show Data</button>
+                            <button id="hideData" class="secondary">Hide Data</button>
+                        </div>
+                    </div>
+                    
+                    <div class="control-group color-controls" id="colorControls" style="display: none;">
+                        <h3>3D Color Settings</h3>
+                        <div class="color-option">
+                            <label>RH Lines:</label>
+                            <input type="color" id="rhColor" value="#2980b9">
+                        </div>
+                        <div class="color-option">
+                            <label>Enthalpy Lines:</label>
+                            <input type="color" id="enthalpyColor" value="#27ae60">
+                        </div>
+                        <div class="color-option">
+                            <label>Wet Bulb Lines:</label>
+                            <input type="color" id="wetBulbColor" value="#9b59b6">
+                        </div>
+                        <div class="color-option">
+                            <label>Background:</label>
+                            <input type="color" id="bgColor" value="#f8f9fa">
+                        </div>
+                        <button id="reset3DView" class="reset-view">Reset 3D View</button>
+                    </div>
+                </div>
+                
+                <div class="point-info" id="pointInfo">
+                    <h3>Selected Point Properties</h3>
+                    <div id="currentPointProps">Click on the chart to select a point</div>
+                </div>
+            </div>
+            
+            <div class="controls-section">
+                <div class="selected-points" id="selectedPoints">
+                    <h3>Selected Points Sequence</h3>
+                    <table id="pointsTable">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Dry Bulb</th>
+                                <th>Wet Bulb</th>
+                                <th>RH</th>
+                                <th>Humidity</th>
+                                <th>Enthalpy</th>
+                            </tr>
+                        </thead>
+                        <tbody id="pointsTableBody">
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="tab-container" id="dataTabs" style="display: none;">
+                    <div class="tab-buttons">
+                        <button class="tab-button active" data-tab="enthalpy">Enthalpy</button>
+                        <button class="tab-button" data-tab="entropy">Entropy</button>
+                        <button class="tab-button" data-tab="humidity">Humidity</button>
+                        <button class="tab-button" data-tab="density">Density</button>
+                        <button class="tab-button" data-tab="specificHeat">Specific Heat</button>
+                    </div>
+                    
+                    <div class="tab-content active" id="enthalpy">
+                        <h3>Enthalpy Data (kJ/kg)</h3>
+                        <div class="data-table-container">
+                            <div id="enthalpyTable"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="tab-content" id="entropy">
+                        <h3>Entropy Data (kJ/kg·K)</h3>
+                        <div class="data-table-container">
+                            <div id="entropyTable"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="tab-content" id="humidity">
+                        <h3>Humidity Ratio Data (kg/kg)</h3>
+                        <div class="data-table-container">
+                            <div id="humidityTable"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="tab-content" id="density">
+                        <h3>Density Data (kg/m³)</h3>
+                        <div class="data-table-container">
+                            <div id="densityTable"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="tab-content" id="specificHeat">
+                        <h3>Specific Heat Data (kJ/kg·K)</h3>
+                        <div class="data-table-container">
+                            <div id="specificHeatTable"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="footer">
+            Advanced Psychrometric Chart Tool &copy; 2023 | Based on ASHRAE Fundamentals
+        </div>
+    </div>
+
+    <script>
+        // Enhanced Psychrometric Calculations - ASHRAE Fundamentals (Exact Equations)
+        class Psychrometrics {
+            // Constants
+            static get R_DA() { return 287.055; } // Gas constant for dry air (J/kg·K)
+            static get R_W() { return 461.52; }   // Gas constant for water vapor (J/kg·K)
+            static get CP_DA() { return 1005.0; }  // Specific heat of dry air (J/kg·K)
+            static get CP_W() { return 1865.0; }   // Specific heat of water vapor (J/kg·K)
+            static get CP_WATER() { return 4186.0; } // Specific heat of liquid water (J/kg·K)
+            static get H_FG() { return 2501000.0; } // Latent heat of vaporization (J/kg)
+            
+            // Enhanced saturation vapor pressure calculation with more precise coefficients
+            static saturationVaporPressure(t) {
+                const T = t + 273.15; // Convert to Kelvin
+                if (t >= -100 && t <= 0) {
+                    // Ice below 0°C - ASHRAE 2017 formula
+                    const lnPws = -5.6745359e3/T + 6.3925247 - 9.677843e-3*T 
+                                + 6.2215701e-7*T*T + 2.0747825e-9*Math.pow(T,3) 
+                                - 9.484024e-13*Math.pow(T,4) + 4.1635019*Math.log(T);
+                    return Math.exp(lnPws);
+                } else if (t > 0 && t <= 200) {
+                    // Liquid water above 0°C - ASHRAE 2017 formula
+                    const lnPws = -5.8002206e3/T + 1.3914993 - 4.8640239e-2*T 
+                                + 4.1764768e-5*T*T - 1.4452093e-8*Math.pow(T,3) 
+                                + 6.5459673*Math.log(T);
+                    return Math.exp(lnPws);
+                }
+                return 0;
+            }
+            
+            // Enhanced humidity ratio calculation with more precise constant
+            static humidityRatio(t, rh, p) {
+                const pws = this.saturationVaporPressure(t);
+                const pw = rh * pws / 100;
+                return 0.621945 * pw / (p * 100 - pw); // More precise constant
+            }
+            
+            // Enhanced relative humidity calculation
+            static relativeHumidity(t, W, p) {
+                const pws = this.saturationVaporPressure(t);
+                const pw = p * 100 * W / (0.621945 + W);
+                return Math.max(0, Math.min(100, (pw / pws) * 100));
+            }
+            
+            // Enhanced enthalpy calculation with more precise coefficients
+            static enthalpy(t, W) {
+                return t * (1.006 + W * 1.86) + W * 2501.0; // kJ/kg
+            }
+            
+            // Enhanced specific volume calculation
+            static specificVolume(t, W, p) {
+                const Rda = this.R_DA;
+                const Rw = this.R_W;
+                const T = t + 273.15;
+                return (Rda * T * (1 + 1.6078 * W)) / (p * 100000);
+            }
+            
+            // Enhanced wet-bulb temperature calculation with better convergence
+            static wetBulbTemperature(t, rh, p, precision = 0.001) {
+                if (rh >= 99.99) return t;
+                
+                let tw = t; // Initial guess
+                let f, df, W, Ws, h, hs, delta;
+                let iterations = 0;
+                const maxIterations = 50;
+                
+                // First, try with simple approximation for initial guess
+                if (t > 0) {
+                    tw = t * Math.atan(0.151977 * Math.sqrt(rh + 8.313659)) + 
+                         Math.atan(t + rh) - Math.atan(rh - 1.676331) + 
+                         0.00391838 * Math.pow(rh, 1.5) * Math.atan(0.023101 * rh) - 4.686035;
+                }
+                
+                // Then use Newton-Raphson for precise calculation
+                do {
+                    W = this.humidityRatio(t, rh, p);
+                    h = this.enthalpy(t, W);
+                    
+                    Ws = this.humidityRatio(tw, 100, p);
+                    hs = this.enthalpy(tw, Ws);
+                    
+                    // Function whose root we're finding: f(tw) = h - hs - (W - Ws) * cpw * tw
+                    f = h - hs - (W - Ws) * this.CP_WATER * tw;
+                    
+                    // Numerical derivative with smaller step for better precision
+                    const tw2 = tw + 0.01;
+                    const Ws2 = this.humidityRatio(tw2, 100, p);
+                    const hs2 = this.enthalpy(tw2, Ws2);
+                    const f2 = h - hs2 - (W - Ws2) * this.CP_WATER * tw2;
+                    df = (f2 - f) / 0.01;
+                    
+                    delta = f / df;
+                    tw -= delta;
+                    iterations++;
+                } while (Math.abs(delta) > precision && iterations < maxIterations);
+                
+                return tw;
+            }
+            
+            // Enhanced dew point temperature calculation
+            static dewPointTemperature(t, rh) {
+                const pws = this.saturationVaporPressure(t);
+                const pw = rh * pws / 100;
+                
+                if (pw <= 0) return -273.15;
+                
+                // Solve for Td where saturation vapor pressure = pw
+                let Td = t + 273.15; // Initial guess in Kelvin
+                let f, df, delta;
+                let iterations = 0;
+                const maxIterations = 50;
+                const lnPw = Math.log(pw);
+                
+                do {
+                    let lnPws;
+                    
+                    if (Td <= 273.15) {
+                        // Ice
+                        lnPws = -5.6745359e3/Td + 6.3925247 - 9.677843e-3*Td 
+                               + 6.2215701e-7*Td*Td + 2.0747825e-9*Math.pow(Td,3) 
+                               - 9.484024e-13*Math.pow(Td,4) + 4.1635019*Math.log(Td);
+                    } else {
+                        // Liquid water
+                        lnPws = -5.8002206e3/Td + 1.3914993 - 4.8640239e-2*Td 
+                               + 4.1764768e-5*Td*Td - 1.4452093e-8*Math.pow(Td,3) 
+                               + 6.5459673*Math.log(Td);
+                    }
+                    
+                    f = lnPws - lnPw;
+                    
+                    // Numerical derivative with smaller step
+                    const Td2 = Td + 0.01;
+                    let lnPws2;
+                    
+                    if (Td2 <= 273.15) {
+                        lnPws2 = -5.6745359e3/Td2 + 6.3925247 - 9.677843e-3*Td2 
+                                + 6.2215701e-7*Td2*Td2 + 2.0747825e-9*Math.pow(Td2,3) 
+                                - 9.484024e-13*Math.pow(Td2,4) + 4.1635019*Math.log(Td2);
+                    } else {
+                        lnPws2 = -5.8002206e3/Td2 + 1.3914993 - 4.8640239e-2*Td2 
+                                + 4.1764768e-5*Td2*Td2 - 1.4452093e-8*Math.pow(Td2,3) 
+                                + 6.5459673*Math.log(Td2);
+                    }
+                    
+                    const f2 = lnPws2 - lnPw;
+                    df = (f2 - f) / 0.01;
+                    
+                    delta = f / df;
+                    Td -= delta;
+                    iterations++;
+                } while (Math.abs(delta) > 0.001 && iterations < maxIterations);
+                
+                return Td - 273.15;
+            }
+            
+            // Enhanced calculation of all psychrometric properties
+            static calculateProperties(dryBulb, relativeHumidity, pressure) {
+                // Clamp RH to 0-100% range
+                const rh = Math.max(0, Math.min(100, relativeHumidity));
+                
+                // Convert pressure from bar to kPa
+                const p = pressure * 100;
+                
+                const W = this.humidityRatio(dryBulb, rh, p);
+                const h = this.enthalpy(dryBulb, W);
+                const v = this.specificVolume(dryBulb, W, p);
+                const rho = 1 / v;
+                const wetBulb = this.wetBulbTemperature(dryBulb, rh, p);
+                const dewPoint = this.dewPointTemperature(dryBulb, rh);
+                const pws = this.saturationVaporPressure(dryBulb);
+                const pw = rh * pws / 100;
+                
+                // Enhanced specific heat calculation
+                const cp = this.CP_DA + W * this.CP_W;
+                
+                // Enhanced entropy calculation (kJ/kg·K)
+                const T = dryBulb + 273.15;
+                const s = (this.CP_DA * Math.log(T/273.15) + W * (this.CP_W * Math.log(T/273.15) 
+                        + this.H_FG/T + this.R_W * Math.log((pw)/611.2))) / 1000;
+                
+                return {
+                    dryBulb: dryBulb,
+                    wetBulb: wetBulb,
+                    dewPoint: dewPoint,
+                    relativeHumidity: rh,
+                    humidityRatio: W,
+                    enthalpy: h,
+                    specificVolume: v,
+                    density: rho,
+                    vaporPressure: pw,
+                    saturationVaporPressure: pws,
+                    specificHeat: cp / 1000, // Convert to kJ/kg·K
+                    entropy: s,
+                    pressure: p
+                };
+            }
+        }
+
+        // 2D Chart Manager
+        class PsychrometricChart2D {
+            constructor(canvasId, containerId) {
+                this.canvas = document.getElementById(canvasId);
+                this.ctx = this.canvas.getContext('2d');
+                this.container = document.getElementById(containerId);
+                this.points = [];
+                this.pressure = 1.0; // bar
+                this.chartParams = null;
+                
+                this.resizeCanvas();
+                window.addEventListener('resize', this.resizeCanvas.bind(this));
+            }
+            
+            resizeCanvas() {
+                const containerWidth = this.container.clientWidth;
+                const containerHeight = this.container.clientHeight;
+                
+                // Maintain aspect ratio (16:9 for better mobile display)
+                const aspectRatio = 16/9;
+                let width, height;
+                
+                if (containerWidth / containerHeight > aspectRatio) {
+                    height = containerHeight;
+                    width = height * aspectRatio;
+                } else {
+                    width = containerWidth;
+                    height = width / aspectRatio;
+                }
+                
+                this.canvas.width = width;
+                this.canvas.height = height;
+                
+                this.drawChart();
+            }
+            
+            setPressure(pressure) {
+                this.pressure = pressure;
+                this.drawChart();
+            }
+            
+            addPoint(props) {
+                this.points.push(props);
+                this.drawPoint(this.points.length - 1);
+                return props;
+            }
+            
+            clearPoints() {
+                this.points = [];
+                this.clearMarkers();
+            }
+            
+            clearMarkers() {
+                document.querySelectorAll('.point-marker, .point-label').forEach(el => el.remove());
+            }
+            
+            drawPoint(index) {
+                if (!this.chartParams || index >= this.points.length) return;
+                
+                const point = this.points[index];
+                const pos = this.psychrometricToScreen(point);
+                
+                // Create marker
+                const marker = document.createElement('div');
+                marker.className = 'point-marker';
+                marker.style.left = `${pos.x}px`;
+                marker.style.top = `${pos.y}px`;
+                this.container.appendChild(marker);
+                
+                // Create label
+                const label = document.createElement('div');
+                label.className = 'point-label';
+                label.textContent = (index + 1).toString();
+                label.style.left = `${pos.x}px`;
+                label.style.top = `${pos.y}px`;
+                this.container.appendChild(label);
+            }
+            
+            drawChart() {
+                const ctx = this.ctx;
+                const width = this.canvas.width;
+                const height = this.canvas.height;
+                const margin = Math.min(width, height) * 0.07;
+                
+                // Clear canvas
+                ctx.clearRect(0, 0, width, height);
+                
+                // Chart area
+                const chartWidth = width - 2 * margin;
+                const chartHeight = height - 2 * margin;
+                
+                // Axis ranges - adjusted for better mobile display
+                const minDryBulb = -10;
+                const maxDryBulb = 50;
+                const minHumidityRatio = 0;
+                const maxHumidityRatio = 0.03;
+                
+                // Scaling factors
+                const xScale = chartWidth / (maxDryBulb - minDryBulb);
+                const yScale = chartHeight / (maxHumidityRatio - minHumidityRatio);
+                
+                // Draw axes
+                ctx.strokeStyle = '#000';
+                ctx.lineWidth = 2;
+                
+                // X-axis (Dry Bulb Temperature)
+                ctx.beginPath();
+                ctx.moveTo(margin, height - margin);
+                ctx.lineTo(width - margin, height - margin);
+                ctx.stroke();
+                
+                // Y-axis (Humidity Ratio)
+                ctx.beginPath();
+                ctx.moveTo(margin, height - margin);
+                ctx.lineTo(margin, margin);
+                ctx.stroke();
+                
+                // Axis labels
+                ctx.fillStyle = '#000';
+                ctx.font = `${Math.min(width, height) * 0.02}px Arial`;
+                ctx.textAlign = 'center';
+                ctx.fillText('Dry Bulb Temperature (°C)', width / 2, height - margin / 3);
+                
+                ctx.save();
+                ctx.translate(margin / 3, height / 2);
+                ctx.rotate(-Math.PI / 2);
+                ctx.textAlign = 'center';
+                ctx.fillText('Humidity Ratio (kg/kg)', 0, 0);
+                ctx.restore();
+                
+                // Draw grid lines and ticks
+                ctx.strokeStyle = '#ddd';
+                ctx.lineWidth = 1;
+                ctx.font = `${Math.min(width, height) * 0.015}px Arial`;
+                ctx.fillStyle = '#555';
+                ctx.textAlign = 'center';
+                
+                // X-axis ticks
+                for (let t = minDryBulb; t <= maxDryBulb; t += 5) {
+                    const x = margin + (t - minDryBulb) * xScale;
+                    ctx.beginPath();
+                    ctx.moveTo(x, height - margin);
+                    ctx.lineTo(x, height - margin + 5);
+                    ctx.stroke();
+                    ctx.fillText(t.toString(), x, height - margin + margin / 3);
+                    
+                    // Grid line
+                    ctx.beginPath();
+                    ctx.moveTo(x, height - margin);
+                    ctx.lineTo(x, margin);
+                    ctx.stroke();
+                }
+                
+                // Y-axis ticks
+                for (let w = 0; w <= maxHumidityRatio; w += 0.005) {
+                    const y = height - margin - w * yScale;
+                    ctx.beginPath();
+                    ctx.moveTo(margin, y);
+                    ctx.lineTo(margin - 5, y);
+                    ctx.stroke();
+                    ctx.textAlign = 'right';
+                    ctx.fillText(w.toFixed(3), margin - 8, y + 5);
+                    ctx.textAlign = 'center';
+                    
+                    // Grid line
+                    ctx.beginPath();
+                    ctx.moveTo(margin, y);
+                    ctx.lineTo(width - margin, y);
+                    ctx.stroke();
+                }
+                
+                // Draw saturation line (100% RH)
+                ctx.strokeStyle = '#2980b9';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                
+                // Higher resolution for smoother curve
+                for (let t = minDryBulb; t <= maxDryBulb; t += 0.2) {
+                    const props = Psychrometrics.calculateProperties(t, 100, this.pressure);
+                    const x = margin + (t - minDryBulb) * xScale;
+                    const y = height - margin - props.humidityRatio * yScale;
+                    
+                    if (t === minDryBulb) {
+                        ctx.moveTo(x, y);
+                    } else {
+                        ctx.lineTo(x, y);
+                    }
+                }
+                ctx.stroke();
+                
+                // Draw constant RH lines
+                const rhValues = [10, 20, 30, 40, 50, 60, 70, 80, 90];
+                ctx.strokeStyle = 'rgba(41, 128, 185, 0.5)';
+                ctx.lineWidth = 1;
+                
+                rhValues.forEach(rh => {
+                    ctx.beginPath();
+                    let firstPoint = true;
+                    
+                    // Higher resolution for smoother curves
+                    for (let t = minDryBulb; t <= maxDryBulb; t += 0.2) {
+                        const props = Psychrometrics.calculateProperties(t, rh, this.pressure);
+                        if (props.humidityRatio <= maxHumidityRatio) {
+                            const x = margin + (t - minDryBulb) * xScale;
+                            const y = height - margin - props.humidityRatio * yScale;
+                            
+                            if (firstPoint) {
+                                ctx.moveTo(x, y);
+                                firstPoint = false;
+                            } else {
+                                ctx.lineTo(x, y);
+                            }
+                        }
+                    }
+                    ctx.stroke();
+                    
+                    // Add RH label
+                    if (rh > 10) {
+                        const t = 25;
+                        const props = Psychrometrics.calculateProperties(t, rh, this.pressure);
+                        if (props.humidityRatio <= maxHumidityRatio) {
+                            const x = margin + (t - minDryBulb) * xScale;
+                            const y = height - margin - props.humidityRatio * yScale;
+                            ctx.fillStyle = '#2980b9';
+                            ctx.fillText(`${rh}%`, x + 15, y - 5);
+                            ctx.fillStyle = '#555';
+                        }
+                    }
+                });
+                
+                // Draw constant enthalpy lines
+                const enthalpyValues = [0, 20, 40, 60, 80, 100, 120];
+                ctx.strokeStyle = 'rgba(39, 174, 96, 0.7)';
+                ctx.lineWidth = 1;
+                ctx.setLineDash([5, 3]);
+                
+                enthalpyValues.forEach(h => {
+                    ctx.beginPath();
+                    let points = [];
+                    
+                    // Higher resolution for smoother curves
+                    for (let t = minDryBulb; t <= maxDryBulb; t += 0.2) {
+                        // Find RH that gives this enthalpy
+                        let lowRH = 0, highRH = 100;
+                        let bestRH = 50;
+                        let bestDiff = Infinity;
+                        
+                        // Binary search for RH that matches enthalpy
+                        for (let i = 0; i < 20; i++) {
+                            const midRH = (lowRH + highRH) / 2;
+                            const props = Psychrometrics.calculateProperties(t, midRH, this.pressure);
+                            
+                            if (Math.abs(props.enthalpy - h) < bestDiff) {
+                                bestDiff = Math.abs(props.enthalpy - h);
+                                bestRH = midRH;
+                            }
+                            
+                            if (props.enthalpy < h) {
+                                lowRH = midRH;
+                            } else {
+                                highRH = midRH;
+                            }
+                        }
+                        
+                        const props = Psychrometrics.calculateProperties(t, bestRH, this.pressure);
+                        if (props.humidityRatio <= maxHumidityRatio) {
+                            const x = margin + (t - minDryBulb) * xScale;
+                            const y = height - margin - props.humidityRatio * yScale;
+                            points.push({x, y});
+                        }
+                    }
+                    
+                    // Draw smooth line through points
+                    if (points.length > 1) {
+                        ctx.moveTo(points[0].x, points[0].y);
+                        for (let i = 1; i < points.length; i++) {
+                            ctx.lineTo(points[i].x, points[i].y);
+                        }
+                        ctx.stroke();
+                        
+                        // Add enthalpy label
+                        if (h >= 0) {
+                            const midPoint = points[Math.floor(points.length / 2)];
+                            if (midPoint) {
+                                ctx.fillStyle = '#27ae60';
+                                ctx.fillText(`${h} kJ/kg`, midPoint.x - 30, midPoint.y - 5);
+                                ctx.fillStyle = '#555';
+                            }
+                        }
+                    }
+                });
+                
+                ctx.setLineDash([]);
+                
+                // Draw constant wet bulb lines
+                const wetBulbValues = [0, 10, 20, 30, 40];
+                ctx.strokeStyle = 'rgba(155, 89, 182, 0.7)';
+                ctx.lineWidth = 1;
+                ctx.setLineDash([3, 3]);
+                
+                wetBulbValues.forEach(wb => {
+                    ctx.beginPath();
+                    let points = [];
+                    
+                    // Higher resolution for smoother curves
+                    for (let t = minDryBulb; t <= maxDryBulb; t += 0.2) {
+                        // Find RH that gives this wet bulb
+                        let lowRH = 0, highRH = 100;
+                        let bestRH = 50;
+                        let bestDiff = Infinity;
+                        
+                        // Binary search for RH that matches wet bulb
+                        for (let i = 0; i < 20; i++) {
+                            const midRH = (lowRH + highRH) / 2;
+                            const props = Psychrometrics.calculateProperties(t, midRH, this.pressure);
+                            
+                            if (Math.abs(props.wetBulb - wb) < bestDiff) {
+                                bestDiff = Math.abs(props.wetBulb - wb);
+                                bestRH = midRH;
+                            }
+                            
+                            if (props.wetBulb < wb) {
+                                lowRH = midRH;
+                            } else {
+                                highRH = midRH;
+                            }
+                        }
+                        
+                        const props = Psychrometrics.calculateProperties(t, bestRH, this.pressure);
+                        if (props.humidityRatio <= maxHumidityRatio) {
+                            const x = margin + (t - minDryBulb) * xScale;
+                            const y = height - margin - props.humidityRatio * yScale;
+                            points.push({x, y});
+                        }
+                    }
+                    
+                    // Draw smooth line through points
+                    if (points.length > 1) {
+                        ctx.moveTo(points[0].x, points[0].y);
+                        for (let i = 1; i < points.length; i++) {
+                            ctx.lineTo(points[i].x, points[i].y);
+                        }
+                        ctx.stroke();
+                        
+                        // Add wet bulb label
+                        if (wb >= 0) {
+                            const midPoint = points[Math.floor(points.length / 2)];
+                            if (midPoint) {
+                                ctx.fillStyle = '#9b59b6';
+                                ctx.fillText(`${wb}°C WB`, midPoint.x + 20, midPoint.y + 5);
+                                ctx.fillStyle = '#555';
+                            }
+                        }
+                    }
+                });
+                
+                ctx.setLineDash([]);
+                
+                // Store chart parameters for point conversion
+                this.chartParams = {
+                    margin: margin,
+                    minDryBulb: minDryBulb,
+                    maxDryBulb: maxDryBulb,
+                    minHumidityRatio: minHumidityRatio,
+                    maxHumidityRatio: maxHumidityRatio,
+                    xScale: xScale,
+                    yScale: yScale,
+                    width: width,
+                    height: height
+                };
+                
+                // Redraw selected points
+                this.clearMarkers();
+                this.points.forEach((_, i) => this.drawPoint(i));
+            }
+            
+            screenToPsychrometric(x, y) {
+                if (!this.chartParams) return null;
+                
+                const dryBulb = this.chartParams.minDryBulb + (x - this.chartParams.margin) / this.chartParams.xScale;
+                const humidityRatio = (this.chartParams.height - this.chartParams.margin - y) / this.chartParams.yScale;
+                
+                // Find RH that gives this humidity ratio at this dry bulb temperature
+                let lowRH = 0, highRH = 100;
+                let bestRH = 50;
+                let bestDiff = Infinity;
+                
+                // Enhanced binary search for RH that matches humidity ratio
+                for (let i = 0; i < 25; i++) {
+                    const midRH = (lowRH + highRH) / 2;
+                    const props = Psychrometrics.calculateProperties(dryBulb, midRH, this.pressure);
+                    
+                    if (Math.abs(props.humidityRatio - humidityRatio) < bestDiff) {
+                        bestDiff = Math.abs(props.humidityRatio - humidityRatio);
+                        bestRH = midRH;
+                    }
+                    
+                    if (props.humidityRatio < humidityRatio) {
+                        lowRH = midRH;
+                    } else {
+                        highRH = midRH;
+                    }
+                }
+                
+                return Psychrometrics.calculateProperties(dryBulb, bestRH, this.pressure);
+            }
+            
+            psychrometricToScreen(props) {
+                if (!this.chartParams) return {x: 0, y: 0};
+                
+                const x = this.chartParams.margin + (props.dryBulb - this.chartParams.minDryBulb) * this.chartParams.xScale;
+                const y = this.chartParams.height - this.chartParams.margin - props.humidityRatio * this.chartParams.yScale;
+                
+                return {x, y};
+            }
+        }
+
+        // 3D Chart Manager using Three.js
+        class PsychrometricChart3D {
+            constructor(containerId) {
+                this.container = document.getElementById(containerId);
+                this.points = [];
+                this.pressure = 1.0;
+                this.scene = null;
+                this.camera = null;
+                this.renderer = null;
+                this.controls = null;
+                this.rhColor = 0x2980b9;
+                this.enthalpyColor = 0x27ae60;
+                this.wetBulbColor = 0x9b59b6;
+                this.bgColor = 0xf8f9fa;
+                
+                this.init();
+                window.addEventListener('resize', this.resize.bind(this));
+            }
+            
+            init() {
+                // Create scene
+                this.scene = new THREE.Scene();
+                this.scene.background = new THREE.Color(this.bgColor);
+                
+                // Create camera
+                this.camera = new THREE.PerspectiveCamera(
+                    75, 
+                    this.container.clientWidth / this.container.clientHeight, 
+                    0.1, 
+                    1000
+                );
+                this.camera.position.set(0, 0, 5);
+                
+                // Create renderer
+                this.renderer = new THREE.WebGLRenderer({ antialias: true });
+                this.renderer.setSize(this.container.clientWidth, this.container.clientHeight);
+                this.container.appendChild(this.renderer.domElement);
+                
+                // Add controls
+                this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
+                this.controls.enableDamping = true;
+                this.controls.dampingFactor = 0.25;
+                
+                // Add axes helper
+                const axesHelper = new THREE.AxesHelper(1.5);
+                this.scene.add(axesHelper);
+                
+                // Add grid helper
+                const gridHelper = new THREE.GridHelper(3, 20);
+                this.scene.add(gridHelper);
+                
+                // Initial render
+                this.drawChart();
+                this.animate();
+            }
+            
+            setPressure(pressure) {
+                this.pressure = pressure;
+                this.drawChart();
+            }
+            
+            setColors(rhColor, enthalpyColor, wetBulbColor, bgColor) {
+                this.rhColor = new THREE.Color(rhColor).getHex();
+                this.enthalpyColor = new THREE.Color(enthalpyColor).getHex();
+                this.wetBulbColor = new THREE.Color(wetBulbColor).getHex();
+                this.bgColor = new THREE.Color(bgColor).getHex();
+                this.scene.background = new THREE.Color(this.bgColor);
+                this.drawChart();
+            }
+            
+            resetView() {
+                this.camera.position.set(0, 0, 5);
+                this.controls.reset();
+            }
+            
+            addPoint(props) {
+                this.points.push(props);
+                this.drawPoint(this.points.length - 1);
+                return props;
+            }
+            
+            clearPoints() {
+                this.points = [];
+                this.drawChart();
+            }
+            
+            drawPoint(index) {
+                if (index >= this.points.length) return;
+                
+                const point = this.points[index];
+                const pos = this.psychrometricTo3D(point);
+                
+                // Create point geometry
+                const geometry = new THREE.SphereGeometry(0.02, 16, 16);
+                const material = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+                const sphere = new THREE.Mesh(geometry, material);
+                sphere.position.set(pos.x, pos.y, pos.z);
+                this.scene.add(sphere);
+                
+                // Create label
+                const canvas = document.createElement('canvas');
+                canvas.width = 128;
+                canvas.height = 64;
+                const context = canvas.getContext('2d');
+                context.fillStyle = 'rgba(255, 255, 255, 0.7)';
+                context.fillRect(0, 0, canvas.width, canvas.height);
+                context.fillStyle = '#000';
+                context.font = '24px Arial';
+                context.textAlign = 'center';
+                context.fillText((index + 1).toString(), canvas.width / 2, canvas.height / 2 + 8);
+                
+                const texture = new THREE.CanvasTexture(canvas);
+                const spriteMaterial = new THREE.SpriteMaterial({ map: texture });
+                const sprite = new THREE.Sprite(spriteMaterial);
+                sprite.position.set(pos.x, pos.y, pos.z + 0.05);
+                sprite.scale.set(0.2, 0.1, 1);
+                this.scene.add(sprite);
+            }
+            
+            drawChart() {
+                // Clear previous chart elements
+                this.scene.children.slice().forEach(child => {
+                    if (child !== this.camera && child !== this.controls && 
+                        !(child instanceof THREE.AxesHelper) && !(child instanceof THREE.GridHelper)) {
+                        this.scene.remove(child);
+                    }
+                });
+                
+                // Chart parameters
+                const minDryBulb = -10;
+                const maxDryBulb = 50;
+                const minHumidityRatio = 0;
+                const maxHumidityRatio = 0.03;
+                const minEnthalpy = -20;
+                const maxEnthalpy = 120;
+                
+                // Scale factors
+                const xScale = 3 / (maxDryBulb - minDryBulb);
+                const yScale = 3 / (maxHumidityRatio - minHumidityRatio);
+                const zScale = 3 / (maxEnthalpy - minEnthalpy);
+                
+                // Draw saturation line (100% RH)
+                const saturationPoints = [];
+                for (let t = minDryBulb; t <= maxDryBulb; t += 0.5) {
+                    const props = Psychrometrics.calculateProperties(t, 100, this.pressure);
+                    saturationPoints.push(
+                        (t - minDryBulb) * xScale - 1.5,
+                        props.humidityRatio * yScale - 1.5,
+                        (props.enthalpy - minEnthalpy) * zScale - 1.5
+                    );
+                }
+                
+                const saturationGeometry = new THREE.BufferGeometry();
+                saturationGeometry.setAttribute(
+                    'position',
+                    new THREE.Float32BufferAttribute(saturationPoints, 3)
+                );
+                const saturationMaterial = new THREE.LineBasicMaterial({ 
+                    color: this.rhColor,
+                    linewidth: 2
+                });
+                const saturationLine = new THREE.Line(saturationGeometry, saturationMaterial);
+                this.scene.add(saturationLine);
+                
+                // Draw constant RH lines
+                const rhValues = [10, 20, 30, 40, 50, 60, 70, 80, 90];
+                rhValues.forEach(rh => {
+                    const points = [];
+                    
+                    for (let t = minDryBulb; t <= maxDryBulb; t += 0.5) {
+                        const props = Psychrometrics.calculateProperties(t, rh, this.pressure);
+                        if (props.humidityRatio <= maxHumidityRatio) {
+                            points.push(
+                                (t - minDryBulb) * xScale - 1.5,
+                                props.humidityRatio * yScale - 1.5,
+                                (props.enthalpy - minEnthalpy) * zScale - 1.5
+                            );
+                        }
+                    }
+                    
+                    const geometry = new THREE.BufferGeometry();
+                    geometry.setAttribute(
+                        'position',
+                        new THREE.Float32BufferAttribute(points, 3)
+                    );
+                    const material = new THREE.LineBasicMaterial({ 
+                        color: this.rhColor,
+                        opacity: 0.5,
+                        transparent: true
+                    });
+                    const line = new THREE.Line(geometry, material);
+                    this.scene.add(line);
+                });
+                
+                // Draw constant enthalpy lines
+                const enthalpyValues = [0, 20, 40, 60, 80, 100, 120];
+                enthalpyValues.forEach(h => {
+                    const points = [];
+                    
+                    for (let t = minDryBulb; t <= maxDryBulb; t += 0.5) {
+                        // Find RH that gives this enthalpy
+                        let lowRH = 0, highRH = 100;
+                        let bestRH = 50;
+                        let bestDiff = Infinity;
+                        
+                        for (let i = 0; i < 20; i++) {
+                            const midRH = (lowRH + highRH) / 2;
+                            const props = Psychrometrics.calculateProperties(t, midRH, this.pressure);
+                            
+                            if (Math.abs(props.enthalpy - h) < bestDiff) {
+                                bestDiff = Math.abs(props.enthalpy - h);
+                                bestRH = midRH;
+                            }
+                            
+                            if (props.enthalpy < h) {
+                                lowRH = midRH;
+                            } else {
+                                highRH = midRH;
+                            }
+                        }
+                        
+                        const props = Psychrometrics.calculateProperties(t, bestRH, this.pressure);
+                        if (props.humidityRatio <= maxHumidityRatio) {
+                            points.push(
+                                (t - minDryBulb) * xScale - 1.5,
+                                props.humidityRatio * yScale - 1.5,
+                                (props.enthalpy - minEnthalpy) * zScale - 1.5
+                            );
+                        }
+                    }
+                    
+                    const geometry = new THREE.BufferGeometry();
+                    geometry.setAttribute(
+                        'position',
+                        new THREE.Float32BufferAttribute(points, 3)
+                    );
+                    const material = new THREE.LineBasicMaterial({ 
+                        color: this.enthalpyColor,
+                        opacity: 0.7,
+                        transparent: true,
+                        linewidth: 1
+                    });
+                    const line = new THREE.Line(geometry, material);
+                    this.scene.add(line);
+                });
+                
+                // Draw constant wet bulb lines
+                const wetBulbValues = [0, 10, 20, 30, 40];
+                wetBulbValues.forEach(wb => {
+                    const points = [];
+                    
+                    for (let t = minDryBulb; t <= maxDryBulb; t += 0.5) {
+                        // Find RH that gives this wet bulb
+                        let lowRH = 0, highRH = 100;
+                        let bestRH = 50;
+                        let bestDiff = Infinity;
+                        
+                        for (let i = 0; i < 20; i++) {
+                            const midRH = (lowRH + highRH) / 2;
+                            const props = Psychrometrics.calculateProperties(t, midRH, this.pressure);
+                            
+                            if (Math.abs(props.wetBulb - wb) < bestDiff) {
+                                bestDiff = Math.abs(props.wetBulb - wb);
+                                bestRH = midRH;
+                            }
+                            
+                            if (props.wetBulb < wb) {
+                                lowRH = midRH;
+                            } else {
+                                highRH = midRH;
+                            }
+                        }
+                        
+                        const props = Psychrometrics.calculateProperties(t, bestRH, this.pressure);
+                        if (props.humidityRatio <= maxHumidityRatio) {
+                            points.push(
+                                (t - minDryBulb) * xScale - 1.5,
+                                props.humidityRatio * yScale - 1.5,
+                                (props.enthalpy - minEnthalpy) * zScale - 1.5
+                            );
+                        }
+                    }
+                    
+                    const geometry = new THREE.BufferGeometry();
+                    geometry.setAttribute(
+                        'position',
+                        new THREE.Float32BufferAttribute(points, 3)
+                    );
+                    const material = new THREE.LineBasicMaterial({ 
+                        color: this.wetBulbColor,
+                        opacity: 0.7,
+                        transparent: true,
+                        linewidth: 1
+                    });
+                    const line = new THREE.Line(geometry, material);
+                    this.scene.add(line);
+                });
+                
+                // Add axis labels
+                this.addLabel("Dry Bulb (°C)", new THREE.Vector3(1.5, -1.5, -1.5), new THREE.Euler(0, 0, 0));
+                this.addLabel("Humidity Ratio", new THREE.Vector3(-1.5, 1.5, -1.5), new THREE.Euler(0, 0, Math.PI/2));
+                this.addLabel("Enthalpy (kJ/kg)", new THREE.Vector3(-1.5, -1.5, 1.5), new THREE.Euler(Math.PI/2, 0, 0));
+                
+                // Redraw points
+                this.points.forEach((_, i) => this.drawPoint(i));
+            }
+            
+            addLabel(text, position, rotation) {
+                const canvas = document.createElement('canvas');
+                canvas.width = 256;
+                canvas.height = 128;
+                const context = canvas.getContext('2d');
+                context.fillStyle = 'rgba(255, 255, 255, 0.7)';
+                context.fillRect(0, 0, canvas.width, canvas.height);
+                context.fillStyle = '#000';
+                context.font = '24px Arial';
+                context.textAlign = 'center';
+                context.fillText(text, canvas.width / 2, canvas.height / 2 + 8);
+                
+                const texture = new THREE.CanvasTexture(canvas);
+                const spriteMaterial = new THREE.SpriteMaterial({ map: texture });
+                const sprite = new THREE.Sprite(spriteMaterial);
+                sprite.position.copy(position);
+                sprite.rotation.copy(rotation);
+                sprite.scale.set(0.3, 0.15, 1);
+                this.scene.add(sprite);
+            }
+            
+            psychrometricTo3D(props) {
+                const minDryBulb = -10;
+                const maxDryBulb = 50;
+                const minHumidityRatio = 0;
+                const maxHumidityRatio = 0.03;
+                const minEnthalpy = -20;
+                const maxEnthalpy = 120;
+                
+                const xScale = 3 / (maxDryBulb - minDryBulb);
+                const yScale = 3 / (maxHumidityRatio - minHumidityRatio);
+                const zScale = 3 / (maxEnthalpy - minEnthalpy);
+                
+                return new THREE.Vector3(
+                    (props.dryBulb - minDryBulb) * xScale - 1.5,
+                    props.humidityRatio * yScale - 1.5,
+                    (props.enthalpy - minEnthalpy) * zScale - 1.5
+                );
+            }
+            
+            resize() {
+                this.camera.aspect = this.container.clientWidth / this.container.clientHeight;
+                this.camera.updateProjectionMatrix();
+                this.renderer.setSize(this.container.clientWidth, this.container.clientHeight);
+            }
+            
+            animate() {
+                requestAnimationFrame(this.animate.bind(this));
+                this.controls.update();
+                this.renderer.render(this.scene, this.camera);
+            }
+        }
+
+        // UI Manager
+        class PsychrometricUI {
+            constructor() {
+                this.chart2D = new PsychrometricChart2D('psychChart', 'chartContainer');
+                this.chart3D = new PsychrometricChart3D('threeDContainer');
+                this.currentView = '2D';
+                this.selectedPoints = [];
+                this.currentPressure = 1.0;
+                
+                this.initEventListeners();
+                this.generateDataTables();
+                this.show2DView();
+            }
+            
+            initEventListeners() {
+                // View toggle
+                document.getElementById('view2D').addEventListener('click', () => this.show2DView());
+                document.getElementById('view3D').addEventListener('click', () => this.show3DView());
+                
+                // Chart click handler
+                document.getElementById('psychChart').addEventListener('click', (e) => {
+                    if (this.currentView !== '2D') return;
+                    
+                    const rect = this.chart2D.canvas.getBoundingClientRect();
+                    const x = e.clientX - rect.left;
+                    const y = e.clientY - rect.top;
+                    
+                    if (this.chart2D.chartParams && 
+                        x >= this.chart2D.chartParams.margin && x <= this.chart2D.canvas.width - this.chart2D.chartParams.margin &&
+                        y >= this.chart2D.chartParams.margin && y <= this.chart2D.canvas.height - this.chart2D.chartParams.margin) {
+                        
+                        const props = this.chart2D.screenToPsychrometric(x, y);
+                        if (props) {
+                            this.addSelectedPoint(props);
+                            this.showPointProperties(props);
+                        }
+                    }
+                });
+                
+                // 3D container click handler
+                document.getElementById('threeDContainer').addEventListener('click', (e) => {
+                    if (this.currentView !== '3D') return;
+                    
+                    // For 3D view, we'll just add a point at the center for demo purposes
+                    // In a real app, you'd implement proper 3D picking
+                    const props = Psychrometrics.calculateProperties(20, 50, this.currentPressure);
+                    this.addSelectedPoint(props);
+                    this.showPointProperties(props);
+                });
+                
+                // Clear points button
+                document.getElementById('clearPoints').addEventListener('click', () => {
+                    this.clearSelectedPoints();
+                });
+                
+                // Pressure select
+                document.getElementById('pressureSelect').addEventListener('change', (e) => {
+                    this.currentPressure = parseFloat(e.target.value);
+                    this.chart2D.setPressure(this.currentPressure);
+                    this.chart3D.setPressure(this.currentPressure);
+                    this.generateDataTables();
+                });
+                
+                // Show data tables
+                document.getElementById('showData').addEventListener('click', () => {
+                    document.getElementById('dataTabs').style.display = 'block';
+                });
+                
+                // Hide data tables
+                document.getElementById('hideData').addEventListener('click', () => {
+                    document.getElementById('dataTabs').style.display = 'none';
+                });
+                
+                // Tab buttons
+                document.querySelectorAll('.tab-button').forEach(button => {
+                    button.addEventListener('click', () => {
+                        const tabId = button.getAttribute('data-tab');
+                        
+                        // Hide all tab contents and deactivate all buttons
+                        document.querySelectorAll('.tab-content').forEach(content => {
+                            content.classList.remove('active');
+                        });
+                        document.querySelectorAll('.tab-button').forEach(btn => {
+                            btn.classList.remove('active');
+                        });
+                        
+                        // Show selected tab content and activate button
+                        document.getElementById(tabId).classList.add('active');
+                        button.classList.add('active');
+                    });
+                });
+                
+                // 3D color controls
+                document.getElementById('rhColor').addEventListener('input', (e) => this.update3DColors());
+                document.getElementById('enthalpyColor').addEventListener('input', (e) => this.update3DColors());
+                document.getElementById('wetBulbColor').addEventListener('input', (e) => this.update3DColors());
+                document.getElementById('bgColor').addEventListener('input', (e) => this.update3DColors());
+                document.getElementById('reset3DView').addEventListener('click', () => this.chart3D.resetView());
+            }
+            
+            show2DView() {
+                this.currentView = '2D';
+                document.getElementById('psychChart').style.display = 'block';
+                document.getElementById('threeDContainer').style.display = 'none';
+                document.getElementById('view2D').classList.add('active');
+                document.getElementById('view3D').classList.remove('active');
+                document.getElementById('colorControls').style.display = 'none';
+                
+                // Redraw points in 2D
+                this.chart2D.clearPoints();
+                this.selectedPoints.forEach(point => {
+                    this.chart2D.addPoint(point);
+                });
+            }
+            
+            show3DView() {
+                this.currentView = '3D';
+                document.getElementById('psychChart').style.display = 'none';
+                document.getElementById('threeDContainer').style.display = 'block';
+                document.getElementById('view2D').classList.remove('active');
+                document.getElementById('view3D').classList.add('active');
+                document.getElementById('colorControls').style.display = 'block';
+                
+                // Redraw points in 3D
+                this.chart3D.clearPoints();
+                this.selectedPoints.forEach(point => {
+                    this.chart3D.addPoint(point);
+                });
+            }
+            
+            update3DColors() {
+                const rhColor = document.getElementById('rhColor').value;
+                const enthalpyColor = document.getElementById('enthalpyColor').value;
+                const wetBulbColor = document.getElementById('wetBulbColor').value;
+                const bgColor = document.getElementById('bgColor').value;
+                
+                this.chart3D.setColors(rhColor, enthalpyColor, wetBulbColor, bgColor);
+            }
+            
+            addSelectedPoint(props) {
+                this.selectedPoints.push(props);
+                this.updateSelectedPointsTable();
+                
+                if (this.currentView === '2D') {
+                    this.chart2D.addPoint(props);
+                } else {
+                    this.chart3D.addPoint(props);
+                }
+            }
+            
+            clearSelectedPoints() {
+                this.selectedPoints = [];
+                this.updateSelectedPointsTable();
+                
+                if (this.currentView === '2D') {
+                    this.chart2D.clearPoints();
+                } else {
+                    this.chart3D.clearPoints();
+                }
+                
+                document.getElementById('currentPointProps').innerHTML = 'Click on the chart to select a point';
+            }
+            
+            updateSelectedPointsTable() {
+                const tableBody = document.getElementById('pointsTableBody');
+                tableBody.innerHTML = '';
+                
+                this.selectedPoints.forEach((point, index) => {
+                    const row = document.createElement('tr');
+                    
+                    row.innerHTML = `
+                        <td>${index + 1}</td>
+                        <td>${point.dryBulb.toFixed(1)}</td>
+                        <td>${point.wetBulb.toFixed(1)}</td>
+                        <td>${point.relativeHumidity.toFixed(1)}</td>
+                        <td>${point.humidityRatio.toFixed(6)}</td>
+                        <td>${point.enthalpy.toFixed(2)}</td>
+                    `;
+                    
+                    row.addEventListener('click', () => {
+                        this.showPointProperties(point);
+                    });
+                    
+                    tableBody.appendChild(row);
+                });
+            }
+            
+            showPointProperties(props) {
+                const infoDiv = document.getElementById('currentPointProps');
+                
+                infoDiv.innerHTML = `
+                    <div class="property-grid">
+                        <div class="property-item">
+                            <div class="property-name">Dry Bulb Temp</div>
+                            <div class="property-value">${props.dryBulb.toFixed(2)}<span class="property-unit">°C</span></div>
+                        </div>
+                        <div class="property-item">
+                            <div class="property-name">Wet Bulb Temp</div>
+                            <div class="property-value">${props.wetBulb.toFixed(2)}<span class="property-unit">°C</span></div>
+                        </div>
+                        <div class="property-item">
+                            <div class="property-name">Dew Point Temp</div>
+                            <div class="property-value">${props.dewPoint.toFixed(2)}<span class="property-unit">°C</span></div>
+                        </div>
+                        <div class="property-item">
+                            <div class="property-name">Relative Humidity</div>
+                            <div class="property-value">${props.relativeHumidity.toFixed(2)}<span class="property-unit">%</span></div>
+                        </div>
+                        <div class="property-item">
+                            <div class="property-name">Humidity Ratio</div>
+                            <div class="property-value">${props.humidityRatio.toFixed(6)}<span class="property-unit">kg/kg</span></div>
+                        </div>
+                        <div class="property-item">
+                            <div class="property-name">Enthalpy</div>
+                            <div class="property-value">${props.enthalpy.toFixed(2)}<span class="property-unit">kJ/kg</span></div>
+                        </div>
+                        <div class="property-item">
+                            <div class="property-name">Specific Volume</div>
+                            <div class="property-value">${props.specificVolume.toFixed(4)}<span class="property-unit">m³/kg</span></div>
+                        </div>
+                        <div class="property-item">
+                            <div class="property-name">Density</div>
+                            <div class="property-value">${props.density.toFixed(4)}<span class="property-unit">kg/m³</span></div>
+                        </div>
+                        <div class="property-item">
+                            <div class="property-name">Vapor Pressure</div>
+                            <div class="property-value">${props.vaporPressure.toFixed(2)}<span class="property-unit">Pa</span></div>
+                        </div>
+                        <div class="property-item">
+                            <div class="property-name">Sat. Vapor Press</div>
+                            <div class="property-value">${props.saturationVaporPressure.toFixed(2)}<span class="property-unit">Pa</span></div>
+                        </div>
+                        <div class="property-item">
+                            <div class="property-name">Specific Heat</div>
+                            <div class="property-value">${props.specificHeat.toFixed(4)}<span class="property-unit">kJ/kg·K</span></div>
+                        </div>
+                        <div class="property-item">
+                            <div class="property-name">Entropy</div>
+                            <div class="property-value">${props.entropy.toFixed(4)}<span class="property-unit">kJ/kg·K</span></div>
+                        </div>
+                    </div>
+                `;
+            }
+            
+            generateDataTables() {
+                const temps = Array.from({length: 87}, (_, i) => -20 + i); // -20 to 66°C
+                
+                // Enthalpy table
+                let enthalpyHtml = '<table class="data-table"><tr><th>Temp (°C)</th><th>Enthalpy (kJ/kg)</th></tr>';
+                temps.forEach(t => {
+                    const props = Psychrometrics.calculateProperties(t, 50, this.currentPressure);
+                    enthalpyHtml += `<tr><td>${t}</td><td>${props.enthalpy.toFixed(2)}</td></tr>`;
+                });
+                enthalpyHtml += '</table>';
+                document.getElementById('enthalpyTable').innerHTML = enthalpyHtml;
+                
+                // Entropy table
+                let entropyHtml = '<table class="data-table"><tr><th>Temp (°C)</th><th>Entropy (kJ/kg·K)</th></tr>';
+                temps.forEach(t => {
+                    const props = Psychrometrics.calculateProperties(t, 50, this.currentPressure);
+                    entropyHtml += `<tr><td>${t}</td><td>${props.entropy.toFixed(4)}</td></tr>`;
+                });
+                entropyHtml += '</table>';
+                document.getElementById('entropyTable').innerHTML = entropyHtml;
+                
+                // Humidity ratio table
+                let humidityHtml = '<table class="data-table"><tr><th>Temp (°C)</th><th>Humidity Ratio (kg/kg)</th></tr>';
+                temps.forEach(t => {
+                    const props = Psychrometrics.calculateProperties(t, 50, this.currentPressure);
+                    humidityHtml += `<tr><td>${t}</td><td>${props.humidityRatio.toFixed(6)}</td></tr>`;
+                });
+                humidityHtml += '</table>';
+                document.getElementById('humidityTable').innerHTML = humidityHtml;
+                
+                // Density table
+                let densityHtml = '<table class="data-table"><tr><th>Temp (°C)</th><th>Density (kg/m³)</th></tr>';
+                temps.forEach(t => {
+                    const props = Psychrometrics.calculateProperties(t, 50, this.currentPressure);
+                    densityHtml += `<tr><td>${t}</td><td>${props.density.toFixed(4)}</td></tr>`;
+                });
+                densityHtml += '</table>';
+                document.getElementById('densityTable').innerHTML = densityHtml;
+                
+                // Specific heat table
+                let specificHeatHtml = '<table class="data-table"><tr><th>Temp (°C)</th><th>Specific Heat (kJ/kg·K)</th></tr>';
+                temps.forEach(t => {
+                    const props = Psychrometrics.calculateProperties(t, 50, this.currentPressure);
+                    specificHeatHtml += `<tr><td>${t}</td><td>${props.specificHeat.toFixed(4)}</td></tr>`;
+                });
+                specificHeatHtml += '</table>';
+                document.getElementById('specificHeatTable').innerHTML = specificHeatHtml;
+            }
+        }
+
+        // Initialize the application when the page loads
+        window.onload = () => {
+            new PsychrometricUI();
+        };
+    </script>
+</body>
+</html>

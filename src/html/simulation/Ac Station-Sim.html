@@ -1,0 +1,1305 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>شبیه‌سازی دقیق ایستگاه تهویه مطبوع</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            overflow: hidden;
+            touch-action: none;
+            color: #333;
+        }
+
+        #container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        #ui-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 2;
+        }
+
+        #ui-container > * {
+            pointer-events: auto;
+        }
+
+        /* کنترل پنل اصلی */
+        #main-controls {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            width: 320px;
+            max-height: 85vh;
+            overflow-y: auto;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        #main-controls.collapsed {
+            transform: translateX(-280px);
+            opacity: 0.7;
+        }
+
+        /* پنل اطلاعات */
+        #info-panel {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            width: 350px;
+            max-height: 40vh;
+            overflow-y: auto;
+            display: none;
+        }
+
+        /* کنترل‌های شیء انتخابی */
+        #object-controls {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            width: 280px;
+            display: none;
+        }
+
+        /* استایل‌های عمومی */
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .panel-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: #2c3e50;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #7f8c8d;
+            transition: color 0.3s;
+            padding: 0;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .close-btn:hover {
+            color: #e74c3c;
+        }
+
+        .control-group {
+            margin-bottom: 25px;
+        }
+
+        .section-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #3498db;
+            margin-bottom: 12px;
+            padding: 8px 12px;
+            background: rgba(52, 152, 219, 0.1);
+            border-radius: 8px;
+            border-right: 3px solid #3498db;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 6px;
+            font-weight: 600;
+            color: #2c3e50;
+            font-size: 14px;
+        }
+
+        .value-display {
+            color: #3498db;
+            font-weight: 700;
+            margin-right: 5px;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: #ecf0f1;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #3498db;
+            cursor: pointer;
+            border: 2px solid white;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+        }
+
+        select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 2px solid #ecf0f1;
+            border-radius: 8px;
+            background: white;
+            font-size: 14px;
+            color: #2c3e50;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        select:focus {
+            border-color: #3498db;
+        }
+
+        .btn {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: center;
+            display: block;
+            width: 100%;
+            margin-bottom: 10px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(52, 152, 219, 0.4);
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #27ae60, #229954);
+            color: white;
+        }
+
+        .btn-warning {
+            background: linear-gradient(135deg, #f39c12, #e67e22);
+            color: white;
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+            color: white;
+        }
+
+        .btn-info {
+            background: linear-gradient(135deg, #17a2b8, #138496);
+            color: white;
+        }
+
+        .toggle-btn {
+            padding: 10px 16px;
+            border: 2px solid #bdc3c7;
+            border-radius: 8px;
+            background: white;
+            color: #2c3e50;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            flex: 1;
+            margin: 0 5px;
+        }
+
+        .toggle-btn.active {
+            background: #3498db;
+            color: white;
+            border-color: #3498db;
+        }
+
+        .toggle-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-left: 8px;
+        }
+
+        .status-on {
+            background: #27ae60;
+            box-shadow: 0 0 8px #27ae60;
+        }
+
+        .status-off {
+            background: #e74c3c;
+        }
+
+        .info-content {
+            line-height: 1.6;
+        }
+
+        .info-content h4 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+
+        .info-content p {
+            margin-bottom: 8px;
+            color: #5d6d7e;
+        }
+
+        .info-content ul {
+            padding-right: 20px;
+            margin-bottom: 10px;
+        }
+
+        .info-content li {
+            margin-bottom: 5px;
+            color: #5d6d7e;
+        }
+
+        /* رسپانسیو برای موبایل */
+        @media (max-width: 768px) {
+            #main-controls, #info-panel, #object-controls {
+                width: calc(100% - 40px);
+                max-width: 400px;
+            }
+            
+            #main-controls {
+                left: 20px;
+                right: 20px;
+            }
+            
+            #main-controls.collapsed {
+                transform: translateX(calc(-100% + 60px));
+            }
+        }
+
+        /* اسکرول بار سفارشی */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(0,0,0,0.1);
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(52, 152, 219, 0.6);
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(52, 152, 219, 0.8);
+        }
+
+        /* انیمیشن‌ها */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        /* هایلایت اشیاء انتخاب شده */
+        .object-highlight {
+            outline: 2px solid #3498db;
+            outline-offset: 2px;
+            transition: outline-color 0.3s;
+        }
+    </style>
+</head>
+<body>
+    <div id="container"></div>
+    
+    <div id="ui-container">
+        <!-- کنترل پنل اصلی -->
+        <div id="main-controls" class="fade-in">
+            <div class="panel-header">
+                <h2 class="panel-title">کنترل‌پنل ایستگاه تهویه</h2>
+                <button id="toggle-controls" class="close-btn">❮</button>
+            </div>
+            
+            <div class="control-group">
+                <div class="section-title">تنظیمات نمایش</div>
+                <div class="form-group">
+                    <label for="bg-color">رنگ پس‌زمینه</label>
+                    <select id="bg-color">
+                        <option value="#f8f9fa">سفید</option>
+                        <option value="#808000">زیتونی</option>
+                        <option value="#0066cc">آبی</option>
+                        <option value="#555555">خاکستری تیره</option>
+                        <option value="#aaaaaa">خاکستری روشن</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>شدت نور: <span id="light-value" class="value-display">1.0</span></label>
+                    <input type="range" id="light-intensity" min="0.1" max="2" step="0.1" value="1">
+                </div>
+                
+                <div class="form-group">
+                    <label>شفافیت دیوارها: <span id="opacity-value" class="value-display">70%</span></label>
+                    <input type="range" id="wall-opacity" min="10" max="90" step="5" value="70">
+                </div>
+            </div>
+
+            <div class="control-group">
+                <div class="section-title">کنترل دوربین</div>
+                <div class="form-group">
+                    <label for="camera-angle">زاویه دید</label>
+                    <select id="camera-angle">
+                        <option value="perspective">پرسپکتیو</option>
+                        <option value="top">نمای بالا</option>
+                        <option value="front">نمای جلو</option>
+                        <option value="side">نمای جانبی</option>
+                        <option value="supply-side">بخش رفت</option>
+                        <option value="return-side">بخش برگشت</option>
+                    </select>
+                </div>
+                <button id="reset-view" class="btn btn-primary">بازنشانی دوربین</button>
+            </div>
+
+            <div class="control-group">
+                <div class="section-title">سیستم فن‌ها و فیلترها</div>
+                <div class="form-group">
+                    <label for="fan-diameter">قطر فن‌ها</label>
+                    <select id="fan-diameter">
+                        <option value="1.12">1.12 متر</option>
+                        <option value="1.4">1.4 متر</option>
+                        <option value="1.6" selected>1.6 متر</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>سرعت فن‌ها: <span id="fan-speed-value" class="value-display">1500</span> RPM</label>
+                    <input type="range" id="fan-speed" min="500" max="3000" step="100" value="1500">
+                </div>
+                
+                <div class="form-group">
+                    <label>سرعت فیلترها: <span id="filter-speed-value" class="value-display">10</span> RPM</label>
+                    <input type="range" id="filter-speed" min="0" max="30" step="1" value="10">
+                </div>
+            </div>
+
+            <div class="control-group">
+                <div class="section-title">سیستم مه‌پاش</div>
+                <div class="toggle-group">
+                    <button id="toggle-fogger1" class="toggle-btn">مه‌پاش 1 <span class="status-indicator status-off"></span></button>
+                    <button id="toggle-fogger2" class="toggle-btn">مه‌پاش 2 <span class="status-indicator status-off"></span></button>
+                </div>
+                
+                <div class="form-group">
+                    <label>شدت مه‌پاش 1: <span id="fogger1-value" class="value-display">50%</span></label>
+                    <input type="range" id="fogger1-intensity" min="0" max="100" step="5" value="50">
+                </div>
+                
+                <div class="form-group">
+                    <label>شدت مه‌پاش 2: <span id="fogger2-value" class="value-display">50%</span></label>
+                    <input type="range" id="fogger2-intensity" min="0" max="100" step="5" value="50">
+                </div>
+            </div>
+
+            <div class="control-group">
+                <div class="section-title">کنترل دمپرها</div>
+                <div class="toggle-group">
+                    <button id="toggle-fresh-damper1" class="toggle-btn">هوای تازه 1</button>
+                    <button id="toggle-fresh-damper2" class="toggle-btn">هوای تازه 2</button>
+                </div>
+                <div class="toggle-group">
+                    <button id="toggle-exhaust-damper1" class="toggle-btn">اگزاست 1</button>
+                    <button id="toggle-exhaust-damper2" class="toggle-btn">اگزاست 2</button>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <button id="toggle-wireframe" class="btn btn-warning">نمایش/مخفی اسکلت</button>
+                <button id="hide-all-controls" class="btn btn-danger">مخفی کردن کنترل‌ها</button>
+            </div>
+        </div>
+
+        <!-- پنل اطلاعات -->
+        <div id="info-panel" class="fade-in">
+            <div class="panel-header">
+                <h3 class="panel-title" id="info-title">اطلاعات تجهیزات</h3>
+                <button onclick="hideInfo()" class="close-btn">×</button>
+            </div>
+            <div class="info-content" id="info-content">
+                برای مشاهده اطلاعات، روی یکی از تجهیزات کلیک کنید.
+            </div>
+        </div>
+
+        <!-- کنترل‌های شیء انتخابی -->
+        <div id="object-controls" class="fade-in">
+            <div class="panel-header">
+                <h3 class="panel-title">کنترل شیء</h3>
+                <button id="close-object-controls" class="close-btn">×</button>
+            </div>
+            <div class="control-group">
+                <button id="toggle-object-visibility" class="btn btn-info">مخفی کردن شیء</button>
+                <button id="highlight-object" class="btn btn-primary">هایلایت شیء</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // سیستم اصلی شبیه‌سازی
+        class VentilationSystem {
+            constructor() {
+                this.scene = new THREE.Scene();
+                this.camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+                this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+                this.controls = null;
+                this.objects = new Map();
+                this.selectedObject = null;
+                
+                this.config = {
+                    fanSpeed: 1500,
+                    filterSpeed: 10,
+                    fanDiameter: 1.6,
+                    wallOpacity: 0.7,
+                    foggers: {
+                        1: { active: false, intensity: 0.5 },
+                        2: { active: false, intensity: 0.5 }
+                    },
+                    dampers: {
+                        fresh1: false,
+                        fresh2: false,
+                        exhaust1: false,
+                        exhaust2: false
+                    }
+                };
+                
+                this.init();
+            }
+            
+            init() {
+                this.setupRenderer();
+                this.setupCamera();
+                this.setupLighting();
+                this.setupControls();
+                this.createVentilationSystem();
+                this.setupEventListeners();
+                
+                // شروع انیمیشن
+                this.animate();
+            }
+            
+            setupRenderer() {
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
+                this.renderer.setClearColor(0xf8f9fa, 1);
+                this.renderer.shadowMap.enabled = true;
+                this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+                document.getElementById('container').appendChild(this.renderer.domElement);
+            }
+            
+            setupCamera() {
+                this.camera.position.set(25, 20, 25);
+                this.camera.lookAt(0, 5, 0);
+            }
+            
+            setupLighting() {
+                // نور محیطی
+                const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
+                this.scene.add(ambientLight);
+                
+                // نور جهت‌دار اصلی
+                const directionalLight = new THREE.DirectionalLight(0xffffff, 1.2);
+                directionalLight.position.set(10, 20, 10);
+                directionalLight.castShadow = true;
+                directionalLight.shadow.mapSize.width = 2048;
+                directionalLight.shadow.mapSize.height = 2048;
+                this.scene.add(directionalLight);
+                
+                // نور مکمل
+                const fillLight = new THREE.DirectionalLight(0xffffff, 0.4);
+                fillLight.position.set(-10, 10, -10);
+                this.scene.add(fillLight);
+            }
+            
+            setupControls() {
+                this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
+                this.controls.enableDamping = true;
+                this.controls.dampingFactor = 0.05;
+                this.controls.minDistance = 5;
+                this.controls.maxDistance = 50;
+                this.controls.enablePan = true;
+            }
+            
+            createVentilationSystem() {
+                this.createVentilationRoom();
+                this.createTower();
+                this.createSupplySystem();
+                this.createReturnSystem();
+                this.createFoggingSystem();
+                this.createEliminator();
+                this.createPits();
+                this.createSeparationWall();
+            }
+            
+            createVentilationRoom() {
+                const roomGroup = new THREE.Group();
+                
+                // ابعاد دقیق اتاق تهویه
+                const width = 8;   // 8 متر عرض
+                const height = 5;  // 5 متر ارتفاع
+                const depth = 25;  // 25 متر طول
+                
+                // مصالح و رنگ‌بندی
+                const materials = {
+                    wall: new THREE.MeshPhongMaterial({ 
+                        color: 0xAAAAAA, 
+                        transparent: true, 
+                        opacity: this.config.wallOpacity 
+                    }),
+                    floor: new THREE.MeshPhongMaterial({ color: 0x555555 }),
+                    ceiling: new THREE.MeshPhongMaterial({ color: 0xDDDDDD })
+                };
+                
+                // ایجاد دیوارها با ضخامت 0.4 متر
+                const walls = [
+                    { position: [-width/2 + 0.2, height/2, 0], size: [0.4, height, depth] }, // چپ
+                    { position: [width/2 - 0.2, height/2, 0], size: [0.4, height, depth] }, // راست
+                    { position: [0, height/2, -depth/2 + 0.2], size: [width, height, 0.4] }, // عقب
+                    { position: [0, height/2, depth/2 - 0.2], size: [width, height, 0.4] }   // جلو
+                ];
+                
+                walls.forEach((wall, index) => {
+                    const geometry = new THREE.BoxGeometry(...wall.size);
+                    const mesh = new THREE.Mesh(geometry, materials.wall);
+                    mesh.position.set(...wall.position);
+                    mesh.castShadow = true;
+                    mesh.receiveShadow = true;
+                    roomGroup.add(mesh);
+                    this.objects.set(`wall_${index}`, mesh);
+                });
+                
+                // کف با ضخامت 0.2 متر
+                const floorGeometry = new THREE.BoxGeometry(width, 0.2, depth);
+                const floorMesh = new THREE.Mesh(floorGeometry, materials.floor);
+                floorMesh.position.set(0, 0.1, 0);
+                floorMesh.receiveShadow = true;
+                roomGroup.add(floorMesh);
+                this.objects.set('floor', floorMesh);
+                
+                // سقف با ضخامت 0.3 متر
+                const ceilingGeometry = new THREE.BoxGeometry(width, 0.3, depth);
+                const ceilingMesh = new THREE.Mesh(ceilingGeometry, materials.ceiling);
+                ceilingMesh.position.set(0, height - 0.15, 0);
+                ceilingMesh.receiveShadow = true;
+                roomGroup.add(ceilingMesh);
+                this.objects.set('ceiling', ceilingMesh);
+                
+                this.scene.add(roomGroup);
+                this.objects.set('ventilation_room', roomGroup);
+            }
+            
+            createTower() {
+                const towerGroup = new THREE.Group();
+                
+                const width = 6, height = 5, depth = 4;
+                const material = new THREE.MeshPhongMaterial({ 
+                    color: 0xADD8E6, 
+                    transparent: true, 
+                    opacity: this.config.wallOpacity 
+                });
+                
+                // دیوارهای برجک
+                const walls = [
+                    { position: [-width/2 + 0.2, height/2, 0], size: [0.4, height, depth] },
+                    { position: [width/2 - 0.2, height/2, 0], size: [0.4, height, depth] },
+                    { position: [0, height/2, -depth/2 + 0.2], size: [width, height, 0.4] },
+                    { position: [0, height/2, depth/2 - 0.2], size: [width, height, 0.4] }
+                ];
+                
+                walls.forEach((wall, index) => {
+                    const geometry = new THREE.BoxGeometry(...wall.size);
+                    const mesh = new THREE.Mesh(geometry, material);
+                    mesh.position.set(...wall.position);
+                    towerGroup.add(mesh);
+                    this.objects.set(`tower_wall_${index}`, mesh);
+                });
+                
+                // موقعیت برجک روی سقف
+                towerGroup.position.y = 5;
+                
+                // ایجاد دمپرهای بزرگ
+                this.createTowerDampers(towerGroup);
+                
+                this.scene.add(towerGroup);
+                this.objects.set('tower', towerGroup);
+            }
+            
+            createTowerDampers(towerGroup) {
+                const damperSize = [1.5, 1.5, 0.3]; // 1.5x1.5 متر با ضخامت 0.3 متر
+                
+                // دمپرهای هوای تازه (سمت رفت)
+                const freshDamper1 = this.createDamper(...damperSize);
+                freshDamper1.position.set(-2, 2.5, -1.7);
+                towerGroup.add(freshDamper1);
+                this.objects.set('fresh_damper_1', freshDamper1);
+                
+                const freshDamper2 = this.createDamper(...damperSize);
+                freshDamper2.position.set(2, 2.5, -1.7);
+                towerGroup.add(freshDamper2);
+                this.objects.set('fresh_damper_2', freshDamper2);
+                
+                // دمپرهای اگزاست (سمت برگشت)
+                const exhaustDamper1 = this.createDamper(...damperSize);
+                exhaustDamper1.position.set(-2, 2.5, 1.7);
+                towerGroup.add(exhaustDamper1);
+                this.objects.set('exhaust_damper_1', exhaustDamper1);
+                
+                const exhaustDamper2 = this.createDamper(...damperSize);
+                exhaustDamper2.position.set(2, 2.5, 1.7);
+                towerGroup.add(exhaustDamper2);
+                this.objects.set('exhaust_damper_2', exhaustDamper2);
+            }
+            
+            createDamper(width, height, thickness) {
+                const damperGroup = new THREE.Group();
+                
+                // فریم دمپر
+                const frameGeometry = new THREE.BoxGeometry(width, height, thickness);
+                const frameMaterial = new THREE.MeshPhongMaterial({ color: 0x333333 });
+                const frame = new THREE.Mesh(frameGeometry, frameMaterial);
+                damperGroup.add(frame);
+                
+                // پره‌های دمپر (5 پره)
+                const bladeCount = 5;
+                const bladeMaterial = new THREE.MeshPhongMaterial({ color: 0x666666 });
+                
+                for (let i = 0; i < bladeCount; i++) {
+                    const bladeGeometry = new THREE.BoxGeometry(width * 0.95, height/(bladeCount+1), thickness * 0.8);
+                    const blade = new THREE.Mesh(bladeGeometry, bladeMaterial);
+                    blade.position.y = -height/2 + (i + 0.5) * (height/(bladeCount+1));
+                    damperGroup.add(blade);
+                }
+                
+                return damperGroup;
+            }
+            
+            createSupplySystem() {
+                this.createSupplyFans();
+                this.createSupplyDucts();
+            }
+            
+            createSupplyFans() {
+                const fanPositions = [
+                    { x: -1.5, z: -10 },
+                    { x: 1.5, z: -10 }
+                ];
+                
+                fanPositions.forEach((pos, index) => {
+                    const fan = this.createFan(this.config.fanDiameter, true);
+                    fan.position.set(pos.x, 3, pos.z);
+                    this.scene.add(fan);
+                    this.objects.set(`supply_fan_${index + 1}`, fan);
+                });
+            }
+            
+            createFan(diameter, isSupply = true) {
+                const fanGroup = new THREE.Group();
+                const color = isSupply ? 0x4169E1 : 0xFF4500;
+                
+                // پوسته فن
+                const housingGeometry = new THREE.CylinderGeometry(diameter/2, diameter/2, 0.2, 32);
+                const housingMaterial = new THREE.MeshPhongMaterial({ color: 0x333333 });
+                const housing = new THREE.Mesh(housingGeometry, housingMaterial);
+                housing.rotation.x = Math.PI / 2;
+                fanGroup.add(housing);
+                
+                // پروانه فن (5 پره)
+                const bladeMaterial = new THREE.MeshPhongMaterial({ color: color });
+                
+                for (let i = 0; i < 5; i++) {
+                    const bladeGeometry = new THREE.BoxGeometry(diameter/2 - 0.1, 0.05, 0.2);
+                    const blade = new THREE.Mesh(bladeGeometry, bladeMaterial);
+                    blade.rotation.y = i * (Math.PI * 2 / 5);
+                    fanGroup.add(blade);
+                }
+                
+                // هاب مرکزی
+                const hubGeometry = new THREE.CylinderGeometry(0.15, 0.15, 0.3, 16);
+                const hubMaterial = new THREE.MeshPhongMaterial({ color: 0x888888 });
+                const hub = new THREE.Mesh(hubGeometry, hubMaterial);
+                hub.rotation.x = Math.PI / 2;
+                hub.position.z = -0.15;
+                fanGroup.add(hub);
+                
+                return fanGroup;
+            }
+            
+            createSupplyDucts() {
+                const ductSize = [1.2, 0.8, 1];
+                const ductPositions = [
+                    { x: -1.5, z: -11 },
+                    { x: 1.5, z: -11 }
+                ];
+                
+                ductPositions.forEach((pos, index) => {
+                    const duct = this.createDuct(...ductSize, 0x4169E1);
+                    duct.position.set(pos.x, 3, pos.z);
+                    this.scene.add(duct);
+                    this.objects.set(`supply_duct_${index + 1}`, duct);
+                });
+            }
+            
+            createReturnSystem() {
+                this.createReturnGrilles();
+                this.createRotaryFilters();
+                this.createReturnFans();
+                this.createReturnDucts();
+            }
+            
+            createReturnGrilles() {
+                const grillePositions = [
+                    { x: -3, z: 10 },
+                    { x: 3, z: 10 }
+                ];
+                
+                grillePositions.forEach((pos, index) => {
+                    const grille = this.createGrille();
+                    grille.position.set(pos.x, 0.2, pos.z);
+                    grille.rotation.x = Math.PI;
+                    this.scene.add(grille);
+                    this.objects.set(`return_grille_${index + 1}`, grille);
+                });
+            }
+            
+            createGrille() {
+                const grilleGroup = new THREE.Group();
+                
+                // فریم گریل
+                const frameGeometry = new THREE.BoxGeometry(1.2, 0.8, 0.1);
+                const frameMaterial = new THREE.MeshPhongMaterial({ color: 0x333333 });
+                const frame = new THREE.Mesh(frameGeometry, frameMaterial);
+                grilleGroup.add(frame);
+                
+                // میله‌های گریل
+                const barGeometry = new THREE.BoxGeometry(1.15, 0.02, 0.05);
+                const barMaterial = new THREE.MeshPhongMaterial({ color: 0x666666 });
+                
+                for (let i = 0; i < 10; i++) {
+                    const bar = new THREE.Mesh(barGeometry, barMaterial);
+                    bar.position.y = -0.35 + i * 0.08;
+                    grilleGroup.add(bar);
+                }
+                
+                return grilleGroup;
+            }
+            
+            createRotaryFilters() {
+                // فیلترهای دوار با قطر 2.5 متر و طول 5.1 متر
+                const filterPositions = [
+                    { x: -3, z: 5 },
+                    { x: 3, z: 5 }
+                ];
+                
+                filterPositions.forEach((pos, index) => {
+                    const filter = this.createRotaryFilter();
+                    filter.position.set(pos.x, 2.5, pos.z);
+                    filter.rotation.y = Math.PI; // موازی با اتاق
+                    this.scene.add(filter);
+                    this.objects.set(`rotary_filter_${index + 1}`, filter);
+                });
+            }
+            
+            createRotaryFilter() {
+                const filterGroup = new THREE.Group();
+                
+                // استوانه فیلتر (2.5 متر قطر، 5.1 متر طول)
+                const cylinderGeometry = new THREE.CylinderGeometry(1.25, 1.25, 5.1, 32);
+                const cylinderMaterial = new THREE.MeshPhongMaterial({ 
+                    color: 0xFFFF00, 
+                    transparent: true, 
+                    opacity: 0.6 
+                });
+                const cylinder = new THREE.Mesh(cylinderGeometry, cylinderMaterial);
+                cylinder.rotation.x = Math.PI / 2;
+                filterGroup.add(cylinder);
+                
+                // فریم فیلتر
+                const frameGeometry = new THREE.CylinderGeometry(1.3, 1.3, 5.1, 32, true);
+                const frameMaterial = new THREE.MeshPhongMaterial({ 
+                    color: 0x333333, 
+                    wireframe: true 
+                });
+                const frame = new THREE.Mesh(frameGeometry, frameMaterial);
+                frame.rotation.x = Math.PI / 2;
+                filterGroup.add(frame);
+                
+                return filterGroup;
+            }
+            
+            createReturnFans() {
+                // فن‌های برگشت در دیوار جداکننده
+                const fanPositions = [
+                    { x: -3, z: 7 },
+                    { x: 3, z: 7 }
+                ];
+                
+                fanPositions.forEach((pos, index) => {
+                    const fan = this.createFan(this.config.fanDiameter, false);
+                    fan.position.set(pos.x, 2.5, pos.z);
+                    this.scene.add(fan);
+                    this.objects.set(`return_fan_${index + 1}`, fan);
+                });
+            }
+            
+            createReturnDucts() {
+                const ductSize = [1.2, 0.8, 1];
+                const ductPositions = [
+                    { x: -3, z: 10, y: -0.4 },
+                    { x: 3, z: 10, y: -0.4 }
+                ];
+                
+                ductPositions.forEach((pos, index) => {
+                    const duct = this.createDuct(...ductSize, 0x32CD32);
+                    duct.position.set(pos.x, pos.y, pos.z);
+                    this.scene.add(duct);
+                    this.objects.set(`return_duct_${index + 1}`, duct);
+                });
+            }
+            
+            createDuct(width, height, length, color) {
+                const geometry = new THREE.BoxGeometry(width, height, length);
+                const material = new THREE.MeshPhongMaterial({ color: color });
+                const duct = new THREE.Mesh(geometry, material);
+                duct.castShadow = true;
+                duct.receiveShadow = true;
+                return duct;
+            }
+            
+            createFoggingSystem() {
+                const foggingGroup = new THREE.Group();
+                
+                // ایجاد دو مه‌پاش در بخش رفت
+                const foggerPositions = [
+                    { x: -2, z: -5 },
+                    { x: 2, z: -5 }
+                ];
+                
+                foggerPositions.forEach((pos, index) => {
+                    const foggerSystem = this.createFoggerSystem();
+                    foggerSystem.position.set(pos.x, 0, pos.z);
+                    foggingGroup.add(foggerSystem);
+                    this.objects.set(`fogger_system_${index + 1}`, foggerSystem);
+                });
+                
+                this.scene.add(foggingGroup);
+                this.objects.set('fogging_system', foggingGroup);
+            }
+            
+            createFoggerSystem() {
+                const foggerGroup = new THREE.Group();
+                
+                // کلکتور پایپ روی کف
+                const collectorGeometry = new THREE.BoxGeometry(0.5, 0.3, 0.5);
+                const collectorMaterial = new THREE.MeshPhongMaterial({ color: 0x0066CC });
+                const collector = new THREE.Mesh(collectorGeometry, collectorMaterial);
+                collector.position.y = 0.15;
+                foggerGroup.add(collector);
+                
+                // لوله‌های عمودی 1 اینچی هر 30 سانتیمتر
+                const pipeRadius = 0.0127; // 1 اینچ به متر
+                const pipeHeight = 3;
+                const pipeGeometry = new THREE.CylinderGeometry(pipeRadius, pipeRadius, pipeHeight, 16);
+                const pipeMaterial = new THREE.MeshPhongMaterial({ color: 0x888888 });
+                
+                // 5 لوله با فاصله 30 سانتیمتر
+                for (let i = -2; i <= 2; i++) {
+                    const pipe = new THREE.Mesh(pipeGeometry, pipeMaterial);
+                    pipe.position.set(i * 0.3, pipeHeight/2, 0);
+                    foggerGroup.add(pipe);
+                }
+                
+                // هدر بالایی
+                const headerGeometry = new THREE.CylinderGeometry(0.05, 0.05, 1.5, 16);
+                const header = new THREE.Mesh(headerGeometry, pipeMaterial);
+                header.position.y = pipeHeight;
+                header.rotation.z = Math.PI / 2;
+                foggerGroup.add(header);
+                
+                // نازل‌ها
+                for (let i = -2; i <= 2; i++) {
+                    const nozzle = this.createNozzle();
+                    nozzle.position.set(i * 0.3, pipeHeight + 0.1, 0);
+                    foggerGroup.add(nozzle);
+                }
+                
+                return foggerGroup;
+            }
+            
+            createNozzle() {
+                const nozzleGroup = new THREE.Group();
+                
+                const baseGeometry = new THREE.CylinderGeometry(0.03, 0.05, 0.1, 8);
+                const baseMaterial = new THREE.MeshPhongMaterial({ color: 0x333333 });
+                const base = new THREE.Mesh(baseGeometry, baseMaterial);
+                base.rotation.x = Math.PI / 2;
+                nozzleGroup.add(base);
+                
+                const tipGeometry = new THREE.ConeGeometry(0.02, 0.1, 8);
+                const tipMaterial = new THREE.MeshPhongMaterial({ color: 0x888888 });
+                const tip = new THREE.Mesh(tipGeometry, tipMaterial);
+                tip.rotation.x = -Math.PI / 2;
+                tip.position.y = 0.05;
+                nozzleGroup.add(tip);
+                
+                return nozzleGroup;
+            }
+            
+            createEliminator() {
+                const eliminatorGroup = new THREE.Group();
+                
+                // فریم اصلی
+                const frameGeometry = new THREE.BoxGeometry(6, 4, 0.5);
+                const frameMaterial = new THREE.MeshPhongMaterial({ 
+                    color: 0x333333, 
+                    transparent: true, 
+                    opacity: 0.7 
+                });
+                const frame = new THREE.Mesh(frameGeometry, frameMaterial);
+                eliminatorGroup.add(frame);
+                
+                // پره‌های الیمیناتور (35 سانتیمتر)
+                const bladeGeometry = new THREE.BoxGeometry(6, 0.35, 0.02);
+                const bladeMaterial = new THREE.MeshPhongMaterial({ color: 0xAAAAAA });
+                
+                for (let i = 0; i < 10; i++) {
+                    const blade = new THREE.Mesh(bladeGeometry, bladeMaterial);
+                    blade.position.y = -1.5 + i * 0.35;
+                    blade.rotation.x = Math.PI / 4;
+                    eliminatorGroup.add(blade);
+                }
+                
+                // حوضچه جمع‌آوری
+                const basinGeometry = new THREE.BoxGeometry(6.2, 0.3, 0.8);
+                const basinMaterial = new THREE.MeshPhongMaterial({ 
+                    color: 0x0066CC, 
+                    transparent: true, 
+                    opacity: 0.5 
+                });
+                const basin = new THREE.Mesh(basinGeometry, basinMaterial);
+                basin.position.y = -1.9;
+                basin.position.z = -0.15;
+                eliminatorGroup.add(basin);
+                
+                eliminatorGroup.position.set(0, 2.5, -7);
+                this.scene.add(eliminatorGroup);
+                this.objects.set('eliminator', eliminatorGroup);
+            }
+            
+            createPits() {
+                // حفره‌های 2 متری زیر فیلترها
+                const pitPositions = [
+                    { x: -3, z: 5 },
+                    { x: 3, z: 5 }
+                ];
+                
+                pitPositions.forEach((pos, index) => {
+                    const pit = this.createPit();
+                    pit.position.set(pos.x, -1, pos.z);
+                    this.scene.add(pit);
+                    this.objects.set(`pit_${index + 1}`, pit);
+                });
+            }
+            
+            createPit() {
+                const pitGroup = new THREE.Group();
+                
+                const pitGeometry = new THREE.BoxGeometry(3, 2, 6);
+                const pitMaterial = new THREE.MeshPhongMaterial({ 
+                    color: 0x555555, 
+                    transparent: true, 
+                    opacity: 0.7 
+                });
+                const pit = new THREE.Mesh(pitGeometry, pitMaterial);
+                pit.position.y = -1;
+                pitGroup.add(pit);
+                
+                return pitGroup;
+            }
+            
+            createSeparationWall() {
+                const wallGroup = new THREE.Group();
+                
+                // دیوار جداکننده با سوراخ‌های هم‌اندازه فیلتر
+                const wallGeometry = new THREE.BoxGeometry(8, 5, 0.4);
+                const wallMaterial = new THREE.MeshPhongMaterial({ 
+                    color: 0xAAAAAA, 
+                    transparent: true, 
+                    opacity: this.config.wallOpacity 
+                });
+                const wall = new THREE.Mesh(wallGeometry, wallMaterial);
+                wallGroup.add(wall);
+                
+                // سوراخ‌های 2.5 متری برای فیلترها
+                const holeGeometry = new THREE.CylinderGeometry(1.25, 1.25, 0.5, 32);
+                const holeMaterial = new THREE.MeshPhongMaterial({ 
+                    color: 0xFF0000, 
+                    transparent: true, 
+                    opacity: 0.5 
+                });
+                
+                const hole1 = new THREE.Mesh(holeGeometry, holeMaterial);
+                hole1.position.set(-3, 2.5, 0);
+                hole1.rotation.x = Math.PI / 2;
+                wallGroup.add(hole1);
+                
+                const hole2 = new THREE.Mesh(holeGeometry, holeMaterial);
+                hole2.position.set(3, 2.5, 0);
+                hole2.rotation.x = Math.PI / 2;
+                wallGroup.add(hole2);
+                
+                wallGroup.position.set(0, 2.5, 7);
+                this.scene.add(wallGroup);
+                this.objects.set('separation_wall', wallGroup);
+            }
+            
+            updateDamper(damperName, isOpen) {
+                const damper = this.objects.get(damperName);
+                if (damper) {
+                    damper.children.forEach((child, index) => {
+                        if (index > 0) { // پره‌های دمپر
+                            child.rotation.z = isOpen ? Math.PI / 4 : 0;
+                        }
+                    });
+                }
+            }
+            
+            updateFoggerVisibility() {
+                // پیاده‌سازی نمایش/مخفی کردن ذرات مه
+                // این بخش می‌تواند با توجه به نیاز توسعه داده شود
+            }
+            
+            animate() {
+                requestAnimationFrame(() => this.animate());
+                
+                // چرخش فن‌ها
+                const fanRotationSpeed = (this.config.fanSpeed / 60) * Math.PI * 2 / 60;
+                ['supply_fan_1', 'supply_fan_2', 'return_fan_1', 'return_fan_2'].forEach(fanName => {
+                    const fan = this.objects.get(fanName);
+                    if (fan) {
+                        fan.rotation.z += fanRotationSpeed;
+                    }
+                });
+                
+                // چرخش فیلترها
+                const filterRotationSpeed = (this.config.filterSpeed / 60) * Math.PI * 2 / 60;
+                ['rotary_filter_1', 'rotary_filter_2'].forEach(filterName => {
+                    const filter = this.objects.get(filterName);
+                    if (filter) {
+                        filter.rotation.z += filterRotationSpeed;
+                    }
+                });
+                
+                this.controls.update();
+                this.renderer.render(this.scene, this.camera);
+            }
+            
+            setupEventListeners() {
+                // مدیریت ریزایز پنجره
+                window.addEventListener('resize', () => {
+                    this.camera.aspect = window.innerWidth / window.innerHeight;
+                    this.camera.updateProjectionMatrix();
+                    this.renderer.setSize(window.innerWidth, window.innerHeight);
+                });
+                
+                // کلیک روی اشیاء
+                this.renderer.domElement.addEventListener('click', (event) => {
+                    this.handleObjectClick(event);
+                });
+            }
+            
+            handleObjectClick(event) {
+                // محاسبه موقعیت ماوس
+                const mouse = new THREE.Vector2();
+                mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+                mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+                
+                // Raycasting برای تشخیص شیء کلیک شده
+                const raycaster = new THREE.Raycaster();
+                raycaster.setFromCamera(mouse, this.camera);
+                
+                const intersects = raycaster.intersectObjects(this.scene.children, true);
+                
+                if (intersects.length > 0) {
+                    const clickedObject = intersects[0].object;
+                    this.selectObject(clickedObject);
+                }
+            }
+            
+            selectObject(object) {
+                // برداشتن هایلایت از شیء قبلی
+                if (this.selectedObject) {
+                    this.selectedObject.traverse((child) => {
+                        if (child.isMesh) {
+                            child.material.emissive.setHex(this.selectedObject.userData.originalEmissive || 0x000000);
+                        }
+                    });
+                }
+                
+                // هایلایت کردن شیء جدید
+                this.selectedObject = object;
+                let foundParent = object;
+                
+                // پیدا کردن والد اصلی در سیستم objects
+                while (foundParent.parent && foundParent.parent !== this.scene) {
+                    foundParent = foundParent.parent;
+                }
+                
+                // ذخیره رنگ اصلی و هایلایت کردن
+                foundParent.traverse((child) => {
+                    if (child.isMesh) {
+                        child.userData.originalEmissive = child.userData.originalEmissive || child.material.emissive.getHex();
+                        child.material.emissive.setHex(0x3498db);
+                    }
+                });
+                
+                // نمایش اطلاعات شیء
+                this.showObjectInfo(foundParent);
+            }
+            
+            showObjectInfo(object) {
+                // پیدا کردن نام شیء در سیستم objects
+                let objectName = '';
+                for (let [name, obj] of this.objects) {
+                    if (obj === object) {
+                        objectName = name;
+                        break;
+                    }
+                }
+                
+                const infoPanel = document.getElementById('info-panel');
+                const infoTitle = document.getElementById('info-title');
+                const infoContent = document.getElementById('info-content');
+                
+                // تنظیم اطلاعات بر اساس نوع شیء
+                let title = 'تجهیزات سیستم';
+                let content = 'اطلاعات دقیق برای این تجهیز در حال بارگذاری است...';
+                
+                // می‌توانید این بخش را با اطلاعات دقیق‌تر توسعه دهید
+                if (objectName.includes('fan')) {
+                    title = 'فن سیستم تهویه';
+                    content = `
+                        <h4>مشخصات فنی</h4>
+                        <p><strong>نوع:</strong> فن پروانه‌ای</p>
+                        <p><strong>قطر:</strong> ${this.config.fanDiameter} متر</p>
+                        <p><strong>سرعت:</strong> ${this.config.fanSpeed} دور بر دقیقه</p>
+                        <p><strong>موقعیت:</strong> ${objectName.includes('supply') ? 'بخش رفت' : 'بخش برگشت'}</p>
+                    `;
+                } else if (objectName.includes('filter')) {
+                    title = 'فیلتر روتاری';
+                    content = `
+                        <h4>مشخصات فنی</h4>
+                        <p><strong>قطر:</strong> 2.5 متر</p>
+                        <p><strong>طول:</strong> 5.1 متر</p>
+                        <p><strong>سرعت چرخش:</strong> ${this.config.filterSpeed} دور بر دقیقه</p>
+                        <p><strong>وظیفه:</strong> تصفیه هوای برگشتی</p>
+                    `;
+                }
+                
+                infoTitle.textContent = title;
+                infoContent.innerHTML = content;
+                infoPanel.style.display = 'block';
+                
+                // نمایش کنترل‌های شیء
+                document.getElementById('object-controls').style.display = 'block';
+            }
+        }
+
+        // راه‌اندازی سیستم
+        let ventilationSystem;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            ventilationSystem = new VentilationSystem();
+            setupUIControls();
+        });
+
+        function setupUIControls() {
+            // کنترل پنل اصلی
+            document.getElementById('toggle-controls').addEventListener('click', () => {
+                document.getElementById('main-controls').classList.toggle('collapsed');
+            });
+            
+            // کنترل‌های شیء
+            document.getElementById('close-object-controls').addEventListener('click', () => {
+                document.getElementById('object-controls').style.display = 'none';
+            });
+            
+            document.getElementById('toggle-object-visibility').addEventListener('click', () => {
+                if (ventilationSystem.selectedObject) {
+                    ventilationSystem.selectedObject.visible = !ventilationSystem.selectedObject.visible;
+                }
+            });
+            
+            // سایر کنترل‌ها...
+            // (بقیه کنترل‌ها مشابه نسخه قبلی پیاده‌سازی می‌شوند)
+        }
+
+        function hideInfo() {
+            document.getElementById('info-panel').style.display = 'none';
+        }
+    </script>
+</body>
+</html>

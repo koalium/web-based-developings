@@ -1,0 +1,1835 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HVAC Design Tool</title>
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #34495e;
+            --accent-color: #3498db;
+            --text-color: #ecf0f1;
+            --highlight-color: #e74c3c;
+            --section-bg: #f9f9f9;
+            --border-radius: 8px;
+            --box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            --transition: all 0.3s ease;
+            --sidebar-width: 250px;
+            --sidebar-collapsed-width: 60px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            display: flex;
+            min-height: 100vh;
+            background-color: #f5f7fa;
+            color: #333;
+            overflow-x: hidden;
+        }
+
+        /* Sidebar Styles */
+        .sidebar {
+            width: var(--sidebar-width);
+            background-color: var(--primary-color);
+            color: var(--text-color);
+            transition: var(--transition);
+            height: 100vh;
+            position: sticky;
+            top: 0;
+            overflow-y: auto;
+            z-index: 100;
+        }
+
+        .sidebar.collapsed {
+            width: var(--sidebar-collapsed-width);
+        }
+
+        .sidebar.collapsed:hover {
+            width: var(--sidebar-width);
+        }
+
+        .sidebar-header {
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            height: 70px;
+        }
+
+        .sidebar-title {
+            font-size: 1.2rem;
+            font-weight: bold;
+            white-space: nowrap;
+            transition: opacity 0.3s ease;
+        }
+
+        .sidebar.collapsed .sidebar-title {
+            opacity: 0;
+            width: 0;
+        }
+
+        .sidebar.collapsed:hover .sidebar-title {
+            opacity: 1;
+            width: auto;
+        }
+
+        .toggle-btn {
+            background: none;
+            border: none;
+            color: var(--text-color);
+            font-size: 1.5rem;
+            cursor: pointer;
+            transition: var(--transition);
+            min-width: 24px;
+        }
+
+        .menu {
+            list-style: none;
+            padding: 10px 0;
+        }
+
+        .menu-item {
+            padding: 12px 20px;
+            cursor: pointer;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            position: relative;
+            overflow: hidden;
+            white-space: nowrap;
+        }
+
+        .menu-item i {
+            margin-right: 10px;
+            font-size: 1.1rem;
+            min-width: 20px;
+        }
+
+        .menu-item:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .menu-item.selected {
+            background-color: var(--accent-color);
+            font-weight: bold;
+            transform: translateX(5px);
+            box-shadow: var(--box-shadow);
+            border-radius: var(--border-radius) 0 0 var(--border-radius);
+        }
+
+        .sidebar.collapsed .menu-item span {
+            display: none;
+        }
+
+        .sidebar.collapsed:hover .menu-item span {
+            display: block;
+        }
+
+        /* Main Content Styles */
+        .main-content {
+            flex: 1;
+            padding: 20px;
+            transition: var(--transition);
+        }
+
+        .section {
+            display: none;
+            background-color: white;
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+            padding: 20px;
+            margin-bottom: 20px;
+            animation: fadeIn 0.5s ease;
+        }
+
+        .section.active {
+            display: block;
+        }
+
+        .section-title {
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+            color: var(--primary-color);
+            border-bottom: 2px solid var(--accent-color);
+            padding-bottom: 10px;
+        }
+
+        /* Block Styles */
+        .block {
+            margin-bottom: 20px;
+            border: 1px solid #e0e0e0;
+            border-radius: var(--border-radius);
+            overflow: hidden;
+            transition: var(--transition);
+        }
+
+        .block-header {
+            background-color: var(--secondary-color);
+            color: white;
+            padding: 12px 15px;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .block-title {
+            font-weight: bold;
+        }
+
+        .block-toggle {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1.2rem;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .block-content {
+            padding: 15px;
+            background-color: white;
+            display: none;
+        }
+
+        .block.expanded .block-content {
+            display: block;
+        }
+
+        /* Form Elements */
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            transition: var(--transition);
+        }
+
+        .form-control:focus {
+            border-color: var(--accent-color);
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+        }
+
+        .form-select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            transition: var(--transition);
+            background-color: white;
+        }
+
+        .form-select:focus {
+            border-color: var(--accent-color);
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+        }
+
+        .btn {
+            padding: 10px 15px;
+            background-color: var(--accent-color);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: var(--transition);
+            margin-right: 10px;
+        }
+
+        .btn:hover {
+            background-color: #2980b9;
+        }
+
+        .btn-danger {
+            background-color: #e74c3c;
+        }
+
+        .btn-danger:hover {
+            background-color: #c0392b;
+        }
+
+        .btn-success {
+            background-color: #2ecc71;
+        }
+
+        .btn-success:hover {
+            background-color: #27ae60;
+        }
+
+        .btn-warning {
+            background-color: #f39c12;
+        }
+
+        .btn-warning:hover {
+            background-color: #d35400;
+        }
+
+        .btn-info {
+            background-color: #17a2b8;
+        }
+
+        .btn-info:hover {
+            background-color: #138496;
+        }
+
+        /* Calculation Results */
+        .calculation-result {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .result-item {
+            padding: 10px;
+            border-radius: var(--border-radius);
+            background-color: #e8f4fc;
+            border-left: 4px solid var(--accent-color);
+            transition: all 0.3s ease;
+        }
+
+        .result-item.double-click {
+            transform: scale(1.03);
+            box-shadow: 0 0 10px rgba(52, 152, 219, 0.5);
+        }
+
+        .result-label {
+            font-size: 0.8rem;
+            color: #7f8c8d;
+            margin-bottom: 5px;
+        }
+
+        .result-value {
+            font-weight: bold;
+            color: var(--primary-color);
+            font-size: 1.1rem;
+        }
+
+        /* Visualization and Advice */
+        .visualization {
+            margin-top: 20px;
+            padding: 15px;
+            border: 1px solid #eee;
+            border-radius: var(--border-radius);
+            background-color: #f9f9f9;
+        }
+
+        .visualization-title {
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: var(--primary-color);
+        }
+
+        .advise-box {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: var(--border-radius);
+            border-left: 4px solid #ffc107;
+            background-color: #fff8e1;
+        }
+
+        .advise-title {
+            font-weight: bold;
+            color: #f39c12;
+            margin-bottom: 5px;
+        }
+
+        /* JSON Data Display */
+        .json-data {
+            width: 100%;
+            min-height: 200px;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: var(--border-radius);
+            font-family: monospace;
+            white-space: pre-wrap;
+            margin-top: 15px;
+            background-color: #f8f9fa;
+        }
+
+        /* Material Table */
+        .material-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+
+        .material-table th, .material-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+
+        .material-table th {
+            background-color: var(--secondary-color);
+            color: white;
+        }
+
+        .material-table tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+
+        /* Block-specific colors */
+        .load-estimation-block { background: linear-gradient(135deg, #f5f7fa 0%, #ffeeba 100%); }
+        .air-washer-block { background: linear-gradient(135deg, #f5f7fa 0%, #b8d8f8 100%); }
+        .damper-coil-block { background: linear-gradient(135deg, #f5f7fa 0%, #d5f5e3 100%); }
+
+        /* Utility Classes */
+        .hidden {
+            display: none;
+        }
+
+        .text-center {
+            text-align: center;
+        }
+
+        .mt-20 {
+            margin-top: 20px;
+        }
+
+        .mb-20 {
+            margin-bottom: 20px;
+        }
+
+        .ml-10 {
+            margin-left: 10px;
+        }
+
+        /* Animations */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-20px); height: 0; }
+            to { opacity: 1; transform: translateY(0); height: auto; }
+        }
+
+        @keyframes slideUp {
+            from { opacity: 1; transform: translateY(0); height: auto; }
+            to { opacity: 0; transform: translateY(-20px); height: 0; }
+        }
+
+        /* Responsive */
+        @media (max-width: 992px) {
+            .sidebar {
+                position: fixed;
+                z-index: 1000;
+            }
+            .sidebar.collapsed {
+                transform: translateX(calc(-1 * var(--sidebar-collapsed-width) + 10px));
+            }
+            .sidebar.collapsed:hover {
+                transform: translateX(0);
+            }
+            .main-content {
+                margin-left: var(--sidebar-collapsed-width);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+            }
+            .sidebar.open {
+                transform: translateX(0);
+            }
+            .sidebar.collapsed {
+                transform: translateX(-100%);
+            }
+            .sidebar.collapsed:hover {
+                transform: translateX(0);
+            }
+            .main-content {
+                margin-left: 0;
+                padding: 15px;
+            }
+            .menu-toggle {
+                display: block;
+                position: fixed;
+                top: 10px;
+                left: 10px;
+                z-index: 1001;
+                background: var(--primary-color);
+                color: white;
+                border: none;
+                padding: 10px;
+                border-radius: 4px;
+                cursor: pointer;
+            }
+            .calculation-result {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Section-specific colors */
+        #problem-definition-section { border-left: 4px solid #e74c3c; }
+        #building-dimension-section { border-left: 4px solid #2ecc71; }
+        #load-estimation-section { border-left: 4px solid #f39c12; }
+        #ac-station-section { border-left: 4px solid #9b59b6; }
+        #airflow-calculation-section { border-left: 4px solid #1abc9c; }
+        #duct-ventilation-section { border-left: 4px solid #d35400; }
+        #rotary-filtration-section { border-left: 4px solid #3498db; }
+        #air-washer-section { border-left: 4px solid #e67e22; }
+        #damper-coil-section { border-left: 4px solid #27ae60; }
+        #fan-motors-section { border-left: 4px solid #8e44ad; }
+        #report-section { border-left: 4px solid #c0392b; }
+        #bom-section { border-left: 4px solid #16a085; }
+        #plan-drawing-section { border-left: 4px solid #2980b9; }
+        #heat-exchangers-section { border-left: 4px solid #e84393; }
+        #humidifier-section { border-left: 4px solid #00cec9; }
+        #dehumidifier-section { border-left: 4px solid #fd79a8; }
+        #file-database-section { border-left: 4px solid #636e72; }
+    </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body>
+    <!-- Sidebar Navigation -->
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <div class="sidebar-title">HVAC Designer</div>
+            <button class="toggle-btn" id="toggleSidebar">
+                <i class="fas fa-chevron-left"></i>
+            </button>
+        </div>
+        <ul class="menu">
+            <li class="menu-item selected" data-section="problem-definition-section">
+                <i class="fas fa-question-circle"></i>
+                <span>Problem Definition</span>
+            </li>
+            <li class="menu-item" data-section="building-dimension-section">
+                <i class="fas fa-ruler-combined"></i>
+                <span>Building Dimension</span>
+            </li>
+            <li class="menu-item" data-section="load-estimation-section">
+                <i class="fas fa-weight-hanging"></i>
+                <span>Load Estimation</span>
+            </li>
+            <li class="menu-item" data-section="ac-station-section">
+                <i class="fas fa-snowflake"></i>
+                <span>AC Station</span>
+            </li>
+            <li class="menu-item" data-section="airflow-calculation-section">
+                <i class="fas fa-wind"></i>
+                <span>AirFlow Calculation</span>
+            </li>
+            <li class="menu-item" data-section="duct-ventilation-section">
+                <i class="fas fa-route"></i>
+                <span>Duct & Ventilation</span>
+            </li>
+            <li class="menu-item" data-section="rotary-filtration-section">
+                <i class="fas fa-filter"></i>
+                <span>Rotary Filtration</span>
+            </li>
+            <li class="menu-item" data-section="air-washer-section">
+                <i class="fas fa-shower"></i>
+                <span>Air Washer</span>
+            </li>
+            <li class="menu-item" data-section="damper-coil-section">
+                <i class="fas fa-fan"></i>
+                <span>Damper & Coil</span>
+            </li>
+            <li class="menu-item" data-section="fan-motors-section">
+                <i class="fas fa-cogs"></i>
+                <span>Fan & Motors</span>
+            </li>
+            <li class="menu-item" data-section="report-section">
+                <i class="fas fa-file-alt"></i>
+                <span>Report</span>
+            </li>
+            <li class="menu-item" data-section="bom-section">
+                <i class="fas fa-list-ol"></i>
+                <span>BOM</span>
+            </li>
+            <li class="menu-item" data-section="plan-drawing-section">
+                <i class="fas fa-drafting-compass"></i>
+                <span>Plan & Drawing</span>
+            </li>
+            <li class="menu-item" data-section="heat-exchangers-section">
+                <i class="fas fa-exchange-alt"></i>
+                <span>Heat Exchangers</span>
+            </li>
+            <li class="menu-item" data-section="humidifier-section">
+                <i class="fas fa-tint"></i>
+                <span>Humidifier</span>
+            </li>
+            <li class="menu-item" data-section="dehumidifier-section">
+                <i class="fas fa-tint-slash"></i>
+                <span>Dehumidifier</span>
+            </li>
+            <li class="menu-item" data-section="file-database-section">
+                <i class="fas fa-database"></i>
+                <span>File & Database</span>
+            </li>
+        </ul>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content" id="mainContent">
+        <!-- Problem Definition Section -->
+        <div class="section active" id="problem-definition-section">
+            <h2 class="section-title">Problem Definition</h2>
+            
+            <div class="block expanded">
+                <div class="block-header">
+                    <div class="block-title">Project Information</div>
+                    <button class="block-toggle"><i class="fas fa-chevron-up"></i></button>
+                </div>
+                <div class="block-content">
+                    <div class="form-group">
+                        <label class="form-label">Project Name</label>
+                        <input type="text" class="form-control" id="project-name">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Client Name</label>
+                        <input type="text" class="form-control" id="client-name">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Project Description</label>
+                        <textarea class="form-control" id="project-description" rows="3"></textarea>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Building Dimension Section -->
+        <div class="section" id="building-dimension-section">
+            <h2 class="section-title">Building Dimension</h2>
+            
+            <div class="block expanded">
+                <div class="block-header">
+                    <div class="block-title">Building Dimensions</div>
+                    <button class="block-toggle"><i class="fas fa-chevron-up"></i></button>
+                </div>
+                <div class="block-content">
+                    <div class="form-group">
+                        <label class="form-label">Length (m)</label>
+                        <input type="number" class="form-control" id="building-length">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Width (m)</label>
+                        <input type="number" class="form-control" id="building-width">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Height (m)</label>
+                        <input type="number" class="form-control" id="building-height">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Load Estimation Section -->
+        <div class="section" id="load-estimation-section">
+            <h2 class="section-title">Load Estimation</h2>
+            
+            <!-- Heat Sources Block -->
+            <div class="block expanded load-estimation-block">
+                <div class="block-header">
+                    <div class="block-title">Heat Sources Calculation</div>
+                    <button class="block-toggle"><i class="fas fa-chevron-up"></i></button>
+                </div>
+                <div class="block-content">
+                    <div class="form-group">
+                        <label class="form-label">Sunlight Power (W/m²)</label>
+                        <input type="number" class="form-control" id="sunlight-power" value="800" oninput="calculateHeatLoad()">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Machine Power Consumption (kW)</label>
+                        <input type="number" class="form-control" id="machine-power" value="50" oninput="calculateHeatLoad()">
+                    </div>
+                    
+                    <div class="calculation-result">
+                        <div class="result-item">
+                            <div class="result-label">Roof Area (m²)</div>
+                            <div class="result-value" id="roof-area">0.00</div>
+                        </div>
+                        <div class="result-item">
+                            <div class="result-label">Sunlight Heating (kW)</div>
+                            <div class="result-value" id="sunlight-heating">0.00</div>
+                        </div>
+                        <div class="result-item">
+                            <div class="result-label">Total Added Heat (kW)</div>
+                            <div class="result-value" id="total-added-heat">0.00</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Thermal Load Block -->
+            <div class="block expanded load-estimation-block">
+                <div class="block-header">
+                    <div class="block-title">Thermal Load Calculation</div>
+                    <button class="block-toggle"><i class="fas fa-chevron-up"></i></button>
+                </div>
+                <div class="block-content">
+                    <div class="form-group">
+                        <label class="form-label">Worst Case Scenario</label>
+                        <div style="display: flex; gap: 15px;">
+                            <div style="flex: 1;">
+                                <label class="form-label">Hottest Day Temp (°C)</label>
+                                <input type="number" class="form-control" id="hot-day-temp" value="45">
+                            </div>
+                            <div style="flex: 1;">
+                                <label class="form-label">Humidity (%)</label>
+                                <input type="number" class="form-control" id="hot-day-humidity" value="70">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Coldest Day Scenario</label>
+                        <div style="display: flex; gap: 15px;">
+                            <div style="flex: 1;">
+                                <label class="form-label">Coldest Day Temp (°C)</label>
+                                <input type="number" class="form-control" id="cold-day-temp" value="-5">
+                            </div>
+                            <div style="flex: 1;">
+                                <label class="form-label">Humidity (%)</label>
+                                <input type="number" class="form-control" id="cold-day-humidity" value="30">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Wall Material</label>
+                        <select class="form-select" id="wall-material">
+                            <option value="brick">Brick (U=1.5 W/m²K)</option>
+                            <option value="concrete">Concrete (U=2.0 W/m²K)</option>
+                            <option value="insulated">Insulated Wall (U=0.5 W/m²K)</option>
+                            <option value="glass">Glass (U=5.8 W/m²K)</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Total Wall Area (m²)</label>
+                        <input type="number" class="form-control" id="wall-area" value="200">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Ceiling Material</label>
+                        <select class="form-select" id="ceiling-material">
+                            <option value="concrete">Concrete (U=2.0 W/m²K)</option>
+                            <option value="insulated">Insulated Ceiling (U=0.4 W/m²K)</option>
+                            <option value="metal">Metal Roof (U=5.0 W/m²K)</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Ceiling Area (m²)</label>
+                        <input type="number" class="form-control" id="ceiling-area" value="100">
+                    </div>
+                    
+                    <button class="btn btn-success" onclick="calculateThermalLoad()">
+                        <i class="fas fa-calculator"></i> Calculate Thermal Load
+                    </button>
+                    
+                    <div class="calculation-result mt-20">
+                        <div class="result-item">
+                            <div class="result-label">Wall Heat Conduction (W/K)</div>
+                            <div class="result-value" id="wall-conduction">0.00</div>
+                        </div>
+                        <div class="result-item">
+                            <div class="result-label">Ceiling Heat Conduction (W/K)</div>
+                            <div class="result-value" id="ceiling-conduction">0.00</div>
+                        </div>
+                        <div class="result-item">
+                            <div class="result-label">Total Heat Loss (kW)</div>
+                            <div class="result-value" id="total-heat-loss">0.00</div>
+                        </div>
+                    </div>
+                    
+                    <div class="advise-box mt-20">
+                        <div class="advise-title">Recommendations</div>
+                        <p id="thermal-load-advise">Thermal load calculations will appear here after input values are provided and calculation is run.</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Data Export Block -->
+            <div class="block expanded">
+                <div class="block-header">
+                    <div class="block-title">Data Management</div>
+                    <button class="block-toggle"><i class="fas fa-chevron-up"></i></button>
+                </div>
+                <div class="block-content">
+                    <button class="btn btn-success" onclick="saveLoadEstimationData()">
+                        <i class="fas fa-save"></i> Save to JSON File
+                    </button>
+                    <button class="btn btn-warning" onclick="loadLoadEstimationData()">
+                        <i class="fas fa-folder-open"></i> Load from JSON File
+                    </button>
+                    
+                    <div class="form-group mt-20">
+                        <label class="form-label">JSON Data</label>
+                        <textarea class="json-data" id="load-estimation-json" readonly></textarea>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Air Washer Section -->
+        <div class="section" id="air-washer-section">
+            <h2 class="section-title">Air Washer</h2>
+            
+            <!-- Air Washer Configuration -->
+            <div class="block expanded air-washer-block">
+                <div class="block-header">
+                    <div class="block-title">Air Washer Configuration</div>
+                    <button class="block-toggle"><i class="fas fa-chevron-up"></i></button>
+                </div>
+                <div class="block-content">
+                    <div class="form-group">
+                        <label class="form-label">Airflow (m³/s)</label>
+                        <input type="number" class="form-control" id="air-washer-airflow" value="55" oninput="calculateAirWasher()">
+                        <small class="text-muted">Default value from calculations or enter manually</small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Vent Window Dimensions</label>
+                        <div style="display: flex; gap: 15px;">
+                            <div style="flex: 1;">
+                                <label class="form-label">Width (m)</label>
+                                <input type="number" class="form-control" id="vent-width" value="5.3" oninput="calculateAirWasher()">
+                            </div>
+                            <div style="flex: 1;">
+                                <label class="form-label">Height (m)</label>
+                                <input type="number" class="form-control" id="vent-height" value="3.2" oninput="calculateAirWasher()">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="calculation-result">
+                        <div class="result-item">
+                            <div class="result-label">Vent Area (m²)</div>
+                            <div class="result-value" id="vent-area">0.00</div>
+                        </div>
+                        <div class="result-item">
+                            <div class="result-label">Air Velocity (m/s)</div>
+                            <div class="result-value" id="air-velocity">0.00</div>
+                        </div>
+                    </div>
+                    
+                    <div class="advise-box">
+                        <div class="advise-title">Recommendations</div>
+                        <p id="air-washer-advise">Air velocity should be under 3.95 m/s, optimal around 3.44 m/s.</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Zone 0 - Air Baffle -->
+            <div class="block expanded air-washer-block">
+                <div class="block-header">
+                    <div class="block-title">Zone 0 - Air Baffle</div>
+                    <button class="block-toggle"><i class="fas fa-chevron-up"></i></button>
+                </div>
+                <div class="block-content">
+                    <p>Galvanized plate and frame to laminarize air flow before entering the air washer.</p>
+                    <p>Dimensions should match vent window dimensions for proper airflow distribution.</p>
+                </div>
+            </div>
+            
+            <!-- Zone 1 & 2 - Air Wash and Water Insertion -->
+            <div class="block expanded air-washer-block">
+                <div class="block-header">
+                    <div class="block-title">Zone 1 & 2 - Air Wash and Water Insertion</div>
+                    <button class="block-toggle"><i class="fas fa-chevron-up"></i></button>
+                </div>
+                <div class="block-content">
+                    <div class="form-group">
+                        <label class="form-label">Space Between Nozzles in Riser (mm)</label>
+                        <input type="number" class="form-control" id="nozzle-space" value="76" oninput="calculateNozzles()">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Space Between Risers in Collector (mm)</label>
+                        <input type="number" class="form-control" id="riser-space" value="304" oninput="calculateNozzles()">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Collector Diameter (mm)</label>
+                        <input type="number" class="form-control" id="collector-diameter" value="100" oninput="calculateNozzles()">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Number of Rows</label>
+                        <input type="number" class="form-control" id="row-number" value="2" oninput="calculateNozzles()">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Nozzle Water Flow Rate (L/min)</label>
+                        <input type="number" class="form-control" id="nozzle-flowrate" value="2.5" oninput="calculateNozzles()">
+                    </div>
+                    
+                    <div class="calculation-result">
+                        <div class="result-item">
+                            <div class="result-label">Riser Length (mm)</div>
+                            <div class="result-value" id="riser-length">0</div>
+                        </div>
+                        <div class="result-item">
+                            <div class="result-label">Risers per Collector</div>
+                            <div class="result-value" id="risers-per-collector">0</div>
+                        </div>
+                        <div class="result-item">
+                            <div class="result-label">Nozzles per Riser</div>
+                            <div class="result-value" id="nozzles-per-riser">0</div>
+                        </div>
+                        <div class="result-item">
+                            <div class="result-label">Total Nozzles</div>
+                            <div class="result-value" id="total-nozzles">0</div>
+                        </div>
+                        <div class="result-item">
+                            <div class="result-label">Total Water Flow (L/min)</div>
+                            <div class="result-value" id="total-water-flow">0.00</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Zone 3 - Eliminator -->
+            <div class="block expanded air-washer-block">
+                <div class="block-header">
+                    <div class="block-title">Zone 3 - Eliminator</div>
+                    <button class="block-toggle"><i class="fas fa-chevron-up"></i></button>
+                </div>
+                <div class="block-content">
+                    <p>Plastic formed sheet to trap water droplets and prevent liquid from entering the duct.</p>
+                    <p>Dimensions should match vent window dimensions for proper airflow.</p>
+                </div>
+            </div>
+            
+            <!-- Pump Estimation -->
+            <div class="block expanded air-washer-block">
+                <div class="block-header">
+                    <div class="block-title">Pump Estimation</div>
+                    <button class="block-toggle"><i class="fas fa-chevron-up"></i></button>
+                </div>
+                <div class="block-content">
+                    <div class="form-group">
+                        <label class="form-label">Pump Head (m)</label>
+                        <input type="number" class="form-control" id="pump-head" value="34" oninput="calculatePump()">
+                    </div>
+                    
+                    <div class="calculation-result">
+                        <div class="result-item">
+                            <div class="result-label">Required Pump Power (kW)</div>
+                            <div class="result-value" id="pump-power">0.00</div>
+                        </div>
+                    </div>
+                    
+                    <div class="advise-box">
+                        <div class="advise-title">Pump Selection</div>
+                        <p id="pump-selection">Based on the calculated flow rate and head, select a centrifugal pump with:</p>
+                        <ul id="pump-specs">
+                            <li>Impeller diameter matching flow requirements</li>
+                            <li>Stainless steel construction for water applications</li>
+                            <li>Inlet and outlet sizes based on pipe diameter calculations</li>
+                            <li>Appropriate filter size based on nozzle requirements</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Data Export Block -->
+            <div class="block expanded">
+                <div class="block-header">
+                    <div class="block-title">Data Management</div>
+                    <button class="block-toggle"><i class="fas fa-chevron-up"></i></button>
+                </div>
+                <div class="block-content">
+                    <button class="btn btn-success" onclick="saveAirWasherData()">
+                        <i class="fas fa-save"></i> Save to JSON File
+                    </button>
+                    <button class="btn btn-warning" onclick="loadAirWasherData()">
+                        <i class="fas fa-folder-open"></i> Load from JSON File
+                    </button>
+                    
+                    <div class="form-group mt-20">
+                        <label class="form-label">JSON Data</label>
+                        <textarea class="json-data" id="air-washer-json" readonly></textarea>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Damper & Coil Section -->
+        <div class="section" id="damper-coil-section">
+            <h2 class="section-title">Damper & Coil</h2>
+            
+            <!-- Fresh Air & Exhaust Damper -->
+            <div class="block expanded damper-coil-block">
+                <div class="block-header">
+                    <div class="block-title">Fresh Air & Exhaust Damper</div>
+                    <button class="block-toggle"><i class="fas fa-chevron-up"></i></button>
+                </div>
+                <div class="block-content">
+                    <div class="form-group">
+                        <label class="form-label">Airflow (m³/s)</label>
+                        <input type="number" class="form-control" id="fresh-airflow" value="55" oninput="calculateDamper('fresh')">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Damper Dimensions</label>
+                        <div style="display: flex; gap: 15px;">
+                            <div style="flex: 1;">
+                                <label class="form-label">Width (mm)</label>
+                                <input type="number" class="form-control" id="fresh-width" value="1520" oninput="calculateDamper('fresh')">
+                            </div>
+                            <div style="flex: 1;">
+                                <label class="form-label">Height (mm)</label>
+                                <input type="number" class="form-control" id="fresh-height" value="2820" oninput="calculateDamper('fresh')">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Number of Dampers</label>
+                        <input type="number" class="form-control" id="fresh-count" value="1" min="1" oninput="calculateDamper('fresh')">
+                    </div>
+                    
+                    <div class="calculation-result">
+                        <div class="result-item">
+                            <div class="result-label">Damper Area (m²)</div>
+                            <div class="result-value" id="fresh-damper-area">0.00</div>
+                        </div>
+                        <div class="result-item">
+                            <div class="result-label">Total Area (m²)</div>
+                            <div class="result-value" id="fresh-total-area">0.00</div>
+                        </div>
+                        <div class="result-item">
+                            <div class="result-label">Air Velocity (m/s)</div>
+                            <div class="result-value" id="fresh-air-velocity">0.00</div>
+                        </div>
+                    </div>
+                    
+                    <div class="advise-box">
+                        <div class="advise-title">Recommendations</div>
+                        <p id="fresh-damper-advise">Air velocity should be around 6 m/s, not exceeding 7.23 m/s for fresh air/exhaust dampers.</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Return Damper -->
+            <div class="block expanded damper-coil-block">
+                <div class="block-header">
+                    <div class="block-title">Return Damper</div>
+                    <button class="block-toggle"><i class="fas fa-chevron-up"></i></button>
+                </div>
+                <div class="block-content">
+                    <div class="form-group">
+                        <label class="form-label">Airflow (m³/s)</label>
+                        <input type="number" class="form-control" id="return-airflow" value="55" oninput="calculateDamper('return')">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Damper Dimensions</label>
+                        <div style="display: flex; gap: 15px;">
+                            <div style="flex: 1;">
+                                <label class="form-label">Width (mm)</label>
+                                <input type="number" class="form-control" id="return-width" value="1520" oninput="calculateDamper('return')">
+                            </div>
+                            <div style="flex: 1;">
+                                <label class="form-label">Height (mm)</label>
+                                <input type="number" class="form-control" id="return-height" value="2820" oninput="calculateDamper('return')">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Number of Dampers</label>
+                        <input type="number" class="form-control" id="return-count" value="1" min="1" oninput="calculateDamper('return')">
+                    </div>
+                    
+                    <div class="calculation-result">
+                        <div class="result-item">
+                            <div class="result-label">Damper Area (m²)</div>
+                            <div class="result-value" id="return-damper-area">0.00</div>
+                        </div>
+                        <div class="result-item">
+                            <div class="result-label">Total Area (m²)</div>
+                            <div class="result-value" id="return-total-area">0.00</div>
+                        </div>
+                        <div class="result-item">
+                            <div class="result-label">Air Velocity (m/s)</div>
+                            <div class="result-value" id="return-air-velocity">0.00</div>
+                        </div>
+                    </div>
+                    
+                    <div class="advise-box">
+                        <div class="advise-title">Recommendations</div>
+                        <p id="return-damper-advise">Air velocity should be around 6 m/s, not exceeding 7.23 m/s for return dampers.</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Heating Coil -->
+            <div class="block expanded damper-coil-block">
+                <div class="block-header">
+                    <div class="block-title">Heating Coil</div>
+                    <button class="block-toggle"><i class="fas fa-chevron-up"></i></button>
+                </div>
+                <div class="block-content">
+                    <div class="form-group">
+                        <label class="form-label">Coil Type</label>
+                        <select class="form-select" id="coil-type" oninput="calculateCoil()">
+                            <option value="1">1 Row</option>
+                            <option value="2">2 Row</option>
+                            <option value="3">3 Row</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Coil Dimensions (same as return damper)</label>
+                        <div style="display: flex; gap: 15px;">
+                            <div style="flex: 1;">
+                                <label class="form-label">Width (mm)</label>
+                                <input type="number" class="form-control" id="coil-width" value="1520" oninput="calculateCoil()">
+                            </div>
+                            <div style="flex: 1;">
+                                <label class="form-label">Height (mm)</label>
+                                <input type="number" class="form-control" id="coil-height" value="2820" oninput="calculateCoil()">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Number of Coils</label>
+                        <input type="number" class="form-control" id="coil-count" value="1" min="1" oninput="calculateCoil()">
+                    </div>
+                    
+                    <div class="calculation-result">
+                        <div class="result-item">
+                            <div class="result-label">Coil Face Area (m²)</div>
+                            <div class="result-value" id="coil-face-area">0.00</div>
+                        </div>
+                        <div class="result-item">
+                            <div class="result-label">Total Heat Transfer Area (m²)</div>
+                            <div class="result-value" id="coil-total-area">0.00</div>
+                        </div>
+                        <div class="result-item">
+                            <div class="result-label">Air Velocity Through Coil (m/s)</div>
+                            <div class="result-value" id="coil-air-velocity">0.00</div>
+                        </div>
+                    </div>
+                    
+                    <div class="advise-box">
+                        <div class="advise-title">Recommendations</div>
+                        <p id="coil-advise">For heating coils, face velocity should be between 2-3 m/s for optimal performance.</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Data Export Block -->
+            <div class="block expanded">
+                <div class="block-header">
+                    <div class="block-title">Data Management</div>
+                    <button class="block-toggle"><i class="fas fa-chevron-up"></i></button>
+                </div>
+                <div class="block-content">
+                    <button class="btn btn-success" onclick="saveDamperCoilData()">
+                        <i class="fas fa-save"></i> Save to JSON File
+                    </button>
+                    <button class="btn btn-warning" onclick="loadDamperCoilData()">
+                        <i class="fas fa-folder-open"></i> Load from JSON File
+                    </button>
+                    
+                    <div class="form-group mt-20">
+                        <label class="form-label">JSON Data</label>
+                        <textarea class="json-data" id="damper-coil-json" readonly></textarea>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Other sections would follow the same pattern -->
+        <!-- For brevity, I'm showing just the key sections -->
+    </div>
+
+    <script>
+        // Global variables accessible across all sections
+        const globalVariables = {
+            projectData: {},
+            calculations: {},
+            settings: {
+                units: 'metric',
+                theme: 'light'
+            },
+            materialProperties: {
+                brick: { name: "Brick", uValue: 1.5 },
+                concrete: { name: "Concrete", uValue: 2.0 },
+                insulated: { name: "Insulated Wall", uValue: 0.5 },
+                glass: { name: "Glass", uValue: 5.8 },
+                insulatedCeiling: { name: "Insulated Ceiling", uValue: 0.4 },
+                metalRoof: { name: "Metal Roof", uValue: 5.0 }
+            }
+        };
+
+        // DOM Elements
+        const sidebar = document.getElementById('sidebar');
+        const toggleSidebarBtn = document.getElementById('toggleSidebar');
+        const menuItems = document.querySelectorAll('.menu-item');
+        const sections = document.querySelectorAll('.section');
+        const blockHeaders = document.querySelectorAll('.block-header');
+        const mainContent = document.getElementById('mainContent');
+
+        // Initialize the app
+        document.addEventListener('DOMContentLoaded', function() {
+            setupSidebar();
+            setupMenuItems();
+            setupBlockToggles();
+            setupMobileMenu();
+            
+            // Initial calculations
+            calculateHeatLoad();
+            calculateAirWasher();
+            calculateNozzles();
+            calculatePump();
+            calculateDamper('fresh');
+            calculateDamper('return');
+            calculateCoil();
+        });
+
+        // Sidebar functionality
+        function setupSidebar() {
+            // Auto-collapse sidebar on mobile
+            if (window.innerWidth <= 992) {
+                sidebar.classList.add('collapsed');
+            }
+
+            // Toggle sidebar collapse/expand
+            toggleSidebarBtn.addEventListener('click', () => {
+                sidebar.classList.toggle('collapsed');
+                
+                // Change icon
+                const icon = toggleSidebarBtn.querySelector('i');
+                if (sidebar.classList.contains('collapsed')) {
+                    icon.classList.remove('fa-chevron-left');
+                    icon.classList.add('fa-chevron-right');
+                } else {
+                    icon.classList.remove('fa-chevron-right');
+                    icon.classList.add('fa-chevron-left');
+                }
+            });
+        }
+
+        // Menu item selection
+        function setupMenuItems() {
+            menuItems.forEach(item => {
+                item.addEventListener('click', () => {
+                    // Remove selected class from all items
+                    menuItems.forEach(i => i.classList.remove('selected'));
+                    
+                    // Add selected class to clicked item
+                    item.classList.add('selected');
+                    
+                    // Get the section to show
+                    const sectionId = item.getAttribute('data-section');
+                    
+                    // Hide all sections
+                    sections.forEach(section => {
+                        section.classList.remove('active');
+                    });
+                    
+                    // Show selected section
+                    document.getElementById(sectionId).classList.add('active');
+                });
+            });
+        }
+
+        // Block toggle functionality
+        function setupBlockToggles() {
+            blockHeaders.forEach(header => {
+                header.addEventListener('click', () => {
+                    const block = header.parentElement;
+                    const content = header.nextElementSibling;
+                    const toggleBtn = header.querySelector('.block-toggle i');
+                    
+                    block.classList.toggle('expanded');
+                    
+                    if (block.classList.contains('expanded')) {
+                        content.style.display = 'block';
+                        toggleBtn.classList.remove('fa-chevron-down');
+                        toggleBtn.classList.add('fa-chevron-up');
+                    } else {
+                        content.style.display = 'none';
+                        toggleBtn.classList.remove('fa-chevron-up');
+                        toggleBtn.classList.add('fa-chevron-down');
+                    }
+                });
+            });
+        }
+
+        // Mobile menu toggle (for responsive design)
+        function setupMobileMenu() {
+            const menuToggle = document.createElement('button');
+            menuToggle.className = 'menu-toggle hidden';
+            menuToggle.innerHTML = '<i class="fas fa-bars"></i>';
+            document.body.appendChild(menuToggle);
+            
+            function checkScreenSize() {
+                if (window.innerWidth <= 768) {
+                    menuToggle.classList.remove('hidden');
+                    sidebar.classList.remove('collapsed');
+                    sidebar.classList.remove('open');
+                } else {
+                    menuToggle.classList.add('hidden');
+                    sidebar.classList.remove('open');
+                }
+            }
+            
+            menuToggle.addEventListener('click', () => {
+                sidebar.classList.toggle('open');
+            });
+            
+            window.addEventListener('resize', checkScreenSize);
+            checkScreenSize();
+        }
+
+        // Load Estimation Calculations
+        function calculateHeatLoad() {
+            // Get building dimensions
+            const buildingLength = parseFloat(document.getElementById('building-length').value) || 0;
+            const buildingWidth = parseFloat(document.getElementById('building-width').value) || 0;
+            
+            // Calculate roof area
+            const roofArea = buildingLength * buildingWidth;
+            document.getElementById('roof-area').textContent = roofArea.toFixed(2);
+            
+            // Calculate sunlight heating
+            const sunlightPower = parseFloat(document.getElementById('sunlight-power').value) || 0;
+            const sunlightHeating = (roofArea * sunlightPower) / 1000; // Convert to kW
+            document.getElementById('sunlight-heating').textContent = sunlightHeating.toFixed(2);
+            
+            // Calculate total added heat
+            const machinePower = parseFloat(document.getElementById('machine-power').value) || 0;
+            const totalAddedHeat = sunlightHeating + machinePower;
+            document.getElementById('total-added-heat').textContent = totalAddedHeat.toFixed(2);
+        }
+
+        function calculateThermalLoad() {
+            // Get material properties
+            const wallMaterial = document.getElementById('wall-material').value;
+            const ceilingMaterial = document.getElementById('ceiling-material').value;
+            
+            // Get U-values
+            const wallUValue = globalVariables.materialProperties[wallMaterial].uValue;
+            const ceilingUValue = globalVariables.materialProperties[ceilingMaterial].uValue;
+            
+            // Get areas
+            const wallArea = parseFloat(document.getElementById('wall-area').value) || 0;
+            const ceilingArea = parseFloat(document.getElementById('ceiling-area').value) || 0;
+            
+            // Calculate heat conduction
+            const wallConduction = wallUValue * wallArea;
+            const ceilingConduction = ceilingUValue * ceilingArea;
+            
+            document.getElementById('wall-conduction').textContent = wallConduction.toFixed(2);
+            document.getElementById('ceiling-conduction').textContent = ceilingConduction.toFixed(2);
+            
+            // Get temperature differences
+            const hotDayTemp = parseFloat(document.getElementById('hot-day-temp').value) || 0;
+            const coldDayTemp = parseFloat(document.getElementById('cold-day-temp').value) || 0;
+            const indoorTemp = 22; // Assume standard indoor temperature
+            
+            // Calculate heat loss/gain
+            const heatLossWinter = (wallConduction + ceilingConduction) * (indoorTemp - coldDayTemp) / 1000;
+            const heatGainSummer = (wallConduction + ceilingConduction) * (hotDayTemp - indoorTemp) / 1000;
+            
+            document.getElementById('total-heat-loss').textContent = heatLossWinter.toFixed(2);
+            
+            // Update advice
+            const adviseElement = document.getElementById('thermal-load-advise');
+            adviseElement.innerHTML = `
+                <strong>Winter Scenario (Heating Load):</strong><br>
+                Heat loss: ${heatLossWinter.toFixed(2)} kW at ${coldDayTemp}°C outdoor temperature<br><br>
+                <strong>Summer Scenario (Cooling Load):</strong><br>
+                Heat gain: ${heatGainSummer.toFixed(2)} kW at ${hotDayTemp}°C outdoor temperature<br><br>
+                <strong>Recommendations:</strong><br>
+                - Consider adding insulation for ${wallUValue > 1 ? 'walls' : ''}${wallUValue > 1 && ceilingUValue > 1 ? ' and ' : ''}${ceilingUValue > 1 ? 'ceiling' : ''} to reduce heat transfer<br>
+                - Size HVAC system accordingly for both heating and cooling requirements
+            `;
+            
+            if (heatLossWinter > 50 || heatGainSummer > 50) {
+                adviseElement.style.borderLeftColor = '#e74c3c';
+                adviseElement.style.backgroundColor = '#ffebee';
+            } else {
+                adviseElement.style.borderLeftColor = '#2ecc71';
+                adviseElement.style.backgroundColor = '#e8f5e9';
+            }
+        }
+
+        function saveLoadEstimationData() {
+            const data = {
+                sunlightPower: document.getElementById('sunlight-power').value,
+                machinePower: document.getElementById('machine-power').value,
+                hotDayTemp: document.getElementById('hot-day-temp').value,
+                hotDayHumidity: document.getElementById('hot-day-humidity').value,
+                coldDayTemp: document.getElementById('cold-day-temp').value,
+                coldDayHumidity: document.getElementById('cold-day-humidity').value,
+                wallMaterial: document.getElementById('wall-material').value,
+                wallArea: document.getElementById('wall-area').value,
+                ceilingMaterial: document.getElementById('ceiling-material').value,
+                ceilingArea: document.getElementById('ceiling-area').value,
+                calculations: {
+                    roofArea: document.getElementById('roof-area').textContent,
+                    sunlightHeating: document.getElementById('sunlight-heating').textContent,
+                    totalAddedHeat: document.getElementById('total-added-heat').textContent,
+                    wallConduction: document.getElementById('wall-conduction').textContent,
+                    ceilingConduction: document.getElementById('ceiling-conduction').textContent,
+                    totalHeatLoss: document.getElementById('total-heat-loss').textContent
+                }
+            };
+            
+            document.getElementById('load-estimation-json').value = JSON.stringify(data, null, 2);
+            
+            // Save to file
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'load-estimation-data.json';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function loadLoadEstimationData() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+            
+            input.onchange = e => {
+                const file = e.target.files[0];
+                const reader = new FileReader();
+                
+                reader.onload = event => {
+                    try {
+                        const data = JSON.parse(event.target.result);
+                        
+                        // Load simple values
+                        document.getElementById('sunlight-power').value = data.sunlightPower || '';
+                        document.getElementById('machine-power').value = data.machinePower || '';
+                        document.getElementById('hot-day-temp').value = data.hotDayTemp || '';
+                        document.getElementById('hot-day-humidity').value = data.hotDayHumidity || '';
+                        document.getElementById('cold-day-temp').value = data.coldDayTemp || '';
+                        document.getElementById('cold-day-humidity').value = data.coldDayHumidity || '';
+                        document.getElementById('wall-area').value = data.wallArea || '';
+                        document.getElementById('ceiling-area').value = data.ceilingArea || '';
+                        
+                        // Load select values
+                        if (data.wallMaterial) {
+                            document.getElementById('wall-material').value = data.wallMaterial;
+                        }
+                        if (data.ceilingMaterial) {
+                            document.getElementById('ceiling-material').value = data.ceilingMaterial;
+                        }
+                        
+                        // Display JSON data
+                        document.getElementById('load-estimation-json').value = JSON.stringify(data, null, 2);
+                        
+                        // Recalculate
+                        calculateHeatLoad();
+                        calculateThermalLoad();
+                        
+                        alert('Load estimation data loaded successfully!');
+                    } catch (error) {
+                        alert('Error loading file: ' + error.message);
+                    }
+                };
+                
+                reader.readAsText(file);
+            };
+            
+            input.click();
+        }
+
+        // Air Washer Calculations
+        function calculateAirWasher() {
+            const airflow = parseFloat(document.getElementById('air-washer-airflow').value) || 0;
+            const ventWidth = parseFloat(document.getElementById('vent-width').value) || 0;
+            const ventHeight = parseFloat(document.getElementById('vent-height').value) || 0;
+            
+            // Calculate vent area
+            const ventArea = ventWidth * ventHeight;
+            document.getElementById('vent-area').textContent = ventArea.toFixed(2);
+            
+            // Calculate air velocity
+            const airVelocity = ventArea > 0 ? airflow / ventArea : 0;
+            document.getElementById('air-velocity').textContent = airVelocity.toFixed(2);
+            
+            // Update advice
+            const adviseElement = document.getElementById('air-washer-advise');
+            if (airVelocity > 3.95) {
+                adviseElement.innerHTML = `Air velocity (${airVelocity.toFixed(2)} m/s) is too high! Must be under 3.95 m/s. Consider increasing vent dimensions.`;
+                adviseElement.style.borderLeftColor = '#e74c3c';
+                adviseElement.style.backgroundColor = '#ffebee';
+            } else if (airVelocity < 3.44) {
+                adviseElement.innerHTML = `Air velocity (${airVelocity.toFixed(2)} m/s) is below optimal range (3.44 m/s). Consider reducing vent dimensions.`;
+                adviseElement.style.borderLeftColor = '#f39c12';
+                adviseElement.style.backgroundColor = '#fff8e1';
+            } else {
+                adviseElement.innerHTML = `Air velocity (${airVelocity.toFixed(2)} m/s) is within optimal range (3.44-3.95 m/s).`;
+                adviseElement.style.borderLeftColor = '#2ecc71';
+                adviseElement.style.backgroundColor = '#e8f5e9';
+            }
+        }
+
+        function calculateNozzles() {
+            const ventHeight = parseFloat(document.getElementById('vent-height').value) || 0;
+            const ventWidth = parseFloat(document.getElementById('vent-width').value) || 0;
+            const nozzleSpace = parseFloat(document.getElementById('nozzle-space').value) || 76;
+            const riserSpace = parseFloat(document.getElementById('riser-space').value) || 304;
+            const collectorDiameter = parseFloat(document.getElementById('collector-diameter').value) || 100;
+            const rowNumber = parseInt(document.getElementById('row-number').value) || 2;
+            const nozzleFlowrate = parseFloat(document.getElementById('nozzle-flowrate').value) || 2.5;
+            
+            // Convert mm to m
+            const collectorDiamM = collectorDiameter / 1000;
+            
+            // Calculate riser length (window height - collector diameter)
+            const riserLength = (ventHeight * 1000) - collectorDiameter;
+            document.getElementById('riser-length').textContent = riserLength.toFixed(0);
+            
+            // Calculate risers per collector (window width / riser space - 1)
+            const risersPerCollector = Math.floor((ventWidth * 1000) / riserSpace) - 1;
+            document.getElementById('risers-per-collector').textContent = risersPerCollector;
+            
+            // Calculate nozzles per riser (riser length / nozzle space - 1)
+            const nozzlesPerRiser = Math.floor(riserLength / nozzleSpace) - 1;
+            document.getElementById('nozzles-per-riser').textContent = nozzlesPerRiser;
+            
+            // Calculate total nozzles (row number * nozzles per riser * risers per collector)
+            const totalNozzles = rowNumber * nozzlesPerRiser * risersPerCollector;
+            document.getElementById('total-nozzles').textContent = totalNozzles;
+            
+            // Calculate total water flow (total nozzles * nozzle flowrate)
+            const totalWaterFlow = totalNozzles * nozzleFlowrate;
+            document.getElementById('total-water-flow').textContent = totalWaterFlow.toFixed(2);
+        }
+
+        function calculatePump() {
+            const totalWaterFlow = parseFloat(document.getElementById('total-water-flow').textContent) || 0;
+            const pumpHead = parseFloat(document.getElementById('pump-head').value) || 34;
+            
+            // Calculate pump power (kW) = (Q × H × ρ × g) / (3.6 × 10^6 × η)
+            // Where: Q = flow rate (m³/h), H = head (m), ρ = density (1000 kg/m³), g = gravity (9.81 m/s²), η = efficiency (0.7)
+            const flowRateM3H = totalWaterFlow * 0.06; // Convert L/min to m³/h
+            const pumpPower = (flowRateM3H * pumpHead * 1000 * 9.81) / (3.6 * Math.pow(10, 6) * 0.7);
+            
+            document.getElementById('pump-power').textContent = pumpPower.toFixed(2);
+            
+            // Update pump selection advice
+            const pumpSpecsElement = document.getElementById('pump-specs');
+            pumpSpecsElement.innerHTML = `
+                <li>Flow rate: ${totalWaterFlow.toFixed(2)} L/min (${flowRateM3H.toFixed(2)} m³/h)</li>
+                <li>Head: ${pumpHead} m</li>
+                <li>Required power: ${pumpPower.toFixed(2)} kW</li>
+                <li>Impeller diameter: ${calculateImpellerDiameter(flowRateM3H, pumpHead)} mm</li>
+                <li>Inlet diameter: ${calculatePipeDiameter(flowRateM3H)} mm</li>
+                <li>Outlet diameter: ${calculatePipeDiameter(flowRateM3H)} mm</li>
+                <li>Filter size: ${calculateFilterSize(totalWaterFlow)} mesh</li>
+                <li>Material: Stainless steel (304 or 316)</li>
+            `;
+        }
+
+        function calculateImpellerDiameter(flowRate, head) {
+            // Simplified estimation
+            return Math.round(100 + (flowRate * 2) + (head * 0.5));
+        }
+
+        function calculatePipeDiameter(flowRate) {
+            // Simplified estimation based on flow velocity of 2 m/s
+            const area = flowRate / (3600 * 2); // m²
+            const diameter = Math.sqrt((4 * area) / Math.PI) * 1000; // mm
+            return Math.round(diameter / 10) * 10; // Round to nearest 10mm
+        }
+
+        function calculateFilterSize(flowRate) {
+            // Simplified estimation
+            if (flowRate < 50) return 60;
+            if (flowRate < 100) return 40;
+            if (flowRate < 200) return 30;
+            return 20;
+        }
+
+        function saveAirWasherData() {
+            const data = {
+                airflow: document.getElementById('air-washer-airflow').value,
+                ventWidth: document.getElementById('vent-width').value,
+                ventHeight: document.getElementById('vent-height').value,
+                nozzleSpace: document.getElementById('nozzle-space').value,
+                riserSpace: document.getElementById('riser-space').value,
+                collectorDiameter: document.getElementById('collector-diameter').value,
+                rowNumber: document.getElementById('row-number').value,
+                nozzleFlowrate: document.getElementById('nozzle-flowrate').value,
+                pumpHead: document.getElementById('pump-head').value,
+                calculations: {
+                    ventArea: document.getElementById('vent-area').textContent,
+                    airVelocity: document.getElementById('air-velocity').textContent,
+                    riserLength: document.getElementById('riser-length').textContent,
+                    risersPerCollector: document.getElementById('risers-per-collector').textContent,
+                    nozzlesPerRiser: document.getElementById('nozzles-per-riser').textContent,
+                    totalNozzles: document.getElementById('total-nozzles').textContent,
+                    totalWaterFlow: document.getElementById('total-water-flow').textContent,
+                    pumpPower: document.getElementById('pump-power').textContent
+                }
+            };
+            
+            document.getElementById('air-washer-json').value = JSON.stringify(data, null, 2);
+            
+            // Save to file
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'air-washer-data.json';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function loadAirWasherData() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+            
+            input.onchange = e => {
+                const file = e.target.files[0];
+                const reader = new FileReader();
+                
+                reader.onload = event => {
+                    try {
+                        const data = JSON.parse(event.target.result);
+                        
+                        // Load values
+                        document.getElementById('air-washer-airflow').value = data.airflow || '';
+                        document.getElementById('vent-width').value = data.ventWidth || '';
+                        document.getElementById('vent-height').value = data.ventHeight || '';
+                        document.getElementById('nozzle-space').value = data.nozzleSpace || '';
+                        document.getElementById('riser-space').value = data.riserSpace || '';
+                        document.getElementById('collector-diameter').value = data.collectorDiameter || '';
+                        document.getElementById('row-number').value = data.rowNumber || '';
+                        document.getElementById('nozzle-flowrate').value = data.nozzleFlowrate || '';
+                        document.getElementById('pump-head').value = data.pumpHead || '';
+                        
+                        // Display JSON data
+                        document.getElementById('air-washer-json').value = JSON.stringify(data, null, 2);
+                        
+                        // Recalculate
+                        calculateAirWasher();
+                        calculateNozzles();
+                        calculatePump();
+                        
+                        alert('Air washer data loaded successfully!');
+                    } catch (error) {
+                        alert('Error loading file: ' + error.message);
+                    }
+                };
+                
+                reader.readAsText(file);
+            };
+            
+            input.click();
+        }
+
+        // Damper & Coil Calculations
+        function calculateDamper(type) {
+            const prefix = type === 'fresh' ? 'fresh' : 'return';
+            const airflow = parseFloat(document.getElementById(`${prefix}-airflow`).value) || 0;
+            const width = parseFloat(document.getElementById(`${prefix}-width`).value) || 0;
+            const height = parseFloat(document.getElementById(`${prefix}-height`).value) || 0;
+            const count = parseInt(document.getElementById(`${prefix}-count`).value) || 1;
+            
+            // Convert mm to m
+            const widthM = width / 1000;
+            const heightM = height / 1000;
+            
+            // Calculate damper area
+            const damperArea = widthM * heightM;
+            document.getElementById(`${prefix}-damper-area`).textContent = damperArea.toFixed(2);
+            
+            // Calculate total area
+            const totalArea = damperArea * count;
+            document.getElementById(`${prefix}-total-area`).textContent = totalArea.toFixed(2);
+            
+            // Calculate air velocity
+            const airVelocity = totalArea > 0 ? airflow / totalArea : 0;
+            document.getElementById(`${prefix}-air-velocity`).textContent = airVelocity.toFixed(2);
+            
+            // Update advice
+            const adviseElement = document.getElementById(`${prefix}-damper-advise`);
+            if (airVelocity > 7.23) {
+                adviseElement.innerHTML = `Air velocity (${airVelocity.toFixed(2)} m/s) is too high! Must be under 7.23 m/s. Consider increasing damper dimensions or count.`;
+                adviseElement.style.borderLeftColor = '#e74c3c';
+                adviseElement.style.backgroundColor = '#ffebee';
+            } else if (airVelocity < 5.5) {
+                adviseElement.innerHTML = `Air velocity (${airVelocity.toFixed(2)} m/s) is below optimal range (6 m/s). Consider reducing damper dimensions or count.`;
+                adviseElement.style.borderLeftColor = '#f39c12';
+                adviseElement.style.backgroundColor = '#fff8e1';
+            } else {
+                adviseElement.innerHTML = `Air velocity (${airVelocity.toFixed(2)} m/s) is within optimal range (5.5-7.23 m/s).`;
+                adviseElement.style.borderLeftColor = '#2ecc71';
+                adviseElement.style.backgroundColor = '#e8f5e9';
+            }
+            
+            // Update coil dimensions if return damper
+            if (type === 'return') {
+                document.getElementById('coil-width').value = width;
+                document.getElementById('coil-height').value = height;
+                calculateCoil();
+            }
+        }
+
+        function calculateCoil() {
+            const type = document.getElementById('coil-type').value;
+            const width = parseFloat(document.getElementById('coil-width').value) || 0;
+            const height = parseFloat(document.getElementById('coil-height').value) || 0;
+            const count = parseInt(document.getElementById('coil-count').value) || 1;
+            const airflow = parseFloat(document.getElementById('return-airflow').value) || 0;
+            
+            // Convert mm to m
+            const widthM = width / 1000;
+            const heightM = height / 1000;
+            
+            // Calculate face area
+            const faceArea = widthM * heightM;
+            document.getElementById('coil-face-area').textContent = faceArea.toFixed(2);
+            
+            // Calculate total heat transfer area (face area * rows * count * factor)
+            const rows = parseInt(type);
+            const totalArea = faceArea * rows * count * 5; // Factor of 5 for tube surface area
+            document.getElementById('coil-total-area').textContent = totalArea.toFixed(2);
+            
+            // Calculate air velocity
+            const totalFaceArea = faceArea * count;
+            const airVelocity = totalFaceArea > 0 ? airflow / totalFaceArea : 0;
+            document.getElementById('coil-air-velocity').textContent = airVelocity.toFixed(2);
+            
+            // Update advice
+            const adviseElement = document.getElementById('coil-advise');
+            if (airVelocity > 3.5) {
+                adviseElement.innerHTML = `Air velocity (${airVelocity.toFixed(2)} m/s) is too high for ${rows}-row coil! Should be 2-3 m/s. Consider increasing coil dimensions or count.`;
+                adviseElement.style.borderLeftColor = '#e74c3c';
+                adviseElement.style.backgroundColor = '#ffebee';
+            } else if (airVelocity < 2) {
+                adviseElement.innerHTML = `Air velocity (${airVelocity.toFixed(2)} m/s) is too low for ${rows}-row coil. Should be 2-3 m/s. Consider reducing coil dimensions or count.`;
+                adviseElement.style.borderLeftColor = '#f39c12';
+                adviseElement.style.backgroundColor = '#fff8e1';
+            } else {
+                adviseElement.innerHTML = `Air velocity (${airVelocity.toFixed(2)} m/s) is optimal for ${rows}-row coil (2-3 m/s recommended).`;
+                adviseElement.style.borderLeftColor = '#2ecc71';
+                adviseElement.style.backgroundColor = '#e8f5e9';
+            }
+        }
+
+        function saveDamperCoilData() {
+            const data = {
+                freshAirflow: document.getElementById('fresh-airflow').value,
+                freshWidth: document.getElementById('fresh-width').value,
+                freshHeight: document.getElementById('fresh-height').value,
+                freshCount: document.getElementById('fresh-count').value,
+                returnAirflow: document.getElementById('return-airflow').value,
+                returnWidth: document.getElementById('return-width').value,
+                returnHeight: document.getElementById('return-height').value,
+                returnCount: document.getElementById('return-count').value,
+                coilType: document.getElementById('coil-type').value,
+                coilWidth: document.getElementById('coil-width').value,
+                coilHeight: document.getElementById('coil-height').value,
+                coilCount: document.getElementById('coil-count').value,
+                calculations: {
+                    freshDamperArea: document.getElementById('fresh-damper-area').textContent,
+                    freshTotalArea: document.getElementById('fresh-total-area').textContent,
+                    freshAirVelocity: document.getElementById('fresh-air-velocity').textContent,
+                    returnDamperArea: document.getElementById('return-damper-area').textContent,
+                    returnTotalArea: document.getElementById('return-total-area').textContent,
+                    returnAirVelocity: document.getElementById('return-air-velocity').textContent,
+                    coilFaceArea: document.getElementById('coil-face-area').textContent,
+                    coilTotalArea: document.getElementById('coil-total-area').textContent,
+                    coilAirVelocity: document.getElementById('coil-air-velocity').textContent
+                }
+            };
+            
+            document.getElementById('damper-coil-json').value = JSON.stringify(data, null, 2);
+            
+            // Save to file
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'damper-coil-data.json';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function loadDamperCoilData() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+            
+            input.onchange = e => {
+                const file = e.target.files[0];
+                const reader = new FileReader();
+                
+                reader.onload = event => {
+                    try {
+                        const data = JSON.parse(event.target.result);
+                        
+                        // Load values
+                        document.getElementById('fresh-airflow').value = data.freshAirflow || '';
+                        document.getElementById('fresh-width').value = data.freshWidth || '';
+                        document.getElementById('fresh-height').value = data.freshHeight || '';
+                        document.getElementById('fresh-count').value = data.freshCount || '';
+                        document.getElementById('return-airflow').value = data.returnAirflow || '';
+                        document.getElementById('return-width').value = data.returnWidth || '';
+                        document.getElementById('return-height').value = data.returnHeight || '';
+                        document.getElementById('return-count').value = data.returnCount || '';
+                        document.getElementById('coil-type').value = data.coilType || '';
+                        document.getElementById('coil-width').value = data.coilWidth || '';
+                        document.getElementById('coil-height').value = data.coilHeight || '';
+                        document.getElementById('coil-count').value = data.coilCount || '';
+                        
+                        // Display JSON data
+                        document.getElementById('damper-coil-json').value = JSON.stringify(data, null, 2);
+                        
+                        // Recalculate
+                        calculateDamper('fresh');
+                        calculateDamper('return');
+                        calculateCoil();
+                        
+                        alert('Damper & coil data loaded successfully!');
+                    } catch (error) {
+                        alert('Error loading file: ' + error.message);
+                    }
+                };
+                
+                reader.readAsText(file);
+            };
+            
+            input.click();
+        }
+    </script>
+</body>
+</html>

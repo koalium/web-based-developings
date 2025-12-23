@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Physics Simulation with Three.js</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: linear-gradient(to bottom, #1a1a2e, #16213e);
+            font-family: Arial, sans-serif;
+        }
+        #container {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+        }
+        #info {
+            position: absolute;
+            top: 10px;
+            width: 100%;
+            text-align: center;
+            color: white;
+            z-index: 100;
+            pointer-events: none;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+        }
+        #stats {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            color: white;
+            z-index: 100;
+            background: rgba(0,0,0,0.5);
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div id="container"></div>
+    <div id="info">
+        <h1>3D Physics Simulation</h1>
+        <p>Objects fall, collide, and create special effects</p>
+        <p>Drag to rotate • Scroll to zoom</p>
+    </div>
+    <div id="stats">Objects: 0</div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.min.js"></script>
+    <script>
+        // Main application
+        class PhysicsSimulation {
+            constructor() {
+                this.scene = null;
+                this.camera = null;
+                this.renderer = null;
+                this.controls = null;
+                
+                this.objects = [];
+                this.forceCenters = [];
+                this.effects = [];
+                
+                this.creationRate = 1.0;
+                this.lastCreationTime = 0;
+                this.objectCount = 0;
+                this.maxObjects = 50;
+                
+                this.clock = new THREE.Clock();
+                
+                this.init();
+                this.animate();
+            }
+            
+            init() {
+                // Create scene
+                this.scene = new THREE.Scene();
+                this.scene.background = new THREE.Color(0x1a1a2e);
+                
+                // Create camera
+                this.camera = new THREE.PerspectiveCamera(
+                    75, 
+                    window.innerWidth / window.innerHeight, 
+                    0.1, 
+                    1000
+                );
+                this.camera.position.set(0, 5, 15);
+                
+                // Create renderer
+                this.renderer = new THREE.WebGLRenderer({ antialias: true });
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
+                this.renderer.shadowMap.enabled = true;
+                this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+                document.getElementById('container').appendChild(this.renderer.domElement);
+                
+                // Add orbit controls
+                this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
+                this.controls.enableDamping = true;
+                this.controls.dampingFactor = 0.05;
+                
+                // Add lights
+                this.addLights();
+                
+                // Add ground
+                this.addGround();
+                
+                // Handle window resize
+                window.addEventListener('resize', () => this.onWindowResize());
+                
+                // Start creating objects
+                this.createInitialObjects();
+                
+                // Start force center generation
+                this.startForceCenterGeneration();
+            }
+            
+            addLights() {
+                // Ambient light
+                const ambientLight = new THREE.AmbientLight(0x404040, 0.4);
+                this.scene.add(ambientLight);
+                
+                // Directional light
+                const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+                directionalLight.position.set(10, 20, 5);
+                directionalLight.castShadow = true;
+                directionalLight.shadow.mapSize.width = 2048;
+                directionalLight.shadow.mapSize.height = 2048;
+                this.scene.add(directionalLight);
+                
+                // Point light for effects
+                const pointLight = new THREE.PointLight(0x4488ff, 1, 100);
+                pointLight.position.set(0, 10, 0);
+                this.scene.add(pointLight);
+            }
+            
+            addGround() {
+                const groundGeometry = new THREE.PlaneGeometry(50, 50);
+                const groundMaterial = new THREE.MeshStandardMaterial({ 
+                    color: 0x2c3e50,
+                    roughness: 0.8,
+                    metalness: 0.2
+                });
+                const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+                ground.rotation.x = -Math.PI / 2;
+                ground.receiveShadow = true;
+                this.scene.add(ground);
+            }
+            
+            createInitialObjects() {
+                // Create a few initial objects
+                for (let i = 0; i < 5; i++) {
+                    this.createRandomObject();
+                }
+            }
+            
+            createRandomObject() {
+                if (this.objects.length >= this.maxObjects) return;
+                
+                const types = ['pyramid', 'cube', 'pentahedron', 'sphere'];
+                const type = types[Math.floor(Math.random() * types.length)];
+                
+                let geometry;
+                
+                switch(type) {
+                    case 'pyramid':
+                        geometry = new THREE.ConeGeometry(0.5, 1, 4);
+                        break;
+                    case 'cube':
+                        geometry = new THREE.BoxGeometry(1, 1, 1);
+                        break;
+                    case 'pentahedron':
+                        geometry = new THREE.DodecahedronGeometry(0.7, 0);
+                        break;
+                    case 'sphere':
+                        geometry = new THREE.SphereGeometry(0.5, 12, 8);
+                        break;
+                }
+                
+                // Create material with random color and properties
+                const color = new THREE.Color().setHSL(Math.random(), 0.7, 0.6);
+                const material = new THREE.MeshStandardMaterial({
+                    color: color,
+                    transparent: true,
+                    opacity: 0.7 + Math.random() * 0.3,
+                    roughness: 0.3,
+                    metalness: 0.7
+                });
+                
+                const mesh = new THREE.Mesh(geometry, material);
+                mesh.castShadow = true;
+                mesh.receiveShadow = true;
+                
+                // Random position at top of screen
+                mesh.position.set(
+                    (Math.random() - 0.5) * 20,
+                    15 + Math.random() * 5,
+                    (Math.random() - 0.5) * 20
+                );
+                
+                // Random scale
+                const scale = 0.5 + Math.random() * 1.5;
+                mesh.scale.set(scale, scale, scale);
+                
+                // Physics properties
+                mesh.userData = {
+                    type: type,
+                    velocity: new THREE.Vector3(
+                        (Math.random() - 0.5) * 0.1,
+                        -0.05 - Math.random() * 0.05,
+                        (Math.random() - 0.5) * 0.1
+                    ),
+                    rotationSpeed: new THREE.Vector3(
+                        (Math.random() - 0.5) * 0.02,
+                        (Math.random() - 0.5) * 0.02,
+                        (Math.random() - 0.5) * 0.02
+                    ),
+                    rotationCenter: new THREE.Vector3(
+                        (Math.random() - 0.5) * 0.5,
+                        (Math.random() - 0.5) * 0.5,
+                        (Math.random() - 0.5) * 0.5
+                    ),
+                    forceApplied: false
+                };
+                
+                this.scene.add(mesh);
+                this.objects.push(mesh);
+                this.objectCount++;
+                
+                document.getElementById('stats').textContent = `Objects: ${this.objectCount}`;
+            }
+            
+            startForceCenterGeneration() {
+                setInterval(() => {
+                    this.createForceCenter();
+                }, 2000);
+            }
+            
+            createForceCenter() {
+                const center = new THREE.Vector3(
+                    (Math.random() - 0.5) * 30,
+                    Math.random() * 10,
+                    (Math.random() - 0.5) * 30
+                );
+                
+                this.forceCenters.push({
+                    position: center,
+                    created: Date.now(),
+                    radius: 5
+                });
+                
+                // Create visual representation of force center
+                const geometry = new THREE.SphereGeometry(0.3, 16, 16);
+                const material = new THREE.MeshBasicMaterial({
+                    color: 0xff4444,
+                    transparent: true,
+                    opacity: 0.7
+                });
+                const sphere = new THREE.Mesh(geometry, material);
+                sphere.position.copy(center);
+                this.scene.add(sphere);
+                
+                // Remove force center after 1 second
+                setTimeout(() => {
+                    this.scene.remove(sphere);
+                    this.forceCenters = this.forceCenters.filter(fc => fc.position !== center);
+                }, 1000);
+            }
+            
+            updateObjects(deltaTime) {
+                // Apply forces from force centers
+                this.forceCenters.forEach(forceCenter => {
+                    this.objects.forEach(obj => {
+                        const distance = obj.position.distanceTo(forceCenter.position);
+                        if (distance < forceCenter.radius && !obj.userData.forceApplied) {
+                            // Calculate direction away from force center
+                            const direction = new THREE.Vector3()
+                                .subVectors(obj.position, forceCenter.position)
+                                .normalize();
+                            
+                            // Apply force (stronger when closer)
+                            const force = (forceCenter.radius - distance) / forceCenter.radius * 0.2;
+                            obj.userData.velocity.add(direction.multiplyScalar(force));
+                            obj.userData.forceApplied = true;
+                            
+                            // Reset after a short time
+                            setTimeout(() => {
+                                obj.userData.forceApplied = false;
+                            }, 500);
+                        }
+                    });
+                });
+                
+                // Update object positions and rotations
+                this.objects.forEach((obj, index) => {
+                    // Update position
+                    obj.position.add(obj.userData.velocity.clone().multiplyScalar(deltaTime * 60));
+                    
+                    // Update rotation with changing center
+                    obj.rotation.x += obj.userData.rotationSpeed.x;
+                    obj.rotation.y += obj.userData.rotationSpeed.y;
+                    obj.rotation.z += obj.userData.rotationSpeed.z;
+                    
+                    // Occasionally change rotation speed (max 10% change)
+                    if (Math.random() < 0.01) {
+                        obj.userData.rotationSpeed.x *= (0.9 + Math.random() * 0.2);
+                        obj.userData.rotationSpeed.y *= (0.9 + Math.random() * 0.2);
+                        obj.userData.rotationSpeed.z *= (0.9 + Math.random() * 0.2);
+                    }
+                    
+                    // Check for ground collision
+                    if (obj.position.y < 0.5) {
+                        obj.position.y = 0.5;
+                        obj.userData.velocity.y *= -0.5; // Bounce with energy loss
+                        
+                        // Apply some friction
+                        obj.userData.velocity.x *= 0.9;
+                        obj.userData.velocity.z *= 0.9;
+                    }
+                    
+                    // Remove objects that fall too far
+                    if (obj.position.y < -10) {
+                        this.scene.remove(obj);
+                        this.objects.splice(index, 1);
+                        this.objectCount--;
+                        document.getElementById('stats').textContent = `Objects: ${this.objectCount}`;
+                    }
+                });
+                
+                // Check for collisions between objects
+                this.checkCollisions();
+                
+                // Update effects
+                this.updateEffects(deltaTime);
+            }
+            
+            checkCollisions() {
+                for (let i = 0; i < this.objects.length; i++) {
+                    for (let j = i + 1; j < this.objects.length; j++) {
+                        const obj1 = this.objects[i];
+                        const obj2 = this.objects[j];
+                        
+                        const distance = obj1.position.distanceTo(obj2.position);
+                        const collisionDistance = (obj1.scale.x + obj2.scale.x) * 0.8;
+                        
+                        if (distance < collisionDistance) {
+                            // Handle collision
+                            this.handleCollision(obj1, obj2);
+                        }
+                    }
+                }
+            }
+            
+            handleCollision(obj1, obj2) {
+                // Calculate collision response (simple elastic collision)
+                const normal = new THREE.Vector3()
+                    .subVectors(obj1.position, obj2.position)
+                    .normalize();
+                
+                const relativeVelocity = new THREE.Vector3()
+                    .subVectors(obj1.userData.velocity, obj2.userData.velocity);
+                
+                const velocityAlongNormal = relativeVelocity.dot(normal);
+                
+                // Do not resolve if objects are moving apart
+                if (velocityAlongNormal > 0) return;
+                
+                // Calculate impulse scalar
+                const restitution = 0.7; // Coefficient of restitution
+                const impulseScalar = -(1 + restitution) * velocityAlongNormal / 2;
+                
+                // Apply impulse
+                const impulse = normal.multiplyScalar(impulseScalar);
+                obj1.userData.velocity.add(impulse);
+                obj2.userData.velocity.sub(impulse);
+                
+                // Create special effect based on probability
+                const rand = Math.random();
+                
+                if (rand < 0.2) {
+                    // 20% chance for fireball explosion
+                    this.createFireballEffect(obj1.position);
+                } else if (rand < 0.52) {
+                    // 32% chance for Tron logo (simulated with blue ring)
+                    this.createTronEffect(obj1.position);
+                } else if (rand < 0.55) {
+                    // 3% chance for Ethereum logo
+                    this.createEthereumEffect(obj1.position);
+                } else if (rand < 0.555) {
+                    // 0.5% chance for Bitcoin logo
+                    this.createBitcoinEffect(obj1.position);
+                } else {
+                    // Default spark effect
+                    this.createSparkEffect(obj1.position);
+                }
+            }
+            
+            createFireballEffect(position) {
+                const geometry = new THREE.SphereGeometry(1, 16, 16);
+                const material = new THREE.MeshBasicMaterial({
+                    color: 0xff6600,
+                    transparent: true,
+                    opacity: 0.8
+                });
+                const sphere = new THREE.Mesh(geometry, material);
+                sphere.position.copy(position);
+                this.scene.add(sphere);
+                
+                this.effects.push({
+                    mesh: sphere,
+                    type: 'fireball',
+                    created: Date.now(),
+                    scale: 1,
+                    growing: true
+                });
+            }
+            
+            createTronEffect(position) {
+                const geometry = new THREE.RingGeometry(0.5, 1, 32);
+                const material = new THREE.MeshBasicMaterial({
+                    color: 0x00ffff,
+                    side: THREE.DoubleSide,
+                    transparent: true,
+                    opacity: 0.8
+                });
+                const ring = new THREE.Mesh(geometry, material);
+                ring.position.copy(position);
+                ring.rotation.x = Math.PI / 2;
+                this.scene.add(ring);
+                
+                this.effects.push({
+                    mesh: ring,
+                    type: 'tron',
+                    created: Date.now(),
+                    scale: 1
+                });
+            }
+            
+            createEthereumEffect(position) {
+                // Simplified Ethereum logo (hexagon)
+                const geometry = new THREE.CylinderGeometry(0.7, 0.7, 0.1, 6);
+                const material = new THREE.MeshBasicMaterial({
+                    color: 0x627eea,
+                    transparent: true,
+                    opacity: 0.8
+                });
+                const eth = new THREE.Mesh(geometry, material);
+                eth.position.copy(position);
+                this.scene.add(eth);
+                
+                this.effects.push({
+                    mesh: eth,
+                    type: 'ethereum',
+                    created: Date.now()
+                });
+            }
+            
+            createBitcoinEffect(position) {
+                // Simplified Bitcoin logo (circle with B)
+                const geometry = new THREE.CircleGeometry(0.8, 32);
+                const material = new THREE.MeshBasicMaterial({
+                    color: 0xf7931a,
+                    transparent: true,
+                    opacity: 0.8
+                });
+                const bitcoin = new THREE.Mesh(geometry, material);
+                bitcoin.position.copy(position);
+                bitcoin.rotation.x = -Math.PI / 2;
+                this.scene.add(bitcoin);
+                
+                this.effects.push({
+                    mesh: bitcoin,
+                    type: 'bitcoin',
+                    created: Date.now()
+                });
+            }
+            
+            createSparkEffect(position) {
+                const sparkCount = 10;
+                for (let i = 0; i < sparkCount; i++) {
+                    const geometry = new THREE.SphereGeometry(0.1, 8, 8);
+                    const material = new THREE.MeshBasicMaterial({
+                        color: 0xffff00,
+                        transparent: true,
+                        opacity: 0.8
+                    });
+                    const spark = new THREE.Mesh(geometry, material);
+                    spark.position.copy(position);
+                    
+                    // Random direction
+                    const direction = new THREE.Vector3(
+                        (Math.random() - 0.5) * 2,
+                        (Math.random() - 0.5) * 2,
+                        (Math.random() - 0.5) * 2
+                    ).normalize();
+                    
+                    spark.userData = {
+                        velocity: direction.multiplyScalar(0.2),
+                        created: Date.now()
+                    };
+                    
+                    this.scene.add(spark);
+                    this.effects.push({
+                        mesh: spark,
+                        type: 'spark',
+                        created: Date.now()
+                    });
+                }
+            }
+            
+            updateEffects(deltaTime) {
+                const now = Date.now();
+                
+                this.effects.forEach((effect, index) => {
+                    const age = now - effect.created;
+                    
+                    // Handle different effect types
+                    switch(effect.type) {
+                        case 'fireball':
+                            if (effect.growing) {
+                                effect.scale += deltaTime * 2;
+                                effect.mesh.scale.setScalar(effect.scale);
+                                if (effect.scale > 3) effect.growing = false;
+                            } else {
+                                effect.scale -= deltaTime;
+                                effect.mesh.scale.setScalar(effect.scale);
+                                effect.mesh.material.opacity = effect.scale / 3 * 0.8;
+                            }
+                            
+                            if (effect.scale <= 0) {
+                                this.scene.remove(effect.mesh);
+                                this.effects.splice(index, 1);
+                            }
+                            break;
+                            
+                        case 'spark':
+                            // Move spark
+                            effect.mesh.position.add(effect.mesh.userData.velocity.clone().multiplyScalar(deltaTime * 60));
+                            
+                            // Fade out
+                            if (age > 500) {
+                                effect.mesh.material.opacity = 0.8 * (1 - (age - 500) / 500);
+                            }
+                            
+                            // Remove after 1 second
+                            if (age > 1000) {
+                                this.scene.remove(effect.mesh);
+                                this.effects.splice(index, 1);
+                            }
+                            break;
+                            
+                        default:
+                            // Fade out other effects
+                            if (age > 500) {
+                                effect.mesh.material.opacity = 0.8 * (1 - (age - 500) / 500);
+                            }
+                            
+                            // Remove after 1 second
+                            if (age > 1000) {
+                                this.scene.remove(effect.mesh);
+                                this.effects.splice(index, 1);
+                            }
+                            break;
+                    }
+                });
+            }
+            
+            animate() {
+                requestAnimationFrame(() => this.animate());
+                
+                const deltaTime = this.clock.getDelta();
+                
+                // Update creation rate slightly
+                this.creationRate = 0.8 + Math.random() * 0.45;
+                
+                // Create new objects based on rate
+                if (Date.now() - this.lastCreationTime > 1000 / this.creationRate && 
+                    this.objects.length < this.maxObjects) {
+                    this.createRandomObject();
+                    this.lastCreationTime = Date.now();
+                }
+                
+                // Update objects and physics
+                this.updateObjects(deltaTime);
+                
+                // Update controls
+                this.controls.update();
+                
+                // Render scene
+                this.renderer.render(this.scene, this.camera);
+            }
+            
+            onWindowResize() {
+                this.camera.aspect = window.innerWidth / window.innerHeight;
+                this.camera.updateProjectionMatrix();
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
+            }
+        }
+        
+        // Initialize the simulation when the page loads
+        window.addEventListener('DOMContentLoaded', () => {
+            new PhysicsSimulation();
+        });
+    </script>
+</body>
+</html>

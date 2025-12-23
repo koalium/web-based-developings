@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Psychometric Chart (SI Units)</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 10px;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 100%;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 15px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+        h1 {
+            text-align: center;
+            margin-bottom: 20px;
+            font-size: clamp(1.5rem, 4vw, 2.5rem);
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        }
+        .controls {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .control-group {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 12px;
+            border-radius: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            min-width: 120px;
+            flex: 1;
+            max-width: 200px;
+        }
+        label {
+            font-weight: bold;
+            font-size: clamp(0.8rem, 2vw, 0.9rem);
+        }
+        input[type="number"] {
+            padding: 8px;
+            border: none;
+            border-radius: 5px;
+            background: rgba(255, 255, 255, 0.9);
+            color: #333;
+            font-size: clamp(0.9rem, 2vw, 1rem);
+            width: 100%;
+            box-sizing: border-box;
+        }
+        button {
+            padding: 10px 20px;
+            background: linear-gradient(45deg, #ff6b6b, #ee5a24);
+            color: white;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: clamp(0.9rem, 2vw, 1rem);
+            transition: all 0.3s ease;
+            min-width: 120px;
+        }
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(255, 107, 107, 0.4);
+        }
+        .chart-container {
+            background: white;
+            border-radius: 15px;
+            padding: 10px;
+            margin: 20px 0;
+            position: relative;
+            overflow: hidden;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        #canvasContainer {
+            position: relative;
+            width: 100%;
+            height: 0;
+            padding-bottom: 60%; /* 16:9.6 aspect ratio */
+            overflow: hidden;
+        }
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            cursor: crosshair;
+            box-sizing: border-box;
+        }
+        .results {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        .result-card {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .result-card h3 {
+            margin: 0 0 12px 0;
+            color: #64b5f6;
+            font-size: clamp(1rem, 3vw, 1.2rem);
+        }
+        .property {
+            display: flex;
+            justify-content: space-between;
+            margin: 6px 0;
+            padding: 6px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            font-size: clamp(0.8rem, 2vw, 0.9rem);
+        }
+        .property:last-child {
+            border-bottom: none;
+        }
+        .property-name {
+            font-weight: bold;
+            flex: 1;
+        }
+        .property-value {
+            color: #81c784;
+            text-align: right;
+            flex: 0 0 auto;
+        }
+        .point-info {
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 12px;
+            border-radius: 10px;
+            margin-top: 15px;
+            font-family: monospace;
+            font-size: clamp(0.8rem, 2vw, 0.9rem);
+        }
+        .legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 15px;
+            justify-content: center;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 6px 10px;
+            border-radius: 20px;
+            font-size: clamp(0.7rem, 2vw, 0.9rem);
+        }
+        .legend-color {
+            width: 16px;
+            height: 3px;
+            border-radius: 2px;
+        }
+        
+        /* Mobile optimizations */
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+                margin: 5px;
+            }
+            .controls {
+                gap: 10px;
+            }
+            .control-group {
+                min-width: 100px;
+                padding: 10px;
+            }
+            #canvasContainer {
+                padding-bottom: 75%; /* Taller aspect ratio for mobile */
+            }
+            .legend {
+                gap: 8px;
+            }
+            .legend-item {
+                padding: 4px 8px;
+            }
+        }
+        
+        /* Large screen optimizations */
+        @media (min-width: 1200px) {
+            .container {
+                max-width: 1400px;
+                padding: 30px;
+            }
+            #canvasContainer {
+                padding-bottom: 50%; /* Wider aspect ratio for large screens */
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🌡️ Interactive Psychometric Chart (SI Units)</h1>
+        
+        <div class="controls">
+            <div class="control-group">
+                <label for="dryBulb">Dry Bulb Temperature (°C)</label>
+                <input type="number" id="dryBulb" value="25" step="0.1">
+            </div>
+            <div class="control-group">
+                <label for="relativeHumidity">Relative Humidity (%)</label>
+                <input type="number" id="relativeHumidity" value="50" step="1" min="0" max="100">
+            </div>
+            <div class="control-group">
+                <label for="pressure">Atmospheric Pressure (kPa)</label>
+                <input type="number" id="pressure" value="101.325" step="0.1">
+            </div>
+            <button onclick="calculateAndPlot()">Calculate & Plot</button>
+            <button onclick="clearChart()">Clear Chart</button>
+        </div>
+
+        <div class="chart-container">
+            <div id="canvasContainer">
+                <canvas id="psychChart"></canvas>
+            </div>
+            <div id="pointInfo" class="point-info" style="display: none;"></div>
+        </div>
+
+        <div class="legend">
+            <div class="legend-item">
+                <div class="legend-color" style="background: #ff4444;"></div>
+                <span>Dry Bulb Temperature Lines</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #4444ff;"></div>
+                <span>Relative Humidity Lines</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #44ff44;"></div>
+                <span>Enthalpy Lines</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #ff44ff;"></div>
+                <span>Wet Bulb Temperature Lines</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #ffff44;"></div>
+                <span>Specific Volume Lines</span>
+            </div>
+        </div>
+
+        <div class="results">
+            <div class="result-card">
+                <h3>🌡️ Temperature Properties</h3>
+                <div class="property">
+                    <span class="property-name">Dry Bulb Temperature:</span>
+                    <span class="property-value" id="result-dryBulb">-</span>
+                </div>
+                <div class="property">
+                    <span class="property-name">Wet Bulb Temperature:</span>
+                    <span class="property-value" id="result-wetBulb">-</span>
+                </div>
+                <div class="property">
+                    <span class="property-name">Dew Point Temperature:</span>
+                    <span class="property-value" id="result-dewPoint">-</span>
+                </div>
+            </div>
+
+            <div class="result-card">
+                <h3>💧 Humidity Properties</h3>
+                <div class="property">
+                    <span class="property-name">Relative Humidity:</span>
+                    <span class="property-value" id="result-relativeHumidity">-</span>
+                </div>
+                <div class="property">
+                    <span class="property-name">Humidity Ratio:</span>
+                    <span class="property-value" id="result-humidityRatio">-</span>
+                </div>
+                <div class="property">
+                    <span class="property-name">Vapor Pressure:</span>
+                    <span class="property-value" id="result-vaporPressure">-</span>
+                </div>
+            </div>
+
+            <div class="result-card">
+                <h3>⚡ Energy Properties</h3>
+                <div class="property">
+                    <span class="property-name">Enthalpy:</span>
+                    <span class="property-value" id="result-enthalpy">-</span>
+                </div>
+                <div class="property">
+                    <span class="property-name">Specific Volume:</span>
+                    <span class="property-value" id="result-specificVolume">-</span>
+                </div>
+                <div class="property">
+                    <span class="property-name">Density:</span>
+                    <span class="property-value" id="result-density">-</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Psychometric calculation module
+        const PsychometricCalculator = {
+            // Constants
+            R_da: 287.042,      // Specific gas constant for dry air (J/kg·K)
+            R_w: 461.520,       // Specific gas constant for water vapor (J/kg·K)
+            cp_da: 1006,        // Specific heat of dry air (J/kg·K)
+            cp_w: 1805,         // Specific heat of water vapor (J/kg·K)
+            h_fg: 2501000,      // Latent heat of vaporization at 0°C (J/kg)
+
+            // Saturation pressure calculation (Antoine equation)
+            saturatedPressure: function(T) {
+                // T in Celsius, returns pressure in Pa
+                const T_K = T + 273.15;
+                if (T >= 0) {
+                    // Above freezing
+                    return 611.657 * Math.exp(17.2799 * T / (T + 237.3));
+                } else {
+                    // Below freezing
+                    return 611.657 * Math.exp(22.587 * T / (T + 273.86));
+                }
+            },
+
+            // Calculate humidity ratio from dry bulb temperature and relative humidity
+            humidityRatio: function(T, RH, P) {
+                const P_sat = this.saturatedPressure(T);
+                const P_w = (RH / 100) * P_sat;
+                return 0.622 * P_w / (P * 1000 - P_w);
+            },
+
+            // Calculate dew point temperature
+            dewPoint: function(T, RH) {
+                const P_w = (RH / 100) * this.saturatedPressure(T);
+                if (P_w <= 611.657) return -273.15;
+                return 237.3 * Math.log(P_w / 611.657) / (17.2799 - Math.log(P_w / 611.657));
+            },
+
+            // Calculate wet bulb temperature (iterative method)
+            wetBulb: function(T, RH, P) {
+                const W = this.humidityRatio(T, RH, P);
+                let T_wb = T;
+                let iteration = 0;
+                
+                while (iteration < 100) {
+                    const P_sat_wb = this.saturatedPressure(T_wb);
+                    const W_sat_wb = 0.622 * P_sat_wb / (P * 1000 - P_sat_wb);
+                    
+                    const f = W_sat_wb - W - (1005 * (T - T_wb)) / (2501000 + 1805 * T_wb);
+                    
+                    if (Math.abs(f) < 0.0001) break;
+                    
+                    const df_dT = (P_sat_wb * 17.2799 * 237.3) / (Math.pow(T_wb + 237.3, 2) * (P * 1000 - P_sat_wb)) + 1005 / (2501000 + 1805 * T_wb);
+                    T_wb = T_wb - f / df_dT;
+                    iteration++;
+                }
+                
+                return T_wb;
+            },
+
+            // Calculate enthalpy
+            enthalpy: function(T, W) {
+                return this.cp_da * T + W * (this.h_fg + this.cp_w * T);
+            },
+
+            // Calculate specific volume
+            specificVolume: function(T, W, P) {
+                const T_K = T + 273.15;
+                return (this.R_da * T_K * (1 + 1.608 * W)) / (P * 1000);
+            },
+
+            // Calculate density
+            density: function(T, W, P) {
+                return (1 + W) / this.specificVolume(T, W, P);
+            },
+
+            // Calculate all properties
+            calculateAll: function(T, RH, P) {
+                const W = this.humidityRatio(T, RH, P);
+                const T_dp = this.dewPoint(T, RH);
+                const T_wb = this.wetBulb(T, RH, P);
+                const h = this.enthalpy(T, W);
+                const v = this.specificVolume(T, W, P);
+                const rho = this.density(T, W, P);
+                const P_w = (RH / 100) * this.saturatedPressure(T);
+
+                return {
+                    dryBulbTemp: T,
+                    wetBulbTemp: T_wb,
+                    dewPointTemp: T_dp,
+                    relativeHumidity: RH,
+                    humidityRatio: W,
+                    enthalpy: h,
+                    specificVolume: v,
+                    density: rho,
+                    vaporPressure: P_w
+                };
+            }
+        };
+
+        // Chart drawing and interaction
+        const canvas = document.getElementById('psychChart');
+        const ctx = canvas.getContext('2d');
+        let plotPoints = [];
+        let currentPoint = null;
+        let canvasWidth = 900;
+        let canvasHeight = 600;
+
+        // Responsive canvas setup
+        function setupCanvas() {
+            const container = document.getElementById('canvasContainer');
+            const rect = container.getBoundingClientRect();
+            const dpr = window.devicePixelRatio || 1;
+            
+            canvasWidth = rect.width;
+            canvasHeight = rect.height;
+            
+            canvas.width = canvasWidth * dpr;
+            canvas.height = canvasHeight * dpr;
+            canvas.style.width = canvasWidth + 'px';
+            canvas.style.height = canvasHeight + 'px';
+            
+            ctx.scale(dpr, dpr);
+        }
+
+        // Responsive margin calculation
+        function getMargins() {
+            const baseMargin = Math.min(canvasWidth, canvasHeight) * 0.1;
+            return {
+                left: Math.max(60, baseMargin),
+                right: Math.max(30, baseMargin * 0.5),
+                top: Math.max(30, baseMargin * 0.5),
+                bottom: Math.max(50, baseMargin * 0.8)
+            };
+        }
+
+        // Responsive font size
+        function getFontSize(base = 12) {
+            const scale = Math.min(canvasWidth / 900, canvasHeight / 600);
+            return Math.max(8, Math.min(16, base * scale));
+        }
+
+        function drawChart() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Set up coordinate system
+            const margin = 80;
+            const chartWidth = canvas.width - 2 * margin;
+            const chartHeight = canvas.height - 2 * margin;
+            
+            // Temperature range: -10°C to 50°C
+            const tempMin = -10;
+            const tempMax = 50;
+            // Humidity ratio range: 0 to 0.03 kg/kg
+            const humidityMin = 0;
+            const humidityMax = 0.03;
+            
+            // Draw background
+            ctx.fillStyle = '#f8f9fa';
+            ctx.fillRect(margin, margin, chartWidth, chartHeight);
+            
+            // Draw grid
+            ctx.strokeStyle = '#e0e0e0';
+            ctx.lineWidth = 1;
+            
+            // Vertical grid lines (temperature)
+            for (let t = tempMin; t <= tempMax; t += 5) {
+                const x = margin + (t - tempMin) / (tempMax - tempMin) * chartWidth;
+                ctx.beginPath();
+                ctx.moveTo(x, margin);
+                ctx.lineTo(x, margin + chartHeight);
+                ctx.stroke();
+            }
+            
+            // Horizontal grid lines (humidity ratio)
+            for (let w = humidityMin; w <= humidityMax; w += 0.005) {
+                const y = margin + chartHeight - (w - humidityMin) / (humidityMax - humidityMin) * chartHeight;
+                ctx.beginPath();
+                ctx.moveTo(margin, y);
+                ctx.lineTo(margin + chartWidth, y);
+                ctx.stroke();
+            }
+            
+            // Draw constant relative humidity lines
+            ctx.strokeStyle = '#4444ff';
+            ctx.lineWidth = 2;
+            for (let rh = 10; rh <= 100; rh += 10) {
+                ctx.beginPath();
+                let firstPoint = true;
+                for (let t = tempMin; t <= tempMax; t += 0.5) {
+                    try {
+                        const w = PsychometricCalculator.humidityRatio(t, rh, 101.325);
+                        if (w >= humidityMin && w <= humidityMax) {
+                            const x = margin + (t - tempMin) / (tempMax - tempMin) * chartWidth;
+                            const y = margin + chartHeight - (w - humidityMin) / (humidityMax - humidityMin) * chartHeight;
+                            
+                            if (firstPoint) {
+                                ctx.moveTo(x, y);
+                                firstPoint = false;
+                            } else {
+                                ctx.lineTo(x, y);
+                            }
+                        }
+                    } catch (e) {
+                        // Skip invalid points
+                    }
+                }
+                ctx.stroke();
+                
+                // Label
+                if (rh % 20 === 0) {
+                    ctx.fillStyle = '#4444ff';
+                    ctx.font = '12px Arial';
+                    const labelT = tempMax - 5;
+                    const labelW = PsychometricCalculator.humidityRatio(labelT, rh, 101.325);
+                    if (labelW >= humidityMin && labelW <= humidityMax) {
+                        const labelX = margin + (labelT - tempMin) / (tempMax - tempMin) * chartWidth;
+                        const labelY = margin + chartHeight - (labelW - humidityMin) / (humidityMax - humidityMin) * chartHeight;
+                        ctx.fillText(rh + '%', labelX + 5, labelY);
+                    }
+                }
+            }
+            
+            // Draw constant enthalpy lines
+            ctx.strokeStyle = '#44ff44';
+            ctx.lineWidth = 1;
+            for (let h = 0; h <= 120000; h += 10000) {
+                ctx.beginPath();
+                let firstPoint = true;
+                for (let t = tempMin; t <= tempMax; t += 1) {
+                    for (let w = humidityMin; w <= humidityMax; w += 0.001) {
+                        const enthalpy = PsychometricCalculator.enthalpy(t, w);
+                        if (Math.abs(enthalpy - h) < 500) {
+                            const x = margin + (t - tempMin) / (tempMax - tempMin) * chartWidth;
+                            const y = margin + chartHeight - (w - humidityMin) / (humidityMax - humidityMin) * chartHeight;
+                            
+                            if (firstPoint) {
+                                ctx.moveTo(x, y);
+                                firstPoint = false;
+                            } else {
+                                ctx.lineTo(x, y);
+                            }
+                            break;
+                        }
+                    }
+                }
+                ctx.stroke();
+            }
+            
+            // Draw axes
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(margin, margin);
+            ctx.lineTo(margin, margin + chartHeight);
+            ctx.lineTo(margin + chartWidth, margin + chartHeight);
+            ctx.stroke();
+            
+            // Draw axis labels
+            ctx.fillStyle = '#333';
+            ctx.font = '14px Arial';
+            ctx.textAlign = 'center';
+            
+            // X-axis labels (temperature)
+            for (let t = tempMin; t <= tempMax; t += 10) {
+                const x = margin + (t - tempMin) / (tempMax - tempMin) * chartWidth;
+                ctx.fillText(t + '°C', x, margin + chartHeight + 20);
+            }
+            
+            // Y-axis labels (humidity ratio)
+            ctx.textAlign = 'right';
+            for (let w = humidityMin; w <= humidityMax; w += 0.005) {
+                const y = margin + chartHeight - (w - humidityMin) / (humidityMax - humidityMin) * chartHeight;
+                ctx.fillText(w.toFixed(3), margin - 10, y + 5);
+            }
+            
+            // Axis titles
+            ctx.textAlign = 'center';
+            ctx.font = '16px Arial';
+            ctx.fillText('Dry Bulb Temperature (°C)', margin + chartWidth / 2, canvas.height - 20);
+            
+            ctx.save();
+            ctx.translate(20, margin + chartHeight / 2);
+            ctx.rotate(-Math.PI / 2);
+            ctx.fillText('Humidity Ratio (kg water/kg dry air)', 0, 0);
+            ctx.restore();
+            
+            // Draw plotted points
+            plotPoints.forEach(point => {
+                const x = margin + (point.dryBulbTemp - tempMin) / (tempMax - tempMin) * chartWidth;
+                const y = margin + chartHeight - (point.humidityRatio - humidityMin) / (humidityMax - humidityMin) * chartHeight;
+                
+                ctx.fillStyle = '#ff4444';
+                ctx.beginPath();
+                ctx.arc(x, y, 6, 0, 2 * Math.PI);
+                ctx.fill();
+                
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            });
+            
+            // Highlight current point
+            if (currentPoint) {
+                const x = margin + (currentPoint.dryBulbTemp - tempMin) / (tempMax - tempMin) * chartWidth;
+                const y = margin + chartHeight - (currentPoint.humidityRatio - humidityMin) / (humidityMax - humidityMin) * chartHeight;
+                
+                ctx.fillStyle = '#ff0000';
+                ctx.beginPath();
+                ctx.arc(x, y, 8, 0, 2 * Math.PI);
+                ctx.fill();
+                
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 3;
+                ctx.stroke();
+            }
+        }
+
+        function calculateAndPlot() {
+            const T = parseFloat(document.getElementById('dryBulb').value);
+            const RH = parseFloat(document.getElementById('relativeHumidity').value);
+            const P = parseFloat(document.getElementById('pressure').value);
+            
+            try {
+                const properties = PsychometricCalculator.calculateAll(T, RH, P);
+                
+                // Update results
+                document.getElementById('result-dryBulb').textContent = T.toFixed(1) + ' °C';
+                document.getElementById('result-wetBulb').textContent = properties.wetBulbTemp.toFixed(1) + ' °C';
+                document.getElementById('result-dewPoint').textContent = properties.dewPointTemp.toFixed(1) + ' °C';
+                document.getElementById('result-relativeHumidity').textContent = RH.toFixed(1) + ' %';
+                document.getElementById('result-humidityRatio').textContent = properties.humidityRatio.toFixed(6) + ' kg/kg';
+                document.getElementById('result-enthalpy').textContent = (properties.enthalpy / 1000).toFixed(1) + ' kJ/kg';
+                document.getElementById('result-specificVolume').textContent = properties.specificVolume.toFixed(3) + ' m³/kg';
+                document.getElementById('result-density').textContent = properties.density.toFixed(3) + ' kg/m³';
+                document.getElementById('result-vaporPressure').textContent = (properties.vaporPressure / 1000).toFixed(2) + ' kPa';
+                
+                // Add to plot points
+                plotPoints.push(properties);
+                currentPoint = properties;
+                
+                drawChart();
+            } catch (error) {
+                alert('Error in calculation: ' + error.message);
+            }
+        }
+
+        function clearChart() {
+            plotPoints = [];
+            currentPoint = null;
+            drawChart();
+            
+            // Clear results
+            const resultElements = document.querySelectorAll('.property-value');
+            resultElements.forEach(el => el.textContent = '-');
+        }
+
+        // Chart click handler
+        canvas.addEventListener('click', function(event) {
+            const rect = canvas.getBoundingClientRect();
+            const x = event.clientX - rect.left;
+            const y = event.clientY - rect.top;
+            
+            const margin = 80;
+            const chartWidth = canvas.width - 2 * margin;
+            const chartHeight = canvas.height - 2 * margin;
+            
+            if (x >= margin && x <= margin + chartWidth && y >= margin && y <= margin + chartHeight) {
+                const tempMin = -10;
+                const tempMax = 50;
+                const humidityMin = 0;
+                const humidityMax = 0.03;
+                
+                const T = tempMin + (x - margin) / chartWidth * (tempMax - tempMin);
+                const W = humidityMin + (margin + chartHeight - y) / chartHeight * (humidityMax - humidityMin);
+                
+                try {
+                    // Calculate RH from T and W
+                    const P_sat = PsychometricCalculator.saturatedPressure(T);
+                    const P_w = W * 101.325 * 1000 / (0.622 + W);
+                    const RH = Math.min(100, Math.max(0, (P_w / P_sat) * 100));
+                    
+                    document.getElementById('dryBulb').value = T.toFixed(1);
+                    document.getElementById('relativeHumidity').value = RH.toFixed(1);
+                    
+                    calculateAndPlot();
+                    
+                    // Show point info
+                    const pointInfo = document.getElementById('pointInfo');
+                    pointInfo.innerHTML = `
+                        <strong>Clicked Point Data:</strong><br>
+                        Temperature: ${T.toFixed(1)} °C<br>
+                        Humidity Ratio: ${W.toFixed(6)} kg/kg<br>
+                        Calculated RH: ${RH.toFixed(1)} %
+                    `;
+                    pointInfo.style.display = 'block';
+                } catch (error) {
+                    console.error('Error calculating point:', error);
+                }
+            }
+        });
+
+        // Initialize chart
+        drawChart();
+    </script>
+</body>
+</html>

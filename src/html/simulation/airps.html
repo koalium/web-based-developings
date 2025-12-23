@@ -1,0 +1,1356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced HVAC Psychrometric Analysis</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@1.0.2"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --secondary: #3498db;
+            --accent: #e74c3c;
+            --light: #ecf0f1;
+            --dark: #1a252f;
+            --success: #2ecc71;
+            --warning: #f39c12;
+            --info: #1abc9c;
+            --sidebar-width: 280px;
+            --header-height: 70px;
+            --footer-height: 50px;
+            --transition: all 0.3s ease;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            background-color: #f5f7fa;
+            color: #333;
+            overflow-x: hidden;
+        }
+
+        /* Header Styles */
+        .hd {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white;
+            height: var(--header-height);
+            padding: 0 25px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            box-shadow: 0 2px 15px rgba(0, 0, 0, 0.15);
+            z-index: 100;
+            position: relative;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .logo i {
+            font-size: 28px;
+            color: var(--accent);
+        }
+
+        .logo h1 {
+            font-size: 1.6rem;
+            font-weight: 600;
+            background: linear-gradient(to right, #fff, #ecf0f1);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .header-controls {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .unit-toggle {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(255, 255, 255, 0.15);
+            padding: 10px 18px;
+            border-radius: 30px;
+            cursor: pointer;
+            transition: var(--transition);
+            font-weight: 500;
+        }
+
+        .unit-toggle:hover {
+            background: rgba(255, 255, 255, 0.25);
+        }
+
+        .mobile-menu-btn {
+            display: none;
+            font-size: 24px;
+            cursor: pointer;
+        }
+
+        /* Sidebar Styles */
+        .sb {
+            width: var(--sidebar-width);
+            background: white;
+            height: calc(100vh - var(--header-height) - var(--footer-height));
+            position: fixed;
+            top: var(--header-height);
+            left: 0;
+            overflow-y: auto;
+            box-shadow: 3px 0 20px rgba(0, 0, 0, 0.08);
+            transition: var(--transition);
+            z-index: 90;
+        }
+
+        .sb-collapsed {
+            transform: translateX(-100%);
+        }
+
+        .sbi {
+            padding: 16px 25px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            color: var(--dark);
+            font-weight: 500;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .sbi i {
+            font-size: 18px;
+            width: 24px;
+            text-align: center;
+            color: var(--secondary);
+        }
+
+        .sbi:hover, .sbi.active {
+            background: rgba(52, 152, 219, 0.1);
+            color: var(--secondary);
+        }
+
+        .sbi.active {
+            border-left: 4px solid var(--secondary);
+            background: rgba(52, 152, 219, 0.08);
+        }
+
+        /* Main Content */
+        .bd {
+            flex: 1;
+            margin-left: var(--sidebar-width);
+            padding: 30px;
+            transition: var(--transition);
+        }
+
+        .bd-expanded {
+            margin-left: 0;
+        }
+
+        .mb {
+            background: white;
+            border-radius: 14px;
+            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+            padding: 30px;
+            min-height: calc(100vh - var(--header-height) - var(--footer-height) - 60px);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .section-title {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid rgba(0, 0, 0, 0.05);
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+
+        .section-title h2 {
+            color: var(--primary);
+            font-size: 2rem;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin: 0;
+        }
+
+        .section-title h2 i {
+            color: var(--secondary);
+            font-size: 1.8rem;
+        }
+
+        .controls {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border-radius: 10px;
+            border: none;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: var(--transition);
+            font-size: 0.95rem;
+        }
+
+        .btn-primary {
+            background: var(--secondary);
+            color: white;
+            box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3);
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 2px solid var(--secondary);
+            color: var(--secondary);
+        }
+
+        .btn-success {
+            background: var(--success);
+            color: white;
+            box-shadow: 0 4px 12px rgba(46, 204, 113, 0.3);
+        }
+
+        .btn-warning {
+            background: var(--warning);
+            color: white;
+            box-shadow: 0 4px 12px rgba(243, 156, 18, 0.3);
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+        }
+
+        /* Chart Container */
+        .chart-container {
+            flex: 1;
+            min-height: 500px;
+            position: relative;
+            margin-bottom: 30px;
+        }
+
+        /* Input Panel */
+        .input-panel {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 25px;
+            margin-bottom: 30px;
+            padding: 25px;
+            background: #f8fafc;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .input-group label {
+            margin-bottom: 12px;
+            font-weight: 600;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .input-group label i {
+            color: var(--secondary);
+        }
+
+        .input-group input, .input-group select {
+            padding: 14px 16px;
+            border: 2px solid #e0e6ed;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: var(--transition);
+        }
+
+        .input-group input:focus, .input-group select:focus {
+            border-color: var(--secondary);
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2);
+        }
+
+        /* Properties Panel */
+        .properties-panel {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 25px;
+            margin-top: 30px;
+            padding-top: 30px;
+            border-top: 2px solid rgba(0, 0, 0, 0.05);
+        }
+
+        .property-card {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.05);
+            border-top: 4px solid var(--secondary);
+            transition: var(--transition);
+        }
+
+        .property-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+        }
+
+        .property-card h3 {
+            color: var(--primary);
+            margin-bottom: 18px;
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .property-card h3 i {
+            color: var(--secondary);
+            font-size: 1.4rem;
+        }
+
+        .property-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--dark);
+            line-height: 1.2;
+        }
+
+        .property-unit {
+            font-size: 1.1rem;
+            color: #7f8c8d;
+            margin-left: 5px;
+            font-weight: 500;
+        }
+
+        /* Process Analysis */
+        .process-analysis {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            margin-top: 30px;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.05);
+            border-left: 4px solid var(--info);
+        }
+
+        .process-analysis h3 {
+            color: var(--primary);
+            margin-bottom: 20px;
+            font-size: 1.4rem;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .process-analysis h3 i {
+            color: var(--info);
+        }
+
+        .process-steps {
+            display: grid;
+            gap: 20px;
+        }
+
+        .process-step {
+            padding: 18px;
+            background: #f8fafc;
+            border-radius: 8px;
+            border-left: 4px solid var(--warning);
+        }
+
+        .process-step h4 {
+            color: var(--primary);
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .process-step h4 i {
+            color: var(--warning);
+        }
+
+        /* Footer */
+        .ft {
+            background: var(--dark);
+            color: white;
+            height: var(--footer-height);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0 25px;
+            margin-left: var(--sidebar-width);
+            transition: var(--transition);
+            z-index: 80;
+        }
+
+        .ft-expanded {
+            margin-left: 0;
+        }
+
+        .ft p {
+            font-size: 0.95rem;
+            opacity: 0.8;
+        }
+
+        /* Chart Tooltip */
+        .chart-tooltip {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.98);
+            border: 1px solid #e0e6ed;
+            border-radius: 10px;
+            padding: 16px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+            z-index: 100;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            min-width: 220px;
+            backdrop-filter: blur(5px);
+        }
+
+        .tooltip-header {
+            font-weight: 700;
+            margin-bottom: 12px;
+            color: var(--primary);
+            border-bottom: 1px solid #eee;
+            padding-bottom: 8px;
+            font-size: 1.1rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .tooltip-header i {
+            color: var(--accent);
+        }
+
+        .tooltip-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 8px 0;
+            font-size: 0.95rem;
+        }
+
+        .tooltip-label {
+            color: #7f8c8d;
+            font-weight: 500;
+        }
+
+        .tooltip-value {
+            font-weight: 600;
+            color: var(--dark);
+        }
+
+        /* Responsive Design */
+        @media (max-width: 1200px) {
+            .sb {
+                width: 240px;
+            }
+            
+            .bd {
+                padding: 25px;
+            }
+            
+            .mb {
+                padding: 25px;
+            }
+        }
+
+        @media (max-width: 992px) {
+            .sb {
+                transform: translateX(-100%);
+                width: 280px;
+                box-shadow: none;
+            }
+            
+            .sb.active {
+                transform: translateX(0);
+                box-shadow: 3px 0 20px rgba(0, 0, 0, 0.15);
+            }
+            
+            .bd {
+                margin-left: 0;
+                padding: 20px;
+            }
+            
+            .mobile-menu-btn {
+                display: block;
+            }
+            
+            .ft {
+                margin-left: 0;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .hd {
+                padding: 0 20px;
+            }
+            
+            .logo h1 {
+                font-size: 1.4rem;
+            }
+            
+            .section-title {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 15px;
+            }
+            
+            .controls {
+                width: 100%;
+            }
+            
+            .btn {
+                flex: 1;
+                justify-content: center;
+                padding: 12px;
+            }
+            
+            .input-panel {
+                grid-template-columns: 1fr;
+                padding: 20px;
+            }
+            
+            .properties-panel {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        @media (max-width: 576px) {
+            .hd {
+                padding: 0 15px;
+            }
+            
+            .logo h1 {
+                font-size: 1.2rem;
+            }
+            
+            .bd {
+                padding: 15px;
+            }
+            
+            .mb {
+                padding: 20px;
+            }
+            
+            .section-title h2 {
+                font-size: 1.6rem;
+            }
+            
+            .properties-panel {
+                grid-template-columns: 1fr;
+            }
+            
+            .property-value {
+                font-size: 1.8rem;
+            }
+        }
+
+        /* Animation */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.5s ease forwards;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="hd">
+        <div class="logo">
+            <i class="fas fa-wind"></i>
+            <h1>HVAC Psychrometrics Pro</h1>
+        </div>
+        <div class="header-controls">
+            <div class="unit-toggle">
+                <span>SI Units</span>
+                <i class="fas fa-exchange-alt"></i>
+            </div>
+            <div class="mobile-menu-btn">
+                <i class="fas fa-bars"></i>
+            </div>
+        </div>
+    </header>
+
+    <!-- Sidebar -->
+    <aside class="sb sb-collapsed">
+        <div class="sbi active">
+            <i class="fas fa-chart-line"></i>
+            <span>Psychrometric Chart</span>
+        </div>
+        <div class="sbi">
+            <i class="fas fa-calculator"></i>
+            <span>Air Properties Calculator</span>
+        </div>
+        <div class="sbi">
+            <i class="fas fa-project-diagram"></i>
+            <span>Process Analysis</span>
+        </div>
+        <div class="sbi">
+            <i class="fas fa-tools"></i>
+            <span>System Designer</span>
+        </div>
+        <div class="sbi">
+            <i class="fas fa-database"></i>
+            <span>Properties Library</span>
+        </div>
+        <div class="sbi">
+            <i class="fas fa-book"></i>
+            <span>Documentation</span>
+        </div>
+        <div class="sbi">
+            <i class="fas fa-cog"></i>
+            <span>Settings</span>
+        </div>
+    </aside>
+
+    <!-- Main Body -->
+    <main class="bd">
+        <div class="mb">
+            <div class="section-title">
+                <h2><i class="fas fa-chart-area"></i> Interactive Psychrometric Analysis</h2>
+                <div class="controls">
+                    <button class="btn btn-primary" id="addPointBtn"><i class="fas fa-plus"></i> Add Point</button>
+                    <button class="btn btn-success" id="traceProcessBtn"><i class="fas fa-route"></i> Trace Process</button>
+                    <button class="btn btn-outline" id="exportDataBtn"><i class="fas fa-download"></i> Export Data</button>
+                    <button class="btn btn-warning" id="resetViewBtn"><i class="fas fa-sync"></i> Reset View</button>
+                </div>
+            </div>
+
+            <div class="input-panel">
+                <div class="input-group">
+                    <label for="dryBulbTemp"><i class="fas fa-thermometer-half"></i> Dry Bulb Temperature</label>
+                    <input type="number" id="dryBulbTemp" placeholder="Enter temperature">
+                </div>
+                <div class="input-group">
+                    <label for="relHumidity"><i class="fas fa-tint"></i> Relative Humidity</label>
+                    <input type="number" id="relHumidity" placeholder="Enter humidity %">
+                </div>
+                <div class="input-group">
+                    <label for="humidityRatio"><i class="fas fa-percentage"></i> Humidity Ratio</label>
+                    <input type="number" id="humidityRatio" placeholder="Enter ratio">
+                </div>
+                <div class="input-group">
+                    <label for="enthalpy"><i class="fas fa-fire"></i> Enthalpy</label>
+                    <input type="number" id="enthalpy" placeholder="Enter enthalpy">
+                </div>
+            </div>
+
+            <div class="chart-container">
+                <canvas id="psychrometricChart"></canvas>
+                <div class="chart-tooltip" id="chartTooltip"></div>
+            </div>
+
+            <div class="properties-panel">
+                <div class="property-card">
+                    <h3><i class="fas fa-thermometer-half"></i> Dry Bulb Temperature</h3>
+                    <div class="property-value">24.5 <span class="property-unit">°C</span></div>
+                </div>
+                <div class="property-card">
+                    <h3><i class="fas fa-tint"></i> Relative Humidity</h3>
+                    <div class="property-value">55 <span class="property-unit">%</span></div>
+                </div>
+                <div class="property-card">
+                    <h3><i class="fas fa-percentage"></i> Humidity Ratio</h3>
+                    <div class="property-value">0.0102 <span class="property-unit">kg/kg</span></div>
+                </div>
+                <div class="property-card">
+                    <h3><i class="fas fa-fire"></i> Enthalpy</h3>
+                    <div class="property-value">50.8 <span class="property-unit">kJ/kg</span></div>
+                </div>
+                <div class="property-card">
+                    <h3><i class="fas fa-temperature-low"></i> Wet Bulb Temperature</h3>
+                    <div class="property-value">18.2 <span class="property-unit">°C</span></div>
+                </div>
+                <div class="property-card">
+                    <h3><i class="fas fa-weight"></i> Specific Volume</h3>
+                    <div class="property-value">0.856 <span class="property-unit">m³/kg</span></div>
+                </div>
+            </div>
+
+            <div class="process-analysis">
+                <h3><i class="fas fa-project-diagram"></i> Process Analysis</h3>
+                <div class="process-steps">
+                    <div class="process-step">
+                        <h4><i class="fas fa-info-circle"></i> Current State</h4>
+                        <p>Standard comfort conditions for office environment. Within ASHRAE recommended range.</p>
+                    </div>
+                    <div class="process-step">
+                        <h4><i class="fas fa-arrow-right"></i> Process Recommendation</h4>
+                        <p>Cooling and dehumidification required to reach target conditions. Estimated cooling load: 5.2 kW.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="ft">
+        <p>© 2023 HVAC Psychrometrics Pro | Advanced Air Properties Analysis Tool</p>
+    </footer>
+
+    <script>
+        // Psychrometric Calculations Library
+        const Psychrometrics = {
+            // Constants
+            P: 101.325, // Standard atmospheric pressure (kPa)
+            Cpa: 1.006, // Specific heat of dry air (kJ/kg·K)
+            Cpv: 1.86, // Specific heat of water vapor (kJ/kg·K)
+            hfg: 2501, // Latent heat of vaporization (kJ/kg)
+            Ra: 0.287, // Gas constant for dry air (kJ/kg·K)
+            Rw: 0.4615, // Gas constant for water vapor (kJ/kg·K)
+
+            // Saturation vapor pressure (kPa) - ASHRAE formulation
+            pws: function(t) {
+                const T = t + 273.15; // Convert to Kelvin
+                if (t >= -100 && t <= 0) {
+                    return Math.exp(-5674.5359/T + 6.3925247 - 0.9677843e-2*T + 
+                           0.6221570e-6*T*T + 0.20747825e-8*Math.pow(T,3) + 
+                           0.9484024e-12*Math.pow(T,4) + 4.1635019*Math.log(T));
+                } else if (t > 0 && t <= 200) {
+                    return Math.exp(-5800.2206/T + 1.3914993 - 0.048640239*T + 
+                           0.41764768e-4*T*T - 0.14452093e-7*Math.pow(T,3) + 
+                           6.5459673*Math.log(T));
+                }
+                return 0;
+            },
+
+            // Humidity ratio from relative humidity
+            WfromRH: function(t, rh) {
+                const pws = this.pws(t);
+                return 0.62198 * (rh/100 * pws) / (this.P - (rh/100 * pws));
+            },
+
+            // Relative humidity from humidity ratio
+            RHfromW: function(t, w) {
+                const pws = this.pws(t);
+                return (w * this.P) / (0.62198 + w) / pws * 100;
+            },
+
+            // Enthalpy (kJ/kg)
+            enthalpy: function(t, w) {
+                return this.Cpa * t + w * (this.hfg + this.Cpv * t);
+            },
+
+            // Wet bulb temperature approximation (°C)
+            wetBulb: function(t, w) {
+                // Simplified calculation - in practice would use iterative method
+                return t - (1 - this.RHfromW(t, w)/100) * 5;
+            },
+
+            // Specific volume (m³/kg)
+            specificVolume: function(t, w) {
+                return this.Ra * (t + 273.15) * (1 + 1.6078 * w) / this.P;
+            },
+
+            // Convert SI to IP
+            toIP: function(value, property) {
+                switch(property) {
+                    case 'temperature': return value * 9/5 + 32; // °C to °F
+                    case 'humidity': return value * 7000; // kg/kg to grains/lb
+                    case 'enthalpy': return value * 0.429923; // kJ/kg to BTU/lb
+                    case 'volume': return value * 16.0185; // m³/kg to ft³/lb
+                    default: return value;
+                }
+            },
+
+            // Convert IP to SI
+            toSI: function(value, property) {
+                switch(property) {
+                    case 'temperature': return (value - 32) * 5/9; // °F to °C
+                    case 'humidity': return value / 7000; // grains/lb to kg/kg
+                    case 'enthalpy': return value / 0.429923; // BTU/lb to kJ/kg
+                    case 'volume': return value / 16.0185; // ft³/lb to m³/kg
+                    default: return value;
+                }
+            }
+        };
+
+        // Main Application
+        document.addEventListener('DOMContentLoaded', function() {
+            const ctx = document.getElementById('psychrometricChart').getContext('2d');
+            const tooltip = document.getElementById('chartTooltip');
+            let isSI = true;
+            let selectedPoints = [];
+            let chart;
+
+            // Initialize chart
+            function initChart() {
+                // Generate psychrometric data
+                const psychroData = generatePsychrometricData();
+                
+                // Create datasets for Chart.js
+                const datasets = [];
+                
+                // Add RH curves
+                psychroData.rhCurves.forEach(curve => {
+                    const color = curve.isEnthalpy ? 
+                        `hsl(${Math.random() * 60 + 200}, 75%, 55%)` : 
+                        `hsl(${curve.rh / 100 * 120}, 75%, 50%)`;
+                    
+                    datasets.push({
+                        label: curve.isEnthalpy ? 
+                            (isSI ? `Enthalpy: ${curve.value} kJ/kg` : `Enthalpy: ${Psychrometrics.toIP(curve.value, 'enthalpy').toFixed(1)} BTU/lb`) : 
+                            `${curve.rh}% RH`,
+                        data: curve.points.map(p => ({x: isSI ? p.x : Psychrometrics.toIP(p.x, 'temperature'), 
+                                                    y: isSI ? p.y : Psychrometrics.toIP(p.y, 'humidity')})),
+                        borderColor: color,
+                        backgroundColor: 'transparent',
+                        borderWidth: 1.5,
+                        pointRadius: 0,
+                        fill: false,
+                        tension: 0.2,
+                        showLine: true
+                    });
+                });
+                
+                // Create the chart
+                chart = new Chart(ctx, {
+                    type: 'scatter',
+                    data: {
+                        datasets: datasets
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'top',
+                                labels: {
+                                    boxWidth: 12,
+                                    padding: 20,
+                                    usePointStyle: true,
+                                    pointStyle: 'line',
+                                    font: {
+                                        size: 12
+                                    }
+                                }
+                            },
+                            tooltip: {
+                                enabled: false
+                            },
+                            zoom: {
+                                zoom: {
+                                    wheel: {
+                                        enabled: true,
+                                        speed: 0.1
+                                    },
+                                    pinch: {
+                                        enabled: true
+                                    },
+                                    mode: 'xy',
+                                },
+                                pan: {
+                                    enabled: true,
+                                    mode: 'xy',
+                                    threshold: 10
+                                },
+                                limits: {
+                                    x: {min: isSI ? 0 : 32, max: isSI ? 50 : 122},
+                                    y: {min: 0, max: isSI ? 0.03 : 210}
+                                }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                title: {
+                                    display: true,
+                                    text: isSI ? 'Dry Bulb Temperature (°C)' : 'Dry Bulb Temperature (°F)',
+                                    font: {
+                                        size: 14,
+                                        weight: 'bold'
+                                    }
+                                },
+                                min: isSI ? 0 : 32,
+                                max: isSI ? 50 : 122,
+                                grid: {
+                                    color: 'rgba(0, 0, 0, 0.05)'
+                                }
+                            },
+                            y: {
+                                title: {
+                                    display: true,
+                                    text: isSI ? 'Humidity Ratio (kg/kg)' : 'Humidity Ratio (grains/lb)',
+                                    font: {
+                                        size: 14,
+                                        weight: 'bold'
+                                    }
+                                },
+                                min: 0,
+                                max: isSI ? 0.03 : 210,
+                                grid: {
+                                    color: 'rgba(0, 0, 0, 0.05)'
+                                }
+                            }
+                        },
+                        onClick: (e) => {
+                            const canvasPosition = chart.getElementsAtEventForMode(e, 'nearest', { intersect: true }, true)[0];
+                            if (canvasPosition) {
+                                const x = chart.scales.x.getValueForPixel(e.offsetX);
+                                const y = chart.scales.y.getValueForPixel(e.offsetY);
+                                
+                                // Convert back to SI for calculations if in IP
+                                const t = isSI ? x : Psychrometrics.toSI(x, 'temperature');
+                                const w = isSI ? y : Psychrometrics.toSI(y, 'humidity');
+                                
+                                // Add new point
+                                addPoint(t, w);
+                            }
+                        },
+                        onHover: (e, chartElements) => {
+                            if (chartElements.length > 0 && chartElements[0].datasetIndex < psychroData.rhCurves.length) {
+                                const point = chartElements[0];
+                                const data = chart.data.datasets[point.datasetIndex].data[point.index];
+                                
+                                // Convert back to SI for calculations if in IP
+                                const t = isSI ? data.x : Psychrometrics.toSI(data.x, 'temperature');
+                                const w = isSI ? data.y : Psychrometrics.toSI(data.y, 'humidity');
+                                
+                                // Calculate properties
+                                const rh = Psychrometrics.RHfromW(t, w);
+                                const h = Psychrometrics.enthalpy(t, w);
+                                const v = Psychrometrics.specificVolume(t, w);
+                                const twb = Psychrometrics.wetBulb(t, w);
+                                
+                                // Position tooltip near the point
+                                const chartRect = ctx.canvas.getBoundingClientRect();
+                                const x = e.x - chartRect.left;
+                                const y = e.y - chartRect.top;
+                                
+                                tooltip.style.left = (x + 20) + 'px';
+                                tooltip.style.top = (y - 120) + 'px';
+                                tooltip.style.opacity = 1;
+                                
+                                tooltip.innerHTML = `
+                                    <div class="tooltip-header"><i class="fas fa-info-circle"></i> Air Properties</div>
+                                    <div class="tooltip-row">
+                                        <span class="tooltip-label">DB Temp:</span>
+                                        <span class="tooltip-value">${isSI ? 
+                                            `${t.toFixed(1)} °C` : 
+                                            `${Psychrometrics.toIP(t, 'temperature').toFixed(1)} °F`}</span>
+                                    </div>
+                                    <div class="tooltip-row">
+                                        <span class="tooltip-label">Humidity Ratio:</span>
+                                        <span class="tooltip-value">${isSI ? 
+                                            `${w.toFixed(4)} kg/kg` : 
+                                            `${Psychrometrics.toIP(w, 'humidity').toFixed(1)} grains/lb`}</span>
+                                    </div>
+                                    <div class="tooltip-row">
+                                        <span class="tooltip-label">Relative Humidity:</span>
+                                        <span class="tooltip-value">${rh.toFixed(1)} %</span>
+                                    </div>
+                                    <div class="tooltip-row">
+                                        <span class="tooltip-label">Enthalpy:</span>
+                                        <span class="tooltip-value">${isSI ? 
+                                            `${h.toFixed(1)} kJ/kg` : 
+                                            `${Psychrometrics.toIP(h, 'enthalpy').toFixed(1)} BTU/lb`}</span>
+                                    </div>
+                                `;
+                            } else {
+                                tooltip.style.opacity = 0;
+                            }
+                        }
+                    }
+                });
+            }
+
+            // Generate psychrometric data (more accurate than previous version)
+            function generatePsychrometricData() {
+                const data = { points: [], rhCurves: [] };
+                
+                // Generate saturation curve (100% RH)
+                const saturationCurve = [];
+                for (let t = -10; t <= 60; t += 2) {
+                    const pws = Psychrometrics.pws(t);
+                    if (pws > 0) {
+                        const w = 0.62198 * pws / (Psychrometrics.P - pws);
+                        saturationCurve.push({x: t, y: w});
+                    }
+                }
+                data.rhCurves.push({points: saturationCurve, rh: 100});
+                
+                // Generate other RH curves
+                const rhLevels = [90, 80, 70, 60, 50, 40, 30, 20, 10];
+                for (const rh of rhLevels) {
+                    const curve = [];
+                    for (let t = -10; t <= 60; t += 2) {
+                        const pws = Psychrometrics.pws(t);
+                        if (pws > 0) {
+                            const w = 0.62198 * (rh/100 * pws) / (Psychrometrics.P - (rh/100 * pws));
+                            curve.push({x: t, y: w});
+                        }
+                    }
+                    data.rhCurves.push({points: curve, rh});
+                }
+                
+                // Generate constant enthalpy lines (more accurate)
+                const enthalpyLevels = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
+                for (const h of enthalpyLevels) {
+                    const line = [];
+                    for (let t = -10; t <= 60; t += 2) {
+                        // Solve for w: h = Cpa*t + w*(hfg + Cpv*t)
+                        const w = (h - Psychrometrics.Cpa * t) / (Psychrometrics.hfg + Psychrometrics.Cpv * t);
+                        if (w > 0) line.push({x: t, y: w});
+                    }
+                    data.rhCurves.push({points: line, isEnthalpy: true, value: h});
+                }
+                
+                return data;
+            }
+
+            // Add a point to the chart
+            function addPoint(t, w) {
+                const pointId = selectedPoints.length + 1;
+                const pointLabel = `Point ${String.fromCharCode(64 + pointId)}`;
+                
+                // Calculate all properties
+                const rh = Psychrometrics.RHfromW(t, w);
+                const h = Psychrometrics.enthalpy(t, w);
+                const v = Psychrometrics.specificVolume(t, w);
+                const twb = Psychrometrics.wetBulb(t, w);
+                
+                // Add to selected points array
+                selectedPoints.push({
+                    id: pointId,
+                    label: pointLabel,
+                    t, w, rh, h, v, twb
+                });
+                
+                // Update chart with new point
+                if (!chart.data.datasets.find(d => d.label === 'Selected Points')) {
+                    chart.data.datasets.push({
+                        label: 'Selected Points',
+                        data: [],
+                        borderColor: '#e74c3c',
+                        backgroundColor: '#e74c3c',
+                        borderWidth: 2,
+                        pointRadius: 6,
+                        pointHoverRadius: 8,
+                        pointHitRadius: 10
+                    });
+                }
+                
+                const pointsDataset = chart.data.datasets.find(d => d.label === 'Selected Points');
+                pointsDataset.data.push({
+                    x: isSI ? t : Psychrometrics.toIP(t, 'temperature'),
+                    y: isSI ? w : Psychrometrics.toIP(w, 'humidity'),
+                    label: pointLabel
+                });
+                
+                // Add annotation for the point
+                if (!chart.options.plugins.annotation) {
+                    chart.options.plugins.annotation = {
+                        annotations: []
+                    };
+                }
+                
+                chart.options.plugins.annotation.annotations.push({
+                    type: 'label',
+                    xValue: isSI ? t : Psychrometrics.toIP(t, 'temperature'),
+                    yValue: isSI ? w : Psychrometrics.toIP(w, 'humidity'),
+                    content: [pointLabel],
+                    font: {
+                        size: 12,
+                        weight: 'bold'
+                    },
+                    backgroundColor: 'rgba(255,255,255,0.8)',
+                    padding: 4,
+                    xAdjust: 20,
+                    yAdjust: -20
+                });
+                
+                chart.update();
+                updatePropertyCards(selectedPoints[selectedPoints.length - 1]);
+                updateProcessAnalysis();
+            }
+
+            // Update property cards
+            function updatePropertyCards(point) {
+                const cards = document.querySelectorAll('.property-card');
+                
+                cards[0].querySelector('.property-value').innerHTML = 
+                    `${isSI ? point.t.toFixed(1) : Psychrometrics.toIP(point.t, 'temperature').toFixed(1)} 
+                    <span class="property-unit">${isSI ? '°C' : '°F'}</span>`;
+                
+                cards[1].querySelector('.property-value').innerHTML = 
+                    `${point.rh.toFixed(1)} <span class="property-unit">%</span>`;
+                
+                cards[2].querySelector('.property-value').innerHTML = 
+                    `${isSI ? point.w.toFixed(4) : Psychrometrics.toIP(point.w, 'humidity').toFixed(1)} 
+                    <span class="property-unit">${isSI ? 'kg/kg' : 'grains/lb'}</span>`;
+                
+                cards[3].querySelector('.property-value').innerHTML = 
+                    `${isSI ? point.h.toFixed(1) : Psychrometrics.toIP(point.h, 'enthalpy').toFixed(1)} 
+                    <span class="property-unit">${isSI ? 'kJ/kg' : 'BTU/lb'}</span>`;
+                
+                cards[4].querySelector('.property-value').innerHTML = 
+                    `${isSI ? point.twb.toFixed(1) : Psychrometrics.toIP(point.twb, 'temperature').toFixed(1)} 
+                    <span class="property-unit">${isSI ? '°C' : '°F'}</span>`;
+                
+                cards[5].querySelector('.property-value').innerHTML = 
+                    `${isSI ? point.v.toFixed(3) : Psychrometrics.toIP(point.v, 'volume').toFixed(3)} 
+                    <span class="property-unit">${isSI ? 'm³/kg' : 'ft³/lb'}</span>`;
+            }
+
+            // Update process analysis
+            function updateProcessAnalysis() {
+                const processSteps = document.querySelector('.process-steps');
+                processSteps.innerHTML = '';
+                
+                if (selectedPoints.length === 0) return;
+                
+                // Current state analysis
+                const currentStep = document.createElement('div');
+                currentStep.className = 'process-step fade-in';
+                currentStep.style.animationDelay = '0.1s';
+                
+                const currentPoint = selectedPoints[selectedPoints.length - 1];
+                let currentAnalysis = '';
+                
+                if (currentPoint.rh < 30) {
+                    currentAnalysis = 'Very dry air condition. May cause discomfort and static electricity.';
+                } else if (currentPoint.rh < 40) {
+                    currentAnalysis = 'Dry air condition. May cause dry skin and respiratory discomfort.';
+                } else if (currentPoint.rh < 60) {
+                    currentAnalysis = 'Comfortable air condition. Within recommended comfort range.';
+                } else if (currentPoint.rh < 70) {
+                    currentAnalysis = 'Humid air condition. May feel slightly sticky.';
+                } else {
+                    currentAnalysis = 'Very humid air condition. Risk of mold growth and discomfort.';
+                }
+                
+                currentStep.innerHTML = `
+                    <h4><i class="fas fa-info-circle"></i> ${currentPoint.label} Analysis</h4>
+                    <p>${currentAnalysis}</p>
+                    <p>DB: ${isSI ? currentPoint.t.toFixed(1) : Psychrometrics.toIP(currentPoint.t, 'temperature').toFixed(1)}${isSI ? '°C' : '°F'}, 
+                    RH: ${currentPoint.rh.toFixed(1)}%, 
+                    Enthalpy: ${isSI ? currentPoint.h.toFixed(1) : Psychrometrics.toIP(currentPoint.h, 'enthalpy').toFixed(1)}${isSI ? 'kJ/kg' : 'BTU/lb'}</p>
+                `;
+                
+                processSteps.appendChild(currentStep);
+                
+                // Process analysis if we have multiple points
+                if (selectedPoints.length > 1) {
+                    const prevPoint = selectedPoints[selectedPoints.length - 2];
+                    const processStep = document.createElement('div');
+                    processStep.className = 'process-step fade-in';
+                    processStep.style.animationDelay = '0.3s';
+                    processStep.style.borderLeftColor = '#3498db';
+                    
+                    const deltaT = currentPoint.t - prevPoint.t;
+                    const deltaW = currentPoint.w - prevPoint.w;
+                    const deltaH = currentPoint.h - prevPoint.h;
+                    
+                    let processType = '';
+                    let recommendation = '';
+                    
+                    if (deltaT < 0 && deltaW < 0) {
+                        processType = 'Cooling and Dehumidification';
+                        recommendation = `Requires cooling coil with surface temperature below ${currentPoint.twb.toFixed(1)}${isSI ? '°C' : '°F'} dew point.`;
+                    } else if (deltaT < 0 && Math.abs(deltaW) < 0.0001) {
+                        processType = 'Sensible Cooling';
+                        recommendation = 'Direct cooling without moisture removal needed.';
+                    } else if (deltaT < 0 && deltaW > 0) {
+                        processType = 'Cooling with Humidification';
+                        recommendation = 'Uncommon process - check for measurement errors.';
+                    } else if (deltaT > 0 && deltaW > 0) {
+                        processType = 'Heating and Humidification';
+                        recommendation = 'Requires heater and steam/humidifier.';
+                    } else if (deltaT > 0 && Math.abs(deltaW) < 0.0001) {
+                        processType = 'Sensible Heating';
+                        recommendation = 'Direct heating without moisture addition needed.';
+                    } else if (deltaT > 0 && deltaW < 0) {
+                        processType = 'Heating with Dehumidification';
+                        recommendation = 'Uncommon process - check for measurement errors.';
+                    } else if (Math.abs(deltaT) < 0.1 && deltaW > 0) {
+                        processType = 'Adiabatic Humidification';
+                        recommendation = 'Evaporative cooling/humidification process.';
+                    } else if (Math.abs(deltaT) < 0.1 && deltaW < 0) {
+                        processType = 'Chemical Dehumidification';
+                        recommendation = 'Desiccant or chemical drying process.';
+                    }
+                    
+                    const coolingLoad = deltaH < 0 ? Math.abs(deltaH) * 1.2 * 0.284345 : 0; // Convert to tons of refrigeration
+                    const heatingLoad = deltaH > 0 ? deltaH * 1.2 * 0.000393 : 0; // Convert to kW
+                    
+                    processStep.innerHTML = `
+                        <h4><i class="fas fa-arrow-right"></i> Process from ${prevPoint.label} to ${currentPoint.label}</h4>
+                        <p><strong>Process Type:</strong> ${processType}</p>
+                        <p><strong>Recommendation:</strong> ${recommendation}</p>
+                        ${coolingLoad > 0 ? `<p><strong>Cooling Load:</strong> ${coolingLoad.toFixed(2)} tons (${(coolingLoad*3.516).toFixed(2)} kW)</p>` : ''}
+                        ${heatingLoad > 0 ? `<p><strong>Heating Load:</strong> ${heatingLoad.toFixed(2)} kW</p>` : ''}
+                    `;
+                    
+                    processSteps.appendChild(processStep);
+                }
+            }
+
+            // Handle input panel changes
+            function setupInputHandlers() {
+                const inputs = ['dryBulbTemp', 'relHumidity', 'humidityRatio', 'enthalpy'];
+                
+                inputs.forEach(id => {
+                    const input = document.getElementById(id);
+                    
+                    input.addEventListener('change', function() {
+                        if (this.value === '') return;
+                        
+                        const value = parseFloat(this.value);
+                        let t, w;
+                        
+                        try {
+                            switch(id) {
+                                case 'dryBulbTemp':
+                                    t = isSI ? value : Psychrometrics.toSI(value, 'temperature');
+                                    if (document.getElementById('relHumidity').value) {
+                                        const rh = parseFloat(document.getElementById('relHumidity').value);
+                                        w = Psychrometrics.WfromRH(t, rh);
+                                        addPoint(t, w);
+                                    } else if (document.getElementById('humidityRatio').value) {
+                                        w = isSI ? 
+                                            parseFloat(document.getElementById('humidityRatio').value) : 
+                                            Psychrometrics.toSI(parseFloat(document.getElementById('humidityRatio').value), 'humidity');
+                                        addPoint(t, w);
+                                    }
+                                    break;
+                                    
+                                case 'relHumidity':
+                                    const rh = value;
+                                    if (document.getElementById('dryBulbTemp').value) {
+                                        t = isSI ? 
+                                            parseFloat(document.getElementById('dryBulbTemp').value) : 
+                                            Psychrometrics.toSI(parseFloat(document.getElementById('dryBulbTemp').value), 'temperature');
+                                        w = Psychrometrics.WfromRH(t, rh);
+                                        addPoint(t, w);
+                                    }
+                                    break;
+                                    
+                                case 'humidityRatio':
+                                    w = isSI ? value : Psychrometrics.toSI(value, 'humidity');
+                                    if (document.getElementById('dryBulbTemp').value) {
+                                        t = isSI ? 
+                                            parseFloat(document.getElementById('dryBulbTemp').value) : 
+                                            Psychrometrics.toSI(parseFloat(document.getElementById('dryBulbTemp').value), 'temperature');
+                                        addPoint(t, w);
+                                    }
+                                    break;
+                                    
+                                case 'enthalpy':
+                                    const h = isSI ? value : Psychrometrics.toSI(value, 'enthalpy');
+                                    if (document.getElementById('humidityRatio').value) {
+                                        w = isSI ? 
+                                            parseFloat(document.getElementById('humidityRatio').value) : 
+                                            Psychrometrics.toSI(parseFloat(document.getElementById('humidityRatio').value), 'humidity');
+                                        t = (h - w * Psychrometrics.hfg) / (Psychrometrics.Cpa + w * Psychrometrics.Cpv);
+                                        addPoint(t, w);
+                                    }
+                                    break;
+                            }
+                        } catch (e) {
+                            console.error('Error calculating point:', e);
+                            alert('Invalid input combination. Please provide at least two valid properties.');
+                        }
+                    });
+                });
+            }
+
+            // Initialize the application
+            function initApp() {
+                initChart();
+                setupInputHandlers();
+                
+                // Add sample initial point
+                setTimeout(() => {
+                    addPoint(24, 0.009);
+                }, 500);
+                
+                // Handle unit toggle
+                document.querySelector('.unit-toggle').addEventListener('click', function() {
+                    isSI = !isSI;
+                    const current = this.querySelector('span');
+                    current.textContent = isSI ? 'SI Units' : 'Imperial Units';
+                    
+                    // Recreate chart with new units
+                    chart.destroy();
+                    initChart();
+                    
+                    // Update property cards
+                    if (selectedPoints.length > 0) {
+                        updatePropertyCards(selectedPoints[selectedPoints.length - 1]);
+                    }
+                });
+                
+                // Handle sidebar item clicks
+                document.querySelectorAll('.sbi').forEach(item => {
+                    item.addEventListener('click', function() {
+                        document.querySelectorAll('.sbi').forEach(i => i.classList.remove('active'));
+                        this.classList.add('active');
+                    });
+                });
+                
+                // Handle mobile menu button
+                document.querySelector('.mobile-menu-btn').addEventListener('click', function() {
+                    document.querySelector('.sb').classList.toggle('active');
+                });
+                
+                // Handle add point button
+                document.getElementById('addPointBtn').addEventListener('click', function() {
+                    const tInput = document.getElementById('dryBulbTemp');
+                    const rhInput = document.getElementById('relHumidity');
+                    
+                    if (tInput.value && rhInput.value) {
+                        const t = isSI ? parseFloat(tInput.value) : Psychrometrics.toSI(parseFloat(tInput.value), 'temperature');
+                        const rh = parseFloat(rhInput.value);
+                        const w = Psychrometrics.WfromRH(t, rh);
+                        addPoint(t, w);
+                    } else {
+                        alert('Please enter both temperature and relative humidity to add a point.');
+                    }
+                });
+                
+                // Handle reset view button
+                document.getElementById('resetViewBtn').addEventListener('click', function() {
+                    chart.resetZoom();
+                });
+                
+                // Handle window resize
+                window.addEventListener('resize', function() {
+                    chart.resize();
+                });
+            }
+
+            // Start the application
+            initApp();
+        });
+    </script>
+</body>
+</html>
