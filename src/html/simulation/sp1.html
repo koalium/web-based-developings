@@ -1,0 +1,869 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Space Craft Simulator</title>
+    <style>
+        * { margin: 0; padding: 0; }
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+            background: #000;
+            color: #fff;
+        }
+        #container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+        #gameCanvas {
+            display: block;
+            background: #000;
+        }
+        #uiOverlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+        }
+        .control-panel {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(0, 20, 40, 0.8);
+            border: 2px solid #0af;
+            border-radius: 10px;
+            padding: 15px;
+            pointer-events: auto;
+            width: 300px;
+        }
+        .fuel-panel {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(20, 0, 40, 0.8);
+            border: 2px solid #f0a;
+            border-radius: 10px;
+            padding: 15px;
+            pointer-events: auto;
+            width: 250px;
+        }
+        .status-panel {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 40, 20, 0.8);
+            border: 2px solid #0fa;
+            border-radius: 10px;
+            padding: 15px;
+            pointer-events: auto;
+            width: 250px;
+        }
+        h3 {
+            color: #0af;
+            margin-bottom: 10px;
+            border-bottom: 1px solid #0af;
+            padding-bottom: 5px;
+        }
+        .slider-container {
+            margin: 10px 0;
+        }
+        input[type="range"] {
+            width: 100%;
+            margin: 5px 0;
+        }
+        .button {
+            background: linear-gradient(45deg, #0af, #08f);
+            border: none;
+            color: white;
+            padding: 8px 15px;
+            margin: 5px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+        .button:hover {
+            background: linear-gradient(45deg, #0bf, #09f);
+            transform: scale(1.05);
+        }
+        .button:disabled {
+            background: #555;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .fuel-bar {
+            height: 20px;
+            background: #333;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 5px 0;
+        }
+        .fuel-fill {
+            height: 100%;
+            transition: width 0.3s;
+        }
+        .sensor-status {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(40, 20, 0, 0.8);
+            padding: 10px;
+            border-radius: 5px;
+        }
+        #mobileControls {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: none;
+        }
+        @media (max-width: 768px) {
+            #mobileControls {
+                display: block;
+            }
+            .control-panel {
+                width: 90%;
+                left: 5%;
+            }
+        }
+        .warning {
+            color: #ff4444;
+            animation: pulse 1s infinite;
+        }
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <canvas id="gameCanvas"></canvas>
+        <div id="uiOverlay">
+            <div class="status-panel">
+                <h3>🚀 Spacecraft Status</h3>
+                <div>Velocity: <span id="velocity">0</span> m/s</div>
+                <div>Rotation: <span id="rotation">0</span>°</div>
+                <div>Altitude: <span id="altitude">0</span> km</div>
+                <div>Total Mass: <span id="totalMass">1000</span> kg</div>
+                <div>Momentum: <span id="momentum">0</span> kg·m/s</div>
+                <div class="fuel-bar">
+                    <div id="solidFuelBar" class="fuel-fill" style="background:#ff5500;width:50%"></div>
+                </div>
+                <div>Solid Fuel: <span id="solidFuel">50</span>%</div>
+                <div class="fuel-bar">
+                    <div id="liquidFuelBar" class="fuel-fill" style="background:#00aaff;width:30%"></div>
+                </div>
+                <div>Liquid Fuel: <span id="liquidFuel">30</span>%</div>
+            </div>
+            
+            <div class="fuel-panel">
+                <h3>⛽ Fuel Management</h3>
+                <div class="slider-container">
+                    Solid Fuel (%): <span id="solidValue">40</span>
+                    <input type="range" id="solidSlider" min="0" max="90" value="40">
+                </div>
+                <div class="slider-container">
+                    Liquid Fuel (%): <span id="liquidValue">40</span>
+                    <input type="range" id="liquidSlider" min="0" max="90" value="40">
+                </div>
+                <div>Fuel Mass: <span id="fuelMass">800</span> kg</div>
+                <div>Available: <span id="availableMass">100</span> kg</div>
+                <div>Thrust Power: <span id="thrustPower">85</span>%</div>
+                <button class="button" id="applyFuel">Apply Fuel Mix</button>
+                <button class="button" id="refuel">Buy Fuel (100 pts)</button>
+            </div>
+            
+            <div class="control-panel">
+                <h3>🛠️ Systems Control</h3>
+                <div>Propulsion Mode: 
+                    <select id="propMode">
+                        <option value="balanced">Balanced</option>
+                        <option value="efficiency">Fuel Efficiency</option>
+                        <option value="power">Maximum Power</option>
+                    </select>
+                </div>
+                <div class="slider-container">
+                    Shield Power: <span id="shieldValue">50</span>%
+                    <input type="range" id="shieldSlider" min="0" max="100" value="50">
+                </div>
+                <div class="slider-container">
+                    Weapon Power: <span id="weaponValue">30</span>%
+                    <input type="range" id="weaponSlider" min="0" max="100" value="30">
+                </div>
+                <div>Power Available: <span id="powerAvailable">20</span>%</div>
+                <button class="button" id="thrustButton">THRUST (SPACE)</button>
+                <button class="button" id="brakeButton">BRAKE (B)</button>
+                <div class="sensor-status" id="sensorStatus">
+                    📱 Tilt: <span id="tiltInfo">N/A</span>
+                </div>
+            </div>
+            
+            <div id="mobileControls">
+                <button class="button" style="font-size: 24px; padding: 15px 30px;">
+                    TOUCH FOR THRUST
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.min.js"></script>
+    <script>
+        // Main Game Variables
+        let scene, camera, renderer, controls;
+        let spacecraft, spaceObjects = [];
+        let stars = [];
+        
+        // Physics Variables
+        let velocity = new THREE.Vector3(0, 0, 0);
+        let acceleration = new THREE.Vector3(0, 0, 0);
+        let rotation = 0;
+        let tiltX = 0, tiltY = 0;
+        
+        // Fuel System
+        let fuel = {
+            solid: 50,      // Percentage
+            liquid: 30,     // Percentage
+            maxCapacity: 90, // Max 90% of total mass
+            solidISP: 250,  // Specific impulse (efficiency)
+            liquidISP: 350,
+            solidThrust: 1.2,
+            liquidThrust: 0.8,
+            mass: 800       // Current fuel mass in kg
+        };
+        
+        // Spacecraft Properties
+        let spacecraftMass = {
+            base: 200,      // Base mass without fuel
+            fuel: 800,
+            shield: 50,
+            weapons: 30,
+            generator: 40,
+            supplies: 80
+        };
+        
+        let totalMass = 1200; // Initial total mass
+        let momentum = new THREE.Vector3(0, 0, 0);
+        let thrustForce = 0;
+        
+        // Game State
+        let points = 1000;
+        let isThrusting = false;
+        let isBraking = false;
+        let selectedPropMode = 'balanced';
+        
+        // DOM Elements
+        const velocityElem = document.getElementById('velocity');
+        const rotationElem = document.getElementById('rotation');
+        const altitudeElem = document.getElementById('altitude');
+        const totalMassElem = document.getElementById('totalMass');
+        const momentumElem = document.getElementById('momentum');
+        const solidFuelElem = document.getElementById('solidFuel');
+        const liquidFuelElem = document.getElementById('liquidFuel');
+        const solidFuelBar = document.getElementById('solidFuelBar');
+        const liquidFuelBar = document.getElementById('liquidFuelBar');
+        const solidSlider = document.getElementById('solidSlider');
+        const liquidSlider = document.getElementById('liquidSlider');
+        const solidValue = document.getElementById('solidValue');
+        const liquidValue = document.getElementById('liquidValue');
+        const fuelMassElem = document.getElementById('fuelMass');
+        const availableMassElem = document.getElementById('availableMass');
+        const thrustPowerElem = document.getElementById('thrustPower');
+        const shieldSlider = document.getElementById('shieldSlider');
+        const weaponSlider = document.getElementById('weaponSlider');
+        const shieldValue = document.getElementById('shieldValue');
+        const weaponValue = document.getElementById('weaponValue');
+        const powerAvailableElem = document.getElementById('powerAvailable');
+        const propModeSelect = document.getElementById('propMode');
+        const sensorStatus = document.getElementById('sensorStatus');
+        const tiltInfo = document.getElementById('tiltInfo');
+        
+        // Initialize Three.js
+        function init() {
+            // Scene
+            scene = new THREE.Scene();
+            scene.fog = new THREE.Fog(0x000000, 100, 1000);
+            
+            // Camera
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 5000);
+            camera.position.set(0, 50, 100);
+            
+            // Renderer
+            renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('gameCanvas'), antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.shadowMap.enabled = true;
+            
+            // Lighting
+            const ambientLight = new THREE.AmbientLight(0x222244);
+            scene.add(ambientLight);
+            
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+            directionalLight.position.set(100, 100, 50);
+            directionalLight.castShadow = true;
+            scene.add(directionalLight);
+            
+            // Create Spacecraft
+            createSpacecraft();
+            
+            // Create Space Environment
+            createStars(2000);
+            createAsteroids(50);
+            createPlanet();
+            
+            // Controls
+            setupControls();
+            
+            // Event Listeners
+            setupEventListeners();
+            
+            // Device Orientation
+            setupDeviceOrientation();
+            
+            // Start animation
+            animate();
+        }
+        
+        function createSpacecraft() {
+            const group = new THREE.Group();
+            
+            // Main body
+            const bodyGeometry = new THREE.CylinderGeometry(2, 3, 10, 8);
+            const bodyMaterial = new THREE.MeshPhongMaterial({ 
+                color: 0x4444ff,
+                shininess: 100 
+            });
+            const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+            body.castShadow = true;
+            group.add(body);
+            
+            // Cockpit
+            const cockpitGeometry = new THREE.SphereGeometry(2, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2);
+            const cockpitMaterial = new THREE.MeshPhongMaterial({ 
+                color: 0x88ffff,
+                transparent: true,
+                opacity: 0.7
+            });
+            const cockpit = new THREE.Mesh(cockpitGeometry, cockpitMaterial);
+            cockpit.position.y = 3;
+            cockpit.castShadow = true;
+            group.add(cockpit);
+            
+            // Engines
+            const engineGeometry = new THREE.ConeGeometry(1.5, 4, 8);
+            const engineMaterial = new THREE.MeshPhongMaterial({ color: 0xff5500 });
+            for (let i = -1; i <= 1; i += 2) {
+                const engine = new THREE.Mesh(engineGeometry, engineMaterial);
+                engine.position.set(i * 2, -5, 0);
+                engine.rotation.x = Math.PI;
+                engine.castShadow = true;
+                group.add(engine);
+            }
+            
+            // Wings
+            const wingGeometry = new THREE.BoxGeometry(6, 1, 2);
+            const wingMaterial = new THREE.MeshPhongMaterial({ color: 0x3333aa });
+            const leftWing = new THREE.Mesh(wingGeometry, wingMaterial);
+            leftWing.position.set(-5, 0, 0);
+            leftWing.castShadow = true;
+            group.add(leftWing);
+            
+            const rightWing = leftWing.clone();
+            rightWing.position.set(5, 0, 0);
+            group.add(rightWing);
+            
+            // Thruster Particles
+            const particleCount = 1000;
+            const particles = new THREE.BufferGeometry();
+            const positions = new Float32Array(particleCount * 3);
+            
+            for (let i = 0; i < particleCount * 3; i++) {
+                positions[i] = (Math.random() - 0.5) * 10;
+            }
+            
+            particles.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            const particleMaterial = new THREE.PointsMaterial({
+                color: 0xff5500,
+                size: 0.5,
+                transparent: true
+            });
+            
+            const particleSystem = new THREE.Points(particles, particleMaterial);
+            particleSystem.position.y = -6;
+            group.add(particleSystem);
+            group.userData.particles = particleSystem;
+            group.userData.particlePositions = positions;
+            
+            scene.add(group);
+            spacecraft = group;
+        }
+        
+        function createStars(count) {
+            const starGeometry = new THREE.BufferGeometry();
+            const starMaterial = new THREE.PointsMaterial({
+                color: 0xffffff,
+                size: 0.5,
+                transparent: true
+            });
+            
+            const positions = new Float32Array(count * 3);
+            
+            for (let i = 0; i < count * 3; i += 3) {
+                positions[i] = (Math.random() - 0.5) * 2000;
+                positions[i + 1] = (Math.random() - 0.5) * 2000;
+                positions[i + 2] = (Math.random() - 0.5) * 2000;
+            }
+            
+            starGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            const starField = new THREE.Points(starGeometry, starMaterial);
+            scene.add(starField);
+            stars.push(starField);
+        }
+        
+        function createAsteroids(count) {
+            const asteroidGeometry = new THREE.SphereGeometry(1, 6, 6);
+            const asteroidMaterial = new THREE.MeshPhongMaterial({ color: 0x888888 });
+            
+            for (let i = 0; i < count; i++) {
+                const asteroid = new THREE.Mesh(asteroidGeometry, asteroidMaterial);
+                asteroid.position.set(
+                    (Math.random() - 0.5) * 1000,
+                    (Math.random() - 0.5) * 1000,
+                    (Math.random() - 0.5) * 1000
+                );
+                asteroid.scale.setScalar(Math.random() * 3 + 1);
+                asteroid.castShadow = true;
+                asteroid.userData.type = 'asteroid';
+                asteroid.userData.rotationSpeed = new THREE.Vector3(
+                    Math.random() * 0.02 - 0.01,
+                    Math.random() * 0.02 - 0.01,
+                    Math.random() * 0.02 - 0.01
+                );
+                scene.add(asteroid);
+                spaceObjects.push(asteroid);
+            }
+        }
+        
+        function createPlanet() {
+            const planetGeometry = new THREE.SphereGeometry(100, 32, 32);
+            const planetMaterial = new THREE.MeshPhongMaterial({
+                color: 0x228822,
+                shininess: 30
+            });
+            const planet = new THREE.Mesh(planetGeometry, planetMaterial);
+            planet.position.set(0, -500, -300);
+            planet.receiveShadow = true;
+            scene.add(planet);
+        }
+        
+        function setupControls() {
+            // Keyboard controls
+            document.addEventListener('keydown', (e) => {
+                switch(e.key) {
+                    case 'ArrowLeft':
+                        rotation += 0.05;
+                        break;
+                    case 'ArrowRight':
+                        rotation -= 0.05;
+                        break;
+                    case ' ':
+                        isThrusting = true;
+                        break;
+                    case 'b':
+                    case 'B':
+                        isBraking = true;
+                        break;
+                }
+            });
+            
+            document.addEventListener('keyup', (e) => {
+                switch(e.key) {
+                    case ' ':
+                        isThrusting = false;
+                        break;
+                    case 'b':
+                    case 'B':
+                        isBraking = false;
+                        break;
+                }
+            });
+            
+            // Touch controls for mobile
+            const thrustButton = document.getElementById('thrustButton');
+            thrustButton.addEventListener('mousedown', () => isThrusting = true);
+            thrustButton.addEventListener('mouseup', () => isThrusting = false);
+            thrustButton.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                isThrusting = true;
+            });
+            thrustButton.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                isThrusting = false;
+            });
+            
+            // Brake button
+            const brakeButton = document.getElementById('brakeButton');
+            brakeButton.addEventListener('mousedown', () => isBraking = true);
+            brakeButton.addEventListener('mouseup', () => isBraking = false);
+            
+            // Fuel sliders
+            solidSlider.addEventListener('input', updateFuelSliders);
+            liquidSlider.addEventListener('input', updateFuelSliders);
+            
+            // Apply fuel mix
+            document.getElementById('applyFuel').addEventListener('click', applyFuelMix);
+            
+            // Refuel button
+            document.getElementById('refuel').addEventListener('click', () => {
+                if (points >= 100) {
+                    points -= 100;
+                    fuel.solid = Math.min(100, fuel.solid + 20);
+                    fuel.liquid = Math.min(100, fuel.liquid + 20);
+                    updateFuelDisplay();
+                }
+            });
+            
+            // System sliders
+            shieldSlider.addEventListener('input', updateSystems);
+            weaponSlider.addEventListener('input', updateSystems);
+            
+            // Propulsion mode
+            propModeSelect.addEventListener('change', () => {
+                selectedPropMode = propModeSelect.value;
+            });
+        }
+        
+        function setupDeviceOrientation() {
+            if (window.DeviceOrientationEvent) {
+                window.addEventListener('deviceorientation', (e) => {
+                    // Gamma is left-to-right tilt
+                    // Beta is front-to-back tilt
+                    if (e.gamma !== null && e.beta !== null) {
+                        tiltX = (e.gamma / 90) * 2; // Normalize to -2 to 2
+                        tiltY = (e.beta / 90) * 2;  // Normalize to -2 to 2
+                        
+                        // Update rotation based on tilt
+                        rotation = -tiltX * 0.1;
+                        
+                        // Update display
+                        tiltInfo.textContent = `X: ${tiltX.toFixed(2)}, Y: ${tiltY.toFixed(2)}`;
+                        sensorStatus.style.background = tiltX !== 0 || tiltY !== 0 
+                            ? 'rgba(0, 100, 0, 0.8)' 
+                            : 'rgba(100, 0, 0, 0.8)';
+                    }
+                });
+            } else {
+                tiltInfo.textContent = "Not Supported";
+                sensorStatus.classList.add('warning');
+            }
+        }
+        
+        function updateFuelSliders() {
+            const solid = parseInt(solidSlider.value);
+            const liquid = parseInt(liquidSlider.value);
+            const total = solid + liquid;
+            
+            // Enforce 90% max fuel capacity
+            if (total > fuel.maxCapacity) {
+                const excess = total - fuel.maxCapacity;
+                if (solid > liquid) {
+                    solidSlider.value = solid - excess;
+                } else {
+                    liquidSlider.value = liquid - excess;
+                }
+            }
+            
+            solidValue.textContent = solidSlider.value;
+            liquidValue.textContent = liquidSlider.value;
+            
+            // Calculate available mass for other systems
+            const fuelMass = calculateFuelMass(parseInt(solidSlider.value), parseInt(liquidSlider.value));
+            const availableMass = 1000 - (spacecraftMass.base + fuelMass + 
+                spacecraftMass.shield + spacecraftMass.weapons + 
+                spacecraftMass.generator + spacecraftMass.supplies);
+            
+            fuelMassElem.textContent = fuelMass;
+            availableMassElem.textContent = Math.max(0, availableMass);
+            
+            // Calculate thrust power based on fuel mix
+            const thrustPower = calculateThrustPower(parseInt(solidSlider.value), parseInt(liquidSlider.value));
+            thrustPowerElem.textContent = thrustPower.toFixed(0);
+        }
+        
+        function calculateFuelMass(solidPercent, liquidPercent) {
+            // Max fuel mass is 90% of 1000kg base = 900kg
+            const totalPercent = solidPercent + liquidPercent;
+            if (totalPercent === 0) return 0;
+            
+            // Solid fuel is denser than liquid
+            const solidMass = (solidPercent / totalPercent) * 900 * (solidPercent / 100);
+            const liquidMass = (liquidPercent / totalPercent) * 900 * (liquidPercent / 100);
+            
+            return Math.round(solidMass + liquidMass);
+        }
+        
+        function calculateThrustPower(solidPercent, liquidPercent) {
+            // Calculate thrust efficiency based on fuel mix
+            const solidEfficiency = solidPercent * fuel.solidThrust;
+            const liquidEfficiency = liquidPercent * fuel.liquidThrust;
+            const total = solidPercent + liquidPercent;
+            
+            if (total === 0) return 0;
+            
+            let efficiency = (solidEfficiency + liquidEfficiency) / total;
+            
+            // Apply propulsion mode modifier
+            switch(selectedPropMode) {
+                case 'efficiency':
+                    efficiency *= 0.7;
+                    break;
+                case 'power':
+                    efficiency *= 1.3;
+                    break;
+            }
+            
+            return efficiency * 100;
+        }
+        
+        function applyFuelMix() {
+            const solid = parseInt(solidSlider.value);
+            const liquid = parseInt(liquidSlider.value);
+            
+            // Check if we have enough fuel
+            if (solid <= fuel.solid && liquid <= fuel.liquid) {
+                fuel.solid = solid;
+                fuel.liquid = liquid;
+                fuel.mass = calculateFuelMass(solid, liquid);
+                updateFuelDisplay();
+                updateTotalMass();
+            } else {
+                alert("Not enough fuel! Purchase more fuel first.");
+            }
+        }
+        
+        function updateFuelDisplay() {
+            solidFuelElem.textContent = fuel.solid;
+            liquidFuelElem.textContent = fuel.liquid;
+            solidFuelBar.style.width = fuel.solid + '%';
+            liquidFuelBar.style.width = fuel.liquid + '%';
+            fuelMassElem.textContent = fuel.mass;
+            
+            // Update sliders to match current fuel
+            solidSlider.value = fuel.solid;
+            liquidSlider.value = fuel.liquid;
+            solidValue.textContent = fuel.solid;
+            liquidValue.textContent = fuel.liquid;
+        }
+        
+        function updateSystems() {
+            shieldValue.textContent = shieldSlider.value;
+            weaponValue.textContent = weaponSlider.value;
+            
+            // Calculate power usage
+            const shieldPower = parseInt(shieldSlider.value);
+            const weaponPower = parseInt(weaponSlider.value);
+            const totalPower = shieldPower + weaponPower;
+            const powerAvailable = Math.max(0, 100 - totalPower);
+            
+            powerAvailableElem.textContent = powerAvailable;
+            spacecraftMass.shield = shieldPower * 0.5;
+            spacecraftMass.weapons = weaponPower * 0.3;
+            
+            updateTotalMass();
+            
+            // Visual feedback for power levels
+            if (powerAvailable < 10) {
+                powerAvailableElem.classList.add('warning');
+            } else {
+                powerAvailableElem.classList.remove('warning');
+            }
+        }
+        
+        function updateTotalMass() {
+            totalMass = spacecraftMass.base + fuel.mass + 
+                       spacecraftMass.shield + spacecraftMass.weapons + 
+                       spacecraftMass.generator + spacecraftMass.supplies;
+            totalMassElem.textContent = totalMass;
+        }
+        
+        function calculateThrust() {
+            if (!isThrusting) return new THREE.Vector3(0, 0, 0);
+            
+            // Calculate thrust vector based on rotation
+            const thrustMagnitude = calculateThrustPower(fuel.solid, fuel.liquid) / 1000;
+            const thrust = new THREE.Vector3(
+                Math.sin(rotation) * thrustMagnitude,
+                Math.sin(tiltY) * thrustMagnitude * 0.5,
+                -Math.cos(rotation) * thrustMagnitude
+            );
+            
+            // Apply fuel consumption
+            if (fuel.solid > 0 || fuel.liquid > 0) {
+                const consumptionRate = 0.1;
+                fuel.solid = Math.max(0, fuel.solid - consumptionRate * (fuel.solid / 100));
+                fuel.liquid = Math.max(0, fuel.liquid - consumptionRate * (fuel.liquid / 100));
+                updateFuelDisplay();
+            }
+            
+            return thrust;
+        }
+        
+        function calculateBrakeForce() {
+            if (!isBraking) return new THREE.Vector3(0, 0, 0);
+            
+            // Braking force opposes velocity
+            const brakeForce = velocity.clone().multiplyScalar(-0.01);
+            return brakeForce;
+        }
+        
+        function updatePhysics(deltaTime) {
+            // Calculate forces
+            const thrust = calculateThrust();
+            const brake = calculateBrakeForce();
+            
+            // Calculate acceleration (F = ma)
+            acceleration.copy(thrust).add(brake).divideScalar(totalMass);
+            
+            // Update velocity
+            velocity.add(acceleration.multiplyScalar(deltaTime * 60));
+            
+            // Apply friction/drag in space (very small)
+            velocity.multiplyScalar(0.999);
+            
+            // Update position
+            spacecraft.position.add(velocity.clone().multiplyScalar(deltaTime * 60));
+            
+            // Update rotation
+            spacecraft.rotation.y = rotation;
+            
+            // Update momentum (p = mv)
+            momentum.copy(velocity).multiplyScalar(totalMass);
+            
+            // Update particle effects
+            updateThrusterParticles();
+            
+            // Update asteroids
+            updateAsteroids(deltaTime);
+            
+            // Update UI
+            updateUI();
+            
+            // Update camera to follow spacecraft
+            updateCamera();
+        }
+        
+        function updateThrusterParticles() {
+            if (!spacecraft.userData.particles || !spacecraft.userData.particlePositions) return;
+            
+            const positions = spacecraft.userData.particlePositions;
+            
+            if (isThrusting) {
+                // Animate particles
+                for (let i = 0; i < positions.length; i += 3) {
+                    positions[i] += (Math.random() - 0.5) * 0.5;
+                    positions[i + 1] -= Math.random() * 2 + 1;
+                    positions[i + 2] += (Math.random() - 0.5) * 0.5;
+                    
+                    // Reset particles that go too far
+                    if (positions[i + 1] < -10) {
+                        positions[i] = (Math.random() - 0.5) * 10;
+                        positions[i + 1] = 0;
+                        positions[i + 2] = (Math.random() - 0.5) * 10;
+                    }
+                }
+                
+                spacecraft.userData.particles.material.size = 1.0;
+                spacecraft.userData.particles.material.color.setHex(0xff5500);
+            } else {
+                // Fade out particles
+                spacecraft.userData.particles.material.size *= 0.9;
+                spacecraft.userData.particles.material.color.setHex(0xff8844);
+            }
+            
+            spacecraft.userData.particles.geometry.attributes.position.needsUpdate = true;
+        }
+        
+        function updateAsteroids(deltaTime) {
+            spaceObjects.forEach(obj => {
+                if (obj.userData.type === 'asteroid') {
+                    obj.rotation.x += obj.userData.rotationSpeed.x;
+                    obj.rotation.y += obj.userData.rotationSpeed.y;
+                    obj.rotation.z += obj.userData.rotationSpeed.z;
+                    
+                    // Check for collisions
+                    const distance = spacecraft.position.distanceTo(obj.position);
+                    if (distance < 10) {
+                        // Collision detected
+                        obj.material.color.setHex(0xff0000);
+                        // Apply collision physics
+                        const collisionForce = spacecraft.position.clone()
+                            .sub(obj.position)
+                            .normalize()
+                            .multiplyScalar(0.5);
+                        velocity.add(collisionForce);
+                    } else {
+                        obj.material.color.setHex(0x888888);
+                    }
+                }
+            });
+        }
+        
+        function updateUI() {
+            velocityElem.textContent = velocity.length().toFixed(2);
+            rotationElem.textContent = (rotation * 180 / Math.PI).toFixed(1);
+            altitudeElem.textContent = (spacecraft.position.y + 500).toFixed(0);
+            momentumElem.textContent = momentum.length().toFixed(1);
+        }
+        
+        function updateCamera() {
+            // Third-person camera following the spacecraft
+            const cameraOffset = new THREE.Vector3(
+                Math.sin(rotation) * 50,
+                30,
+                Math.cos(rotation) * 50
+            );
+            
+            const targetPosition = spacecraft.position.clone().add(cameraOffset);
+            camera.position.lerp(targetPosition, 0.05);
+            camera.lookAt(spacecraft.position);
+        }
+        
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            const deltaTime = 0.016; // Approximate 60fps
+            
+            updatePhysics(deltaTime);
+            renderer.render(scene, camera);
+        }
+        
+        function setupEventListeners() {
+            window.addEventListener('resize', onWindowResize);
+            
+            // Prevent context menu on right-click
+            document.addEventListener('contextmenu', (e) => e.preventDefault());
+        }
+        
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+        
+        // Initialize the game
+        init();
+        
+        // Initial UI updates
+        updateFuelSliders();
+        updateSystems();
+        updateFuelDisplay();
+        updateTotalMass();
+    </script>
+</body>
+</html>

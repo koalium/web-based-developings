@@ -1,0 +1,1162 @@
+<!DOCTYPE html>
+<html lang="en" x-data="orbitalSimulator()" x-cloak>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Orbital Mechanics Simulator</title>
+    <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <style>
+        [x-cloak] { display: none !important; }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0a0a2a 0%, #1a1a40 100%);
+            color: #e0e0ff;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        header {
+            text-align: center;
+            padding: 20px 0;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #3a3a8a;
+        }
+        
+        h1 {
+            font-size: 2.5rem;
+            background: linear-gradient(90deg, #4cc9f0, #4361ee);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            color: #a0a0ff;
+            font-size: 1.2rem;
+        }
+        
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 400px;
+            gap: 30px;
+        }
+        
+        .simulation-container {
+            background: rgba(20, 20, 60, 0.7);
+            border-radius: 15px;
+            padding: 20px;
+            border: 1px solid #3a3a8a;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .canvas-wrapper {
+            position: relative;
+            width: 100%;
+            height: 600px;
+            background: #0d0d2a;
+            border-radius: 10px;
+            overflow: hidden;
+            border: 1px solid #4a4a9a;
+        }
+        
+        #orbitCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        
+        .control-panel {
+            background: rgba(25, 25, 70, 0.9);
+            border-radius: 15px;
+            padding: 25px;
+            border: 1px solid #3a3a8a;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            display: flex;
+            flex-direction: column;
+            gap: 25px;
+        }
+        
+        .panel-section {
+            background: rgba(15, 15, 50, 0.7);
+            border-radius: 10px;
+            padding: 20px;
+            border: 1px solid #3a3a8a;
+        }
+        
+        h2 {
+            color: #4cc9f0;
+            font-size: 1.4rem;
+            margin-bottom: 15px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #3a3a8a;
+        }
+        
+        h3 {
+            color: #72efdd;
+            font-size: 1.1rem;
+            margin: 15px 0 10px 0;
+        }
+        
+        .slider-container {
+            margin: 15px 0;
+        }
+        
+        .slider-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+        }
+        
+        .slider-value {
+            color: #72efdd;
+            font-weight: bold;
+        }
+        
+        input[type="range"] {
+            width: 100%;
+            height: 8px;
+            border-radius: 4px;
+            background: #2a2a5a;
+            outline: none;
+            -webkit-appearance: none;
+        }
+        
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: #4cc9f0;
+            cursor: pointer;
+            border: 2px solid #1a1a40;
+        }
+        
+        .button-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        button {
+            padding: 12px 15px;
+            background: linear-gradient(135deg, #4361ee 0%, #3a0ca3 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 1px solid #4a4a9a;
+        }
+        
+        button:hover {
+            background: linear-gradient(135deg, #4cc9f0 0%, #4361ee 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(76, 201, 240, 0.4);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        button:disabled {
+            background: #3a3a6a;
+            color: #8888aa;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .primary-btn {
+            background: linear-gradient(135deg, #f72585 0%, #b5179e 100%);
+        }
+        
+        .primary-btn:hover {
+            background: linear-gradient(135deg, #ff4d9e 0%, #d129b6 100%);
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 15px;
+        }
+        
+        .stat-box {
+            background: rgba(30, 30, 80, 0.7);
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid #4a4a9a;
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 1.3rem;
+            font-weight: bold;
+            color: #4cc9f0;
+            margin-top: 5px;
+        }
+        
+        .stat-label {
+            font-size: 0.9rem;
+            color: #a0a0ff;
+        }
+        
+        .warning {
+            color: #ff9e00;
+            background: rgba(255, 158, 0, 0.1);
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid #ff9e00;
+            margin-top: 15px;
+            font-size: 0.9rem;
+        }
+        
+        .success {
+            color: #4ade80;
+            background: rgba(74, 222, 128, 0.1);
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid #4ade80;
+            margin-top: 15px;
+            font-size: 0.9rem;
+        }
+        
+        .info-box {
+            background: rgba(30, 30, 80, 0.7);
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #4a4a9a;
+            margin-top: 20px;
+        }
+        
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+        
+        .status-active {
+            background: #4ade80;
+            box-shadow: 0 0 10px #4ade80;
+        }
+        
+        .status-inactive {
+            background: #f87171;
+        }
+        
+        .vernier-controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        
+        .vernier-btn {
+            padding: 10px;
+            font-size: 1.2rem;
+        }
+        
+        .legend {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(10, 10, 40, 0.8);
+            padding: 10px 15px;
+            border-radius: 8px;
+            border: 1px solid #4a4a9a;
+            font-size: 0.9rem;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin: 5px 0;
+        }
+        
+        .legend-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        
+        .moon-color {
+            background: #888888;
+        }
+        
+        .satellite-color {
+            background: #4cc9f0;
+        }
+        
+        .craft-color {
+            background: #f72585;
+        }
+        
+        .orbit-color {
+            background: #3a3a8a;
+        }
+        
+        @media (max-width: 1100px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Advanced Orbital Mechanics Simulator</h1>
+            <div class="subtitle">Realistic spacecraft rendezvous simulation with accurate orbital physics</div>
+        </header>
+        
+        <div class="main-content">
+            <div class="simulation-container">
+                <div class="canvas-wrapper">
+                    <canvas id="orbitCanvas" width="900" height="600"></canvas>
+                    <div class="legend">
+                        <div class="legend-item"><span class="legend-color moon-color"></span> Moon</div>
+                        <div class="legend-item"><span class="legend-color satellite-color"></span> Target Satellite</div>
+                        <div class="legend-item"><span class="legend-color craft-color"></span> Your Spacecraft</div>
+                        <div class="legend-item"><span class="legend-color orbit-color"></span> Orbit Paths</div>
+                    </div>
+                </div>
+                
+                <div class="info-box">
+                    <div class="status-indicator">
+                        <div class="status-dot" :class="engineActive ? 'status-active' : 'status-inactive'"></div>
+                        <span>Main Engine: <span x-text="engineActive ? 'ACTIVE' : 'INACTIVE'"></span></span>
+                    </div>
+                    <div x-show="distance < 1000" class="success">
+                        <strong>Close Approach!</strong> Distance to target: <span x-text="Math.round(distance)"></span> m
+                    </div>
+                    <div x-show="distance < 50" class="success">
+                        <strong>RENDEZVOUS SUCCESSFUL!</strong> Delta V difference: <span x-text="deltaV.toFixed(2)"></span> m/s
+                    </div>
+                    <div x-show="fuel <= 0" class="warning">
+                        <strong>FUEL DEPLETED!</strong> Main engine disabled. Use vernier jets for attitude control only.
+                    </div>
+                </div>
+            </div>
+            
+            <div class="control-panel">
+                <div class="panel-section">
+                    <h2>Main Engine Control</h2>
+                    <div class="slider-container">
+                        <div class="slider-label">
+                            <span>Engine Throttle</span>
+                            <span class="slider-value" x-text="throttle + '%'"></span>
+                        </div>
+                        <input type="range" min="0" max="100" step="1" x-model="throttle">
+                    </div>
+                    
+                    <button @click="toggleEngine()" class="primary-btn" :disabled="fuel <= 0">
+                        <span x-text="engineActive ? 'CUT ENGINE' : 'IGNITE ENGINE'"></span>
+                    </button>
+                    
+                    <div class="stats-grid">
+                        <div class="stat-box">
+                            <div class="stat-label">Fuel Remaining</div>
+                            <div class="stat-value" x-text="fuel.toFixed(0) + ' kg'"></div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="stat-label">Mass</div>
+                            <div class="stat-value" x-text="craft.mass.toFixed(0) + ' kg'"></div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="stat-label">Velocity</div>
+                            <div class="stat-value" x-text="craftVelocity.toFixed(1) + ' m/s'"></div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="stat-label">Altitude</div>
+                            <div class="stat-value" x-text="craftAltitude.toFixed(0) + ' km'"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="panel-section">
+                    <h2>Attitude Control (Vernier Jets)</h2>
+                    <p style="margin-bottom: 15px; color: #a0a0ff; font-size: 0.9rem;">
+                        Use vernier jets for rotation and small translation maneuvers
+                    </p>
+                    
+                    <div class="vernier-controls">
+                        <button @mousedown="activateVernier('pitch_up')" @mouseup="deactivateVernier()" @touchstart="activateVernier('pitch_up')" @touchend="deactivateVernier()" class="vernier-btn">Pitch Up</button>
+                        <button @mousedown="activateVernier('yaw_left')" @mouseup="deactivateVernier()" @touchstart="activateVernier('yaw_left')" @touchend="deactivateVernier()" class="vernier-btn">Yaw Left</button>
+                        <button @mousedown="activateVernier('roll_left')" @mouseup="deactivateVernier()" @touchstart="activateVernier('roll_left')" @touchend="deactivateVernier()" class="vernier-btn">Roll Left</button>
+                        <button @mousedown="activateVernier('pitch_down')" @mouseup="deactivateVernier()" @touchstart="activateVernier('pitch_down')" @touchend="deactivateVernier()" class="vernier-btn">Pitch Down</button>
+                        <button @mousedown="activateVernier('yaw_right')" @mouseup="deactivateVernier()" @touchstart="activateVernier('yaw_right')" @touchend="deactivateVernier()" class="vernier-btn">Yaw Right</button>
+                        <button @mousedown="activateVernier('roll_right')" @mouseup="deactivateVernier()" @touchstart="activateVernier('roll_right')" @touchend="deactivateVernier()" class="vernier-btn">Roll Right</button>
+                    </div>
+                    
+                    <div class="stats-grid" style="margin-top: 20px;">
+                        <div class="stat-box">
+                            <div class="stat-label">Rotation</div>
+                            <div class="stat-value" x-text="craft.rotation.toFixed(1) + '°'"></div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="stat-label">Angular Velocity</div>
+                            <div class="stat-value" x-text="craft.angularVelocity.toFixed(3) + ' rad/s'"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="panel-section">
+                    <h2>Mission Status</h2>
+                    <div class="stats-grid">
+                        <div class="stat-box">
+                            <div class="stat-label">Distance to Target</div>
+                            <div class="stat-value" x-text="Math.round(distance) + ' m'"></div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="stat-label">Relative Velocity</div>
+                            <div class="stat-value" x-text="deltaV.toFixed(2) + ' m/s'"></div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="stat-label">Orbit Period</div>
+                            <div class="stat-value" x-text="Math.round(craft.orbitPeriod/60) + ' min'"></div>
+                        </div>
+                        <div class="stat-box">
+                            <div class="stat-label">Orbit Eccentricity</div>
+                            <div class="stat-value" x-text="craft.eccentricity.toFixed(4)"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="button-group">
+                        <button @click="resetSimulation()">Reset Simulation</button>
+                        <button @click="togglePause()">
+                            <span x-text="paused ? 'RESUME' : 'PAUSE'"></span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function orbitalSimulator() {
+            return {
+                // Simulation state
+                paused: false,
+                engineActive: false,
+                throttle: 50,
+                fuel: 5000,
+                distance: 0,
+                deltaV: 0,
+                craftVelocity: 0,
+                craftAltitude: 0,
+                
+                // Vernier jet state
+                activeVernier: null,
+                vernierForce: 0.1,
+                vernierTorque: 0.005,
+                
+                // Moon parameters (actual Moon values)
+                moon: {
+                    radius: 1737400, // meters
+                    mass: 7.342e22, // kg
+                    gravitationalConstant: 6.67430e-11,
+                    mu: 0, // Will be calculated
+                    surfaceGravity: 1.62 // m/s²
+                },
+                
+                // Target satellite
+                satellite: {
+                    x: 0,
+                    y: 0,
+                    vx: 0,
+                    vy: 0,
+                    mass: 1000,
+                    orbitRadius: 2000000, // 2000 km orbit
+                    trueAnomaly: 0,
+                    period: 0,
+                    angularVelocity: 0
+                },
+                
+                // Player's spacecraft
+                craft: {
+                    x: 0,
+                    y: 0,
+                    vx: 0,
+                    vy: 0,
+                    mass: 10000, // Initial mass with fuel
+                    dryMass: 5000, // Mass without fuel
+                    fuel: 5000,
+                    rotation: 0, // degrees
+                    angularVelocity: 0, // rad/s
+                    momentOfInertia: 50000,
+                    orbitRadius: 1800000, // 1800 km orbit
+                    trueAnomaly: Math.PI / 4, // 45 degrees offset from satellite
+                    eccentricity: 0.01,
+                    semiMajorAxis: 0,
+                    orbitPeriod: 0
+                },
+                
+                // Engine parameters
+                engine: {
+                    isp: 300, // Specific impulse (seconds)
+                    exhaustVelocity: 0, // Will be calculated
+                    maxThrust: 50000, // Newtons
+                    throttle: 0.5
+                },
+                
+                // Time management
+                lastTime: 0,
+                timeScale: 1000, // 1 second real time = 1000 seconds simulation
+                
+                // Canvas context
+                ctx: null,
+                canvasWidth: 900,
+                canvasHeight: 600,
+                scale: 5e-5, // Scale factor for drawing
+                
+                // Initialization
+                init() {
+                    // Calculate gravitational parameter
+                    this.moon.mu = this.moon.gravitationalConstant * this.moon.mass;
+                    
+                    // Calculate exhaust velocity
+                    this.engine.exhaustVelocity = this.engine.isp * 9.81;
+                    
+                    // Initialize satellite orbit
+                    this.initializeOrbits();
+                    
+                    // Set up canvas
+                    this.setupCanvas();
+                    
+                    // Start animation loop
+                    this.lastTime = performance.now();
+                    requestAnimationFrame(this.animate.bind(this));
+                    
+                    // Set up keyboard controls
+                    this.setupKeyboardControls();
+                },
+                
+                // Initialize orbital parameters
+                initializeOrbits() {
+                    // Satellite circular orbit
+                    const satAltitude = this.satellite.orbitRadius;
+                    this.satellite.angularVelocity = Math.sqrt(this.moon.mu / Math.pow(satAltitude, 3));
+                    this.satellite.period = 2 * Math.PI / this.satellite.angularVelocity;
+                    
+                    // Craft orbit (slightly elliptical)
+                    const craftSemiMajorAxis = this.craft.orbitRadius / (1 - this.craft.eccentricity);
+                    this.craft.semiMajorAxis = craftSemiMajorAxis;
+                    this.craft.orbitPeriod = 2 * Math.PI * Math.sqrt(Math.pow(craftSemiMajorAxis, 3) / this.moon.mu);
+                    this.craft.angularVelocity = Math.sqrt(this.moon.mu * (1 - this.craft.eccentricity) / 
+                                                         Math.pow(this.craft.orbitRadius, 3));
+                    
+                    // Initial positions and velocities
+                    this.updateOrbitalPositions();
+                },
+                
+                // Update positions based on orbital mechanics
+                updateOrbitalPositions() {
+                    // Update satellite position (circular orbit)
+                    this.satellite.trueAnomaly += this.satellite.angularVelocity * 0.016; // 60 FPS time step
+                    this.satellite.x = this.satellite.orbitRadius * Math.cos(this.satellite.trueAnomaly);
+                    this.satellite.y = this.satellite.orbitRadius * Math.sin(this.satellite.trueAnomaly);
+                    this.satellite.vx = -this.satellite.orbitRadius * this.satellite.angularVelocity * 
+                                      Math.sin(this.satellite.trueAnomaly);
+                    this.satellite.vy = this.satellite.orbitRadius * this.satellite.angularVelocity * 
+                                      Math.cos(this.satellite.trueAnomaly);
+                    
+                    // Update craft position (elliptical orbit)
+                    this.craft.trueAnomaly += this.craft.angularVelocity * 0.016;
+                    const radius = this.craft.orbitRadius * (1 - this.craft.eccentricity * 
+                                    Math.cos(this.craft.trueAnomaly));
+                    this.craft.x = radius * Math.cos(this.craft.trueAnomaly);
+                    this.craft.y = radius * Math.sin(this.craft.trueAnomaly);
+                    
+                    // Calculate velocity for elliptical orbit (vis-viva equation)
+                    const craftSpeed = Math.sqrt(this.moon.mu * (2/radius - 1/this.craft.semiMajorAxis));
+                    const flightPathAngle = Math.atan2(
+                        this.craft.eccentricity * Math.sin(this.craft.trueAnomaly),
+                        1 + this.craft.eccentricity * Math.cos(this.craft.trueAnomaly)
+                    );
+                    
+                    this.craft.vx = -craftSpeed * Math.sin(this.craft.trueAnomaly + flightPathAngle);
+                    this.craft.vy = craftSpeed * Math.cos(this.craft.trueAnomaly + flightPathAngle);
+                    
+                    // Update derived values
+                    this.updateDerivedValues();
+                },
+                
+                // Update derived values for display
+                updateDerivedValues() {
+                    // Calculate distance between craft and satellite
+                    const dx = this.craft.x - this.satellite.x;
+                    const dy = this.craft.y - this.satellite.y;
+                    this.distance = Math.sqrt(dx*dx + dy*dy);
+                    
+                    // Calculate relative velocity
+                    const dvx = this.craft.vx - this.satellite.vx;
+                    const dvy = this.craft.vy - this.satellite.vy;
+                    this.deltaV = Math.sqrt(dvx*dvx + dvy*dvy);
+                    
+                    // Calculate craft velocity magnitude
+                    this.craftVelocity = Math.sqrt(this.craft.vx*this.craft.vx + this.craft.vy*this.craft.vy);
+                    
+                    // Calculate craft altitude
+                    const craftRadius = Math.sqrt(this.craft.x*this.craft.x + this.craft.y*this.craft.y);
+                    this.craftAltitude = (craftRadius - this.moon.radius) / 1000;
+                },
+                
+                // Setup canvas for drawing
+                setupCanvas() {
+                    const canvas = document.getElementById('orbitCanvas');
+                    this.ctx = canvas.getContext('2d');
+                    this.canvasWidth = canvas.width;
+                    this.canvasHeight = canvas.height;
+                    
+                    // Set scale to fit orbits in view
+                    const maxOrbitRadius = Math.max(this.satellite.orbitRadius, this.craft.orbitRadius);
+                    this.scale = 0.4 * Math.min(this.canvasWidth, this.canvasHeight) / (2 * maxOrbitRadius);
+                },
+                
+                // Main animation loop
+                animate(currentTime) {
+                    if (!this.paused) {
+                        // Calculate time delta
+                        const deltaTime = (currentTime - this.lastTime) / 1000; // Convert to seconds
+                        const simDeltaTime = deltaTime * this.timeScale;
+                        
+                        // Apply physics
+                        this.applyPhysics(simDeltaTime);
+                        
+                        // Update orbital positions
+                        this.updateOrbitalPositions();
+                    }
+                    
+                    // Draw everything
+                    this.drawScene();
+                    
+                    // Update last time and request next frame
+                    this.lastTime = currentTime;
+                    requestAnimationFrame(this.animate.bind(this));
+                },
+                
+                // Apply physics simulation
+                applyPhysics(deltaTime) {
+                    // Apply gravitational force from Moon
+                    const craftRadius = Math.sqrt(this.craft.x*this.craft.x + this.craft.y*this.craft.y);
+                    const gForceMagnitude = this.moon.mu / (craftRadius * craftRadius);
+                    
+                    // Direction of gravity (toward center)
+                    const gx = -this.craft.x / craftRadius * gForceMagnitude;
+                    const gy = -this.craft.y / craftRadius * gForceMagnitude;
+                    
+                    // Apply main engine thrust if active
+                    let thrustForceX = 0;
+                    let thrustForceY = 0;
+                    
+                    if (this.engineActive && this.fuel > 0) {
+                        // Calculate thrust based on throttle
+                        const thrustMagnitude = (this.throttle / 100) * this.engine.maxThrust;
+                        
+                        // Calculate fuel consumption (Tsiolkovsky rocket equation)
+                        const fuelFlowRate = thrustMagnitude / (this.engine.isp * 9.81);
+                        const fuelConsumed = fuelFlowRate * deltaTime;
+                        
+                        if (fuelConsumed <= this.fuel) {
+                            this.fuel -= fuelConsumed;
+                            this.craft.mass = this.craft.dryMass + this.fuel;
+                            
+                            // Thrust direction based on craft rotation
+                            const thrustAngle = this.craft.rotation * Math.PI / 180;
+                            thrustForceX = Math.cos(thrustAngle) * thrustMagnitude;
+                            thrustForceY = Math.sin(thrustAngle) * thrustMagnitude;
+                        } else {
+                            // Out of fuel
+                            this.engineActive = false;
+                        }
+                    }
+                    
+                    // Apply vernier jet forces if active
+                    if (this.activeVernier && this.fuel > 0) {
+                        // Small fuel consumption for verniers
+                        const vernierFuelConsumed = 0.01 * deltaTime;
+                        if (vernierFuelConsumed <= this.fuel) {
+                            this.fuel -= vernierFuelConsumed;
+                            this.craft.mass = this.craft.dryMass + this.fuel;
+                            
+                            // Apply vernier force based on direction
+                            const vernierThrust = this.vernierForce;
+                            let vernierAngle = this.craft.rotation * Math.PI / 180;
+                            
+                            // Adjust angle based on vernier type
+                            switch(this.activeVernier) {
+                                case 'pitch_up':
+                                    vernierAngle += Math.PI / 2;
+                                    break;
+                                case 'pitch_down':
+                                    vernierAngle -= Math.PI / 2;
+                                    break;
+                                case 'yaw_left':
+                                    vernierAngle += Math.PI;
+                                    break;
+                                case 'yaw_right':
+                                    // Already aligned with main direction
+                                    break;
+                                case 'roll_left':
+                                    this.craft.angularVelocity -= this.vernierTorque / this.craft.momentOfInertia;
+                                    break;
+                                case 'roll_right':
+                                    this.craft.angularVelocity += this.vernierTorque / this.craft.momentOfInertia;
+                                    break;
+                            }
+                            
+                            if (!this.activeVernier.includes('roll')) {
+                                thrustForceX += Math.cos(vernierAngle) * vernierThrust;
+                                thrustForceY += Math.sin(vernierAngle) * vernierThrust;
+                            }
+                        }
+                    }
+                    
+                    // Apply rotation from angular velocity
+                    this.craft.rotation += this.craft.angularVelocity * (180 / Math.PI) * deltaTime;
+                    this.craft.rotation = this.craft.rotation % 360;
+                    
+                    // Apply damping to angular velocity
+                    this.craft.angularVelocity *= 0.99;
+                    
+                    // Calculate acceleration (F = ma)
+                    const ax = gx + thrustForceX / this.craft.mass;
+                    const ay = gy + thrustForceY / this.craft.mass;
+                    
+                    // Update velocity (v = v0 + a*t)
+                    this.craft.vx += ax * deltaTime;
+                    this.craft.vy += ay * deltaTime;
+                    
+                    // Update position (x = x0 + v*t)
+                    this.craft.x += this.craft.vx * deltaTime;
+                    this.craft.y += this.craft.vy * deltaTime;
+                    
+                    // Update orbital parameters based on new position/velocity
+                    this.updateOrbitalParameters();
+                },
+                
+                // Update orbital parameters from current state
+                updateOrbitalParameters() {
+                    const r = Math.sqrt(this.craft.x*this.craft.x + this.craft.y*this.craft.y);
+                    const v = Math.sqrt(this.craft.vx*this.craft.vx + this.craft.vy*this.craft.vy);
+                    
+                    // Specific angular momentum
+                    const h = this.craft.x * this.craft.vy - this.craft.y * this.craft.vx;
+                    
+                    // Specific mechanical energy
+                    const energy = (v*v)/2 - this.moon.mu/r;
+                    
+                    // Semi-major axis (if energy < 0, elliptical orbit)
+                    if (energy < 0) {
+                        this.craft.semiMajorAxis = -this.moon.mu / (2 * energy);
+                        
+                        // Eccentricity
+                        const e_vec_x = (this.craft.vx*h - this.moon.mu*this.craft.x/r) / this.moon.mu;
+                        const e_vec_y = (this.craft.vy*h + this.moon.mu*this.craft.y/r) / this.moon.mu;
+                        this.craft.eccentricity = Math.sqrt(e_vec_x*e_vec_x + e_vec_y*e_vec_y);
+                        
+                        // Orbit period
+                        this.craft.orbitPeriod = 2 * Math.PI * Math.sqrt(
+                            Math.pow(this.craft.semiMajorAxis, 3) / this.moon.mu
+                        );
+                    }
+                },
+                
+                // Draw the simulation scene
+                drawScene() {
+                    const ctx = this.ctx;
+                    const centerX = this.canvasWidth / 2;
+                    const centerY = this.canvasHeight / 2;
+                    
+                    // Clear canvas
+                    ctx.fillStyle = '#0d0d2a';
+                    ctx.fillRect(0, 0, this.canvasWidth, this.canvasHeight);
+                    
+                    // Draw orbit paths
+                    this.drawOrbitPaths(centerX, centerY);
+                    
+                    // Draw Moon
+                    this.drawMoon(centerX, centerY);
+                    
+                    // Draw satellite
+                    this.drawSatellite(centerX, centerY);
+                    
+                    // Draw spacecraft
+                    this.drawSpacecraft(centerX, centerY);
+                    
+                    // Draw thrust effects if active
+                    if (this.engineActive && this.fuel > 0) {
+                        this.drawThrustEffect(centerX, centerY);
+                    }
+                    
+                    // Draw vernier thrust if active
+                    if (this.activeVernier && this.fuel > 0) {
+                        this.drawVernierEffect(centerX, centerY);
+                    }
+                },
+                
+                // Draw orbit paths
+                drawOrbitPaths(centerX, centerY) {
+                    const ctx = this.ctx;
+                    
+                    // Draw satellite orbit (circular)
+                    ctx.beginPath();
+                    ctx.strokeStyle = 'rgba(76, 201, 240, 0.3)';
+                    ctx.lineWidth = 1;
+                    const satOrbitRadius = this.satellite.orbitRadius * this.scale;
+                    ctx.arc(centerX, centerY, satOrbitRadius, 0, 2 * Math.PI);
+                    ctx.stroke();
+                    
+                    // Draw craft orbit (elliptical)
+                    ctx.beginPath();
+                    ctx.strokeStyle = 'rgba(247, 37, 133, 0.3)';
+                    ctx.lineWidth = 1;
+                    
+                    // Draw elliptical orbit
+                    const a = this.craft.semiMajorAxis * this.scale;
+                    const e = this.craft.eccentricity;
+                    const b = a * Math.sqrt(1 - e*e);
+                    
+                    // Transform for ellipse drawing
+                    ctx.save();
+                    ctx.translate(centerX, centerY);
+                    
+                    // Find true anomaly for rotation
+                    const trueAnomaly = Math.atan2(this.craft.y, this.craft.x);
+                    ctx.rotate(trueAnomaly);
+                    
+                    // Draw ellipse
+                    ctx.scale(1, b/a);
+                    ctx.arc(0, 0, a, 0, 2 * Math.PI);
+                    ctx.stroke();
+                    ctx.restore();
+                },
+                
+                // Draw the Moon
+                drawMoon(centerX, centerY) {
+                    const ctx = this.ctx;
+                    
+                    // Draw Moon
+                    ctx.beginPath();
+                    const moonRadius = this.moon.radius * this.scale * 10; // Scale up for visibility
+                    ctx.arc(centerX, centerY, moonRadius, 0, 2 * Math.PI);
+                    
+                    // Moon gradient
+                    const gradient = ctx.createRadialGradient(
+                        centerX, centerY, 0,
+                        centerX, centerY, moonRadius
+                    );
+                    gradient.addColorStop(0, '#aaaaaa');
+                    gradient.addColorStop(1, '#666666');
+                    
+                    ctx.fillStyle = gradient;
+                    ctx.fill();
+                    
+                    // Add some craters
+                    ctx.fillStyle = '#777777';
+                    for (let i = 0; i < 8; i++) {
+                        const angle = (i * Math.PI / 4);
+                        const dist = moonRadius * 0.7;
+                        const craterX = centerX + Math.cos(angle) * dist;
+                        const craterY = centerY + Math.sin(angle) * dist;
+                        const craterSize = moonRadius * 0.1;
+                        
+                        ctx.beginPath();
+                        ctx.arc(craterX, craterY, craterSize, 0, 2 * Math.PI);
+                        ctx.fill();
+                        
+                        // Crater highlight
+                        ctx.beginPath();
+                        ctx.arc(craterX - craterSize*0.3, craterY - craterSize*0.3, 
+                               craterSize*0.4, 0, 2 * Math.PI);
+                        ctx.fillStyle = '#999999';
+                        ctx.fill();
+                        ctx.fillStyle = '#777777';
+                    }
+                },
+                
+                // Draw the target satellite
+                drawSatellite(centerX, centerY) {
+                    const ctx = this.ctx;
+                    
+                    const satX = centerX + this.satellite.x * this.scale;
+                    const satY = centerY + this.satellite.y * this.scale;
+                    
+                    // Draw satellite
+                    ctx.save();
+                    ctx.translate(satX, satY);
+                    
+                    // Satellite body
+                    ctx.fillStyle = '#4cc9f0';
+                    ctx.fillRect(-8, -4, 16, 8);
+                    
+                    // Solar panels
+                    ctx.fillStyle = '#2a8faf';
+                    ctx.fillRect(-15, -10, 5, 20);
+                    ctx.fillRect(10, -10, 5, 20);
+                    
+                    // Antenna
+                    ctx.beginPath();
+                    ctx.moveTo(0, -8);
+                    ctx.lineTo(0, -15);
+                    ctx.lineTo(5, -10);
+                    ctx.closePath();
+                    ctx.fillStyle = '#ffffff';
+                    ctx.fill();
+                    
+                    ctx.restore();
+                },
+                
+                // Draw the player's spacecraft
+                drawSpacecraft(centerX, centerY) {
+                    const ctx = this.ctx;
+                    
+                    const craftX = centerX + this.craft.x * this.scale;
+                    const craftY = centerY + this.craft.y * this.scale;
+                    
+                    // Draw spacecraft
+                    ctx.save();
+                    ctx.translate(craftX, craftY);
+                    ctx.rotate(this.craft.rotation * Math.PI / 180);
+                    
+                    // Spacecraft body
+                    ctx.fillStyle = '#f72585';
+                    ctx.beginPath();
+                    ctx.moveTo(0, -12);
+                    ctx.lineTo(-8, 12);
+                    ctx.lineTo(0, 8);
+                    ctx.lineTo(8, 12);
+                    ctx.closePath();
+                    ctx.fill();
+                    
+                    // Cockpit
+                    ctx.fillStyle = '#a0e7ff';
+                    ctx.beginPath();
+                    ctx.arc(0, -4, 4, 0, 2 * Math.PI);
+                    ctx.fill();
+                    
+                    // Vernier jets
+                    ctx.fillStyle = '#ff9e00';
+                    ctx.fillRect(-6, 8, 4, 3);
+                    ctx.fillRect(2, 8, 4, 3);
+                    ctx.fillRect(-1, -10, 2, 4);
+                    
+                    ctx.restore();
+                },
+                
+                // Draw main engine thrust effect
+                drawThrustEffect(centerX, centerY) {
+                    const ctx = this.ctx;
+                    
+                    const craftX = centerX + this.craft.x * this.scale;
+                    const craftY = centerY + this.craft.y * this.scale;
+                    const thrustAngle = this.craft.rotation * Math.PI / 180;
+                    
+                    // Calculate thrust length based on throttle
+                    const thrustLength = 20 + (this.throttle / 100) * 30;
+                    
+                    ctx.save();
+                    ctx.translate(craftX, craftY);
+                    ctx.rotate(thrustAngle);
+                    
+                    // Thrust plume
+                    const gradient = ctx.createLinearGradient(0, 0, 0, thrustLength);
+                    gradient.addColorStop(0, '#ffff00');
+                    gradient.addColorStop(0.5, '#ff7700');
+                    gradient.addColorStop(1, 'rgba(255, 0, 0, 0)');
+                    
+                    ctx.fillStyle = gradient;
+                    ctx.beginPath();
+                    ctx.moveTo(-6, 12);
+                    ctx.lineTo(6, 12);
+                    ctx.lineTo(0, 12 + thrustLength);
+                    ctx.closePath();
+                    ctx.fill();
+                    
+                    // Engine glow
+                    ctx.fillStyle = 'rgba(255, 200, 0, 0.3)';
+                    ctx.beginPath();
+                    ctx.arc(0, 12, 10, 0, 2 * Math.PI);
+                    ctx.fill();
+                    
+                    ctx.restore();
+                },
+                
+                // Draw vernier jet effects
+                drawVernierEffect(centerX, centerY) {
+                    const ctx = this.ctx;
+                    
+                    const craftX = centerX + this.craft.x * this.scale;
+                    const craftY = centerY + this.craft.y * this.scale;
+                    
+                    ctx.save();
+                    ctx.translate(craftX, craftY);
+                    ctx.rotate(this.craft.rotation * Math.PI / 180);
+                    
+                    // Determine which vernier is active
+                    let vernierX = 0, vernierY = 0, angle = 0;
+                    
+                    switch(this.activeVernier) {
+                        case 'pitch_up':
+                            vernierX = 0;
+                            vernierY = -10;
+                            angle = Math.PI / 2;
+                            break;
+                        case 'pitch_down':
+                            vernierX = -1;
+                            vernierY = 9;
+                            angle = -Math.PI / 2;
+                            break;
+                        case 'yaw_left':
+                            vernierX = -6;
+                            vernierY = 9;
+                            angle = Math.PI;
+                            break;
+                        case 'yaw_right':
+                            vernierX = 2;
+                            vernierY = 9;
+                            angle = 0;
+                            break;
+                        case 'roll_left':
+                        case 'roll_right':
+                            // Roll jets don't produce visible thrust in this view
+                            ctx.restore();
+                            return;
+                    }
+                    
+                    // Draw vernier plume
+                    ctx.save();
+                    ctx.translate(vernierX, vernierY);
+                    ctx.rotate(angle);
+                    
+                    const gradient = ctx.createLinearGradient(0, 0, 0, 15);
+                    gradient.addColorStop(0, '#00ffff');
+                    gradient.addColorStop(1, 'rgba(0, 255, 255, 0)');
+                    
+                    ctx.fillStyle = gradient;
+                    ctx.beginPath();
+                    ctx.moveTo(-2, 0);
+                    ctx.lineTo(2, 0);
+                    ctx.lineTo(0, 15);
+                    ctx.closePath();
+                    ctx.fill();
+                    
+                    ctx.restore();
+                    ctx.restore();
+                },
+                
+                // Toggle main engine
+                toggleEngine() {
+                    this.engineActive = !this.engineActive;
+                },
+                
+                // Activate vernier jet
+                activateVernier(direction) {
+                    this.activeVernier = direction;
+                },
+                
+                // Deactivate vernier jet
+                deactivateVernier() {
+                    this.activeVernier = null;
+                },
+                
+                // Toggle simulation pause
+                togglePause() {
+                    this.paused = !this.paused;
+                    if (!this.paused) {
+                        this.lastTime = performance.now();
+                    }
+                },
+                
+                // Reset simulation to initial state
+                resetSimulation() {
+                    this.engineActive = false;
+                    this.fuel = 5000;
+                    this.throttle = 50;
+                    this.paused = false;
+                    this.activeVernier = null;
+                    
+                    // Reset craft state
+                    this.craft.mass = 10000;
+                    this.craft.fuel = 5000;
+                    this.craft.rotation = 0;
+                    this.craft.angularVelocity = 0;
+                    this.craft.trueAnomaly = Math.PI / 4;
+                    this.craft.eccentricity = 0.01;
+                    
+                    // Reinitialize orbits
+                    this.initializeOrbits();
+                },
+                
+                // Set up keyboard controls
+                setupKeyboardControls() {
+                    document.addEventListener('keydown', (e) => {
+                        switch(e.key) {
+                            case ' ':
+                                this.toggleEngine();
+                                break;
+                            case 'ArrowUp':
+                                this.activateVernier('pitch_up');
+                                break;
+                            case 'ArrowDown':
+                                this.activateVernier('pitch_down');
+                                break;
+                            case 'ArrowLeft':
+                                this.activateVernier('yaw_left');
+                                break;
+                            case 'ArrowRight':
+                                this.activateVernier('yaw_right');
+                                break;
+                            case 'q':
+                                this.activateVernier('roll_left');
+                                break;
+                            case 'e':
+                                this.activateVernier('roll_right');
+                                break;
+                            case 'p':
+                                this.togglePause();
+                                break;
+                            case 'r':
+                                this.resetSimulation();
+                                break;
+                        }
+                    });
+                    
+                    document.addEventListener('keyup', (e) => {
+                        if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'q', 'e'].includes(e.key)) {
+                            this.deactivateVernier();
+                        }
+                    });
+                }
+            }
+        }
+    </script>
+</body>
+</html>

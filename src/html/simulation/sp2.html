@@ -1,0 +1,1914 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Space Navigation Simulator</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Courier New', monospace;
+            background: #000;
+            color: #e0e0ff;
+            overflow: hidden;
+        }
+        #container {
+            display: flex;
+            min-height: 100vh;
+        }
+        #controlPanel {
+            width: 450px;
+            background: rgba(5, 10, 30, 0.95);
+            border-right: 3px solid #00aaff;
+            padding: 20px;
+            overflow-y: auto;
+            z-index: 100;
+        }
+        #gameArea {
+            flex: 1;
+            position: relative;
+        }
+        canvas {
+            display: block;
+            background: #000;
+        }
+        .panel {
+            background: rgba(15, 20, 40, 0.9);
+            border: 2px solid #4444ff;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        h2 {
+            color: #00ffff;
+            margin-bottom: 15px;
+            text-shadow: 0 0 10px #00ffff;
+            font-size: 1.4em;
+            border-bottom: 2px solid #00aaff;
+            padding-bottom: 8px;
+        }
+        h3 {
+            color: #ff8800;
+            margin: 15px 0 10px 0;
+            font-size: 1.2em;
+        }
+        .button {
+            background: linear-gradient(45deg, #0066cc, #00aaff);
+            border: none;
+            color: white;
+            padding: 12px 24px;
+            margin: 10px 5px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 1.1em;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .button:hover {
+            background: linear-gradient(45deg, #0077dd, #00bbff);
+            transform: scale(1.05);
+            box-shadow: 0 0 20px #00aaff;
+        }
+        .button.active {
+            background: linear-gradient(45deg, #ff5500, #ff8800);
+            box-shadow: 0 0 15px #ff5500;
+        }
+        .control-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .control-btn {
+            background: rgba(30, 40, 80, 0.8);
+            border: 2px solid #5555ff;
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            user-select: none;
+        }
+        .control-btn:hover {
+            background: rgba(40, 50, 100, 0.9);
+            border-color: #00ffff;
+            transform: scale(1.05);
+        }
+        .control-btn:active {
+            background: rgba(60, 70, 120, 1);
+            transform: scale(0.95);
+        }
+        .control-btn.center {
+            grid-column: 2;
+            grid-row: 2;
+        }
+        .status-display {
+            background: rgba(0, 30, 60, 0.7);
+            border: 1px solid #00aaff;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 10px 0;
+            font-family: 'Courier New', monospace;
+        }
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            margin: 8px 0;
+        }
+        .stat-value {
+            color: #00ffff;
+            font-weight: bold;
+        }
+        .progress-bar {
+            height: 20px;
+            background: rgba(0, 40, 80, 0.8);
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        .progress-fill {
+            height: 100%;
+            transition: width 0.3s;
+        }
+        .warning {
+            color: #ff4444;
+            animation: pulse 1s infinite;
+        }
+        .success {
+            color: #44ff44;
+        }
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        #gameHUD {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 20px;
+            border-radius: 10px;
+            border: 2px solid #00aaff;
+            min-width: 300px;
+        }
+        #scoreDisplay {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 20px;
+            border-radius: 10px;
+            border: 2px solid #ffaa00;
+            text-align: center;
+            min-width: 200px;
+        }
+        .score-value {
+            font-size: 2.5em;
+            color: #ffaa00;
+            font-weight: bold;
+            text-shadow: 0 0 10px #ffaa00;
+        }
+        #messageCenter {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.8);
+            padding: 15px 30px;
+            border-radius: 10px;
+            border: 2px solid #00ffaa;
+            max-width: 600px;
+            text-align: center;
+            font-size: 1.1em;
+        }
+        .rcs-jet {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            background: radial-gradient(circle, #00ffff, transparent);
+            border-radius: 50%;
+            pointer-events: none;
+            opacity: 0;
+        }
+        .comet-trail {
+            position: absolute;
+            width: 100px;
+            height: 3px;
+            background: linear-gradient(90deg, #00ffff, transparent);
+            pointer-events: none;
+            opacity: 0;
+        }
+        .fuel-option {
+            background: rgba(30, 35, 60, 0.8);
+            border: 1px solid #5555ff;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 10px 0;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .fuel-option:hover {
+            background: rgba(40, 45, 80, 0.9);
+            border-color: #00ffff;
+        }
+        .fuel-option.selected {
+            background: rgba(0, 50, 100, 0.9);
+            border-color: #00ffff;
+            box-shadow: 0 0 15px #00aaff;
+        }
+        .slider-container {
+            margin: 15px 0;
+        }
+        .slider-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+        }
+        input[type="range"] {
+            width: 100%;
+            height: 8px;
+            -webkit-appearance: none;
+            background: linear-gradient(to right, #003366, #00aaff);
+            border-radius: 4px;
+            outline: none;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            background: #00ffff;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 0 10px #00ffff;
+        }
+        .objective-list {
+            margin: 15px 0;
+            padding-left: 20px;
+        }
+        .objective {
+            margin: 8px 0;
+            padding: 5px;
+            border-left: 3px solid #00aaff;
+        }
+        .objective.completed {
+            border-left-color: #00ff00;
+            color: #00ff00;
+            text-decoration: line-through;
+        }
+        #mobileControls {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: none;
+        }
+        @media (max-width: 1200px) {
+            #controlPanel {
+                width: 350px;
+            }
+        }
+        @media (max-width: 768px) {
+            #container {
+                flex-direction: column;
+            }
+            #controlPanel {
+                width: 100%;
+                max-height: 50vh;
+                border-right: none;
+                border-bottom: 3px solid #00aaff;
+            }
+            #mobileControls {
+                display: block;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <div id="controlPanel">
+            <div class="panel">
+                <h2>🚀 SPACECRAFT CONFIGURATION</h2>
+                
+                <h3>Fuel System</h3>
+                <div class="fuel-option" data-fuel="hydrogen">
+                    <strong>LH₂/LOX</strong>
+                    <div class="stat-row">ISP: <span class="stat-value">450s</span></div>
+                    <div class="stat-row">RCS Efficiency: <span class="stat-value">95%</span></div>
+                </div>
+                
+                <div class="fuel-option selected" data-fuel="methane">
+                    <strong>Methane/LOX</strong>
+                    <div class="stat-row">ISP: <span class="stat-value">380s</span></div>
+                    <div class="stat-row">RCS Efficiency: <span class="stat-value">85%</span></div>
+                </div>
+                
+                <div class="fuel-option" data-fuel="hypergolic">
+                    <strong>Hypergolic</strong>
+                    <div class="stat-row">ISP: <span class="stat-value">320s</span></div>
+                    <div class="stat-row">RCS Efficiency: <span class="stat-value">98%</span></div>
+                </div>
+                
+                <div class="slider-container">
+                    <div class="slider-label">
+                        <span>Fuel Mass:</span>
+                        <span id="fuelMassValue">50,000 kg</span>
+                    </div>
+                    <input type="range" id="fuelMassSlider" min="1000" max="100000" step="1000" value="50000">
+                </div>
+                
+                <div class="slider-container">
+                    <div class="slider-label">
+                        <span>RCS Fuel (%):</span>
+                        <span id="rcsFuelValue">10%</span>
+                    </div>
+                    <input type="range" id="rcsFuelSlider" min="1" max="30" step="1" value="10">
+                </div>
+                
+                <button id="startMission" class="button">START MISSION</button>
+            </div>
+            
+            <div class="panel">
+                <h2>🛰️ MISSION CONTROL</h2>
+                
+                <h3>RCS Control System</h3>
+                <div class="control-grid">
+                    <div class="control-btn" data-action="pitch-up">Pitch Up<br>[W]</div>
+                    <div class="control-btn" data-action="yaw-left">Yaw Left<br>[A]</div>
+                    <div class="control-btn" data-action="roll-left">Roll Left<br>[Q]</div>
+                    
+                    <div class="control-btn" data-action="translate-up">Up<br>[I]</div>
+                    <div class="control-btn center" data-action="stop">STOP<br>[SPACE]</div>
+                    <div class="control-btn" data-action="translate-down">Down<br>[K]</div>
+                    
+                    <div class="control-btn" data-action="pitch-down">Pitch Down<br>[S]</div>
+                    <div class="control-btn" data-action="yaw-right">Yaw Right<br>[D]</div>
+                    <div class="control-btn" data-action="roll-right">Roll Right<br>[E]</div>
+                    
+                    <div class="control-btn" data-action="translate-left">Left<br>[J]</div>
+                    <div class="control-btn" data-action="translate-forward">Forward<br>[U]</div>
+                    <div class="control-btn" data-action="translate-right">Right<br>[L]</div>
+                    <div class="control-btn" data-action="translate-backward">Backward<br>[O]</div>
+                </div>
+                
+                <div class="status-display">
+                    <div class="stat-row">RCS Fuel: <span id="rcsFuelDisplay" class="stat-value">100%</span></div>
+                    <div class="stat-row">Main Engine Fuel: <span id="mainFuelDisplay" class="stat-value">100%</span></div>
+                    <div class="stat-row">RCS Thrust: <span id="rcsThrustDisplay" class="stat-value">500 N</span></div>
+                    <div class="stat-row">Pulse Duration: <span id="pulseDurationDisplay" class="stat value">0.1s</span></div>
+                </div>
+            </div>
+            
+            <div class="panel">
+                <h2>🎯 MISSION OBJECTIVES</h2>
+                <div class="objective-list">
+                    <div class="objective" id="obj1">⏳ Navigate through debris field</div>
+                    <div class="objective" id="obj2">⏳ Rendezvous with comet</div>
+                    <div class="objective" id="obj3">⏳ Dock with space station</div>
+                    <div class="objective" id="obj4">⏳ Collect space debris</div>
+                    <div class="objective" id="obj5">⏳ Reach escape velocity</div>
+                </div>
+                
+                <div class="status-display">
+                    <div class="stat-row">Debris Collected: <span id="debrisCollected" class="stat-value">0/50</span></div>
+                    <div class="stat-row">Comets Visited: <span id="cometsVisited" class="stat-value">0/3</span></div>
+                    <div class="stat-row">Docking Success: <span id="dockingSuccess" class="stat-value">0%</span></div>
+                    <div class="stat-row">Fuel Efficiency: <span id="fuelEfficiency" class="stat-value">100%</span></div>
+                </div>
+            </div>
+        </div>
+        
+        <div id="gameArea">
+            <canvas id="gameCanvas"></canvas>
+            
+            <div id="gameHUD">
+                <h3>SPACECRAFT TELEMETRY</h3>
+                <div class="stat-row">Velocity: <span id="hudVelocity" class="stat-value">0 m/s</span></div>
+                <div class="stat-row">Angular Velocity: <span id="hudAngular" class="stat-value">0°/s</span></div>
+                <div class="stat-row">Position: <span id="hudPosition" class="stat-value">0,0,0</span></div>
+                <div class="stat-row">Attitude: <span id="hudAttitude" class="stat-value">0°,0°,0°</span></div>
+                <div class="stat-row">Mass: <span id="hudMass" class="stat-value">60,000 kg</span></div>
+                <div class="progress-bar">
+                    <div id="hudRCSFuel" class="progress-fill" style="width: 100%; background: #00ffff;"></div>
+                </div>
+                <div>RCS Fuel</div>
+            </div>
+            
+            <div id="scoreDisplay">
+                <h3>MISSION SCORE</h3>
+                <div class="score-value" id="score">0</div>
+                <div>Distance Traveled: <span id="distanceTraveled">0 km</span></div>
+                <div>Time Elapsed: <span id="missionTime">00:00</span></div>
+            </div>
+            
+            <div id="messageCenter">
+                <span id="messageText">Welcome to Space Navigation Simulator</span>
+            </div>
+            
+            <div id="mobileControls" style="display: none;">
+                <button class="button" id="mobileThrust">THRUST</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.min.js"></script>
+    <script>
+        // Advanced Physics and Game System
+        class AdvancedSpaceSimulator {
+            constructor() {
+                this.init();
+            }
+            
+            init() {
+                // Core Systems
+                this.scene = null;
+                this.camera = null;
+                this.renderer = null;
+                this.controls = null;
+                
+                // Spacecraft
+                this.spacecraft = null;
+                this.spacecraftGroup = null;
+                
+                // Physics Properties
+                this.velocity = new THREE.Vector3(0, 0, 0);
+                this.angularVelocity = new THREE.Vector3(0, 0, 0);
+                this.position = new THREE.Vector3(0, 0, 0);
+                this.rotation = new THREE.Euler(0, 0, 0);
+                this.mass = 60000; // kg (dry mass + fuel)
+                this.inertiaTensor = new THREE.Matrix3();
+                this.momentOfInertia = new THREE.Vector3(50000, 50000, 30000);
+                
+                // Fuel Systems
+                this.fuelSystems = {
+                    main: {
+                        type: 'methane',
+                        mass: 50000,
+                        maxMass: 100000,
+                        isp: 380,
+                        flowRate: 100,
+                        efficiency: 0.85
+                    },
+                    rcs: {
+                        type: 'hypergolic',
+                        mass: 5000,
+                        maxMass: 15000,
+                        isp: 220,
+                        flowRate: 5,
+                        efficiency: 0.98,
+                        thrust: 500, // Newtons per thruster
+                        pulseDuration: 0.1 // seconds
+                    }
+                };
+                
+                // RCS Thruster Configuration
+                this.rcsThrusters = {
+                    // Pitch control (rotate around X)
+                    pitchUp: [
+                        { position: new THREE.Vector3(0, 10, -5), direction: new THREE.Vector3(0, 0, 1), power: 1.0 },
+                        { position: new THREE.Vector3(0, -10, -5), direction: new THREE.Vector3(0, 0, -1), power: 1.0 }
+                    ],
+                    pitchDown: [
+                        { position: new THREE.Vector3(0, 10, 5), direction: new THREE.Vector3(0, 0, -1), power: 1.0 },
+                        { position: new THREE.Vector3(0, -10, 5), direction: new THREE.Vector3(0, 0, 1), power: 1.0 }
+                    ],
+                    
+                    // Yaw control (rotate around Y)
+                    yawLeft: [
+                        { position: new THREE.Vector3(10, 0, -5), direction: new THREE.Vector3(0, 0, 1), power: 1.0 },
+                        { position: new THREE.Vector3(-10, 0, -5), direction: new THREE.Vector3(0, 0, -1), power: 1.0 }
+                    ],
+                    yawRight: [
+                        { position: new THREE.Vector3(10, 0, 5), direction: new THREE.Vector3(0, 0, -1), power: 1.0 },
+                        { position: new THREE.Vector3(-10, 0, 5), direction: new THREE.Vector3(0, 0, 1), power: 1.0 }
+                    ],
+                    
+                    // Roll control (rotate around Z)
+                    rollLeft: [
+                        { position: new THREE.Vector3(0, 10, 0), direction: new THREE.Vector3(1, 0, 0), power: 0.8 },
+                        { position: new THREE.Vector3(0, -10, 0), direction: new THREE.Vector3(-1, 0, 0), power: 0.8 }
+                    ],
+                    rollRight: [
+                        { position: new THREE.Vector3(0, 10, 0), direction: new THREE.Vector3(-1, 0, 0), power: 0.8 },
+                        { position: new THREE.Vector3(0, -10, 0), direction: new THREE.Vector3(1, 0, 0), power: 0.8 }
+                    ],
+                    
+                    // Translation thrusters
+                    translateUp: [
+                        { position: new THREE.Vector3(0, -10, 0), direction: new THREE.Vector3(0, 1, 0), power: 1.0 }
+                    ],
+                    translateDown: [
+                        { position: new THREE.Vector3(0, 10, 0), direction: new THREE.Vector3(0, -1, 0), power: 1.0 }
+                    ],
+                    translateLeft: [
+                        { position: new THREE.Vector3(5, 0, 0), direction: new THREE.Vector3(-1, 0, 0), power: 1.0 }
+                    ],
+                    translateRight: [
+                        { position: new THREE.Vector3(-5, 0, 0), direction: new THREE.Vector3(1, 0, 0), power: 1.0 }
+                    ],
+                    translateForward: [
+                        { position: new THREE.Vector3(0, 0, -5), direction: new THREE.Vector3(0, 0, 1), power: 1.0 }
+                    ],
+                    translateBackward: [
+                        { position: new THREE.Vector3(0, 0, 5), direction: new THREE.Vector3(0, 0, -1), power: 1.0 }
+                    ]
+                };
+                
+                // Active RCS pulses
+                this.activePulses = new Map();
+                this.pulseIdCounter = 0;
+                
+                // Space Environment
+                this.spaceObjects = {
+                    debris: [],
+                    comets: [],
+                    stars: [],
+                    galaxies: [],
+                    nebulae: [],
+                    planets: [],
+                    stations: []
+                };
+                
+                // Game State
+                this.gameState = {
+                    score: 0,
+                    distanceTraveled: 0,
+                    missionTime: 0,
+                    debrisCollected: 0,
+                    cometsVisited: 0,
+                    dockingAttempts: 0,
+                    dockingSuccess: 0,
+                    objectives: {
+                        debrisField: false,
+                        cometRendezvous: false,
+                        docking: false,
+                        debrisCollection: false,
+                        escapeVelocity: false
+                    },
+                    isMissionActive: false,
+                    isPaused: false
+                };
+                
+                // Input System
+                this.keyStates = new Map();
+                this.activeControls = new Set();
+                
+                // Visual Effects
+                this.visualEffects = {
+                    rcsJets: [],
+                    exhaustParticles: [],
+                    cometTrails: [],
+                    explosionEffects: [],
+                    debrisCollectEffects: []
+                };
+                
+                // DOM Elements
+                this.setupDOMReferences();
+                
+                // Initialize
+                this.initThreeJS();
+                this.createUniverse();
+                this.createSpacecraft();
+                this.setupEventListeners();
+                this.animate();
+            }
+            
+            setupDOMReferences() {
+                this.dom = {
+                    hudVelocity: document.getElementById('hudVelocity'),
+                    hudAngular: document.getElementById('hudAngular'),
+                    hudPosition: document.getElementById('hudPosition'),
+                    hudAttitude: document.getElementById('hudAttitude'),
+                    hudMass: document.getElementById('hudMass'),
+                    hudRCSFuel: document.getElementById('hudRCSFuel'),
+                    score: document.getElementById('score'),
+                    distanceTraveled: document.getElementById('distanceTraveled'),
+                    missionTime: document.getElementById('missionTime'),
+                    messageText: document.getElementById('messageText'),
+                    rcsFuelDisplay: document.getElementById('rcsFuelDisplay'),
+                    mainFuelDisplay: document.getElementById('mainFuelDisplay'),
+                    rcsThrustDisplay: document.getElementById('rcsThrustDisplay'),
+                    pulseDurationDisplay: document.getElementById('pulseDurationDisplay'),
+                    debrisCollected: document.getElementById('debrisCollected'),
+                    cometsVisited: document.getElementById('cometsVisited'),
+                    dockingSuccess: document.getElementById('dockingSuccess'),
+                    fuelEfficiency: document.getElementById('fuelEfficiency')
+                };
+            }
+            
+            initThreeJS() {
+                // Scene
+                this.scene = new THREE.Scene();
+                this.scene.fog = new THREE.Fog(0x000000, 100, 100000);
+                
+                // Camera
+                this.camera = new THREE.PerspectiveCamera(75, 
+                    (window.innerWidth - 450) / window.innerHeight, 1, 1000000);
+                this.camera.position.set(0, 50, 100);
+                
+                // Renderer
+                const canvas = document.getElementById('gameCanvas');
+                this.renderer = new THREE.WebGLRenderer({ 
+                    canvas: canvas,
+                    antialias: true,
+                    alpha: true
+                });
+                this.renderer.setSize(window.innerWidth - 450, window.innerHeight);
+                this.renderer.setPixelRatio(window.devicePixelRatio);
+                this.renderer.shadowMap.enabled = true;
+                this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+                
+                // Advanced post-processing setup
+                this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+                this.renderer.toneMappingExposure = 1.5;
+                
+                // Lighting
+                this.setupLighting();
+            }
+            
+            setupLighting() {
+                // Ambient light for basic illumination
+                const ambientLight = new THREE.AmbientLight(0x222244, 0.1);
+                this.scene.add(ambientLight);
+                
+                // Directional light as sun
+                this.sunLight = new THREE.DirectionalLight(0xffffff, 1.5);
+                this.sunLight.position.set(10000, 5000, 10000);
+                this.sunLight.castShadow = true;
+                this.sunLight.shadow.mapSize.width = 4096;
+                this.sunLight.shadow.mapSize.height = 4096;
+                this.sunLight.shadow.camera.far = 100000;
+                this.scene.add(this.sunLight);
+                
+                // Point lights for spacecraft
+                this.spacecraftLight = new THREE.PointLight(0x00aaff, 2, 100);
+                this.spacecraftLight.position.set(0, 0, 0);
+                this.scene.add(this.spacecraftLight);
+                
+                // Engine glow
+                this.engineGlow = new THREE.PointLight(0xff5500, 5, 200);
+                this.engineGlow.position.set(0, 0, -20);
+                this.scene.add(this.engineGlow);
+            }
+            
+            createUniverse() {
+                // Create Milky Way Galaxy Background
+                this.createGalaxy();
+                
+                // Create Distant Stars
+                this.createDistantStars(100000);
+                
+                // Create Nebulae
+                this.createNebulae(5);
+                
+                // Create Planets
+                this.createPlanets();
+                
+                // Create Space Debris Field
+                this.createDebrisField(500);
+                
+                // Create Comets
+                this.createComets(10);
+                
+                // Create Space Station
+                this.createSpaceStation();
+            }
+            
+            createGalaxy() {
+                // Create spiral galaxy using particle system
+                const galaxyGeometry = new THREE.BufferGeometry();
+                const galaxyCount = 50000;
+                const positions = new Float32Array(galaxyCount * 3);
+                const colors = new Float32Array(galaxyCount * 3);
+                const sizes = new Float32Array(galaxyCount);
+                
+                // Spiral galaxy parameters
+                const arms = 4;
+                const armSeparation = (2 * Math.PI) / arms;
+                const armWidth = 0.3;
+                const galaxyRadius = 20000;
+                const galaxyThickness = 1000;
+                
+                for (let i = 0; i < galaxyCount; i++) {
+                    // Spiral arm distribution
+                    const arm = Math.floor(Math.random() * arms);
+                    const angle = Math.random() * Math.PI * 2;
+                    const distance = Math.pow(Math.random(), 1.5) * galaxyRadius;
+                    
+                    // Spiral equation
+                    const spiralAngle = arm * armSeparation + (distance / galaxyRadius) * Math.PI * 4;
+                    const spiralX = Math.cos(spiralAngle) * distance;
+                    const spiralZ = Math.sin(spiralAngle) * distance;
+                    
+                    // Add some noise for natural look
+                    const noise = (Math.random() - 0.5) * armWidth * distance;
+                    const x = spiralX + Math.cos(spiralAngle + Math.PI/2) * noise;
+                    const z = spiralZ + Math.sin(spiralAngle + Math.PI/2) * noise;
+                    const y = (Math.random() - 0.5) * galaxyThickness;
+                    
+                    positions[i * 3] = x;
+                    positions[i * 3 + 1] = y;
+                    positions[i * 3 + 2] = z;
+                    
+                    // Color based on distance from center (blue shift in arms)
+                    const colorIntensity = 0.5 + (distance / galaxyRadius) * 0.5;
+                    colors[i * 3] = 0.2 + colorIntensity * 0.3; // R
+                    colors[i * 3 + 1] = 0.3 + colorIntensity * 0.4; // G
+                    colors[i * 3 + 2] = 0.8 + colorIntensity * 0.2; // B
+                    
+                    sizes[i] = 0.5 + Math.random() * 2;
+                }
+                
+                galaxyGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+                galaxyGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+                galaxyGeometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+                
+                const galaxyMaterial = new THREE.PointsMaterial({
+                    size: 0.5,
+                    vertexColors: true,
+                    transparent: true,
+                    opacity: 0.8,
+                    sizeAttenuation: true,
+                    blending: THREE.AdditiveBlending
+                });
+                
+                const galaxy = new THREE.Points(galaxyGeometry, galaxyMaterial);
+                galaxy.position.set(50000, 0, 50000);
+                galaxy.rotation.y = Math.PI / 4;
+                this.scene.add(galaxy);
+                this.spaceObjects.galaxies.push(galaxy);
+            }
+            
+            createDistantStars(count) {
+                const starGeometry = new THREE.BufferGeometry();
+                const positions = new Float32Array(count * 3);
+                const colors = new Float32Array(count * 3);
+                const sizes = new Float32Array(count);
+                
+                // Star classification colors (OBAFGKM)
+                const starColors = [
+                    new THREE.Color(0x9bb0ff), // O - Blue
+                    new THREE.Color(0xaabfff), // B - Blue-white
+                    new THREE.Color(0xcad7ff), // A - White
+                    new THREE.Color(0xf8f7ff), // F - Yellow-white
+                    new THREE.Color(0xfff4ea), // G - Yellow (Sun)
+                    new THREE.Color(0xffd2a1), // K - Orange
+                    new THREE.Color(0xffcc6f)  // M - Red
+                ];
+                
+                for (let i = 0; i < count; i++) {
+                    // Spherical distribution
+                    const radius = 50000 + Math.random() * 500000;
+                    const theta = Math.random() * Math.PI * 2;
+                    const phi = Math.acos(2 * Math.random() - 1);
+                    
+                    positions[i * 3] = radius * Math.sin(phi) * Math.cos(theta);
+                    positions[i * 3 + 1] = radius * Math.sin(phi) * Math.sin(theta);
+                    positions[i * 3 + 2] = radius * Math.cos(phi);
+                    
+                    // Random star type
+                    const starType = Math.floor(Math.random() * starColors.length);
+                    const color = starColors[starType];
+                    
+                    colors[i * 3] = color.r;
+                    colors[i * 3 + 1] = color.g;
+                    colors[i * 3 + 2] = color.b;
+                    
+                    // Size based on star type (O stars are largest)
+                    sizes[i] = 0.1 + (7 - starType) * 0.5 + Math.random() * 0.5;
+                }
+                
+                starGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+                starGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+                starGeometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+                
+                const starMaterial = new THREE.PointsMaterial({
+                    size: 1,
+                    vertexColors: true,
+                    transparent: true,
+                    sizeAttenuation: true,
+                    blending: THREE.AdditiveBlending
+                });
+                
+                const starField = new THREE.Points(starGeometry, starMaterial);
+                this.scene.add(starField);
+                this.spaceObjects.stars.push(starField);
+            }
+            
+            createNebulae(count) {
+                for (let i = 0; i < count; i++) {
+                    const nebulaGeometry = new THREE.SphereGeometry(5000, 32, 32);
+                    
+                    // Create nebula colors (emission nebulae)
+                    const nebulaColors = [
+                        { color: 0xff00ff, emissive: 0x330033 }, // Pink (hydrogen alpha)
+                        { color: 0x00ffff, emissive: 0x003333 }, // Cyan (oxygen)
+                        { color: 0x00ff00, emissive: 0x003300 }, // Green (sulfur)
+                        { color: 0xff8800, emissive: 0x331100 }  // Orange (dust)
+                    ];
+                    
+                    const colorSet = nebulaColors[Math.floor(Math.random() * nebulaColors.length)];
+                    
+                    const nebulaMaterial = new THREE.MeshPhongMaterial({
+                        color: colorSet.color,
+                        emissive: colorSet.emissive,
+                        transparent: true,
+                        opacity: 0.05,
+                        side: THREE.DoubleSide
+                    });
+                    
+                    const nebula = new THREE.Mesh(nebulaGeometry, nebulaMaterial);
+                    
+                    // Random position far away
+                    const angle = Math.random() * Math.PI * 2;
+                    const distance = 100000 + Math.random() * 200000;
+                    nebula.position.set(
+                        Math.cos(angle) * distance,
+                        (Math.random() - 0.5) * 50000,
+                        Math.sin(angle) * distance
+                    );
+                    
+                    // Random rotation
+                    nebula.rotation.set(
+                        Math.random() * Math.PI,
+                        Math.random() * Math.PI,
+                        Math.random() * Math.PI
+                    );
+                    
+                    // Random scale
+                    const scale = 0.5 + Math.random() * 2;
+                    nebula.scale.setScalar(scale);
+                    
+                    this.scene.add(nebula);
+                    this.spaceObjects.nebulae.push(nebula);
+                }
+            }
+            
+            createDebrisField(count) {
+                const debrisTypes = [
+                    { geometry: new THREE.BoxGeometry(1, 1, 1), color: 0x888888 },
+                    { geometry: new THREE.SphereGeometry(0.5, 8, 6), color: 0xaaaaaa },
+                    { geometry: new THREE.CylinderGeometry(0.3, 0.3, 2, 8), color: 0x666666 },
+                    { geometry: new THREE.TetrahedronGeometry(0.8), color: 0x999999 },
+                    { geometry: new THREE.OctahedronGeometry(0.7), color: 0x777777 }
+                ];
+                
+                for (let i = 0; i < count; i++) {
+                    const type = debrisTypes[Math.floor(Math.random() * debrisTypes.length)];
+                    const material = new THREE.MeshPhongMaterial({
+                        color: type.color,
+                        emissive: 0x222222,
+                        shininess: 30
+                    });
+                    
+                    const debris = new THREE.Mesh(type.geometry, material);
+                    
+                    // Random position in a sphere
+                    const radius = 1000 + Math.random() * 4000;
+                    const theta = Math.random() * Math.PI * 2;
+                    const phi = Math.acos(2 * Math.random() - 1);
+                    
+                    debris.position.set(
+                        radius * Math.sin(phi) * Math.cos(theta),
+                        radius * Math.sin(phi) * Math.sin(theta),
+                        radius * Math.cos(phi)
+                    );
+                    
+                    // Random rotation
+                    debris.rotation.set(
+                        Math.random() * Math.PI,
+                        Math.random() * Math.PI,
+                        Math.random() * Math.PI
+                    );
+                    
+                    // Random scale
+                    const scale = 0.5 + Math.random() * 3;
+                    debris.scale.setScalar(scale);
+                    
+                    // Random rotation velocity
+                    debris.userData = {
+                        type: 'debris',
+                        rotationSpeed: new THREE.Vector3(
+                            (Math.random() - 0.5) * 0.02,
+                            (Math.random() - 0.5) * 0.02,
+                            (Math.random() - 0.5) * 0.02
+                        ),
+                        velocity: new THREE.Vector3(
+                            (Math.random() - 0.5) * 2,
+                            (Math.random() - 0.5) * 2,
+                            (Math.random() - 0.5) * 2
+                        ),
+                        mass: scale * 100,
+                        collected: false,
+                        scoreValue: Math.round(scale * 10)
+                    };
+                    
+                    debris.castShadow = true;
+                    this.scene.add(debris);
+                    this.spaceObjects.debris.push(debris);
+                }
+            }
+            
+            createComets(count) {
+                for (let i = 0; i < count; i++) {
+                    const cometGeometry = new THREE.SphereGeometry(50, 32, 32);
+                    const cometMaterial = new THREE.MeshPhongMaterial({
+                        color: 0x88ffff,
+                        emissive: 0x002244,
+                        transparent: true,
+                        opacity: 0.8
+                    });
+                    
+                    const comet = new THREE.Mesh(cometGeometry, cometMaterial);
+                    
+                    // Elliptical orbit parameters
+                    const semiMajorAxis = 20000 + Math.random() * 80000;
+                    const eccentricity = 0.7 + Math.random() * 0.25;
+                    const inclination = Math.random() * Math.PI;
+                    const longitudeAscending = Math.random() * Math.PI * 2;
+                    const argumentPeriapsis = Math.random() * Math.PI * 2;
+                    
+                    // Calculate initial position on orbit
+                    const trueAnomaly = Math.random() * Math.PI * 2;
+                    const distance = semiMajorAxis * (1 - eccentricity * eccentricity) / 
+                                   (1 + eccentricity * Math.cos(trueAnomaly));
+                    
+                    // Convert to Cartesian coordinates
+                    const x = distance * (Math.cos(longitudeAscending) * Math.cos(argumentPeriapsis + trueAnomaly) -
+                                        Math.sin(longitudeAscending) * Math.sin(argumentPeriapsis + trueAnomaly) * Math.cos(inclination));
+                    const y = distance * (Math.sin(inclination) * Math.sin(argumentPeriapsis + trueAnomaly));
+                    const z = distance * (Math.sin(longitudeAscending) * Math.cos(argumentPeriapsis + trueAnomaly) +
+                                        Math.cos(longitudeAscending) * Math.sin(argumentPeriapsis + trueAnomaly) * Math.cos(inclination));
+                    
+                    comet.position.set(x, y, z);
+                    
+                    // Comet properties
+                    comet.userData = {
+                        type: 'comet',
+                        orbitalParams: {
+                            semiMajorAxis: semiMajorAxis,
+                            eccentricity: eccentricity,
+                            inclination: inclination,
+                            longitudeAscending: longitudeAscending,
+                            argumentPeriapsis: argumentPeriapsis,
+                            trueAnomaly: trueAnomaly,
+                            period: 2 * Math.PI * Math.sqrt(Math.pow(semiMajorAxis, 3) / 3.986e14)
+                        },
+                        visited: false,
+                        scoreValue: 1000,
+                        tailParticles: []
+                    };
+                    
+                    // Create tail particles
+                    this.createCometTail(comet);
+                    
+                    comet.castShadow = true;
+                    this.scene.add(comet);
+                    this.spaceObjects.comets.push(comet);
+                }
+            }
+            
+            createCometTail(comet) {
+                const tailCount = 200;
+                const tailGeometry = new THREE.BufferGeometry();
+                const positions = new Float32Array(tailCount * 3);
+                const colors = new Float32Array(tailCount * 3);
+                
+                for (let i = 0; i < tailCount; i++) {
+                    // Tail extends opposite to velocity vector
+                    const distance = 50 + Math.random() * 500;
+                    const angle = Math.random() * Math.PI * 2;
+                    const spread = Math.random() * 100;
+                    
+                    positions[i * 3] = Math.cos(angle) * spread;
+                    positions[i * 3 + 1] = Math.sin(angle) * spread;
+                    positions[i * 3 + 2] = -distance; // Tail points away from sun
+                    
+                    // Color gradient from white to blue
+                    const intensity = 1 - (distance / 550);
+                    colors[i * 3] = intensity; // R
+                    colors[i * 3 + 1] = intensity * 0.8; // G
+                    colors[i * 3 + 2] = 1.0; // B
+                }
+                
+                tailGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+                tailGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+                
+                const tailMaterial = new THREE.PointsMaterial({
+                    size: 10,
+                    vertexColors: true,
+                    transparent: true,
+                    opacity: 0.5,
+                    blending: THREE.AdditiveBlending,
+                    sizeAttenuation: true
+                });
+                
+                const tail = new THREE.Points(tailGeometry, tailMaterial);
+                comet.add(tail);
+                comet.userData.tailParticles = tail;
+            }
+            
+            createSpaceStation() {
+                const stationGroup = new THREE.Group();
+                
+                // Central hub
+                const hubGeometry = new THREE.CylinderGeometry(20, 20, 10, 16);
+                const hubMaterial = new THREE.MeshPhongMaterial({
+                    color: 0x4444ff,
+                    emissive: 0x111133,
+                    shininess: 100
+                });
+                const hub = new THREE.Mesh(hubGeometry, hubMaterial);
+                hub.castShadow = true;
+                stationGroup.add(hub);
+                
+                // Docking ports
+                const portGeometry = new THREE.CylinderGeometry(5, 5, 3, 12);
+                const portMaterial = new THREE.MeshPhongMaterial({
+                    color: 0x00ff00,
+                    emissive: 0x003300
+                });
+                
+                for (let i = 0; i < 4; i++) {
+                    const angle = (i * Math.PI) / 2;
+                    const port = new THREE.Mesh(portGeometry, portMaterial);
+                    port.position.set(Math.cos(angle) * 25, 0, Math.sin(angle) * 25);
+                    port.rotation.y = angle + Math.PI/2;
+                    port.castShadow = true;
+                    stationGroup.add(port);
+                }
+                
+                // Solar panels
+                const panelGeometry = new THREE.BoxGeometry(40, 2, 60);
+                const panelMaterial = new THREE.MeshPhongMaterial({
+                    color: 0xffff00,
+                    emissive: 0x333300,
+                    transparent: true,
+                    opacity: 0.8
+                });
+                
+                const panel1 = new THREE.Mesh(panelGeometry, panelMaterial);
+                panel1.position.set(0, 15, 0);
+                panel1.castShadow = true;
+                stationGroup.add(panel1);
+                
+                const panel2 = panel1.clone();
+                panel2.position.set(0, -15, 0);
+                stationGroup.add(panel2);
+                
+                // Position station
+                stationGroup.position.set(5000, 0, 0);
+                stationGroup.rotation.y = Math.PI / 4;
+                
+                // Station properties
+                stationGroup.userData = {
+                    type: 'station',
+                    dockingPorts: [],
+                    rotationSpeed: 0.001,
+                    dockingRange: 30,
+                    isDocked: false
+                };
+                
+                this.scene.add(stationGroup);
+                this.spaceObjects.stations.push(stationGroup);
+            }
+            
+            createSpacecraft() {
+                this.spacecraftGroup = new THREE.Group();
+                
+                // Main body
+                const bodyGeometry = new THREE.CylinderGeometry(3, 4, 30, 16);
+                const bodyMaterial = new THREE.MeshPhongMaterial({
+                    color: 0x4444ff,
+                    emissive: 0x111133,
+                    shininess: 100,
+                    metalness: 0.8,
+                    roughness: 0.2
+                });
+                const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+                body.castShadow = true;
+                this.spacecraftGroup.add(body);
+                
+                // Cockpit
+                const cockpitGeometry = new THREE.SphereGeometry(4, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2);
+                const cockpitMaterial = new THREE.MeshPhongMaterial({
+                    color: 0x88ffff,
+                    transparent: true,
+                    opacity: 0.7,
+                    refractionRatio: 0.98
+                });
+                const cockpit = new THREE.Mesh(cockpitGeometry, cockpitMaterial);
+                cockpit.position.y = 8;
+                cockpit.castShadow = true;
+                this.spacecraftGroup.add(cockpit);
+                
+                // Main engines
+                const engineGeometry = new THREE.ConeGeometry(2, 6, 12);
+                const engineMaterial = new THREE.MeshPhongMaterial({
+                    color: 0xff5500,
+                    emissive: 0x331100
+                });
+                
+                for (let i = -1; i <= 1; i += 2) {
+                    const engine = new THREE.Mesh(engineGeometry, engineMaterial);
+                    engine.position.set(i * 2, -15, 0);
+                    engine.rotation.x = Math.PI;
+                    engine.castShadow = true;
+                    this.spacecraftGroup.add(engine);
+                }
+                
+                // RCS thrusters (visual markers)
+                this.createRCSThrusterMarkers();
+                
+                // Create RCS jet particle systems
+                this.createRCSParticleSystems();
+                
+                // Add spacecraft to scene
+                this.scene.add(this.spacecraftGroup);
+                this.spacecraft = this.spacecraftGroup;
+                
+                // Set initial position
+                this.spacecraft.position.set(0, 0, 0);
+            }
+            
+            createRCSThrusterMarkers() {
+                const thrusterGeometry = new THREE.SphereGeometry(0.3, 8, 8);
+                const thrusterMaterial = new THREE.MeshPhongMaterial({
+                    color: 0x00ffff,
+                    emissive: 0x003333
+                });
+                
+                // Create visual markers for all RCS thrusters
+                Object.values(this.rcsThrusters).forEach(thrusterArray => {
+                    thrusterArray.forEach(thruster => {
+                        const marker = new THREE.Mesh(thrusterGeometry, thrusterMaterial);
+                        marker.position.copy(thruster.position);
+                        this.spacecraftGroup.add(marker);
+                        
+                        // Add directional arrow
+                        const arrowHelper = new THREE.ArrowHelper(
+                            thruster.direction.clone().normalize(),
+                            thruster.position,
+                            2,
+                            0x00ff00,
+                            0.5,
+                            0.3
+                        );
+                        this.spacecraftGroup.add(arrowHelper);
+                    });
+                });
+            }
+            
+            createRCSParticleSystems() {
+                // Create particle systems for each RCS thruster group
+                this.rcsParticleSystems = new Map();
+                
+                Object.keys(this.rcsThrusters).forEach(action => {
+                    const particleGroup = new THREE.Group();
+                    const thrusters = this.rcsThrusters[action];
+                    
+                    thrusters.forEach(thruster => {
+                        const particleCount = 100;
+                        const geometry = new THREE.BufferGeometry();
+                        const positions = new Float32Array(particleCount * 3);
+                        const colors = new Float32Array(particleCount * 3);
+                        
+                        for (let i = 0; i < particleCount * 3; i += 3) {
+                            positions[i] = thruster.position.x;
+                            positions[i + 1] = thruster.position.y;
+                            positions[i + 2] = thruster.position.z;
+                            
+                            // Color based on thruster type
+                            colors[i] = 0.0;     // R
+                            colors[i + 1] = 1.0; // G
+                            colors[i + 2] = 1.0; // B
+                        }
+                        
+                        geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+                        geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+                        
+                        const material = new THREE.PointsMaterial({
+                            size: 0.5,
+                            vertexColors: true,
+                            transparent: true,
+                            opacity: 0,
+                            blending: THREE.AdditiveBlending,
+                            sizeAttenuation: true
+                        });
+                        
+                        const particles = new THREE.Points(geometry, material);
+                        particles.userData = {
+                            active: false,
+                            direction: thruster.direction.clone(),
+                            power: thruster.power,
+                            positions: positions,
+                            colors: colors,
+                            originalPositions: positions.slice()
+                        };
+                        
+                        particleGroup.add(particles);
+                    });
+                    
+                    this.spacecraftGroup.add(particleGroup);
+                    this.rcsParticleSystems.set(action, particleGroup);
+                });
+            }
+            
+            setupEventListeners() {
+                // Keyboard controls
+                document.addEventListener('keydown', (e) => {
+                    this.keyStates.set(e.key.toLowerCase(), true);
+                    this.handleKeyPress(e.key.toLowerCase());
+                });
+                
+                document.addEventListener('keyup', (e) => {
+                    this.keyStates.set(e.key.toLowerCase(), false);
+                });
+                
+                // Control panel buttons
+                document.querySelectorAll('.control-btn').forEach(btn => {
+                    btn.addEventListener('mousedown', (e) => {
+                        const action = btn.dataset.action;
+                        this.activateRCS(action);
+                        btn.classList.add('active');
+                    });
+                    
+                    btn.addEventListener('mouseup', (e) => {
+                        const action = btn.dataset.action;
+                        this.deactivateRCS(action);
+                        btn.classList.remove('active');
+                    });
+                    
+                    btn.addEventListener('mouseleave', (e) => {
+                        btn.classList.remove('active');
+                    });
+                });
+                
+                // Fuel selection
+                document.querySelectorAll('.fuel-option').forEach(option => {
+                    option.addEventListener('click', () => {
+                        document.querySelectorAll('.fuel-option').forEach(o => o.classList.remove('selected'));
+                        option.classList.add('selected');
+                        
+                        const fuelType = option.dataset.fuel;
+                        this.fuelSystems.main.type = fuelType;
+                        this.updateFuelProperties();
+                    });
+                });
+                
+                // Sliders
+                const fuelMassSlider = document.getElementById('fuelMassSlider');
+                fuelMassSlider.addEventListener('input', () => {
+                    const mass = parseInt(fuelMassSlider.value);
+                    this.fuelSystems.main.mass = mass;
+                    this.updateMass();
+                    document.getElementById('fuelMassValue').textContent = 
+                        mass.toLocaleString() + ' kg';
+                });
+                
+                const rcsFuelSlider = document.getElementById('rcsFuelSlider');
+                rcsFuelSlider.addEventListener('input', () => {
+                    const percent = parseInt(rcsFuelSlider.value);
+                    const rcsMass = (percent / 100) * this.fuelSystems.main.mass;
+                    this.fuelSystems.rcs.mass = Math.min(rcsMass, this.fuelSystems.rcs.maxMass);
+                    this.updateMass();
+                    document.getElementById('rcsFuelValue').textContent = percent + '%';
+                });
+                
+                // Start mission
+                document.getElementById('startMission').addEventListener('click', () => {
+                    this.startMission();
+                });
+                
+                // Window resize
+                window.addEventListener('resize', () => this.onWindowResize());
+                
+                // Prevent context menu
+                document.addEventListener('contextmenu', (e) => e.preventDefault());
+            }
+            
+            handleKeyPress(key) {
+                const keyMap = {
+                    'w': 'pitch-up',
+                    's': 'pitch-down',
+                    'a': 'yaw-left',
+                    'd': 'yaw-right',
+                    'q': 'roll-left',
+                    'e': 'roll-right',
+                    'i': 'translate-up',
+                    'k': 'translate-down',
+                    'j': 'translate-left',
+                    'l': 'translate-right',
+                    'u': 'translate-forward',
+                    'o': 'translate-backward',
+                    ' ': 'stop'
+                };
+                
+                if (keyMap[key]) {
+                    if (key === ' ') {
+                        this.stopAllRCS();
+                    } else {
+                        this.activateRCS(keyMap[key]);
+                    }
+                }
+            }
+            
+            activateRCS(action) {
+                if (!this.fuelSystems.rcs.mass > 0) return;
+                
+                const pulseId = this.pulseIdCounter++;
+                this.activePulses.set(pulseId, {
+                    action: action,
+                    startTime: performance.now(),
+                    duration: this.fuelSystems.rcs.pulseDuration,
+                    thrusters: this.rcsThrusters[action] || []
+                });
+                
+                // Activate visual effects
+                this.activateRCSEffects(action);
+                
+                // Add to active controls
+                this.activeControls.add(action);
+            }
+            
+            deactivateRCS(action) {
+                // Remove from active controls
+                this.activeControls.delete(action);
+                
+                // Deactivate visual effects
+                this.deactivateRCSEffects(action);
+            }
+            
+            stopAllRCS() {
+                // Cancel all active pulses
+                this.activePulses.clear();
+                this.activeControls.clear();
+                
+                // Stop all visual effects
+                Object.keys(this.rcsThrusters).forEach(action => {
+                    this.deactivateRCSEffects(action);
+                });
+            }
+            
+            activateRCSEffects(action) {
+                const particleSystem = this.rcsParticleSystems.get(action);
+                if (particleSystem) {
+                    particleSystem.children.forEach(particles => {
+                        particles.material.opacity = 0.8;
+                        particles.userData.active = true;
+                    });
+                }
+            }
+            
+            deactivateRCSEffects(action) {
+                const particleSystem = this.rcsParticleSystems.get(action);
+                if (particleSystem) {
+                    particleSystem.children.forEach(particles => {
+                        particles.material.opacity = 0;
+                        particles.userData.active = false;
+                        
+                        // Reset particle positions
+                        const positions = particles.geometry.attributes.position.array;
+                        const original = particles.userData.originalPositions;
+                        for (let i = 0; i < positions.length; i++) {
+                            positions[i] = original[i];
+                        }
+                        particles.geometry.attributes.position.needsUpdate = true;
+                    });
+                }
+            }
+            
+            updateFuelProperties() {
+                const fuelTypes = {
+                    hydrogen: { isp: 450, rcsIsp: 220, color: 0x88ffff },
+                    methane: { isp: 380, rcsIsp: 200, color: 0xff8844 },
+                    hypergolic: { isp: 320, rcsIsp: 240, color: 0xff4444 }
+                };
+                
+                const fuel = fuelTypes[this.fuelSystems.main.type];
+                if (fuel) {
+                    this.fuelSystems.main.isp = fuel.isp;
+                    this.fuelSystems.rcs.isp = fuel.rcsIsp;
+                    
+                    // Update spacecraft color
+                    this.spacecraft.traverse(child => {
+                        if (child.isMesh && child.material.color) {
+                            if (child.material.emissive) {
+                                child.material.color.setHex(fuel.color);
+                            }
+                        }
+                    });
+                }
+            }
+            
+            updateMass() {
+                this.mass = 10000 + this.fuelSystems.main.mass + this.fuelSystems.rcs.mass;
+                
+                // Update moment of inertia based on mass distribution
+                this.momentOfInertia.x = 50000 + this.mass * 0.5;
+                this.momentOfInertia.y = 50000 + this.mass * 0.5;
+                this.momentOfInertia.z = 30000 + this.mass * 0.3;
+                
+                // Update HUD
+                this.dom.hudMass.textContent = Math.round(this.mass).toLocaleString() + ' kg';
+            }
+            
+            startMission() {
+                this.gameState.isMissionActive = true;
+                this.gameState.missionStartTime = performance.now();
+                
+                // Initialize fuel systems
+                this.updateFuelProperties();
+                this.updateMass();
+                
+                // Start mission timer
+                this.missionTimer = setInterval(() => {
+                    if (this.gameState.isMissionActive && !this.gameState.isPaused) {
+                        this.gameState.missionTime += 1;
+                        this.updateHUD();
+                    }
+                }, 1000);
+                
+                // Show mission start message
+                this.showMessage("Mission started! Navigate through debris field.");
+                
+                // Enable controls
+                document.querySelectorAll('.control-btn').forEach(btn => {
+                    btn.style.pointerEvents = 'auto';
+                });
+            }
+            
+            updatePhysics(deltaTime) {
+                if (!this.gameState.isMissionActive || this.gameState.isPaused) return;
+                
+                // Update RCS pulses
+                this.updateRCSPulses(deltaTime);
+                
+                // Update angular velocity from RCS torques
+                this.updateAngularVelocity(deltaTime);
+                
+                // Update rotation from angular velocity
+                this.updateRotation(deltaTime);
+                
+                // Update velocity from RCS translation forces
+                this.updateVelocity(deltaTime);
+                
+                // Update position from velocity
+                this.updatePosition(deltaTime);
+                
+                // Update spacecraft transform
+                this.updateSpacecraftTransform();
+                
+                // Update RCS particle systems
+                this.updateRCSParticles(deltaTime);
+                
+                // Update environment
+                this.updateEnvironment(deltaTime);
+                
+                // Check collisions and interactions
+                this.checkInteractions();
+                
+                // Update camera
+                this.updateCamera(deltaTime);
+            }
+            
+            updateRCSPulses(deltaTime) {
+                const currentTime = performance.now();
+                const rcsFuelConsumptionRate = 0.1; // kg per second per thruster
+                
+                // Process active pulses
+                for (const [id, pulse] of this.activePulses) {
+                    const elapsed = (currentTime - pulse.startTime) / 1000;
+                    
+                    if (elapsed >= pulse.duration) {
+                        // Pulse completed
+                        this.activePulses.delete(id);
+                        this.deactivateRCSEffects(pulse.action);
+                    } else {
+                        // Apply RCS force
+                        this.applyRCSForce(pulse, deltaTime);
+                        
+                        // Consume RCS fuel
+                        const fuelConsumed = rcsFuelConsumptionRate * deltaTime * pulse.thrusters.length;
+                        this.fuelSystems.rcs.mass = Math.max(0, this.fuelSystems.rcs.mass - fuelConsumed);
+                    }
+                }
+                
+                // Update RCS fuel display
+                const rcsFuelPercent = (this.fuelSystems.rcs.mass / this.fuelSystems.rcs.maxMass) * 100;
+                this.dom.hudRCSFuel.style.width = rcsFuelPercent + '%';
+                this.dom.rcsFuelDisplay.textContent = rcsFuelPercent.toFixed(1) + '%';
+            }
+            
+            applyRCSForce(pulse, deltaTime) {
+                const thrustPerThruster = this.fuelSystems.rcs.thrust;
+                
+                pulse.thrusters.forEach(thruster => {
+                    // Calculate force in world coordinates
+                    const worldDirection = thruster.direction.clone()
+                        .applyEuler(this.spacecraft.rotation);
+                    
+                    const force = worldDirection.multiplyScalar(thruster.power * thrustPerThruster);
+                    
+                    // Apply force for translation
+                    this.velocity.add(force.multiplyScalar(deltaTime / this.mass));
+                    
+                    // Calculate torque for rotation
+                    const torque = thruster.position.clone()
+                        .cross(thruster.direction)
+                        .multiplyScalar(thruster.power * thrustPerThruster);
+                    
+                    // Apply torque to angular velocity
+                    const angularAcceleration = torque.clone()
+                        .divideScalar(this.momentOfInertia.x); // Simplified
+                    
+                    this.angularVelocity.add(angularAcceleration.multiplyScalar(deltaTime));
+                });
+            }
+            
+            updateAngularVelocity(deltaTime) {
+                // Apply damping (simplified space friction)
+                const angularDamping = 0.99;
+                this.angularVelocity.multiplyScalar(Math.pow(angularDamping, deltaTime));
+                
+                // Limit angular velocity
+                const maxAngularVelocity = 2; // rad/s
+                if (this.angularVelocity.length() > maxAngularVelocity) {
+                    this.angularVelocity.normalize().multiplyScalar(maxAngularVelocity);
+                }
+            }
+            
+            updateRotation(deltaTime) {
+                // Update rotation from angular velocity
+                const rotationDelta = this.angularVelocity.clone().multiplyScalar(deltaTime);
+                this.rotation.x += rotationDelta.x;
+                this.rotation.y += rotationDelta.y;
+                this.rotation.z += rotationDelta.z;
+                
+                // Keep rotations within reasonable bounds
+                this.rotation.x = this.rotation.x % (Math.PI * 2);
+                this.rotation.y = this.rotation.y % (Math.PI * 2);
+                this.rotation.z = this.rotation.z % (Math.PI * 2);
+            }
+            
+            updateVelocity(deltaTime) {
+                // Apply velocity damping (minimal in space)
+                const velocityDamping = 0.999;
+                this.velocity.multiplyScalar(Math.pow(velocityDamping, deltaTime));
+            }
+            
+            updatePosition(deltaTime) {
+                // Update position from velocity
+                const positionDelta = this.velocity.clone().multiplyScalar(deltaTime);
+                this.position.add(positionDelta);
+                
+                // Update distance traveled
+                this.gameState.distanceTraveled += positionDelta.length();
+            }
+            
+            updateSpacecraftTransform() {
+                // Apply position and rotation to spacecraft
+                this.spacecraft.position.copy(this.position);
+                this.spacecraft.rotation.copy(this.rotation);
+                
+                // Update spacecraft light position
+                this.spacecraftLight.position.copy(this.position);
+                this.engineGlow.position.copy(this.position)
+                    .add(new THREE.Vector3(0, 0, -20)
+                    .applyEuler(this.rotation));
+            }
+            
+            updateRCSParticles(deltaTime) {
+                // Update active RCS particle systems
+                for (const [action, particleGroup] of this.rcsParticleSystems) {
+                    particleGroup.children.forEach(particles => {
+                        if (particles.userData.active) {
+                            const positions = particles.geometry.attributes.position.array;
+                            const direction = particles.userData.direction;
+                            const speed = 50 * particles.userData.power;
+                            
+                            for (let i = 0; i < positions.length; i += 3) {
+                                // Move particles in thruster direction
+                                positions[i] += direction.x * speed * deltaTime;
+                                positions[i + 1] += direction.y * speed * deltaTime;
+                                positions[i + 2] += direction.z * speed * deltaTime;
+                                
+                                // Random drift
+                                positions[i] += (Math.random() - 0.5) * 0.5;
+                                positions[i + 1] += (Math.random() - 0.5) * 0.5;
+                                positions[i + 2] += (Math.random() - 0.5) * 0.5;
+                                
+                                // If particle goes too far, reset it
+                                const distance = Math.sqrt(
+                                    Math.pow(positions[i] - particles.userData.originalPositions[i], 2) +
+                                    Math.pow(positions[i + 1] - particles.userData.originalPositions[i + 1], 2) +
+                                    Math.pow(positions[i + 2] - particles.userData.originalPositions[i + 2], 2)
+                                );
+                                
+                                if (distance > 20) {
+                                    positions[i] = particles.userData.originalPositions[i];
+                                    positions[i + 1] = particles.userData.originalPositions[i + 1];
+                                    positions[i + 2] = particles.userData.originalPositions[i + 2];
+                                }
+                            }
+                            
+                            particles.geometry.attributes.position.needsUpdate = true;
+                        }
+                    });
+                }
+            }
+            
+            updateEnvironment(deltaTime) {
+                // Update debris
+                this.spaceObjects.debris.forEach(debris => {
+                    if (debris.userData.collected) return;
+                    
+                    // Apply rotation
+                    debris.rotation.x += debris.userData.rotationSpeed.x;
+                    debris.rotation.y += debris.userData.rotationSpeed.y;
+                    debris.rotation.z += debris.userData.rotationSpeed.z;
+                    
+                    // Apply velocity
+                    debris.position.add(debris.userData.velocity.clone().multiplyScalar(deltaTime));
+                    
+                    // Check if debris is too far away, respawn it
+                    const distance = debris.position.distanceTo(this.position);
+                    if (distance > 10000) {
+                        this.respawnDebris(debris);
+                    }
+                });
+                
+                // Update comets
+                this.spaceObjects.comets.forEach(comet => {
+                    // Update orbital position
+                    const params = comet.userData.orbitalParams;
+                    params.trueAnomaly += deltaTime / params.period * 2 * Math.PI;
+                    
+                    // Calculate new position
+                    const distance = params.semiMajorAxis * (1 - params.eccentricity * params.eccentricity) / 
+                                   (1 + params.eccentricity * Math.cos(params.trueAnomaly));
+                    
+                    const x = distance * (Math.cos(params.longitudeAscending) * Math.cos(params.argumentPeriapsis + params.trueAnomaly) -
+                                        Math.sin(params.longitudeAscending) * Math.sin(params.argumentPeriapsis + params.trueAnomaly) * Math.cos(params.inclination));
+                    const y = distance * (Math.sin(params.inclination) * Math.sin(params.argumentPeriapsis + params.trueAnomaly));
+                    const z = distance * (Math.sin(params.longitudeAscending) * Math.cos(params.argumentPeriapsis + params.trueAnomaly) +
+                                        Math.cos(params.longitudeAscending) * Math.sin(params.argumentPeriapsis + params.trueAnomaly) * Math.cos(params.inclination));
+                    
+                    comet.position.set(x, y, z);
+                    
+                    // Update tail orientation (always points away from sun)
+                    const sunPosition = new THREE.Vector3(10000, 5000, 10000);
+                    const tailDirection = comet.position.clone().sub(sunPosition).normalize();
+                    comet.userData.tailParticles.lookAt(sunPosition);
+                });
+                
+                // Update space station rotation
+                this.spaceObjects.stations.forEach(station => {
+                    station.rotation.y += station.userData.rotationSpeed * deltaTime * 60;
+                });
+            }
+            
+            respawnDebris(debris) {
+                // Respawn debris near spacecraft
+                const angle = Math.random() * Math.PI * 2;
+                const distance = 500 + Math.random() * 2000;
+                
+                debris.position.copy(this.position)
+                    .add(new THREE.Vector3(
+                        Math.cos(angle) * distance,
+                        (Math.random() - 0.5) * 1000,
+                        Math.sin(angle) * distance
+                    ));
+            }
+            
+            checkInteractions() {
+                // Check debris collection
+                this.spaceObjects.debris.forEach(debris => {
+                    if (debris.userData.collected) return;
+                    
+                    const distance = debris.position.distanceTo(this.position);
+                    if (distance < 20) { // Collection range
+                        this.collectDebris(debris);
+                    }
+                });
+                
+                // Check comet rendezvous
+                this.spaceObjects.comets.forEach(comet => {
+                    if (comet.userData.visited) return;
+                    
+                    const distance = comet.position.distanceTo(this.position);
+                    if (distance < 500) { // Rendezvous range
+                        this.visitComet(comet);
+                    }
+                });
+                
+                // Check station docking
+                this.spaceObjects.stations.forEach(station => {
+                    if (station.userData.isDocked) return;
+                    
+                    const distance = station.position.distanceTo(this.position);
+                    if (distance < 100) { // Docking approach range
+                        this.approachStation(station);
+                    }
+                });
+            }
+            
+            collectDebris(debris) {
+                debris.userData.collected = true;
+                this.gameState.debrisCollected++;
+                this.gameState.score += debris.userData.scoreValue;
+                
+                // Visual effect
+                debris.material.emissive.setHex(0x00ff00);
+                debris.material.transparent = true;
+                debris.material.opacity = 0.3;
+                
+                // Update objectives
+                if (this.gameState.debrisCollected >= 50 && !this.gameState.objectives.debrisCollection) {
+                    this.gameState.objectives.debrisCollection = true;
+                    this.completeObjective('obj4');
+                    this.showMessage("Objective completed: Collect space debris!");
+                }
+                
+                this.updateHUD();
+            }
+            
+            visitComet(comet) {
+                if (comet.userData.visited) return;
+                
+                comet.userData.visited = true;
+                this.gameState.cometsVisited++;
+                this.gameState.score += comet.userData.scoreValue;
+                
+                // Visual effect
+                comet.material.emissive.setHex(0xffff00);
+                comet.material.color.setHex(0xffffff);
+                
+                // Update objectives
+                if (this.gameState.cometsVisited >= 3 && !this.gameState.objectives.cometRendezvous) {
+                    this.gameState.objectives.cometRendezvous = true;
+                    this.completeObjective('obj2');
+                    this.showMessage("Objective completed: Rendezvous with comets!");
+                }
+                
+                this.updateHUD();
+            }
+            
+            approachStation(station) {
+                // Check if spacecraft is properly aligned for docking
+                const relativeVelocity = this.velocity.length();
+                const angularVelocity = this.angularVelocity.length();
+                
+                if (relativeVelocity < 5 && angularVelocity < 0.1) {
+                    // Successful docking
+                    station.userData.isDocked = true;
+                    this.gameState.dockingAttempts++;
+                    this.gameState.dockingSuccess++;
+                    this.gameState.score += 5000;
+                    
+                    // Update objectives
+                    if (!this.gameState.objectives.docking) {
+                        this.gameState.objectives.docking = true;
+                        this.completeObjective('obj3');
+                        this.showMessage("Docking successful! Perfect alignment.");
+                    } else {
+                        this.showMessage("Redocked with station.");
+                    }
+                    
+                    this.updateHUD();
+                } else {
+                    // Failed docking attempt
+                    this.gameState.dockingAttempts++;
+                    this.showMessage("Docking failed! Reduce velocity and rotation.");
+                }
+            }
+            
+            completeObjective(objectiveId) {
+                const objective = document.getElementById(objectiveId);
+                if (objective) {
+                    objective.classList.add('completed');
+                    objective.innerHTML = objective.innerHTML.replace('⏳', '✅');
+                }
+            }
+            
+            updateCamera(deltaTime) {
+                // Third-person chase camera
+                const cameraOffset = new THREE.Vector3(0, 30, -80);
+                
+                // Apply spacecraft rotation to camera offset
+                cameraOffset.applyEuler(this.spacecraft.rotation);
+                
+                // Calculate target camera position
+                const targetPosition = this.spacecraft.position.clone().add(cameraOffset);
+                
+                // Smooth camera movement
+                this.camera.position.lerp(targetPosition, 0.1);
+                this.camera.lookAt(this.spacecraft.position);
+            }
+            
+            updateHUD() {
+                // Update telemetry
+                this.dom.hudVelocity.textContent = this.velocity.length().toFixed(1) + ' m/s';
+                this.dom.hudAngular.textContent = this.angularVelocity.length().toFixed(2) + ' rad/s';
+                this.dom.hudPosition.textContent = 
+                    `${Math.round(this.position.x)}, ${Math.round(this.position.y)}, ${Math.round(this.position.z)}`;
+                this.dom.hudAttitude.textContent = 
+                    `${(this.rotation.x * 180/Math.PI).toFixed(1)}°, ` +
+                    `${(this.rotation.y * 180/Math.PI).toFixed(1)}°, ` +
+                    `${(this.rotation.z * 180/Math.PI).toFixed(1)}°`;
+                
+                // Update score display
+                this.dom.score.textContent = this.gameState.score.toLocaleString();
+                this.dom.distanceTraveled.textContent = 
+                    (this.gameState.distanceTraveled / 1000).toFixed(1) + ' km';
+                
+                // Format mission time
+                const minutes = Math.floor(this.gameState.missionTime / 60);
+                const seconds = this.gameState.missionTime % 60;
+                this.dom.missionTime.textContent = 
+                    `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                
+                // Update mission panel
+                this.dom.debrisCollected.textContent = 
+                    `${this.gameState.debrisCollected}/50`;
+                this.dom.cometsVisited.textContent = 
+                    `${this.gameState.cometsVisited}/3`;
+                
+                if (this.gameState.dockingAttempts > 0) {
+                    const successRate = (this.gameState.dockingSuccess / this.gameState.dockingAttempts) * 100;
+                    this.dom.dockingSuccess.textContent = successRate.toFixed(1) + '%';
+                }
+                
+                // Calculate fuel efficiency
+                const distancePerFuel = this.gameState.distanceTraveled / 
+                    (this.fuelSystems.main.maxMass - this.fuelSystems.main.mass);
+                const efficiency = Math.min(100, distancePerFuel / 10 * 100);
+                this.dom.fuelEfficiency.textContent = efficiency.toFixed(1) + '%';
+                
+                // Update RCS thrust display
+                this.dom.rcsThrustDisplay.textContent = 
+                    this.fuelSystems.rcs.thrust.toFixed(0) + ' N';
+                this.dom.pulseDurationDisplay.textContent = 
+                    (this.fuelSystems.rcs.pulseDuration * 1000).toFixed(0) + 'ms';
+                
+                // Check escape velocity objective
+                if (this.velocity.length() > 11200 && !this.gameState.objectives.escapeVelocity) {
+                    this.gameState.objectives.escapeVelocity = true;
+                    this.completeObjective('obj5');
+                    this.showMessage("Escape velocity achieved! You've left Earth's gravity well.");
+                }
+            }
+            
+            showMessage(text) {
+                this.dom.messageText.textContent = text;
+                this.dom.messageText.style.opacity = 1;
+                
+                // Clear previous timeout
+                if (this.messageTimeout) {
+                    clearTimeout(this.messageTimeout);
+                }
+                
+                // Hide message after 5 seconds
+                this.messageTimeout = setTimeout(() => {
+                    this.dom.messageText.style.opacity = 0;
+                }, 5000);
+            }
+            
+            onWindowResize() {
+                const width = window.innerWidth - 450;
+                const height = window.innerHeight;
+                
+                this.camera.aspect = width / height;
+                this.camera.updateProjectionMatrix();
+                this.renderer.setSize(width, height);
+            }
+            
+            animate(time = 0) {
+                requestAnimationFrame((t) => this.animate(t));
+                
+                // Calculate delta time
+                if (!this.lastFrameTime) this.lastFrameTime = time;
+                const deltaTime = Math.min((time - this.lastFrameTime) / 1000, 0.1);
+                this.lastFrameTime = time;
+                
+                // Update physics and game state
+                this.updatePhysics(deltaTime);
+                
+                // Update HUD
+                if (this.gameState.isMissionActive && !this.gameState.isPaused) {
+                    this.updateHUD();
+                }
+                
+                // Render scene
+                this.renderer.render(this.scene, this.camera);
+            }
+        }
+        
+        // Start the simulator
+        const simulator = new AdvancedSpaceSimulator();
+    </script>
+</body>
+</html>

@@ -1,0 +1,747 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl" x-data="calendarApp()" x-init="init()">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تقویم فارسی پیشرفته - مدیریت کامل رویدادها و یادداشت‌ها</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.0.0/css/all.min.css">
+    <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css" rel="stylesheet">
+    <style>
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .glass-effect {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .text-shadow {
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        .hover-lift:hover {
+            transform: translateY(-5px);
+            transition: all 0.3s ease;
+        }
+        .drawing-canvas {
+            touch-action: none;
+            cursor: crosshair;
+        }
+        .note-sticker {
+            background: linear-gradient(135deg, #ffeb3b 0%, #fbc02d 100%);
+            transform: rotate(-1deg);
+            box-shadow: 5px 5px 15px rgba(0,0,0,0.1);
+        }
+        .note-sticker:nth-child(even) {
+            transform: rotate(1deg);
+            background: linear-gradient(135deg, #4fc3f7 0%, #29b6f6 100%);
+        }
+    </style>
+</head>
+<body class="font-vazir bg-gray-900 text-white min-h-screen">
+    <!-- نوار وضعیت -->
+    <div class="fixed top-0 left-0 right-0 z-50 glass-effect px-4 py-2 flex justify-between items-center">
+        <div class="text-sm font-bold" x-text="liveTime"></div>
+        <div class="flex items-center space-x-3 space-x-reverse text-sm">
+            <i class="fas fa-wifi"></i>
+            <i class="fas fa-signal"></i>
+            <i class="fas fa-battery-half"></i>
+        </div>
+    </div>
+
+    <!-- محتوای اصلی -->
+    <div class="pt-16 pb-24 px-4 max-w-7xl mx-auto">
+        <!-- هدر -->
+        <div class="text-center mb-8">
+            <h1 class="text-3xl font-bold text-shadow mb-2">تقویم فارسی پیشرفته</h1>
+            <div class="flex justify-center items-center space-x-4 space-x-reverse text-lg">
+                <div x-text="hijriDate" class="text-gray-300"></div>
+                <div class="bg-blue-500 px-4 py-2 rounded-full font-mono" x-text="digitalClock"></div>
+            </div>
+        </div>
+
+        <!-- ویجت‌های اصلی -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <!-- ویجت تقویم -->
+            <div class="glass-effect rounded-2xl p-6 col-span-2">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-xl font-bold">تقویم</h2>
+                    <div class="flex items-center space-x-2 space-x-reverse">
+                        <button @click="changeMonth(-1)" class="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center hover:bg-white/30">
+                            <i class="fas fa-chevron-right"></i>
+                        </button>
+                        <span class="text-lg font-bold mx-2" x-text="`${monthNames[currentMonth-1]} ${currentYear}`"></span>
+                        <button @click="changeMonth(1)" class="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center hover:bg-white/30">
+                            <i class="fas fa-chevron-left"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-7 gap-1 mb-2">
+                    <template x-for="day in weekDays">
+                        <div class="text-center text-sm text-gray-400 py-2" x-text="day"></div>
+                    </template>
+                </div>
+                
+                <div class="grid grid-cols-7 gap-1">
+                    <template x-for="day in calendarDays">
+                        <div 
+                            @click="selectDate(day)"
+                            :class="{
+                                'bg-blue-500 text-white': day.isToday,
+                                'bg-white/10': !day.isToday && day.isCurrentMonth,
+                                'bg-white/5 text-gray-500': !day.isCurrentMonth,
+                                'border-2 border-green-400': selectedDate && selectedDate.day === day.day && day.isCurrentMonth
+                            }"
+                            class="aspect-square rounded-lg flex flex-col items-center justify-center cursor-pointer transition-all duration-200 hover:bg-white/20 relative"
+                        >
+                            <span x-text="day.day || ''" class="text-sm"></span>
+                            <div class="flex space-x-1 absolute bottom-1">
+                                <template x-for="event in getDayEvents(day)">
+                                    <div class="w-1 h-1 rounded-full bg-red-400"></div>
+                                </template>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+            <!-- ویجت رویدادهای امروز -->
+            <div class="glass-effect rounded-2xl p-6">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-xl font-bold">رویدادهای امروز</h2>
+                    <span class="text-sm text-gray-400" x-text="`${getTodayEvents().length} رویداد`"></span>
+                </div>
+                <div class="space-y-3 max-h-80 overflow-y-auto">
+                    <template x-for="event in getTodayEvents()" :key="event.id">
+                        <div 
+                            class="bg-white/10 rounded-xl p-4 border-r-4 transition-all duration-200 hover:bg-white/15 cursor-pointer"
+                            :class="{
+                                'border-red-400': event.priority === 'high',
+                                'border-yellow-400': event.priority === 'medium',
+                                'border-green-400': event.priority === 'low'
+                            }"
+                            @click="editEvent(event)"
+                        >
+                            <div class="flex justify-between items-start mb-2">
+                                <h3 class="font-bold" x-text="event.title"></h3>
+                                <button @click.stop="deleteEvent(event.id)" class="text-red-400 hover:text-red-300">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                            <div class="text-sm text-gray-300 flex items-center space-x-2 space-x-reverse">
+                                <i class="fas fa-clock"></i>
+                                <span x-text="event.time || 'تمام روز'"></span>
+                            </div>
+                        </div>
+                    </template>
+                    <div x-show="getTodayEvents().length === 0" class="text-center text-gray-400 py-8">
+                        <i class="fas fa-calendar-plus text-3xl mb-2"></i>
+                        <p>هیچ رویدادی برای امروز نیست</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ویجت یادآور -->
+            <div class="glass-effect rounded-2xl p-6">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-xl font-bold">یادآورها</h2>
+                    <button @click="showReminderModal = true" class="w-8 h-8 rounded-full bg-green-500 flex items-center justify-center hover:bg-green-600">
+                        <i class="fas fa-plus"></i>
+                    </button>
+                </div>
+                <div class="space-y-3 max-h-80 overflow-y-auto">
+                    <template x-for="reminder in reminders" :key="reminder.id">
+                        <div class="bg-white/10 rounded-xl p-4 border-r-4 border-yellow-400">
+                            <div class="flex justify-between items-start mb-2">
+                                <h3 class="font-bold" x-text="reminder.title"></h3>
+                                <button @click="deleteReminder(reminder.id)" class="text-red-400 hover:text-red-300">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                            <div class="text-sm text-gray-300 flex items-center justify-between">
+                                <div class="flex items-center space-x-2 space-x-reverse">
+                                    <i class="fas fa-clock"></i>
+                                    <span x-text="reminder.time"></span>
+                                </div>
+                                <span x-text="reminder.date" class="text-xs bg-white/20 px-2 py-1 rounded"></span>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </div>
+
+        <!-- بخش یادداشت‌ها -->
+        <div class="glass-effect rounded-2xl p-6 mb-8">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold">دفتر یادداشت</h2>
+                <div class="flex space-x-3 space-x-reverse">
+                    <button @click="showNoteModal = true" class="bg-green-500 px-4 py-2 rounded-lg hover:bg-green-600 transition-colors">
+                        <i class="fas fa-plus ml-2"></i>
+                        یادداشت جدید
+                    </button>
+                    <button @click="showDrawingModal = true" class="bg-purple-500 px-4 py-2 rounded-lg hover:bg-purple-600 transition-colors">
+                        <i class="fas fa-paint-brush ml-2"></i>
+                        ترسیم جدید
+                    </button>
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                <template x-for="note in notes" :key="note.id">
+                    <div class="note-sticker rounded-xl p-4 relative group">
+                        <div class="absolute top-2 left-2 opacity-0 group-hover:opacity-100 transition-opacity space-x-2">
+                            <button @click="editNote(note)" class="w-6 h-6 bg-blue-500 rounded text-white text-xs">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button @click="deleteNote(note.id)" class="w-6 h-6 bg-red-500 rounded text-white text-xs">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                        <h3 class="font-bold text-lg mb-2" x-text="note.title"></h3>
+                        <p class="text-gray-700 text-sm" x-text="note.content"></p>
+                        <div class="text-xs text-gray-500 mt-3" x-text="note.date"></div>
+                    </div>
+                </template>
+            </div>
+        </div>
+
+        <!-- ویجت‌های اضافی -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <!-- ویجت آب و هوا -->
+            <div class="glass-effect rounded-2xl p-6">
+                <h3 class="text-lg font-bold mb-4">وضعیت هوا</h3>
+                <div class="text-center">
+                    <i class="fas fa-sun text-4xl text-yellow-400 mb-2"></i>
+                    <div class="text-2xl font-bold">۲۴°C</div>
+                    <div class="text-gray-400">تهران - آفتابی</div>
+                </div>
+            </div>
+
+            <!-- ویجت تنظیمات سریع -->
+            <div class="glass-effect rounded-2xl p-6">
+                <h3 class="text-lg font-bold mb-4">تنظیمات</h3>
+                <div class="space-y-3">
+                    <div class="flex justify-between items-center">
+                        <span>تم تاریک</span>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" class="sr-only peer" checked>
+                            <div class="w-11 h-6 bg-gray-700 peer-focus:ring-4 peer-focus:ring-blue-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:right-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                        </label>
+                    </div>
+                    <div class="flex justify-between items-center">
+                        <span>اعلان‌ها</span>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" class="sr-only peer" checked>
+                            <div class="w-11 h-6 bg-gray-700 peer-focus:ring-4 peer-focus:ring-blue-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:right-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ویجت آمار -->
+            <div class="glass-effect rounded-2xl p-6">
+                <h3 class="text-lg font-bold mb-4">آمار ماه</h3>
+                <div class="space-y-3">
+                    <div class="flex justify-between">
+                        <span>رویدادها</span>
+                        <span class="text-green-400" x-text="getMonthEventsCount()"></span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span>یادداشت‌ها</span>
+                        <span class="text-blue-400" x-text="notes.length"></span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span>یادآورها</span>
+                        <span class="text-yellow-400" x-text="reminders.length"></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- نوار پایین -->
+    <div class="fixed bottom-0 left-0 right-0 glass-effect border-t border-white/20">
+        <div class="flex justify-around items-center py-3">
+            <button 
+                @click="activeTab = 'calendar'"
+                :class="{'text-blue-400': activeTab === 'calendar'}"
+                class="flex flex-col items-center space-y-1 transition-colors"
+            >
+                <i class="fas fa-calendar text-lg"></i>
+                <span class="text-xs">تقویم</span>
+            </button>
+            <button 
+                @click="activeTab = 'events'"
+                :class="{'text-blue-400': activeTab === 'events'}"
+                class="flex flex-col items-center space-y-1 transition-colors"
+            >
+                <i class="fas fa-bell text-lg"></i>
+                <span class="text-xs">رویدادها</span>
+            </button>
+            <button 
+                @click="activeTab = 'notes'"
+                :class="{'text-blue-400': activeTab === 'notes'}"
+                class="flex flex-col items-center space-y-1 transition-colors"
+            >
+                <i class="fas fa-sticky-note text-lg"></i>
+                <span class="text-xs">یادداشت</span>
+            </button>
+            <button 
+                @click="activeTab = 'settings'"
+                :class="{'text-blue-400': activeTab === 'settings'}"
+                class="flex flex-col items-center space-y-1 transition-colors"
+            >
+                <i class="fas fa-cog text-lg"></i>
+                <span class="text-xs">تنظیمات</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- مودال رویداد -->
+    <div x-show="showEventModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div class="bg-gray-800 rounded-2xl w-full max-w-md p-6">
+            <h3 class="text-xl font-bold mb-4" x-text="editingEvent ? 'ویرایش رویداد' : 'رویداد جدید'"></h3>
+            <form @submit.prevent="saveEvent">
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-2">عنوان رویداد</label>
+                        <input type="text" x-model="eventForm.title" class="w-full bg-gray-700 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-2">تاریخ</label>
+                        <input type="text" x-model="eventForm.date" class="w-full bg-gray-700 rounded-lg px-4 py-2" readonly>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-2">زمان</label>
+                        <input type="time" x-model="eventForm.time" class="w-full bg-gray-700 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-2">اولویت</label>
+                        <select x-model="eventForm.priority" class="w-full bg-gray-700 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="low">کم</option>
+                            <option value="medium">متوسط</option>
+                            <option value="high">بالا</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-2">توضیحات</label>
+                        <textarea x-model="eventForm.description" rows="3" class="w-full bg-gray-700 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                    </div>
+                </div>
+                <div class="flex space-x-3 space-x-reverse mt-6">
+                    <button type="button" @click="showEventModal = false" class="flex-1 bg-gray-600 py-2 rounded-lg hover:bg-gray-700 transition-colors">انصراف</button>
+                    <button type="submit" class="flex-1 bg-blue-500 py-2 rounded-lg hover:bg-blue-600 transition-colors">ذخیره</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- مودال یادداشت -->
+    <div x-show="showNoteModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div class="bg-gray-800 rounded-2xl w-full max-w-2xl p-6">
+            <h3 class="text-xl font-bold mb-4" x-text="editingNote ? 'ویرایش یادداشت' : 'یادداشت جدید'"></h3>
+            <form @submit.prevent="saveNote">
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-2">عنوان</label>
+                        <input type="text" x-model="noteForm.title" class="w-full bg-gray-700 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-2">محتوای یادداشت</label>
+                        <textarea x-model="noteForm.content" rows="8" class="w-full bg-gray-700 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-2">رنگ زمینه</label>
+                        <div class="flex space-x-2 space-x-reverse">
+                            <template x-for="color in noteColors">
+                                <button 
+                                    type="button"
+                                    @click="noteForm.color = color"
+                                    :class="{'ring-2 ring-white': noteForm.color === color}"
+                                    class="w-8 h-8 rounded-full"
+                                    :style="`background: ${color}`"
+                                ></button>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex space-x-3 space-x-reverse mt-6">
+                    <button type="button" @click="showNoteModal = false" class="flex-1 bg-gray-600 py-2 rounded-lg hover:bg-gray-700 transition-colors">انصراف</button>
+                    <button type="submit" class="flex-1 bg-green-500 py-2 rounded-lg hover:bg-green-600 transition-colors">ذخیره</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- مودال ترسیم -->
+    <div x-show="showDrawingModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div class="bg-gray-800 rounded-2xl w-full max-w-4xl p-6">
+            <h3 class="text-xl font-bold mb-4">برداشت و ترسیم</h3>
+            <div class="bg-white rounded-lg p-4 mb-4">
+                <canvas 
+                    x-ref="drawingCanvas"
+                    @mousedown="startDrawing"
+                    @mousemove="draw"
+                    @mouseup="stopDrawing"
+                    @touchstart="startDrawing"
+                    @touchmove="draw"
+                    @touchend="stopDrawing"
+                    class="drawing-canvas w-full h-96 bg-white rounded border-2 border-gray-300"
+                ></canvas>
+            </div>
+            <div class="flex justify-between items-center mb-4">
+                <div class="flex space-x-2 space-x-reverse">
+                    <button 
+                        @click="drawingColor = '#000000'"
+                        :class="{'ring-2 ring-blue-500': drawingColor === '#000000'}"
+                        class="w-8 h-8 rounded-full bg-black border border-gray-300"
+                    ></button>
+                    <button 
+                        @click="drawingColor = '#ff0000'"
+                        :class="{'ring-2 ring-blue-500': drawingColor === '#ff0000'}"
+                        class="w-8 h-8 rounded-full bg-red-500"
+                    ></button>
+                    <button 
+                        @click="drawingColor = '#0000ff'"
+                        :class="{'ring-2 ring-blue-500': drawingColor === '#0000ff'}"
+                        class="w-8 h-8 rounded-full bg-blue-500"
+                    ></button>
+                    <button 
+                        @click="drawingColor = '#00ff00'"
+                        :class="{'ring-2 ring-blue-500': drawingColor === '#00ff00'}"
+                        class="w-8 h-8 rounded-full bg-green-500"
+                    ></button>
+                </div>
+                <div class="flex space-x-2 space-x-reverse">
+                    <button @click="clearCanvas" class="bg-red-500 px-4 py-2 rounded-lg hover:bg-red-600 transition-colors">
+                        پاک کردن
+                    </button>
+                    <button @click="saveDrawing" class="bg-green-500 px-4 py-2 rounded-lg hover:bg-green-600 transition-colors">
+                        ذخیره ترسیم
+                    </button>
+                </div>
+            </div>
+            <button @click="showDrawingModal = false" class="w-full bg-gray-600 py-2 rounded-lg hover:bg-gray-700 transition-colors">بستن</button>
+        </div>
+    </div>
+
+    <script>
+        function calendarApp() {
+            return {
+                // داده‌های اصلی
+                activeTab: 'calendar',
+                currentYear: 1403,
+                currentMonth: 1,
+                selectedDate: null,
+                liveTime: '',
+                digitalClock: '',
+                hijriDate: '',
+                
+                // حالت‌های مودال
+                showEventModal: false,
+                showNoteModal: false,
+                showDrawingModal: false,
+                showReminderModal: false,
+                
+                // فرم‌ها
+                eventForm: {
+                    id: null,
+                    title: '',
+                    date: '',
+                    time: '',
+                    priority: 'medium',
+                    description: ''
+                },
+                noteForm: {
+                    id: null,
+                    title: '',
+                    content: '',
+                    color: '#ffeb3b'
+                },
+                drawingColor: '#000000',
+                isDrawing: false,
+                
+                // داده‌های نمونه
+                weekDays: ['ش', 'ی', 'د', 'س', 'چ', 'پ', 'ج'],
+                monthNames: ['فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور', 'مهر', 'آبان', 'آذر', 'دی', 'بهمن', 'اسفند'],
+                noteColors: ['#ffeb3b', '#4fc3f7', '#a5d6a7', '#f48fb1', '#ce93d8'],
+                
+                events: [],
+                notes: [],
+                reminders: [],
+                drawings: [],
+                
+                init() {
+                    this.loadData();
+                    this.updateTime();
+                    setInterval(() => this.updateTime(), 1000);
+                    this.setupDrawingCanvas();
+                },
+                
+                updateTime() {
+                    const now = new Date();
+                    this.liveTime = now.toLocaleTimeString('fa-IR');
+                    this.digitalClock = now.toLocaleTimeString('fa-IR');
+                    this.hijriDate = now.toLocaleDateString('fa-IR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+                },
+                
+                loadData() {
+                    // بارگذاری داده‌ها از localStorage
+                    this.events = JSON.parse(localStorage.getItem('events')) || [];
+                    this.notes = JSON.parse(localStorage.getItem('notes')) || [];
+                    this.reminders = JSON.parse(localStorage.getItem('reminders')) || [];
+                },
+                
+                saveData() {
+                    // ذخیره داده‌ها در localStorage
+                    localStorage.setItem('events', JSON.stringify(this.events));
+                    localStorage.setItem('notes', JSON.stringify(this.notes));
+                    localStorage.setItem('reminders', JSON.stringify(this.reminders));
+                },
+                
+                // مدیریت تقویم
+                get calendarDays() {
+                    const days = [];
+                    const daysInMonth = this.getDaysInMonth(this.currentYear, this.currentMonth);
+                    const firstDay = this.getFirstDayOfWeek(this.currentYear, this.currentMonth);
+                    
+                    // روزهای خالی ابتدای ماه
+                    for (let i = 0; i < firstDay; i++) {
+                        days.push({ day: 0, isCurrentMonth: false, isToday: false });
+                    }
+                    
+                    // روزهای ماه
+                    const today = this.getToday();
+                    for (let day = 1; day <= daysInMonth; day++) {
+                        const isToday = today.year === this.currentYear && 
+                                       today.month === this.currentMonth && 
+                                       today.day === day;
+                        days.push({ 
+                            day, 
+                            isCurrentMonth: true, 
+                            isToday 
+                        });
+                    }
+                    return days;
+                },
+                
+                getDaysInMonth(year, month) {
+                    if (month <= 6) return 31;
+                    if (month <= 11) return 30;
+                    return this.isLeapYear(year) ? 30 : 29;
+                },
+                
+                getFirstDayOfWeek(year, month) {
+                    return (year + month) % 7;
+                },
+                
+                isLeapYear(year) {
+                    const leapYears = [1, 5, 9, 13, 17, 22, 26, 30];
+                    return leapYears.includes(year % 33);
+                },
+                
+                getToday() {
+                    return { year: 1403, month: 1, day: 15 };
+                },
+                
+                changeMonth(delta) {
+                    this.currentMonth += delta;
+                    if (this.currentMonth > 12) {
+                        this.currentMonth = 1;
+                        this.currentYear++;
+                    } else if (this.currentMonth < 1) {
+                        this.currentMonth = 12;
+                        this.currentYear--;
+                    }
+                },
+                
+                selectDate(day) {
+                    if (day.isCurrentMonth && day.day > 0) {
+                        this.selectedDate = day;
+                        this.eventForm.date = `${this.currentYear}/${this.currentMonth}/${day.day} - ${this.monthNames[this.currentMonth-1]}`;
+                        this.showEventModal = true;
+                        this.editingEvent = null;
+                    }
+                },
+                
+                // مدیریت رویدادها
+                getDayEvents(day) {
+                    if (!day.isCurrentMonth || day.day === 0) return [];
+                    return this.events.filter(event => 
+                        event.year === this.currentYear && 
+                        event.month === this.currentMonth && 
+                        event.day === day.day
+                    );
+                },
+                
+                getTodayEvents() {
+                    const today = this.getToday();
+                    return this.events.filter(event =>
+                        event.year === today.year &&
+                        event.month === today.month &&
+                        event.day === today.day
+                    );
+                },
+                
+                getMonthEventsCount() {
+                    return this.events.filter(event =>
+                        event.year === this.currentYear &&
+                        event.month === this.currentMonth
+                    ).length;
+                },
+                
+                saveEvent() {
+                    if (this.editingEvent) {
+                        // ویرایش رویداد موجود
+                        const index = this.events.findIndex(e => e.id === this.editingEvent.id);
+                        this.events[index] = { ...this.eventForm };
+                    } else {
+                        // افزودن رویداد جدید
+                        const event = {
+                            id: Date.now().toString(),
+                            year: this.currentYear,
+                            month: this.currentMonth,
+                            day: this.selectedDate.day,
+                            ...this.eventForm
+                        };
+                        this.events.push(event);
+                    }
+                    
+                    this.saveData();
+                    this.showEventModal = false;
+                    this.resetEventForm();
+                },
+                
+                editEvent(event) {
+                    this.editingEvent = event;
+                    this.eventForm = { ...event };
+                    this.showEventModal = true;
+                },
+                
+                deleteEvent(id) {
+                    this.events = this.events.filter(event => event.id !== id);
+                    this.saveData();
+                },
+                
+                resetEventForm() {
+                    this.eventForm = {
+                        id: null,
+                        title: '',
+                        date: '',
+                        time: '',
+                        priority: 'medium',
+                        description: ''
+                    };
+                    this.editingEvent = null;
+                },
+                
+                // مدیریت یادداشت‌ها
+                saveNote() {
+                    if (this.editingNote) {
+                        const index = this.notes.findIndex(n => n.id === this.editingNote.id);
+                        this.notes[index] = { 
+                            ...this.noteForm,
+                            date: new Date().toLocaleDateString('fa-IR')
+                        };
+                    } else {
+                        const note = {
+                            id: Date.now().toString(),
+                            date: new Date().toLocaleDateString('fa-IR'),
+                            ...this.noteForm
+                        };
+                        this.notes.push(note);
+                    }
+                    
+                    this.saveData();
+                    this.showNoteModal = false;
+                    this.resetNoteForm();
+                },
+                
+                editNote(note) {
+                    this.editingNote = note;
+                    this.noteForm = { ...note };
+                    this.showNoteModal = true;
+                },
+                
+                deleteNote(id) {
+                    this.notes = this.notes.filter(note => note.id !== id);
+                    this.saveData();
+                },
+                
+                resetNoteForm() {
+                    this.noteForm = {
+                        id: null,
+                        title: '',
+                        content: '',
+                        color: '#ffeb3b'
+                    };
+                    this.editingNote = null;
+                },
+                
+                // مدیریت ترسیم
+                setupDrawingCanvas() {
+                    this.$nextTick(() => {
+                        const canvas = this.$refs.drawingCanvas;
+                        this.ctx = canvas.getContext('2d');
+                        canvas.width = canvas.offsetWidth;
+                        canvas.height = canvas.offsetHeight;
+                        this.ctx.lineWidth = 3;
+                        this.ctx.lineCap = 'round';
+                    });
+                },
+                
+                startDrawing(e) {
+                    this.isDrawing = true;
+                    this.ctx.strokeStyle = this.drawingColor;
+                    const rect = this.$refs.drawingCanvas.getBoundingClientRect();
+                    const x = (e.clientX || e.touches[0].clientX) - rect.left;
+                    const y = (e.clientY || e.touches[0].clientY) - rect.top;
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(x, y);
+                },
+                
+                draw(e) {
+                    if (!this.isDrawing) return;
+                    e.preventDefault();
+                    const rect = this.$refs.drawingCanvas.getBoundingClientRect();
+                    const x = (e.clientX || e.touches[0].clientX) - rect.left;
+                    const y = (e.clientY || e.touches[0].clientY) - rect.top;
+                    this.ctx.lineTo(x, y);
+                    this.ctx.stroke();
+                },
+                
+                stopDrawing() {
+                    this.isDrawing = false;
+                },
+                
+                clearCanvas() {
+                    const canvas = this.$refs.drawingCanvas;
+                    this.ctx.clearRect(0, 0, canvas.width, canvas.height);
+                },
+                
+                saveDrawing() {
+                    const canvas = this.$refs.drawingCanvas;
+                    const dataURL = canvas.toDataURL('image/png');
+                    this.drawings.push({
+                        id: Date.now().toString(),
+                        data: dataURL,
+                        date: new Date().toLocaleDateString('fa-IR')
+                    });
+                    localStorage.setItem('drawings', JSON.stringify(this.drawings));
+                    this.showDrawingModal = false;
+                    this.clearCanvas();
+                },
+                
+                // مدیریت یادآورها
+                deleteReminder(id) {
+                    this.reminders = this.reminders.filter(reminder => reminder.id !== id);
+                    this.saveData();
+                }
+            }
+        }
+    </script>
+</body>
+</html>

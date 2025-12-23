@@ -1,0 +1,1866 @@
+<!DOCTYPE html>
+<html lang="en" x-data="advancedOrbitalSimulator()" x-cloak>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Professional Orbital Mechanics Simulator</title>
+    <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <style>
+        [x-cloak] { display: none !important; }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', 'Consolas', monospace;
+            background: radial-gradient(ellipse at center, #0a0a1a 0%, #000000 100%);
+            color: #e0f0ff;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        
+        .container {
+            max-width: 1800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            text-align: center;
+            padding: 25px 0;
+            margin-bottom: 30px;
+            background: linear-gradient(90deg, 
+                rgba(20, 30, 48, 0.9) 0%, 
+                rgba(36, 59, 85, 0.9) 100%);
+            border-radius: 15px;
+            border: 1px solid #3a5a80;
+            box-shadow: 0 0 30px rgba(64, 156, 255, 0.3);
+        }
+        
+        h1 {
+            font-size: 2.8rem;
+            background: linear-gradient(90deg, #40c9ff, #4cc9f0, #e81cff);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            margin-bottom: 10px;
+            text-shadow: 0 0 20px rgba(76, 201, 240, 0.5);
+            letter-spacing: 1px;
+        }
+        
+        .subtitle {
+            color: #88ccff;
+            font-size: 1.3rem;
+            font-weight: 300;
+        }
+        
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 450px;
+            gap: 30px;
+            margin-top: 20px;
+        }
+        
+        .simulation-area {
+            display: grid;
+            grid-template-rows: auto 1fr;
+            gap: 20px;
+        }
+        
+        .canvas-container {
+            position: relative;
+            width: 100%;
+            height: 700px;
+            background: #000814;
+            border-radius: 15px;
+            overflow: hidden;
+            border: 2px solid #1e3a5f;
+            box-shadow: 0 0 40px rgba(0, 100, 255, 0.2);
+        }
+        
+        #orbitCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+        
+        .overlay-info {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            display: flex;
+            justify-content: space-between;
+            pointer-events: none;
+        }
+        
+        .info-card {
+            background: rgba(10, 20, 40, 0.85);
+            backdrop-filter: blur(10px);
+            padding: 15px 20px;
+            border-radius: 10px;
+            border: 1px solid #3a5a80;
+            min-width: 200px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+        }
+        
+        .info-title {
+            color: #4cc9f0;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 5px;
+        }
+        
+        .info-value {
+            font-size: 1.4rem;
+            font-weight: bold;
+            color: #ffffff;
+            text-shadow: 0 0 10px currentColor;
+        }
+        
+        .telemetry-panel {
+            background: rgba(20, 30, 48, 0.9);
+            border-radius: 15px;
+            padding: 25px;
+            border: 1px solid #3a5a80;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            display: flex;
+            flex-direction: column;
+            gap: 25px;
+            backdrop-filter: blur(5px);
+        }
+        
+        .panel-section {
+            background: rgba(15, 25, 45, 0.8);
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid #2a4a70;
+        }
+        
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #3a5a80;
+        }
+        
+        h2 {
+            color: #4cc9f0;
+            font-size: 1.5rem;
+            margin: 0;
+        }
+        
+        h3 {
+            color: #72efdd;
+            font-size: 1.2rem;
+            margin: 15px 0 10px 0;
+        }
+        
+        .control-group {
+            margin: 20px 0;
+        }
+        
+        .slider-container {
+            margin: 15px 0;
+        }
+        
+        .slider-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+        
+        .slider-label {
+            color: #a0d2ff;
+            font-weight: 500;
+        }
+        
+        .slider-value {
+            color: #4cc9f0;
+            font-weight: bold;
+            font-family: 'Consolas', monospace;
+        }
+        
+        input[type="range"] {
+            width: 100%;
+            height: 10px;
+            border-radius: 5px;
+            background: linear-gradient(90deg, #1a3a5f, #2a5a8f);
+            outline: none;
+            -webkit-appearance: none;
+            transition: all 0.3s;
+        }
+        
+        input[type="range"]:hover {
+            background: linear-gradient(90deg, #2a4a7f, #3a6aaf);
+        }
+        
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #4cc9f0, #40c9ff);
+            cursor: pointer;
+            border: 2px solid #1a3a5f;
+            box-shadow: 0 0 10px rgba(76, 201, 240, 0.8);
+            transition: all 0.2s;
+        }
+        
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.1);
+            box-shadow: 0 0 15px rgba(76, 201, 240, 1);
+        }
+        
+        .button-group {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin-top: 20px;
+        }
+        
+        button {
+            padding: 14px 20px;
+            background: linear-gradient(135deg, #1a3a5f 0%, #2a5a8f 100%);
+            color: #e0f0ff;
+            border: none;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 1px solid #3a6a9f;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        button:before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+            transition: 0.5s;
+        }
+        
+        button:hover:before {
+            left: 100%;
+        }
+        
+        button:hover {
+            background: linear-gradient(135deg, #2a4a7f 0%, #3a6aaf 100%);
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(64, 156, 255, 0.3);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        .primary-btn {
+            background: linear-gradient(135deg, #ff2d75 0%, #e81cff 100%);
+            border-color: #ff4d9e;
+        }
+        
+        .primary-btn:hover {
+            background: linear-gradient(135deg, #ff4d9e 0%, #ff2dff 100%);
+            box-shadow: 0 8px 20px rgba(255, 45, 117, 0.4);
+        }
+        
+        .danger-btn {
+            background: linear-gradient(135deg, #ff416c 0%, #ff4b2b 100%);
+            border-color: #ff6b8b;
+        }
+        
+        .danger-btn:hover {
+            background: linear-gradient(135deg, #ff6b8b 0%, #ff6b52 100%);
+            box-shadow: 0 8px 20px rgba(255, 65, 108, 0.4);
+        }
+        
+        .telemetry-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-top: 15px;
+        }
+        
+        .telemetry-box {
+            background: rgba(25, 40, 65, 0.7);
+            padding: 15px;
+            border-radius: 10px;
+            border: 1px solid #3a5a80;
+            transition: all 0.3s;
+        }
+        
+        .telemetry-box:hover {
+            border-color: #4cc9f0;
+            transform: translateY(-2px);
+        }
+        
+        .telemetry-value {
+            font-size: 1.6rem;
+            font-weight: bold;
+            color: #4cc9f0;
+            margin: 5px 0;
+            font-family: 'Consolas', monospace;
+            text-shadow: 0 0 10px rgba(76, 201, 240, 0.5);
+        }
+        
+        .telemetry-label {
+            font-size: 0.9rem;
+            color: #88ccff;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .warning {
+            background: linear-gradient(135deg, rgba(255, 158, 0, 0.1), rgba(255, 100, 0, 0.05));
+            border: 1px solid #ff9e00;
+            color: #ffcc00;
+            padding: 12px;
+            border-radius: 8px;
+            margin-top: 15px;
+            animation: pulse 2s infinite;
+        }
+        
+        .success {
+            background: linear-gradient(135deg, rgba(74, 222, 128, 0.1), rgba(34, 197, 94, 0.05));
+            border: 1px solid #4ade80;
+            color: #80ffaa;
+            padding: 12px;
+            border-radius: 8px;
+            margin-top: 15px;
+            animation: success-pulse 1.5s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 0 5px rgba(255, 158, 0, 0.5); }
+            50% { box-shadow: 0 0 20px rgba(255, 158, 0, 0.8); }
+        }
+        
+        @keyframes success-pulse {
+            0%, 100% { box-shadow: 0 0 5px rgba(74, 222, 128, 0.5); }
+            50% { box-shadow: 0 0 20px rgba(74, 222, 128, 0.8); }
+        }
+        
+        .attitude-indicator {
+            position: relative;
+            width: 200px;
+            height: 200px;
+            margin: 20px auto;
+            background: rgba(10, 20, 40, 0.8);
+            border-radius: 50%;
+            border: 2px solid #3a5a80;
+        }
+        
+        .attitude-inner {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            right: 10px;
+            bottom: 10px;
+            border-radius: 50%;
+            border: 2px solid #4cc9f0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            color: #4cc9f0;
+        }
+        
+        .jet-controls {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        .jet-btn {
+            padding: 12px 5px;
+            font-size: 1.3rem;
+        }
+        
+        .trajectory-panel {
+            background: rgba(20, 30, 48, 0.9);
+            border-radius: 15px;
+            padding: 20px;
+            margin-top: 20px;
+            border: 1px solid #3a5a80;
+        }
+        
+        .trajectory-plot {
+            height: 200px;
+            background: rgba(10, 20, 40, 0.8);
+            border-radius: 10px;
+            margin-top: 15px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .legend {
+            display: flex;
+            gap: 20px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .legend-color {
+            width: 15px;
+            height: 15px;
+            border-radius: 3px;
+        }
+        
+        .real-time-data {
+            font-family: 'Consolas', monospace;
+            font-size: 0.9rem;
+            color: #88ccff;
+            line-height: 1.6;
+        }
+        
+        .data-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 3px 0;
+            border-bottom: 1px solid rgba(58, 90, 128, 0.3);
+        }
+        
+        .highlight {
+            color: #4cc9f0;
+            font-weight: bold;
+        }
+        
+        @media (max-width: 1200px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>PROFESSIONAL ORBITAL MECHANICS SIMULATOR</h1>
+            <div class="subtitle">NASA-Grade Orbital Dynamics with Realistic Physics Engine</div>
+        </div>
+        
+        <div class="main-grid">
+            <div class="simulation-area">
+                <div class="canvas-container">
+                    <canvas id="orbitCanvas" width="1200" height="700"></canvas>
+                    
+                    <div class="overlay-info">
+                        <div class="info-card">
+                            <div class="info-title">TIME TO INTERCEPT</div>
+                            <div class="info-value" x-text="interceptTime >= 0 ? formatTime(interceptTime) : 'N/A'"></div>
+                        </div>
+                        <div class="info-card">
+                            <div class="info-title">RELATIVE ΔV</div>
+                            <div class="info-value" x-text="deltaV.toFixed(3) + ' m/s'"></div>
+                        </div>
+                        <div class="info-card">
+                            <div class="info-title">CLOSEST APPROACH</div>
+                            <div class="info-value" x-text="Math.round(closestApproach) + ' m'"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="trajectory-panel">
+                    <h3>ORBITAL TRAJECTORY ANALYSIS</h3>
+                    <div class="trajectory-plot" id="trajectoryPlot"></div>
+                    <div class="legend">
+                        <div class="legend-item"><span class="legend-color" style="background: #4cc9f0;"></span> Target Orbit</div>
+                        <div class="legend-item"><span class="legend-color" style="background: #f72585;"></span> Current Orbit</div>
+                        <div class="legend-item"><span class="legend-color" style="background: #72efdd;"></span> Transfer Orbit</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="telemetry-panel">
+                <div class="panel-section">
+                    <div class="section-header">
+                        <h2>PROPULSION SYSTEM</h2>
+                        <div class="status-indicator">
+                            <div class="status-dot" :class="engineActive ? 'status-active' : 'status-inactive'"></div>
+                        </div>
+                    </div>
+                    
+                    <div class="control-group">
+                        <div class="slider-container">
+                            <div class="slider-header">
+                                <span class="slider-label">MAIN ENGINE THROTTLE</span>
+                                <span class="slider-value" x-text="throttle + '%'"></span>
+                            </div>
+                            <input type="range" min="0" max="100" step="1" x-model="throttle">
+                        </div>
+                        
+                        <div class="button-group">
+                            <button @click="toggleEngine()" class="primary-btn" :disabled="fuel <= 0">
+                                <span x-text="engineActive ? 'CUT ENGINE' : 'IGNITE ENGINE'"></span>
+                            </button>
+                            <button @click="emergencyStop()" class="danger-btn">EMERGENCY STOP</button>
+                        </div>
+                    </div>
+                    
+                    <div class="telemetry-grid">
+                        <div class="telemetry-box">
+                            <div class="telemetry-label">Fuel Mass</div>
+                            <div class="telemetry-value" x-text="fuel.toFixed(1) + ' kg'"></div>
+                        </div>
+                        <div class="telemetry-box">
+                            <div class="telemetry-label">Total Mass</div>
+                            <div class="telemetry-value" x-text="craft.mass.toFixed(0) + ' kg'"></div>
+                        </div>
+                        <div class="telemetry-box">
+                            <div class="telemetry-label">Thrust</div>
+                            <div class="telemetry-value" x-text="(currentThrust/1000).toFixed(1) + ' kN'"></div>
+                        </div>
+                        <div class="telemetry-box">
+                            <div class="telemetry-label">ISP</div>
+                            <div class="telemetry-value" x-text="engine.isp + ' s'"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="panel-section">
+                    <h2>ATTITUDE CONTROL SYSTEM</h2>
+                    
+                    <div class="attitude-indicator">
+                        <div class="attitude-inner" x-text="craft.rotation.toFixed(1) + '°'"></div>
+                    </div>
+                    
+                    <div class="jet-controls">
+                        <button @mousedown="activateVernier('pitch_up')" @mouseup="deactivateVernier()" 
+                                class="jet-btn">PITCH ↑</button>
+                        <button @mousedown="activateVernier('roll_left')" @mouseup="deactivateVernier()" 
+                                class="jet-btn">ROLL ↶</button>
+                        <button @mousedown="activateVernier('yaw_left')" @mouseup="deactivateVernier()" 
+                                class="jet-btn">YAW ←</button>
+                        <button @mousedown="activateVernier('pitch_down')" @mouseup="deactivateVernier()" 
+                                class="jet-btn">PITCH ↓</button>
+                        <div style="text-align: center; color: #4cc9f0; padding: 12px;">RCS</div>
+                        <button @mousedown="activateVernier('yaw_right')" @mouseup="deactivateVernier()" 
+                                class="jet-btn">YAW →</button>
+                        <button @mousedown="activateVernier('trans_up')" @mouseup="deactivateVernier()" 
+                                class="jet-btn">Z+</button>
+                        <button @mousedown="activateVernier('roll_right')" @mouseup="deactivateVernier()" 
+                                class="jet-btn">ROLL ↷</button>
+                        <button @mousedown="activateVernier('trans_down')" @mouseup="deactivateVernier()" 
+                                class="jet-btn">Z-</button>
+                    </div>
+                </div>
+                
+                <div class="panel-section">
+                    <h2>ORBITAL TELEMETRY</h2>
+                    
+                    <div x-show="distance < 1000" class="warning">
+                        ⚠️ CLOSE APPROACH: <span x-text="Math.round(distance)"></span> m | ΔV: <span x-text="deltaV.toFixed(2)"></span> m/s
+                    </div>
+                    <div x-show="distance < 50 && deltaV < 0.5" class="success">
+                        ✅ RENDEZVOUS SUCCESSFUL! Ready for docking
+                    </div>
+                    <div x-show="fuel <= 100" class="warning">
+                        ⚠️ LOW FUEL: <span x-text="fuel.toFixed(1)"></span> kg remaining
+                    </div>
+                    
+                    <div class="real-time-data">
+                        <div class="data-row">
+                            <span>Orbit Type:</span>
+                            <span class="highlight" x-text="orbitType"></span>
+                        </div>
+                        <div class="data-row">
+                            <span>True Anomaly:</span>
+                            <span x-text="(craft.trueAnomaly * 180/Math.PI).toFixed(2) + '°'"></span>
+                        </div>
+                        <div class="data-row">
+                            <span>Argument of Periapsis:</span>
+                            <span x-text="(craft.argumentOfPeriapsis * 180/Math.PI).toFixed(2) + '°'"></span>
+                        </div>
+                        <div class="data-row">
+                            <span>Inclination:</span>
+                            <span x-text="(craft.inclination * 180/Math.PI).toFixed(2) + '°'"></span>
+                        </div>
+                        <div class="data-row">
+                            <span>Mean Motion:</span>
+                            <span x-text="meanMotion.toFixed(6) + ' rad/s'"></span>
+                        </div>
+                        <div class="data-row">
+                            <span>Orbit Energy:</span>
+                            <span x-text="specificOrbitalEnergy.toFixed(1) + ' MJ/kg'"></span>
+                        </div>
+                    </div>
+                    
+                    <div class="button-group">
+                        <button @click="resetSimulation()">RESET SIMULATION</button>
+                        <button @click="togglePause()">
+                            <span x-text="paused ? '▶ RESUME' : '⏸ PAUSE'"></span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function advancedOrbitalSimulator() {
+            return {
+                // Enhanced simulation state
+                paused: false,
+                engineActive: false,
+                throttle: 50,
+                fuel: 5000,
+                distance: 0,
+                deltaV: 0,
+                closestApproach: Infinity,
+                interceptTime: -1,
+                currentThrust: 0,
+                
+                // Advanced vernier system
+                activeVernier: null,
+                vernierForce: 0.05,
+                vernierTorque: 0.002,
+                
+                // Enhanced Moon parameters (accurate values)
+                moon: {
+                    radius: 1737100, // meters (average)
+                    mass: 7.342e22, // kg
+                    gravitationalConstant: 6.67430e-11,
+                    mu: 0,
+                    rotationPeriod: 27.321661 * 24 * 3600, // seconds
+                    j2: 2.034e-4, // Oblateness coefficient
+                    surfaceGravity: 1.62 // m/s²
+                },
+                
+                // Enhanced satellite (circular orbit at 600km)
+                satellite: {
+                    x: 0,
+                    y: 0,
+                    z: 0,
+                    vx: 0,
+                    vy: 0,
+                    vz: 0,
+                    mass: 1500,
+                    orbitRadius: 1737100 + 600000, // 600km altitude
+                    trueAnomaly: 0,
+                    inclination: 0.05, // 2.86° inclination
+                    raan: 0, // Right Ascension of Ascending Node
+                    argumentOfLatitude: 0,
+                    angularVelocity: 0
+                },
+                
+                // Enhanced spacecraft (elliptical orbit starting at 60km)
+                craft: {
+                    x: 0,
+                    y: 0,
+                    z: 0,
+                    vx: 0,
+                    vy: 0,
+                    vz: 0,
+                    mass: 12000,
+                    dryMass: 7000,
+                    fuel: 5000,
+                    
+                    // Attitude and rotation
+                    rotation: 0, // degrees
+                    pitch: 0,
+                    yaw: 0,
+                    roll: 0,
+                    angularVelocityX: 0,
+                    angularVelocityY: 0,
+                    angularVelocityZ: 0,
+                    momentOfInertia: [50000, 40000, 45000], // Ixx, Iyy, Izz
+                    
+                    // Orbital elements (osculating elements)
+                    semiMajorAxis: 0,
+                    eccentricity: 0.1,
+                    inclination: 0.1, // 5.73°
+                    raan: 0.5, // 28.65°
+                    argumentOfPeriapsis: 0,
+                    trueAnomaly: Math.PI / 3,
+                    meanAnomaly: 0,
+                    
+                    // Derived parameters
+                    orbitPeriod: 0,
+                    periapsis: 0,
+                    apoapsis: 0,
+                    specificAngularMomentum: 0,
+                    specificOrbitalEnergy: 0
+                },
+                
+                // Advanced engine system
+                engine: {
+                    isp: 320, // Specific impulse (seconds)
+                    exhaustVelocity: 0,
+                    maxThrust: 75000, // Newtons
+                    throttle: 0.5,
+                    gimbalRange: 5, // degrees
+                    gimbalAngle: 0
+                },
+                
+                // RCS (Reaction Control System)
+                rcs: {
+                    thrust: 100, // N per thruster
+                    isp: 220,
+                    fuelConsumption: 0.05 // kg/s per thruster
+                },
+                
+                // Time and simulation
+                lastTime: 0,
+                simTime: 0, // Simulation time in seconds
+                timeScale: 1000, // 1 real second = 1000 sim seconds
+                timeWarp: 1,
+                
+                // Physics parameters
+                physics: {
+                    timeStep: 0.016, // 60 FPS
+                    integrator: 'verlet', // 'euler', 'verlet', 'rk4'
+                    perturbations: {
+                        j2: true,
+                        atmosphericDrag: false, // Negligible at these altitudes
+                        thirdBody: false, // Earth's influence
+                        srp: false // Solar radiation pressure
+                    }
+                },
+                
+                // Canvas and rendering
+                ctx: null,
+                canvasWidth: 1200,
+                canvasHeight: 700,
+                scale: 3e-6,
+                camera: {
+                    x: 0,
+                    y: 0,
+                    zoom: 1,
+                    following: 'craft',
+                    perspective: true,
+                    fov: 60
+                },
+                
+                // Trajectory prediction
+                trajectory: {
+                    points: [],
+                    maxPoints: 1000,
+                    transferOrbit: []
+                },
+                
+                // Computed properties
+                get orbitType() {
+                    const e = this.craft.eccentricity;
+                    if (e < 0.001) return 'Circular';
+                    if (e < 0.9) return 'Elliptical';
+                    if (e < 1.1) return 'Parabolic';
+                    return 'Hyperbolic';
+                },
+                
+                get craftVelocity() {
+                    return Math.sqrt(this.craft.vx**2 + this.craft.vy**2 + this.craft.vz**2);
+                },
+                
+                get craftAltitude() {
+                    const r = Math.sqrt(this.craft.x**2 + this.craft.y**2 + this.craft.z**2);
+                    return (r - this.moon.radius) / 1000;
+                },
+                
+                get specificOrbitalEnergy() {
+                    return this.craft.specificOrbitalEnergy / 1e6; // Convert to MJ/kg
+                },
+                
+                get meanMotion() {
+                    return Math.sqrt(this.moon.mu / Math.pow(this.craft.semiMajorAxis, 3));
+                },
+                
+                // Initialization
+                init() {
+                    // Calculate gravitational parameter
+                    this.moon.mu = this.moon.gravitationalConstant * this.moon.mass;
+                    this.engine.exhaustVelocity = this.engine.isp * 9.80665;
+                    
+                    // Initialize orbits with realistic parameters
+                    this.initializeOrbits();
+                    
+                    // Set up canvas
+                    this.setupCanvas();
+                    
+                    // Initialize trajectory plot
+                    this.setupTrajectoryPlot();
+                    
+                    // Start simulation
+                    this.lastTime = performance.now();
+                    this.simTime = 0;
+                    requestAnimationFrame(this.animate.bind(this));
+                    
+                    // Set up controls
+                    this.setupKeyboardControls();
+                    this.setupEventListeners();
+                },
+                
+                // Initialize orbits with professional-grade parameters
+                initializeOrbits() {
+                    // Satellite: Circular orbit at 600km
+                    const satAltitude = this.satellite.orbitRadius;
+                    const satOrbitalSpeed = Math.sqrt(this.moon.mu / satAltitude);
+                    
+                    this.satellite.angularVelocity = satOrbitalSpeed / satAltitude;
+                    this.satellite.x = satAltitude * Math.cos(this.satellite.trueAnomaly);
+                    this.satellite.y = satAltitude * Math.sin(this.satellite.trueAnomaly);
+                    this.satellite.vx = -satOrbitalSpeed * Math.sin(this.satellite.trueAnomaly);
+                    this.satellite.vy = satOrbitalSpeed * Math.cos(this.satellite.trueAnomaly);
+                    
+                    // Apply inclination
+                    this.applyInclination(this.satellite, this.satellite.inclination);
+                    
+                    // Spacecraft: Elliptical orbit starting at 60km periapsis
+                    const craftPeriapsis = this.moon.radius + 60000; // 60km
+                    const craftApoapsis = this.moon.radius + 600000; // 600km
+                    this.craft.semiMajorAxis = (craftPeriapsis + craftApoapsis) / 2;
+                    this.craft.eccentricity = 1 - craftPeriapsis / this.craft.semiMajorAxis;
+                    
+                    // Calculate orbital parameters using vis-viva equation
+                    const r = craftPeriapsis; // Start at periapsis
+                    const v = Math.sqrt(this.moon.mu * (2/r - 1/this.craft.semiMajorAxis));
+                    
+                    this.craft.x = r * Math.cos(this.craft.trueAnomaly);
+                    this.craft.y = r * Math.sin(this.craft.trueAnomaly);
+                    this.craft.vx = -v * Math.sin(this.craft.trueAnomaly);
+                    this.craft.vy = v * Math.cos(this.craft.trueAnomaly);
+                    
+                    // Apply orbital elements
+                    this.applyOrbitalElements(this.craft);
+                    
+                    // Update derived parameters
+                    this.updateOrbitalParameters();
+                    this.updateDerivedValues();
+                    
+                    // Initialize trajectory
+                    this.calculateTrajectory();
+                },
+                
+                // Apply inclination to a body
+                applyInclination(body, inclination) {
+                    const cosInc = Math.cos(inclination);
+                    const sinInc = Math.sin(inclination);
+                    
+                    // Rotate around x-axis
+                    const y = body.y;
+                    const z = body.z;
+                    const vy = body.vy;
+                    const vz = body.vz;
+                    
+                    body.y = y * cosInc - z * sinInc;
+                    body.z = y * sinInc + z * cosInc;
+                    body.vy = vy * cosInc - vz * sinInc;
+                    body.vz = vy * sinInc + vz * cosInc;
+                },
+                
+                // Apply all orbital elements
+                applyOrbitalElements(body) {
+                    // Convert Keplerian elements to Cartesian (simplified 3D)
+                    const r = body.semiMajorAxis * (1 - body.eccentricity**2) / 
+                              (1 + body.eccentricity * Math.cos(body.trueAnomaly));
+                    
+                    // Position in orbital plane
+                    const xOrb = r * Math.cos(body.trueAnomaly);
+                    const yOrb = r * Math.sin(body.trueAnomaly);
+                    
+                    // Velocity in orbital plane
+                    const h = Math.sqrt(this.moon.mu * body.semiMajorAxis * (1 - body.eccentricity**2));
+                    const vxOrb = -(this.moon.mu / h) * Math.sin(body.trueAnomaly);
+                    const vyOrb = (this.moon.mu / h) * (body.eccentricity + Math.cos(body.trueAnomaly));
+                    
+                    // Apply rotation matrices for 3D orientation
+                    // (RAAN -> inclination -> argument of periapsis)
+                    const cosRaan = Math.cos(body.raan);
+                    const sinRaan = Math.sin(body.raan);
+                    const cosInc = Math.cos(body.inclination);
+                    const sinInc = Math.sin(body.inclination);
+                    const cosArg = Math.cos(body.argumentOfPeriapsis);
+                    const sinArg = Math.sin(body.argumentOfPeriapsis);
+                    
+                    // Combined rotation matrix
+                    const R11 = cosRaan * cosArg - sinRaan * sinArg * cosInc;
+                    const R12 = -cosRaan * sinArg - sinRaan * cosArg * cosInc;
+                    const R13 = sinRaan * sinInc;
+                    
+                    const R21 = sinRaan * cosArg + cosRaan * sinArg * cosInc;
+                    const R22 = -sinRaan * sinArg + cosRaan * cosArg * cosInc;
+                    const R23 = -cosRaan * sinInc;
+                    
+                    const R31 = sinArg * sinInc;
+                    const R32 = cosArg * sinInc;
+                    const R33 = cosInc;
+                    
+                    // Transform to inertial frame
+                    body.x = R11 * xOrb + R12 * yOrb;
+                    body.y = R21 * xOrb + R22 * yOrb;
+                    body.z = R31 * xOrb + R32 * yOrb;
+                    
+                    body.vx = R11 * vxOrb + R12 * vyOrb;
+                    body.vy = R21 * vxOrb + R22 * vyOrb;
+                    body.vz = R31 * vxOrb + R32 * vyOrb;
+                },
+                
+                // Main animation loop
+                animate(currentTime) {
+                    if (!this.paused) {
+                        const deltaTime = (currentTime - this.lastTime) / 1000;
+                        const simDeltaTime = deltaTime * this.timeScale * this.timeWarp;
+                        
+                        // Run physics simulation
+                        for (let i = 0; i < Math.ceil(simDeltaTime / this.physics.timeStep); i++) {
+                            const dt = Math.min(this.physics.timeStep, simDeltaTime - i * this.physics.timeStep);
+                            this.integratePhysics(dt);
+                        }
+                        
+                        this.simTime += simDeltaTime;
+                        this.updateDerivedValues();
+                        this.calculateInterceptData();
+                        this.calculateTrajectory();
+                    }
+                    
+                    this.drawScene();
+                    this.updateTrajectoryPlot();
+                    
+                    this.lastTime = currentTime;
+                    requestAnimationFrame(this.animate.bind(this));
+                },
+                
+                // Advanced physics integration
+                integratePhysics(dt) {
+                    // Store previous state for Verlet integration
+                    const prevX = this.craft.x;
+                    const prevY = this.craft.y;
+                    const prevZ = this.craft.z;
+                    
+                    // Calculate forces
+                    const forces = this.calculateForces();
+                    
+                    // Apply Verlet integration for position
+                    if (this.physics.integrator === 'verlet') {
+                        const tempX = this.craft.x;
+                        const tempY = this.craft.y;
+                        const tempZ = this.craft.z;
+                        
+                        this.craft.x = 2 * this.craft.x - prevX + forces.ax * dt * dt;
+                        this.craft.y = 2 * this.craft.y - prevY + forces.ay * dt * dt;
+                        this.craft.z = 2 * this.craft.z - prevZ + forces.az * dt * dt;
+                        
+                        this.craft.vx = (this.craft.x - tempX) / dt;
+                        this.craft.vy = (this.craft.y - tempY) / dt;
+                        this.craft.vz = (this.craft.z - tempZ) / dt;
+                    } else {
+                        // Standard Euler integration
+                        this.craft.vx += forces.ax * dt;
+                        this.craft.vy += forces.ay * dt;
+                        this.craft.vz += forces.az * dt;
+                        
+                        this.craft.x += this.craft.vx * dt;
+                        this.craft.y += this.craft.vy * dt;
+                        this.craft.z += this.craft.vz * dt;
+                    }
+                    
+                    // Update angular motion
+                    this.integrateRotation(dt);
+                    
+                    // Update orbital parameters
+                    this.updateOrbitalParameters();
+                    
+                    // Update satellite position (simple circular motion)
+                    this.updateSatellite(dt);
+                },
+                
+                // Calculate all forces acting on spacecraft
+                calculateForces() {
+                    const r = Math.sqrt(this.craft.x**2 + this.craft.y**2 + this.craft.z**2);
+                    
+                    // 1. Central gravity force
+                    const gMagnitude = this.moon.mu / (r * r);
+                    const gx = -this.craft.x / r * gMagnitude;
+                    const gy = -this.craft.y / r * gMagnitude;
+                    const gz = -this.craft.z / r * gMagnitude;
+                    
+                    // 2. J2 perturbation (Moon's oblateness)
+                    let j2x = 0, j2y = 0, j2z = 0;
+                    if (this.physics.perturbations.j2) {
+                        const R = this.moon.radius;
+                        const x = this.craft.x, y = this.craft.y, z = this.craft.z;
+                        const r2 = r * r;
+                        const r5 = r2 * r2 * r;
+                        
+                        const factor = 1.5 * this.moon.j2 * this.moon.mu * R * R / r5;
+                        
+                        j2x = factor * x * (5 * z*z / r2 - 1);
+                        j2y = factor * y * (5 * z*z / r2 - 1);
+                        j2z = factor * z * (5 * z*z / r2 - 3);
+                    }
+                    
+                    // 3. Main engine thrust
+                    let thrustX = 0, thrustY = 0, thrustZ = 0;
+                    this.currentThrust = 0;
+                    
+                    if (this.engineActive && this.fuel > 0) {
+                        const thrustMagnitude = (this.throttle / 100) * this.engine.maxThrust;
+                        this.currentThrust = thrustMagnitude;
+                        
+                        // Calculate fuel consumption (Tsiolkovsky)
+                        const fuelFlowRate = thrustMagnitude / (this.engine.isp * 9.80665);
+                        const fuelConsumed = fuelFlowRate * this.physics.timeStep;
+                        
+                        if (fuelConsumed <= this.fuel) {
+                            this.fuel -= fuelConsumed;
+                            this.craft.mass = this.craft.dryMass + this.fuel;
+                            
+                            // Thrust direction with gimbal
+                            const thrustDirection = this.getThrustDirection();
+                            thrustX = thrustDirection.x * thrustMagnitude;
+                            thrustY = thrustDirection.y * thrustMagnitude;
+                            thrustZ = thrustDirection.z * thrustMagnitude;
+                        } else {
+                            this.engineActive = false;
+                        }
+                    }
+                    
+                    // 4. RCS thrust
+                    if (this.activeVernier && this.fuel > 0) {
+                        const rcsForce = this.getRCSForce();
+                        thrustX += rcsForce.x;
+                        thrustY += rcsForce.y;
+                        thrustZ += rcsForce.z;
+                        
+                        // Small fuel consumption
+                        const rcsFuel = this.rcs.fuelConsumption * this.physics.timeStep;
+                        if (rcsFuel <= this.fuel) {
+                            this.fuel -= rcsFuel;
+                        }
+                    }
+                    
+                    // Total acceleration (F = ma)
+                    const totalMass = this.craft.mass;
+                    return {
+                        ax: (gx + j2x + thrustX / totalMass),
+                        ay: (gy + j2y + thrustY / totalMass),
+                        az: (gz + j2z + thrustZ / totalMass)
+                    };
+                },
+                
+                // Get thrust direction with gimbal control
+                getThrustDirection() {
+                    const rotation = this.craft.rotation * Math.PI / 180;
+                    const pitch = this.craft.pitch * Math.PI / 180;
+                    const yaw = this.craft.yaw * Math.PI / 180;
+                    
+                    // Apply gimbal angle based on engine gimbal
+                    const gimbalX = Math.sin(this.engine.gimbalAngle * Math.PI / 180);
+                    const gimbalY = Math.cos(this.engine.gimbalAngle * Math.PI / 180);
+                    
+                    // 3D rotation matrix
+                    const cosR = Math.cos(rotation);
+                    const sinR = Math.sin(rotation);
+                    const cosP = Math.cos(pitch);
+                    const sinP = Math.sin(pitch);
+                    const cosY = Math.cos(yaw);
+                    const sinY = Math.sin(yaw);
+                    
+                    // Combined rotation
+                    return {
+                        x: cosR * cosY + sinR * sinP * sinY + gimbalX * 0.1,
+                        y: sinR * cosP + gimbalY * 0.1,
+                        z: -cosR * sinY + sinR * sinP * cosY
+                    };
+                },
+                
+                // Get RCS force based on active vernier
+                getRCSForce() {
+                    const force = this.vernierForce * 1000; // Convert to Newtons
+                    let fx = 0, fy = 0, fz = 0;
+                    
+                    switch(this.activeVernier) {
+                        case 'pitch_up':
+                            fy = -force;
+                            break;
+                        case 'pitch_down':
+                            fy = force;
+                            break;
+                        case 'yaw_left':
+                            fx = -force;
+                            break;
+                        case 'yaw_right':
+                            fx = force;
+                            break;
+                        case 'roll_left':
+                            this.craft.angularVelocityZ -= this.vernierTorque / this.craft.momentOfInertia[2];
+                            break;
+                        case 'roll_right':
+                            this.craft.angularVelocityZ += this.vernierTorque / this.craft.momentOfInertia[2];
+                            break;
+                        case 'trans_up':
+                            fz = force;
+                            break;
+                        case 'trans_down':
+                            fz = -force;
+                            break;
+                    }
+                    
+                    // Rotate RCS force to spacecraft orientation
+                    const rotation = this.craft.rotation * Math.PI / 180;
+                    const cosR = Math.cos(rotation);
+                    const sinR = Math.sin(rotation);
+                    
+                    return {
+                        x: fx * cosR - fy * sinR,
+                        y: fx * sinR + fy * cosR,
+                        z: fz
+                    };
+                },
+                
+                // Integrate rotational dynamics
+                integrateRotation(dt) {
+                    // Update rotation from angular velocity
+                    this.craft.rotation += this.craft.angularVelocityZ * (180 / Math.PI) * dt;
+                    this.craft.rotation = ((this.craft.rotation % 360) + 360) % 360;
+                    
+                    // Apply damping
+                    this.craft.angularVelocityZ *= 0.995;
+                    this.craft.angularVelocityX *= 0.995;
+                    this.craft.angularVelocityY *= 0.995;
+                    
+                    // Update pitch and yaw from angular velocities
+                    this.craft.pitch += this.craft.angularVelocityX * (180 / Math.PI) * dt;
+                    this.craft.yaw += this.craft.angularVelocityY * (180 / Math.PI) * dt;
+                    
+                    // Keep within bounds
+                    this.craft.pitch = Math.max(-90, Math.min(90, this.craft.pitch));
+                    this.craft.yaw = ((this.craft.yaw % 360) + 360) % 360;
+                },
+                
+                // Update satellite motion
+                updateSatellite(dt) {
+                    this.satellite.trueAnomaly += this.satellite.angularVelocity * dt;
+                    
+                    // Circular orbit with inclination
+                    const r = this.satellite.orbitRadius;
+                    const orbitalSpeed = Math.sqrt(this.moon.mu / r);
+                    
+                    // In orbital plane
+                    const xOrb = r * Math.cos(this.satellite.trueAnomaly);
+                    const yOrb = r * Math.sin(this.satellite.trueAnomaly);
+                    
+                    // Apply inclination
+                    const cosInc = Math.cos(this.satellite.inclination);
+                    const sinInc = Math.sin(this.satellite.inclination);
+                    
+                    this.satellite.x = xOrb;
+                    this.satellite.y = yOrb * cosInc;
+                    this.satellite.z = yOrb * sinInc;
+                    
+                    this.satellite.vx = -orbitalSpeed * Math.sin(this.satellite.trueAnomaly);
+                    this.satellite.vy = orbitalSpeed * Math.cos(this.satellite.trueAnomaly) * cosInc;
+                    this.satellite.vz = orbitalSpeed * Math.cos(this.satellite.trueAnomaly) * sinInc;
+                },
+                
+                // Update orbital parameters from current state
+                updateOrbitalParameters() {
+                    const rVec = [this.craft.x, this.craft.y, this.craft.z];
+                    const vVec = [this.craft.vx, this.craft.vy, this.craft.vz];
+                    const r = Math.sqrt(rVec[0]**2 + rVec[1]**2 + rVec[2]**2);
+                    const v = Math.sqrt(vVec[0]**2 + vVec[1]**2 + vVec[2]**2);
+                    
+                    // Specific angular momentum vector
+                    const hVec = [
+                        rVec[1] * vVec[2] - rVec[2] * vVec[1],
+                        rVec[2] * vVec[0] - rVec[0] * vVec[2],
+                        rVec[0] * vVec[1] - rVec[1] * vVec[0]
+                    ];
+                    const h = Math.sqrt(hVec[0]**2 + hVec[1]**2 + hVec[2]**2);
+                    this.craft.specificAngularMomentum = h;
+                    
+                    // Specific orbital energy
+                    const energy = (v*v)/2 - this.moon.mu/r;
+                    this.craft.specificOrbitalEnergy = energy;
+                    
+                    // Eccentricity vector
+                    const eVec = [
+                        (vVec[1] * hVec[2] - vVec[2] * hVec[1]) / this.moon.mu - rVec[0]/r,
+                        (vVec[2] * hVec[0] - vVec[0] * hVec[2]) / this.moon.mu - rVec[1]/r,
+                        (vVec[0] * hVec[1] - vVec[1] * hVec[0]) / this.moon.mu - rVec[2]/r
+                    ];
+                    this.craft.eccentricity = Math.sqrt(eVec[0]**2 + eVec[1]**2 + eVec[2]**2);
+                    
+                    // Semi-major axis (if elliptical)
+                    if (energy < 0) {
+                        this.craft.semiMajorAxis = -this.moon.mu / (2 * energy);
+                        this.craft.orbitPeriod = 2 * Math.PI * Math.sqrt(
+                            Math.pow(this.craft.semiMajorAxis, 3) / this.moon.mu
+                        );
+                    }
+                    
+                    // Inclination
+                    this.craft.inclination = Math.acos(hVec[2] / h);
+                    
+                    // Periapsis and apoapsis
+                    this.craft.periapsis = this.craft.semiMajorAxis * (1 - this.craft.eccentricity);
+                    this.craft.apoapsis = this.craft.semiMajorAxis * (1 + this.craft.eccentricity);
+                    
+                    // True anomaly
+                    const cosNu = (eVec[0] * rVec[0] + eVec[1] * rVec[1] + eVec[2] * rVec[2]) / (this.craft.eccentricity * r);
+                    const sinNu = (rVec[0] * vVec[0] + rVec[1] * vVec[1] + rVec[2] * vVec[2]) / (r * Math.sqrt(this.moon.mu / this.craft.semiMajorAxis));
+                    this.craft.trueAnomaly = Math.atan2(sinNu, cosNu);
+                },
+                
+                // Update derived values for display
+                updateDerivedValues() {
+                    // Distance between craft and satellite
+                    const dx = this.craft.x - this.satellite.x;
+                    const dy = this.craft.y - this.satellite.y;
+                    const dz = this.craft.z - this.satellite.z;
+                    this.distance = Math.sqrt(dx*dx + dy*dy + dz*dz);
+                    
+                    // Update closest approach
+                    if (this.distance < this.closestApproach) {
+                        this.closestApproach = this.distance;
+                    }
+                    
+                    // Relative velocity
+                    const dvx = this.craft.vx - this.satellite.vx;
+                    const dvy = this.craft.vy - this.satellite.vy;
+                    const dvz = this.craft.vz - this.satellite.vz;
+                    this.deltaV = Math.sqrt(dvx*dvx + dvy*dvy + dvz*dvz);
+                },
+                
+                // Calculate intercept data
+                calculateInterceptData() {
+                    if (this.distance < 10000) {
+                        const closingSpeed = this.deltaV;
+                        if (closingSpeed > 0.1) {
+                            this.interceptTime = this.distance / closingSpeed;
+                        }
+                    } else {
+                        this.interceptTime = -1;
+                    }
+                },
+                
+                // Calculate trajectory points
+                calculateTrajectory() {
+                    // Store current position
+                    this.trajectory.points.push({
+                        x: this.craft.x,
+                        y: this.craft.y,
+                        time: this.simTime
+                    });
+                    
+                    // Keep only last N points
+                    if (this.trajectory.points.length > this.trajectory.maxPoints) {
+                        this.trajectory.points.shift();
+                    }
+                    
+                    // Calculate transfer orbit if needed
+                    this.calculateTransferOrbit();
+                },
+                
+                // Calculate optimal transfer orbit (Hohmann transfer)
+                calculateTransferOrbit() {
+                    const r1 = Math.sqrt(this.craft.x**2 + this.craft.y**2);
+                    const r2 = this.satellite.orbitRadius;
+                    
+                    if (Math.abs(r1 - r2) > 1000) {
+                        const a_transfer = (r1 + r2) / 2;
+                        const v1 = Math.sqrt(this.moon.mu * (2/r1 - 1/a_transfer));
+                        const v2 = Math.sqrt(this.moon.mu * (2/r2 - 1/a_transfer));
+                        
+                        this.trajectory.transferOrbit = [
+                            {x: r1, y: 0},
+                            {x: 0, y: 0},
+                            {x: -r2, y: 0}
+                        ];
+                    }
+                },
+                
+                // Setup canvas
+                setupCanvas() {
+                    const canvas = document.getElementById('orbitCanvas');
+                    this.ctx = canvas.getContext('2d');
+                    this.canvasWidth = canvas.width;
+                    this.canvasHeight = canvas.height;
+                    
+                    // Set optimal scale
+                    const maxDistance = Math.max(
+                        Math.abs(this.craft.x),
+                        Math.abs(this.craft.y),
+                        this.satellite.orbitRadius
+                    );
+                    this.scale = 0.35 * this.canvasHeight / (2 * maxDistance);
+                },
+                
+                // Setup trajectory plot
+                setupTrajectoryPlot() {
+                    const plot = document.getElementById('trajectoryPlot');
+                    plot.innerHTML = '<canvas id="trajectoryCanvas" width="600" height="200"></canvas>';
+                },
+                
+                // Update trajectory plot
+                updateTrajectoryPlot() {
+                    const canvas = document.getElementById('trajectoryCanvas');
+                    if (!canvas) return;
+                    
+                    const ctx = canvas.getContext('2d');
+                    const width = canvas.width;
+                    const height = canvas.height;
+                    
+                    // Clear
+                    ctx.fillStyle = '#0a1428';
+                    ctx.fillRect(0, 0, width, height);
+                    
+                    // Draw grid
+                    ctx.strokeStyle = '#1e3a5f';
+                    ctx.lineWidth = 1;
+                    
+                    for (let i = 0; i <= 10; i++) {
+                        const x = (i / 10) * width;
+                        const y = (i / 10) * height;
+                        
+                        ctx.beginPath();
+                        ctx.moveTo(x, 0);
+                        ctx.lineTo(x, height);
+                        ctx.stroke();
+                        
+                        ctx.beginPath();
+                        ctx.moveTo(0, y);
+                        ctx.lineTo(width, y);
+                        ctx.stroke();
+                    }
+                    
+                    // Plot trajectory
+                    if (this.trajectory.points.length > 1) {
+                        ctx.strokeStyle = '#f72585';
+                        ctx.lineWidth = 2;
+                        ctx.beginPath();
+                        
+                        this.trajectory.points.forEach((point, i) => {
+                            const x = (i / this.trajectory.points.length) * width;
+                            const y = height/2 - (point.y / 1e6) * 10;
+                            if (i === 0) ctx.moveTo(x, y);
+                            else ctx.lineTo(x, y);
+                        });
+                        
+                        ctx.stroke();
+                    }
+                },
+                
+                // Draw main scene
+                drawScene() {
+                    const ctx = this.ctx;
+                    const centerX = this.canvasWidth / 2;
+                    const centerY = this.canvasHeight / 2;
+                    
+                    // Clear with space gradient
+                    const gradient = ctx.createRadialGradient(
+                        centerX, centerY, 0,
+                        centerX, centerY, Math.max(this.canvasWidth, this.canvasHeight)/2
+                    );
+                    gradient.addColorStop(0, '#000814');
+                    gradient.addColorStop(1, '#001220');
+                    ctx.fillStyle = gradient;
+                    ctx.fillRect(0, 0, this.canvasWidth, this.canvasHeight);
+                    
+                    // Draw star field
+                    this.drawStars(ctx);
+                    
+                    // Draw orbits
+                    this.drawOrbits(centerX, centerY);
+                    
+                    // Draw Moon
+                    this.drawMoon(ctx, centerX, centerY);
+                    
+                    // Draw satellite
+                    this.drawSatellite(ctx, centerX, centerY);
+                    
+                    // Draw spacecraft
+                    this.drawSpacecraft(ctx, centerX, centerY);
+                    
+                    // Draw thrust effects
+                    if (this.engineActive && this.fuel > 0) {
+                        this.drawThrustEffect(ctx, centerX, centerY);
+                    }
+                    
+                    // Draw RCS effects
+                    if (this.activeVernier && this.fuel > 0) {
+                        this.drawRCSEffect(ctx, centerX, centerY);
+                    }
+                    
+                    // Draw orbital information
+                    this.drawOrbitalInfo(ctx);
+                },
+                
+                // Draw star field
+                drawStars(ctx) {
+                    ctx.fillStyle = '#ffffff';
+                    for (let i = 0; i < 200; i++) {
+                        const x = Math.random() * this.canvasWidth;
+                        const y = Math.random() * this.canvasHeight;
+                        const size = Math.random() * 1.5;
+                        const alpha = 0.5 + Math.random() * 0.5;
+                        
+                        ctx.globalAlpha = alpha;
+                        ctx.beginPath();
+                        ctx.arc(x, y, size, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                    ctx.globalAlpha = 1;
+                },
+                
+                // Draw orbits
+                drawOrbits(centerX, centerY) {
+                    const ctx = this.ctx;
+                    
+                    // Satellite orbit (circular)
+                    ctx.beginPath();
+                    ctx.arc(centerX, centerY, 
+                           this.satellite.orbitRadius * this.scale, 0, Math.PI * 2);
+                    ctx.strokeStyle = 'rgba(76, 201, 240, 0.3)';
+                    ctx.lineWidth = 1.5;
+                    ctx.stroke();
+                    
+                    // Craft orbit (current osculating ellipse)
+                    this.drawOsculatingOrbit(ctx, centerX, centerY);
+                },
+                
+                // Draw osculating orbit
+                drawOsculatingOrbit(ctx, centerX, centerY) {
+                    const a = this.craft.semiMajorAxis * this.scale;
+                    const e = this.craft.eccentricity;
+                    
+                    if (e < 1 && a > 0) {
+                        const b = a * Math.sqrt(1 - e*e);
+                        const focus = a * e;
+                        
+                        ctx.save();
+                        ctx.translate(centerX + focus, centerY);
+                        
+                        // Draw ellipse
+                        ctx.beginPath();
+                        ctx.ellipse(0, 0, a, b, 0, 0, Math.PI * 2);
+                        ctx.strokeStyle = 'rgba(247, 37, 133, 0.4)';
+                        ctx.lineWidth = 2;
+                        ctx.stroke();
+                        
+                        // Draw periapsis marker
+                        ctx.beginPath();
+                        ctx.arc(-focus, 0, 5, 0, Math.PI * 2);
+                        ctx.fillStyle = '#ff2d75';
+                        ctx.fill();
+                        
+                        ctx.restore();
+                    }
+                },
+                
+                // Draw Moon with realistic features
+                drawMoon(ctx, centerX, centerY) {
+                    const moonRadius = this.moon.radius * this.scale * 3;
+                    
+                    // Moon disc
+                    const gradient = ctx.createRadialGradient(
+                        centerX, centerY, 0,
+                        centerX, centerY, moonRadius
+                    );
+                    gradient.addColorStop(0, '#aaaaaa');
+                    gradient.addColorStop(0.7, '#777777');
+                    gradient.addColorStop(1, '#555555');
+                    
+                    ctx.beginPath();
+                    ctx.arc(centerX, centerY, moonRadius, 0, Math.PI * 2);
+                    ctx.fillStyle = gradient;
+                    ctx.fill();
+                    
+                    // Terminator line
+                    ctx.beginPath();
+                    ctx.arc(centerX, centerY, moonRadius, Math.PI/2, Math.PI*3/2);
+                    ctx.strokeStyle = 'rgba(0, 0, 0, 0.3)';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                    
+                    // Major craters
+                    const craters = [
+                        {x: 0.3, y: 0.2, size: 0.15},
+                        {x: -0.4, y: 0.1, size: 0.2},
+                        {x: 0.1, y: -0.3, size: 0.12},
+                        {x: -0.2, y: -0.2, size: 0.18}
+                    ];
+                    
+                    craters.forEach(crater => {
+                        const x = centerX + crater.x * moonRadius;
+                        const y = centerY + crater.y * moonRadius;
+                        const size = crater.size * moonRadius;
+                        
+                        // Crater shadow
+                        ctx.beginPath();
+                        ctx.arc(x, y, size, 0, Math.PI * 2);
+                        ctx.fillStyle = 'rgba(100, 100, 100, 0.8)';
+                        ctx.fill();
+                        
+                        // Crater rim highlight
+                        ctx.beginPath();
+                        ctx.arc(x - size*0.3, y - size*0.3, size*0.3, 0, Math.PI * 2);
+                        ctx.fillStyle = 'rgba(150, 150, 150, 0.6)';
+                        ctx.fill();
+                    });
+                },
+                
+                // Draw satellite
+                drawSatellite(ctx, centerX, centerY) {
+                    const satX = centerX + this.satellite.x * this.scale;
+                    const satY = centerY + this.satellite.y * this.scale;
+                    
+                    ctx.save();
+                    ctx.translate(satX, satY);
+                    
+                    // Main body
+                    ctx.fillStyle = '#4cc9f0';
+                    ctx.fillRect(-10, -6, 20, 12);
+                    
+                    // Solar panels
+                    ctx.fillStyle = '#2a8faf';
+                    ctx.fillRect(-18, -12, 6, 24);
+                    ctx.fillRect(12, -12, 6, 24);
+                    
+                    // Antennas
+                    ctx.beginPath();
+                    ctx.moveTo(0, -10);
+                    ctx.lineTo(0, -20);
+                    ctx.lineWidth = 2;
+                    ctx.strokeStyle = '#ffffff';
+                    ctx.stroke();
+                    
+                    // Glow effect
+                    ctx.beginPath();
+                    ctx.arc(0, 0, 15, 0, Math.PI * 2);
+                    const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, 15);
+                    gradient.addColorStop(0, 'rgba(76, 201, 240, 0.5)');
+                    gradient.addColorStop(1, 'rgba(76, 201, 240, 0)');
+                    ctx.fillStyle = gradient;
+                    ctx.fill();
+                    
+                    ctx.restore();
+                },
+                
+                // Draw spacecraft
+                drawSpacecraft(ctx, centerX, centerY) {
+                    const craftX = centerX + this.craft.x * this.scale;
+                    const craftY = centerY + this.craft.y * this.scale;
+                    
+                    ctx.save();
+                    ctx.translate(craftX, craftY);
+                    ctx.rotate(this.craft.rotation * Math.PI / 180);
+                    
+                    // Main hull
+                    ctx.fillStyle = '#f72585';
+                    ctx.beginPath();
+                    ctx.moveTo(0, -15);
+                    ctx.lineTo(-12, 15);
+                    ctx.lineTo(0, 10);
+                    ctx.lineTo(12, 15);
+                    ctx.closePath();
+                    ctx.fill();
+                    
+                    // Cockpit
+                    ctx.fillStyle = '#c0f0ff';
+                    ctx.beginPath();
+                    ctx.arc(0, -5, 6, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    // RCS thrusters
+                    ctx.fillStyle = '#ff9e00';
+                    // Forward thrusters
+                    ctx.fillRect(-8, -12, 4, 3);
+                    ctx.fillRect(4, -12, 4, 3);
+                    // Aft thrusters
+                    ctx.fillRect(-6, 12, 4, 3);
+                    ctx.fillRect(2, 12, 4, 3);
+                    // Lateral thrusters
+                    ctx.fillRect(-15, 0, 3, 4);
+                    ctx.fillRect(12, 0, 3, 4);
+                    
+                    // Glow effect
+                    ctx.beginPath();
+                    ctx.arc(0, 0, 20, 0, Math.PI * 2);
+                    const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, 20);
+                    gradient.addColorStop(0, 'rgba(247, 37, 133, 0.6)');
+                    gradient.addColorStop(1, 'rgba(247, 37, 133, 0)');
+                    ctx.fillStyle = gradient;
+                    ctx.fill();
+                    
+                    ctx.restore();
+                },
+                
+                // Draw thrust effect
+                drawThrustEffect(ctx, centerX, centerY) {
+                    const craftX = centerX + this.craft.x * this.scale;
+                    const craftY = centerY + this.craft.y * this.scale;
+                    const thrustAngle = this.craft.rotation * Math.PI / 180;
+                    
+                    const thrustLength = 30 + (this.throttle / 100) * 50;
+                    
+                    ctx.save();
+                    ctx.translate(craftX, craftY);
+                    ctx.rotate(thrustAngle);
+                    
+                    // Thrust plume
+                    const gradient = ctx.createLinearGradient(0, 15, 0, 15 + thrustLength);
+                    gradient.addColorStop(0, '#ffff00');
+                    gradient.addColorStop(0.3, '#ff7700');
+                    gradient.addColorStop(0.6, '#ff3300');
+                    gradient.addColorStop(1, 'rgba(255, 0, 0, 0)');
+                    
+                    ctx.fillStyle = gradient;
+                    ctx.beginPath();
+                    ctx.moveTo(-8, 15);
+                    ctx.lineTo(8, 15);
+                    ctx.lineTo(0, 15 + thrustLength);
+                    ctx.closePath();
+                    ctx.fill();
+                    
+                    // Engine glow
+                    ctx.fillStyle = 'rgba(255, 200, 0, 0.4)';
+                    ctx.beginPath();
+                    ctx.arc(0, 15, 12, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    ctx.restore();
+                },
+                
+                // Draw RCS effect
+                drawRCSEffect(ctx, centerX, centerY) {
+                    const craftX = centerX + this.craft.x * this.scale;
+                    const craftY = centerY + this.craft.y * this.scale;
+                    
+                    ctx.save();
+                    ctx.translate(craftX, craftY);
+                    ctx.rotate(this.craft.rotation * Math.PI / 180);
+                    
+                    let thrusterX = 0, thrusterY = 0, angle = 0, length = 15;
+                    
+                    switch(this.activeVernier) {
+                        case 'pitch_up':
+                            thrusterX = -8; thrusterY = -12; angle = -Math.PI/2;
+                            break;
+                        case 'pitch_down':
+                            thrusterX = -6; thrusterY = 12; angle = Math.PI/2;
+                            break;
+                        case 'yaw_left':
+                            thrusterX = -15; thrusterY = 0; angle = Math.PI;
+                            break;
+                        case 'yaw_right':
+                            thrusterX = 12; thrusterY = 0; angle = 0;
+                            break;
+                        case 'trans_up':
+                            thrusterX = 4; thrusterY = -12; angle = -Math.PI/2;
+                            break;
+                        case 'trans_down':
+                            thrusterX = 2; thrusterY = 12; angle = Math.PI/2;
+                            break;
+                        default:
+                            ctx.restore();
+                            return;
+                    }
+                    
+                    ctx.save();
+                    ctx.translate(thrusterX, thrusterY);
+                    ctx.rotate(angle);
+                    
+                    const gradient = ctx.createLinearGradient(0, 0, 0, length);
+                    gradient.addColorStop(0, '#00ffff');
+                    gradient.addColorStop(0.7, '#0088ff');
+                    gradient.addColorStop(1, 'rgba(0, 100, 255, 0)');
+                    
+                    ctx.fillStyle = gradient;
+                    ctx.beginPath();
+                    ctx.moveTo(-2, 0);
+                    ctx.lineTo(2, 0);
+                    ctx.lineTo(0, length);
+                    ctx.closePath();
+                    ctx.fill();
+                    
+                    ctx.restore();
+                    ctx.restore();
+                },
+                
+                // Draw orbital information
+                drawOrbitalInfo(ctx) {
+                    const centerX = this.canvasWidth / 2;
+                    const centerY = this.canvasHeight / 2;
+                    
+                    // Draw velocity vector
+                    const velScale = 0.1;
+                    ctx.beginPath();
+                    ctx.moveTo(centerX, centerY);
+                    ctx.lineTo(
+                        centerX + this.craft.vx * velScale,
+                        centerY + this.craft.vy * velScale
+                    );
+                    ctx.strokeStyle = '#72efdd';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                    
+                    // Draw velocity vector label
+                    ctx.fillStyle = '#72efdd';
+                    ctx.font = '12px Consolas';
+                    ctx.fillText(
+                        'v: ' + this.craftVelocity.toFixed(1) + ' m/s',
+                        centerX + this.craft.vx * velScale + 5,
+                        centerY + this.craft.vy * velScale
+                    );
+                    
+                    // Draw distance line to target
+                    ctx.beginPath();
+                    ctx.moveTo(
+                        centerX + this.craft.x * this.scale,
+                        centerY + this.craft.y * this.scale
+                    );
+                    ctx.lineTo(
+                        centerX + this.satellite.x * this.scale,
+                        centerY + this.satellite.y * this.scale
+                    );
+                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+                    ctx.lineWidth = 1;
+                    ctx.setLineDash([5, 5]);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                },
+                
+                // Control methods
+                toggleEngine() {
+                    this.engineActive = !this.engineActive;
+                },
+                
+                activateVernier(direction) {
+                    this.activeVernier = direction;
+                },
+                
+                deactivateVernier() {
+                    this.activeVernier = null;
+                },
+                
+                emergencyStop() {
+                    this.engineActive = false;
+                    this.craft.angularVelocityZ = 0;
+                    this.craft.angularVelocityX = 0;
+                    this.craft.angularVelocityY = 0;
+                },
+                
+                togglePause() {
+                    this.paused = !this.paused;
+                    if (!this.paused) {
+                        this.lastTime = performance.now();
+                    }
+                },
+                
+                resetSimulation() {
+                    this.engineActive = false;
+                    this.fuel = 5000;
+                    this.throttle = 50;
+                    this.paused = false;
+                    this.activeVernier = null;
+                    this.closestApproach = Infinity;
+                    this.interceptTime = -1;
+                    
+                    // Reset craft
+                    this.craft.mass = 12000;
+                    this.craft.fuel = 5000;
+                    this.craft.rotation = 0;
+                    this.craft.pitch = 0;
+                    this.craft.yaw = 0;
+                    this.craft.angularVelocityX = 0;
+                    this.craft.angularVelocityY = 0;
+                    this.craft.angularVelocityZ = 0;
+                    this.craft.trueAnomaly = Math.PI / 3;
+                    
+                    this.initializeOrbits();
+                    this.trajectory.points = [];
+                },
+                
+                // Utility methods
+                formatTime(seconds) {
+                    if (seconds < 60) return seconds.toFixed(1) + 's';
+                    if (seconds < 3600) return Math.floor(seconds/60) + 'm ' + Math.floor(seconds%60) + 's';
+                    return Math.floor(seconds/3600) + 'h ' + Math.floor((seconds%3600)/60) + 'm';
+                },
+                
+                setupKeyboardControls() {
+                    document.addEventListener('keydown', (e) => {
+                        switch(e.key.toLowerCase()) {
+                            case ' ':
+                                e.preventDefault();
+                                this.toggleEngine();
+                                break;
+                            case 'arrowup':
+                                this.activateVernier('pitch_up');
+                                break;
+                            case 'arrowdown':
+                                this.activateVernier('pitch_down');
+                                break;
+                            case 'arrowleft':
+                                this.activateVernier('yaw_left');
+                                break;
+                            case 'arrowright':
+                                this.activateVernier('yaw_right');
+                                break;
+                            case 'q':
+                                this.activateVernier('roll_left');
+                                break;
+                            case 'e':
+                                this.activateVernier('roll_right');
+                                break;
+                            case 'w':
+                                this.activateVernier('trans_up');
+                                break;
+                            case 's':
+                                this.activateVernier('trans_down');
+                                break;
+                            case 'p':
+                                this.togglePause();
+                                break;
+                            case 'r':
+                                this.resetSimulation();
+                                break;
+                            case '+':
+                                this.timeWarp = Math.min(10, this.timeWarp * 2);
+                                break;
+                            case '-':
+                                this.timeWarp = Math.max(0.1, this.timeWarp / 2);
+                                break;
+                        }
+                    });
+                    
+                    document.addEventListener('keyup', (e) => {
+                        if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright', 
+                             'q', 'e', 'w', 's'].includes(e.key.toLowerCase())) {
+                            this.deactivateVernier();
+                        }
+                    });
+                },
+                
+                setupEventListeners() {
+                    // Prevent spacebar from scrolling page
+                    window.addEventListener('keydown', (e) => {
+                        if (e.key === ' ' && e.target === document.body) {
+                            e.preventDefault();
+                        }
+                    });
+                }
+            };
+        }
+    </script>
+</body>
+</html>

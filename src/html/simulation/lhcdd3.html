@@ -1,0 +1,1753 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Precise Proton Collision Visualization</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            overflow: hidden; 
+            background: #000;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: white;
+        }
+        #container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+        #ui-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 100;
+        }
+        .control-panel {
+            background: rgba(8, 12, 28, 0.97);
+            backdrop-filter: blur(25px);
+            border: 1px solid rgba(80, 140, 255, 0.4);
+            border-radius: 16px;
+            padding: 22px;
+            margin: 16px;
+            pointer-events: auto;
+            box-shadow: 0 12px 50px rgba(0, 0, 0, 0.9);
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        #physics-controls {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            width: 360px;
+        }
+        #beam-controls {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 380px;
+        }
+        #collision-analysis {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            width: 420px;
+            height: 320px;
+        }
+        #particle-stats {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            width: 380px;
+            height: 320px;
+        }
+        .control-group {
+            margin: 16px 0;
+            padding: 16px;
+            background: rgba(255, 255, 255, 0.06);
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        h3 {
+            color: #64b5f6;
+            margin-bottom: 16px;
+            font-size: 17px;
+            border-bottom: 2px solid #64b5f6;
+            padding-bottom: 6px;
+            text-shadow: 0 0 10px rgba(100, 181, 246, 0.5);
+        }
+        h4 {
+            color: #90caf9;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+        button {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border: none;
+            color: white;
+            padding: 13px 22px;
+            margin: 6px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 13px;
+            transition: all 0.3s ease;
+            font-weight: bold;
+            width: 100%;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        }
+        button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.5);
+        }
+        button.danger {
+            background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+        }
+        button.success {
+            background: linear-gradient(135deg, #00b894, #55efc4);
+        }
+        button.warning {
+            background: linear-gradient(135deg, #f9c74f, #f8961e);
+        }
+        .slider-container {
+            margin: 14px 0;
+        }
+        .slider-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            font-size: 13px;
+            color: #b0bec5;
+            font-weight: 500;
+        }
+        input[type="range"] {
+            width: 100%;
+            height: 7px;
+            border-radius: 4px;
+            background: linear-gradient(90deg, #1a237e, #283593, #303f9f);
+            outline: none;
+            -webkit-appearance: none;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #64b5f6;
+            cursor: pointer;
+            box-shadow: 0 3px 10px rgba(100, 181, 246, 0.6);
+            border: 2px solid white;
+        }
+        .beam-indicator {
+            width: 100%;
+            height: 6px;
+            background: linear-gradient(90deg, 
+                #ff0000, #ff6b6b, #ff9ff3, #f368e0, 
+                #ff6b6b, #ff0000);
+            border-radius: 3px;
+            margin: 10px 0;
+            opacity: 0.9;
+            animation: beamFlow 1.5s infinite linear;
+        }
+        @keyframes beamFlow {
+            0% { background-position: 0% 50%; }
+            100% { background-position: 200% 50%; }
+        }
+        .energy-display {
+            font-size: 28px;
+            font-weight: bold;
+            text-align: center;
+            color: #ff9ff3;
+            text-shadow: 0 0 15px rgba(255, 159, 243, 0.7);
+            margin: 12px 0;
+            padding: 10px;
+            background: rgba(255, 159, 243, 0.1);
+            border-radius: 10px;
+            border: 1px solid rgba(255, 159, 243, 0.3);
+        }
+        .stat-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 12px;
+        }
+        .stat-item {
+            background: linear-gradient(135deg, rgba(100, 181, 246, 0.15), rgba(30, 136, 229, 0.1));
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 12px;
+            border-left: 4px solid #64b5f6;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        }
+        .particle-tag {
+            display: inline-block;
+            padding: 5px 10px;
+            margin: 3px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: bold;
+            background: rgba(100, 181, 246, 0.25);
+            border: 1px solid rgba(100, 181, 246, 0.5);
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+        }
+        .collision-event {
+            background: linear-gradient(135deg, rgba(255, 107, 107, 0.2), rgba(238, 90, 36, 0.15));
+            border: 1px solid rgba(255, 107, 107, 0.5);
+            border-radius: 10px;
+            padding: 12px;
+            margin: 10px 0;
+            animation: eventPulse 4s ease-out;
+            box-shadow: 0 3px 12px rgba(255, 107, 107, 0.3);
+        }
+        @keyframes eventPulse {
+            0% { 
+                background: rgba(255, 107, 107, 0.5);
+                border-color: rgba(255, 107, 107, 0.9);
+                transform: scale(1.02);
+            }
+            100% { 
+                background: rgba(255, 107, 107, 0.2);
+                border-color: rgba(255, 107, 107, 0.5);
+                transform: scale(1);
+            }
+        }
+        .momentum-vector {
+            font-size: 11px;
+            color: #ffd54f;
+            margin: 2px 0;
+        }
+        .toggle-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin: 12px 0;
+        }
+        .toggle-btn {
+            padding: 10px;
+            font-size: 12px;
+        }
+        .trail-intensity {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 8px 0;
+        }
+        .trail-preview {
+            width: 60px;
+            height: 4px;
+            border-radius: 2px;
+            background: linear-gradient(90deg, #64b5f6, transparent);
+        }
+        .field-lines {
+            position: absolute;
+            pointer-events: none;
+            z-index: 5;
+        }
+        .jet-cone {
+            position: absolute;
+            pointer-events: none;
+            z-index: 8;
+            opacity: 0.6;
+        }
+        .vertex-marker {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #ff9ff3;
+            pointer-events: none;
+            z-index: 10;
+            box-shadow: 0 0 10px #ff9ff3;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <div id="ui-overlay">
+            <!-- Physics Controls -->
+            <div id="physics-controls" class="control-panel">
+                <h3>⚛️ PRECISION PHYSICS</h3>
+                
+                <div class="energy-display" id="com-energy">13.0 TeV</div>
+                
+                <div class="control-group">
+                    <div class="slider-container">
+                        <div class="slider-label">
+                            <span>Beam Energy</span>
+                            <span id="energy-value">6.5 TeV</span>
+                        </div>
+                        <input type="range" id="energy-slider" min="0.5" max="13" step="0.1" value="6.5">
+                    </div>
+                    
+                    <div class="slider-container">
+                        <div class="slider-label">
+                            <span>Luminosity</span>
+                            <span id="luminosity-value">1.0×10³⁴ cm⁻²s⁻¹</span>
+                        </div>
+                        <input type="range" id="luminosity-slider" min="0.1" max="5" step="0.1" value="1.0">
+                    </div>
+                    
+                    <div class="slider-container">
+                        <div class="slider-label">
+                            <span>Magnetic Field</span>
+                            <span id="magnetic-value">8.3 Tesla</span>
+                        </div>
+                        <input type="range" id="magnetic-slider" min="0" max="12" step="0.1" value="8.3">
+                    </div>
+                </div>
+                
+                <div class="control-group">
+                    <h4>Collision Precision</h4>
+                    <div class="slider-container">
+                        <div class="slider-label">
+                            <span>Beam Focus</span>
+                            <span id="focus-value">High</span>
+                        </div>
+                        <input type="range" id="focus-slider" min="1" max="5" step="1" value="3">
+                    </div>
+                    
+                    <div class="toggle-group">
+                        <button class="toggle-btn success" onclick="setPrecisionMode('ultra')">Ultra Precision</button>
+                        <button class="toggle-btn" onclick="setPrecisionMode('standard')">Standard</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Beam Controls -->
+            <div id="beam-controls" class="control-panel">
+                <h3>🔧 BEAM DYNAMICS</h3>
+                
+                <div class="beam-indicator" id="beam1-display"></div>
+                <div class="slider-label">
+                    <span>Beam 1 (Clockwise)</span>
+                    <span id="beam1-intensity">1.15×10¹¹ protons</span>
+                </div>
+                
+                <div class="beam-indicator" id="beam2-display"></div>
+                <div class="slider-label">
+                    <span>Beam 2 (Counter-clockwise)</span>
+                    <span id="beam2-intensity">1.15×10¹¹ protons</span>
+                </div>
+                
+                <div class="control-group">
+                    <div class="stat-grid">
+                        <div class="stat-item">Bunch Spacing<br><span id="bunch-spacing">25 ns</span></div>
+                        <div class="stat-item">Beam Current<br><span id="beam-current">0.58 A</span></div>
+                        <div class="stat-item">β* at IP<br><span id="beta-star">0.55 m</span></div>
+                        <div class="stat-item">Emittance<br><span id="emittance">2.5 μm</span></div>
+                    </div>
+                </div>
+                
+                <div class="control-group">
+                    <button class="success" onclick="startPreciseBeams()">INJECT BEAMS</button>
+                    <button class="warning" onclick="triggerPreciseCollision()">PRECISION COLLISION</button>
+                    <button class="danger" onclick="emergencyDump()">BEAM DUMP</button>
+                </div>
+            </div>
+
+            <!-- Collision Analysis -->
+            <div id="collision-analysis" class="control-panel">
+                <h3>🔍 COLLISION ANALYSIS</h3>
+                
+                <div class="control-group">
+                    <div class="stat-grid">
+                        <div class="stat-item">Active Particles<br><span id="active-count">0</span></div>
+                        <div class="stat-item">Total Collisions<br><span id="total-collisions">0</span></div>
+                        <div class="stat-item">Event Multiplicity<br><span id="event-multiplicity">0</span></div>
+                        <div class="stat-item">Jets Identified<br><span id="jet-count">0</span></div>
+                    </div>
+                </div>
+                
+                <div class="control-group">
+                    <h4>Momentum Conservation</h4>
+                    <div class="stat-item">
+                        Transverse Momentum: <span id="transverse-momentum">0.0 GeV/c</span>
+                    </div>
+                    <div class="stat-item">
+                        Missing Energy: <span id="missing-energy">0.0 GeV</span>
+                    </div>
+                </div>
+                
+                <div class="control-group">
+                    <h4>Recent Events</h4>
+                    <div id="event-log" style="max-height: 120px; overflow-y: auto; font-size: 11px;">
+                        <!-- Events will appear here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Particle Statistics -->
+            <div id="particle-stats" class="control-panel">
+                <h3>📊 PARTICLE STATISTICS</h3>
+                
+                <div class="control-group">
+                    <div class="stat-grid">
+                        <div class="stat-item">Higgs Bosons<br><span id="higgs-count">0</span></div>
+                        <div class="stat-item">Top Quarks<br><span id="top-count">0</span></div>
+                        <div class="stat-item">Z Bosons<br><span id="z-count">0</span></div>
+                        <div class="stat-item">W Bosons<br><span id="w-count">0</span></div>
+                        <div class="stat-item">Tau Leptons<br><span id="tau-count">0</span></div>
+                        <div class="stat-item">Beauty Quarks<br><span id="beauty-count">0</span></div>
+                    </div>
+                </div>
+                
+                <div class="control-group">
+                    <h4>Detector Systems</h4>
+                    <div class="toggle-group">
+                        <button class="toggle-btn success" onclick="toggleDetector('tracker')">Tracker ON</button>
+                        <button class="toggle-btn success" onclick="toggleDetector('ecal')">ECAL ON</button>
+                        <button class="toggle-btn success" onclick="toggleDetector('hcal')">HCAL ON</button>
+                        <button class="toggle-btn success" onclick="toggleDetector('muon')">Muon ON</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Field visualization container -->
+        <div id="field-visuals"></div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tween.js/18.6.4/tween.umd.js"></script>
+    
+    <script>
+        // Enhanced Particle Database with Precise Properties
+        const PRECISE_PARTICLES = {
+            // Beam particles
+            PROTON: {
+                name: "Proton", type: "baryon", mass: 0.938272, charge: 1, spin: 0.5,
+                color: 0x4EA8DE, lifetime: Infinity, width: 0,
+                decayModes: [], composition: "uud", interaction: "strong",
+                magneticMoment: 2.79284734462
+            },
+
+            // Gauge Bosons
+            PHOTON: {
+                name: "Photon", type: "boson", mass: 0, charge: 0, spin: 1,
+                color: 0xFFFFFF, lifetime: Infinity, width: 0,
+                decayModes: [], interaction: "electromagnetic"
+            },
+            GLUON: {
+                name: "Gluon", type: "boson", mass: 0, charge: 0, spin: 1,
+                color: 0xFF70A6, lifetime: Infinity, width: 0,
+                decayModes: [], interaction: "strong"
+            },
+            Z_BOSON: {
+                name: "Z Boson", type: "boson", mass: 91.1876, charge: 0, spin: 1,
+                color: 0xF9C74F, lifetime: 2.637e-25, width: 2.4952,
+                decayModes: [
+                    { products: ["ELECTRON", "POSITRON"], probability: 0.0340 },
+                    { products: ["MUON", "ANTI_MUON"], probability: 0.0340 },
+                    { products: ["TAU", "ANTI_TAU"], probability: 0.0338 },
+                    { products: ["QUARK_UP", "QUARK_UP_BAR"], probability: 0.1159 },
+                    { products: ["QUARK_DOWN", "QUARK_DOWN_BAR"], probability: 0.1532 }
+                ], interaction: "weak"
+            },
+            W_BOSON: {
+                name: "W Boson", type: "boson", mass: 80.385, charge: 1, spin: 1,
+                color: 0xF9844A, lifetime: 3.028e-25, width: 2.085,
+                decayModes: [
+                    { products: ["ELECTRON", "ELECTRON_NEUTRINO"], probability: 0.1075 },
+                    { products: ["MUON", "MUON_NEUTRINO"], probability: 0.1057 },
+                    { products: ["TAU", "TAU_NEUTRINO"], probability: 0.1125 },
+                    { products: ["QUARK_UP", "QUARK_DOWN_BAR"], probability: 0.316 }
+                ], interaction: "weak"
+            },
+            HIGGS: {
+                name: "Higgs Boson", type: "boson", mass: 125.10, charge: 0, spin: 0,
+                color: 0x90BE6D, lifetime: 1.56e-22, width: 0.00407,
+                decayModes: [
+                    { products: ["B_QUARK", "B_QUARK_BAR"], probability: 0.579 },
+                    { products: ["W_BOSON", "W_BOSON"], probability: 0.214 },
+                    { products: ["GLUON", "GLUON"], probability: 0.0856 },
+                    { products: ["TAU", "ANTI_TAU"], probability: 0.0627 }
+                ], interaction: "higgs"
+            },
+
+            // Leptons
+            ELECTRON: {
+                name: "Electron", type: "lepton", mass: 0.0005109989461, charge: -1, spin: 0.5,
+                color: 0x4CC9F0, lifetime: Infinity, width: 0,
+                decayModes: [], interaction: "electromagnetic"
+            },
+            POSITRON: {
+                name: "Positron", type: "lepton", mass: 0.0005109989461, charge: 1, spin: 0.5,
+                color: 0x4361EE, lifetime: Infinity, width: 0,
+                decayModes: [], interaction: "electromagnetic"
+            },
+            MUON: {
+                name: "Muon", type: "lepton", mass: 0.1056583745, charge: -1, spin: 0.5,
+                color: 0x7209B7, lifetime: 2.1969811e-6, width: 0,
+                decayModes: [
+                    { products: ["ELECTRON", "ELECTRON_NEUTRINO", "MUON_NEUTRINO"], probability: 1.0 }
+                ], interaction: "weak"
+            },
+            ANTI_MUON: {
+                name: "Anti-Muon", type: "lepton", mass: 0.1056583745, charge: 1, spin: 0.5,
+                color: 0x3A0CA3, lifetime: 2.1969811e-6, width: 0,
+                decayModes: [
+                    { products: ["POSITRON", "ELECTRON_NEUTRINO", "MUON_NEUTRINO"], probability: 1.0 }
+                ], interaction: "weak"
+            },
+
+            // Quarks
+            QUARK_UP: {
+                name: "Up Quark", type: "quark", mass: 0.00216, charge: 0.666, spin: 0.5,
+                color: 0xFF9E00, lifetime: Infinity, width: 0,
+                decayModes: [], interaction: "strong"
+            },
+            QUARK_DOWN: {
+                name: "Down Quark", type: "quark", mass: 0.00467, charge: -0.333, spin: 0.5,
+                color: 0xFF5400, lifetime: Infinity, width: 0,
+                decayModes: [], interaction: "strong"
+            },
+            QUARK_CHARM: {
+                name: "Charm Quark", type: "quark", mass: 1.27, charge: 0.666, spin: 0.5,
+                color: 0xFF006E, lifetime: 1e-12, width: 0,
+                decayModes: [
+                    { products: ["QUARK_STRANGE", "W_BOSON"], probability: 0.95 }
+                ], interaction: "strong"
+            },
+            QUARK_STRANGE: {
+                name: "Strange Quark", type: "quark", mass: 0.093, charge: -0.333, spin: 0.5,
+                color: 0x8338EC, lifetime: 1e-10, width: 0,
+                decayModes: [
+                    { products: ["QUARK_UP", "W_BOSON"], probability: 0.95 }
+                ], interaction: "strong"
+            },
+            QUARK_TOP: {
+                name: "Top Quark", type: "quark", mass: 172.76, charge: 0.666, spin: 0.5,
+                color: 0x3A86FF, lifetime: 5e-25, width: 0,
+                decayModes: [
+                    { products: ["QUARK_BOTTOM", "W_BOSON"], probability: 0.999 }
+                ], interaction: "strong"
+            },
+            QUARK_BOTTOM: {
+                name: "Bottom Quark", type: "quark", mass: 4.18, charge: -0.333, spin: 0.5,
+                color: 0xFF006E, lifetime: 1.5e-12, width: 0,
+                decayModes: [
+                    { products: ["QUARK_CHARM", "W_BOSON"], probability: 0.64 }
+                ], interaction: "strong"
+            },
+
+            // Composite Particles
+            PION_PLUS: {
+                name: "π⁺", type: "meson", mass: 0.13957039, charge: 1, spin: 0,
+                color: 0xFF70A6, lifetime: 2.6033e-8, width: 0,
+                decayModes: [
+                    { products: ["MUON", "MUON_NEUTRINO"], probability: 0.999877 }
+                ], composition: "ud̄", interaction: "strong"
+            },
+            PION_ZERO: {
+                name: "π⁰", type: "meson", mass: 0.1349768, charge: 0, spin: 0,
+                color: 0xFF9770, lifetime: 8.4e-17, width: 0,
+                decayModes: [
+                    { products: ["PHOTON", "PHOTON"], probability: 0.988 }
+                ], composition: "uū/dd̄", interaction: "strong"
+            },
+            KAON_PLUS: {
+                name: "K⁺", type: "meson", mass: 0.493677, charge: 1, spin: 0,
+                color: 0x9B5DE5, lifetime: 1.238e-8, width: 0,
+                decayModes: [
+                    { products: ["MUON", "MUON_NEUTRINO"], probability: 0.6356 },
+                    { products: ["PION_PLUS", "PION_ZERO"], probability: 0.2055 }
+                ], composition: "us̄", interaction: "strong"
+            }
+        };
+
+        // Add antiparticles
+        Object.keys(PRECISE_PARTICLES).forEach(key => {
+            const particle = PRECISE_PARTICLES[key];
+            if (particle.charge !== 0 && !key.includes('BAR') && !key.includes('ANTI')) {
+                const antiKey = key + '_BAR';
+                PRECISE_PARTICLES[antiKey] = {
+                    ...particle,
+                    name: particle.name.includes('⁺') ? particle.name.replace('⁺', '⁻') : 
+                          particle.name.includes('+') ? particle.name.replace('+', '-') : 'Anti-' + particle.name,
+                    charge: -particle.charge,
+                    color: adjustColor(particle.color, -0.2)
+                };
+            }
+        });
+
+        function adjustColor(color, factor) {
+            const r = Math.min(255, ((color >> 16) & 0xff) * (1 + factor));
+            const g = Math.min(255, ((color >> 8) & 0xff) * (1 + factor));
+            const b = Math.min(255, (color & 0xff) * (1 + factor));
+            return (r << 16) | (g << 8) | b;
+        }
+
+        class PreciseCollisionSimulator {
+            constructor() {
+                this.scene = new THREE.Scene();
+                this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+                this.renderer = new THREE.WebGLRenderer({ 
+                    antialias: true, 
+                    alpha: true,
+                    powerPreference: "high-performance"
+                });
+                
+                // Beam systems
+                this.beam1 = []; // Clockwise beam
+                this.beam2 = []; // Counter-clockwise beam
+                this.collisionProducts = new Map();
+                this.particleTrails = new Map();
+                this.decayVertices = new Map();
+                this.jetCones = new Map();
+                
+                // Physics parameters
+                this.beamEnergy = 6.5; // TeV
+                this.luminosity = 1.0;
+                this.magneticField = 8.3; // Tesla
+                this.beamFocus = 3; // 1-5 scale
+                this.precisionMode = 'ultra';
+                
+                // Statistics
+                this.stats = {
+                    totalCollisions: 0,
+                    activeParticles: 0,
+                    eventMultiplicity: 0,
+                    jetsIdentified: 0,
+                    transverseMomentum: 0,
+                    missingEnergy: 0,
+                    rareParticles: {
+                        higgs: 0, top: 0, zBoson: 0, wBoson: 0, 
+                        tau: 0, beauty: 0, charm: 0
+                    }
+                };
+                
+                this.beamActive = false;
+                this.interactionPoint = new THREE.Vector3(0, 0, 0);
+                
+                this.init();
+            }
+
+            init() {
+                this.setupRenderer();
+                this.setupCamera();
+                this.setupScene();
+                this.setupLighting();
+                this.setupDetector();
+                this.setupFieldVisualization();
+                this.setupEventListeners();
+                this.animate();
+            }
+
+            setupRenderer() {
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
+                this.renderer.setClearColor(0x0a0a1a, 1);
+                this.renderer.shadowMap.enabled = true;
+                this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+                this.renderer.physicallyCorrectLights = true;
+                document.getElementById('container').appendChild(this.renderer.domElement);
+            }
+
+            setupCamera() {
+                this.camera.position.set(0, 6, 12);
+                this.camera.lookAt(0, 0, 0);
+                
+                this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
+                this.controls.enableDamping = true;
+                this.controls.dampingFactor = 0.04;
+                this.controls.minDistance = 4;
+                this.controls.maxDistance = 40;
+                this.controls.rotateSpeed = 0.5;
+            }
+
+            setupScene() {
+                // Cosmic background with enhanced starfield
+                this.createEnhancedStarfield();
+                
+                // Precise beam pipe with LHC-like structure
+                this.createPreciseBeamPipe();
+                
+                // Enhanced interaction point
+                this.createEnhancedInteractionPoint();
+            }
+
+            createEnhancedStarfield() {
+                const starGroups = [
+                    { count: 3000, size: 0.08, color: 0xFFFFFF }, // Bright stars
+                    { count: 5000, size: 0.04, color: 0xAAAAAA }, // Medium stars
+                    { count: 8000, size: 0.02, color: 0x666666 }  // Distant stars
+                ];
+
+                starGroups.forEach(group => {
+                    const geometry = new THREE.BufferGeometry();
+                    const material = new THREE.PointsMaterial({
+                        color: group.color,
+                        size: group.size,
+                        transparent: true
+                    });
+
+                    const positions = [];
+                    for (let i = 0; i < group.count; i++) {
+                        positions.push(
+                            (Math.random() - 0.5) * 2000,
+                            (Math.random() - 0.5) * 2000,
+                            (Math.random() - 0.5) * 2000
+                        );
+                    }
+
+                    geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+                    const stars = new THREE.Points(geometry, material);
+                    this.scene.add(stars);
+                });
+            }
+
+            createPreciseBeamPipe() {
+                // Main beam pipe
+                const pipeGeometry = new THREE.CylinderGeometry(0.75, 0.75, 28, 64);
+                const pipeMaterial = new THREE.MeshPhongMaterial({
+                    color: 0x333333,
+                    transparent: true,
+                    opacity: 0.4,
+                    side: THREE.DoubleSide
+                });
+                
+                const beamPipe = new THREE.Mesh(pipeGeometry, pipeMaterial);
+                beamPipe.rotation.z = Math.PI / 2;
+                this.scene.add(beamPipe);
+
+                // Beam pipe details
+                const detailGeometry = new THREE.TorusGeometry(0.78, 0.02, 16, 100);
+                const detailMaterial = new THREE.MeshBasicMaterial({ color: 0x666666 });
+                
+                for (let i = -12; i <= 12; i += 4) {
+                    const detail = new THREE.Mesh(detailGeometry, detailMaterial);
+                    detail.position.set(i, 0, 0);
+                    detail.rotation.x = Math.PI / 2;
+                    this.scene.add(detail);
+                }
+            }
+
+            createEnhancedInteractionPoint() {
+                // Central collision point with glow
+                const ipGeometry = new THREE.SphereGeometry(0.4, 32, 32);
+                const ipMaterial = new THREE.MeshBasicMaterial({
+                    color: 0xff6b6b,
+                    emissive: 0xff6b6b,
+                    emissiveIntensity: 1.0,
+                    transparent: true,
+                    opacity: 0.8
+                });
+                
+                this.interactionPoint = new THREE.Mesh(ipGeometry, ipMaterial);
+                this.scene.add(this.interactionPoint);
+
+                // Pulsing glow effect
+                this.animateInteractionPoint();
+            }
+
+            animateInteractionPoint() {
+                const scale = [1, 1.2, 1];
+                const opacity = [0.8, 1.0, 0.8];
+                const duration = 2000;
+
+                new TWEEN.Tween(this.interactionPoint.scale)
+                    .to({ x: 1.2, y: 1.2, z: 1.2 }, duration)
+                    .easing(TWEEN.Easing.Sinusoidal.InOut)
+                    .chain(
+                        new TWEEN.Tween(this.interactionPoint.scale)
+                            .to({ x: 1, y: 1, z: 1 }, duration)
+                            .easing(TWEEN.Easing.Sinusoidal.InOut)
+                    )
+                    .start();
+
+                setInterval(() => {
+                    new TWEEN.Tween(this.interactionPoint.scale)
+                        .to({ x: 1.2, y: 1.2, z: 1.2 }, duration)
+                        .easing(TWEEN.Easing.Sinusoidal.InOut)
+                        .chain(
+                            new TWEEN.Tween(this.interactionPoint.scale)
+                                .to({ x: 1, y: 1, z: 1 }, duration)
+                                .easing(TWEEN.Easing.Sinusoidal.InOut)
+                        )
+                        .start();
+                }, duration * 2);
+            }
+
+            setupLighting() {
+                // Enhanced ambient lighting
+                const ambientLight = new THREE.AmbientLight(0x404040, 0.4);
+                this.scene.add(ambientLight);
+
+                // Multiple directional lights for better depth
+                const directionalLight1 = new THREE.DirectionalLight(0xffffff, 0.8);
+                directionalLight1.position.set(15, 20, 15);
+                directionalLight1.castShadow = true;
+                this.scene.add(directionalLight1);
+
+                const directionalLight2 = new THREE.DirectionalLight(0xffffff, 0.4);
+                directionalLight2.position.set(-15, 10, -15);
+                this.scene.add(directionalLight2);
+
+                // Colored point lights for particle illumination
+                const pointLights = [
+                    { color: 0x4cc9f0, position: [10, 5, 5], intensity: 0.6 },
+                    { color: 0x4361ee, position: [-10, -5, -5], intensity: 0.6 },
+                    { color: 0x7209b7, position: [5, -10, 5], intensity: 0.4 },
+                    { color: 0xf9c74f, position: [-5, 10, -5], intensity: 0.4 }
+                ];
+
+                pointLights.forEach(lightConfig => {
+                    const light = new THREE.PointLight(lightConfig.color, lightConfig.intensity, 25);
+                    light.position.set(...lightConfig.position);
+                    this.scene.add(light);
+                });
+            }
+
+            setupDetector() {
+                // Precise detector layers with LHC-like dimensions
+                const layers = [
+                    { radius: 1.1, color: 0xff6b6b, name: "Pixel", opacity: 0.3 },
+                    { radius: 1.5, color: 0x4cc9f0, name: "Strip", opacity: 0.25 },
+                    { radius: 2.1, color: 0x7209b7, name: "Tracker", opacity: 0.2 },
+                    { radius: 3.0, color: 0xf9c74f, name: "ECAL", opacity: 0.15 },
+                    { radius: 4.5, color: 0x90be6d, name: "HCAL", opacity: 0.1 },
+                    { radius: 7.0, color: 0xff9ff3, name: "Muon", opacity: 0.08 }
+                ];
+
+                layers.forEach(layer => {
+                    const geometry = new THREE.SphereGeometry(layer.radius, 48, 24);
+                    const material = new THREE.MeshBasicMaterial({
+                        color: layer.color,
+                        wireframe: true,
+                        transparent: true,
+                        opacity: layer.opacity
+                    });
+                    const sphere = new THREE.Mesh(geometry, material);
+                    this.scene.add(sphere);
+                });
+            }
+
+            setupFieldVisualization() {
+                // Magnetic field lines visualization
+                this.createMagneticFieldLines();
+            }
+
+            createMagneticFieldLines() {
+                const fieldLineGeometry = new THREE.BufferGeometry();
+                const fieldLineMaterial = new THREE.LineBasicMaterial({
+                    color: 0x64b5f6,
+                    transparent: true,
+                    opacity: 0.3
+                });
+
+                const positions = [];
+                for (let r = 2; r <= 6; r += 1) {
+                    for (let angle = 0; angle < Math.PI * 2; angle += Math.PI / 8) {
+                        for (let z = -8; z <= 8; z += 0.5) {
+                            const x = Math.cos(angle) * r;
+                            const y = Math.sin(angle) * r;
+                            positions.push(x, y, z);
+                        }
+                    }
+                }
+
+                fieldLineGeometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+                const fieldLines = new THREE.Line(fieldLineGeometry, fieldLineMaterial);
+                this.scene.add(fieldLines);
+            }
+
+            setupEventListeners() {
+                window.addEventListener('resize', () => this.onWindowResize());
+                
+                // Enhanced physics controls
+                const sliders = [
+                    { id: 'energy-slider', property: 'beamEnergy', format: v => v.toFixed(1) + ' TeV' },
+                    { id: 'luminosity-slider', property: 'luminosity', format: v => v.toFixed(1) + '×10³⁴ cm⁻²s⁻¹' },
+                    { id: 'magnetic-slider', property: 'magneticField', format: v => v.toFixed(1) + ' Tesla' },
+                    { id: 'focus-slider', property: 'beamFocus', format: v => ['Very Low', 'Low', 'Medium', 'High', 'Very High'][v-1] }
+                ];
+
+                sliders.forEach(slider => {
+                    document.getElementById(slider.id).addEventListener('input', (e) => {
+                        this[slider.property] = parseFloat(e.target.value);
+                        document.getElementById(slider.property + '-value').textContent = slider.format(this[slider.property]);
+                        if (slider.property === 'beamEnergy') {
+                            document.getElementById('com-energy').textContent = (this.beamEnergy * 2).toFixed(1) + ' TeV';
+                            this.updateBeamVisualization();
+                        }
+                    });
+                });
+            }
+
+            startPreciseBeams() {
+                this.beamActive = true;
+                this.generatePreciseBeamParticles();
+                this.updateUIState();
+            }
+
+            emergencyDump() {
+                this.beamActive = false;
+                
+                // Rapidly remove all beam particles with visual effect
+                [...this.beam1, ...this.beam2].forEach(particle => {
+                    this.createBeamDumpEffect(particle.position);
+                    this.scene.remove(particle);
+                    this.removeParticleTrail(particle.id);
+                });
+                
+                this.beam1 = [];
+                this.beam2 = [];
+                this.updateUIState();
+            }
+
+            createBeamDumpEffect(position) {
+                const geometry = new THREE.SphereGeometry(0.3, 16, 16);
+                const material = new THREE.MeshBasicMaterial({
+                    color: 0xff6b6b,
+                    transparent: true,
+                    opacity: 0.7
+                });
+                const effect = new THREE.Mesh(geometry, material);
+                effect.position.copy(position);
+                this.scene.add(effect);
+
+                new TWEEN.Tween(effect.scale)
+                    .to({ x: 2, y: 2, z: 2 }, 300)
+                    .easing(TWEEN.Easing.Exponential.Out)
+                    .start();
+
+                new TWEEN.Tween(material)
+                    .to({ opacity: 0 }, 500)
+                    .onComplete(() => this.scene.remove(effect))
+                    .start();
+            }
+
+            generatePreciseBeamParticles() {
+                if (!this.beamActive) return;
+
+                const bunchSize = this.calculateBunchSize();
+                const beamSpread = this.calculateBeamSpread();
+
+                // Generate precisely positioned beam particles
+                for (let i = 0; i < bunchSize; i++) {
+                    this.createPreciseBeamParticle(0, beamSpread); // Beam 1 (clockwise)
+                    this.createPreciseBeamParticle(1, beamSpread); // Beam 2 (counter-clockwise)
+                }
+
+                // Continuous beam generation
+                if (this.beamActive) {
+                    setTimeout(() => this.generatePreciseBeamParticles(), 50);
+                }
+            }
+
+            calculateBunchSize() {
+                const baseSize = 8;
+                const energyFactor = this.beamEnergy / 6.5;
+                const focusFactor = this.beamFocus / 3;
+                return Math.floor(baseSize * energyFactor * focusFactor);
+            }
+
+            calculateBeamSpread() {
+                // Smaller spread for higher focus
+                return 0.6 - (this.beamFocus - 1) * 0.1;
+            }
+
+            createPreciseBeamParticle(beamIndex, beamSpread) {
+                const startX = beamIndex === 0 ? -14 : 14;
+                const startPos = new THREE.Vector3(
+                    startX,
+                    (Math.random() - 0.5) * beamSpread,
+                    (Math.random() - 0.5) * beamSpread
+                );
+
+                const geometry = new THREE.SphereGeometry(0.08, 16, 16);
+                const material = new THREE.MeshPhongMaterial({
+                    color: beamIndex === 0 ? 0x4EA8DE : 0x4361EE,
+                    emissive: beamIndex === 0 ? 0x4EA8DE : 0x4361EE,
+                    emissiveIntensity: 0.8,
+                    shininess: 100
+                });
+
+                const mesh = new THREE.Mesh(geometry, material);
+                mesh.position.copy(startPos);
+
+                const direction = beamIndex === 0 ? 1 : -1;
+                const speed = this.calculateBeamSpeed();
+                const velocity = new THREE.Vector3(direction * speed, 0, 0);
+
+                mesh.userData = {
+                    type: 'PROTON',
+                    beamIndex,
+                    velocity,
+                    creationTime: Date.now(),
+                    hasCollided: false,
+                    initialMomentum: velocity.clone().multiplyScalar(PRECISE_PARTICLES.PROTON.mass)
+                };
+
+                this.scene.add(mesh);
+                this.beam1.push(mesh);
+
+                this.createEnhancedParticleTrail(mesh, material.color);
+            }
+
+            calculateBeamSpeed() {
+                // Relativistic speed calculation
+                const gamma = this.beamEnergy / PRECISE_PARTICLES.PROTON.mass;
+                const beta = Math.sqrt(1 - 1 / (gamma * gamma));
+                return beta * 0.25; // Scaled for visualization
+            }
+
+            createEnhancedParticleTrail(mesh, color) {
+                const trailGeometry = new THREE.BufferGeometry();
+                const trailMaterial = new THREE.LineBasicMaterial({
+                    color,
+                    transparent: true,
+                    opacity: 0.7,
+                    linewidth: 3
+                });
+
+                const trail = new THREE.Line(trailGeometry, trailMaterial);
+                this.scene.add(trail);
+                
+                this.particleTrails.set(mesh.id, {
+                    mesh: trail,
+                    points: [mesh.position.clone()],
+                    maxPoints: 80,
+                    color
+                });
+            }
+
+            updateParticleTrail(mesh) {
+                const trail = this.particleTrails.get(mesh.id);
+                if (!trail) return;
+
+                trail.points.push(mesh.position.clone());
+                if (trail.points.length > trail.maxPoints) {
+                    trail.points.shift();
+                }
+
+                const positions = new Float32Array(trail.points.length * 3);
+                trail.points.forEach((point, i) => {
+                    positions[i * 3] = point.x;
+                    positions[i * 3 + 1] = point.y;
+                    positions[i * 3 + 2] = point.z;
+                });
+
+                trail.mesh.geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+                trail.mesh.geometry.attributes.position.needsUpdate = true;
+            }
+
+            removeParticleTrail(particleId) {
+                const trail = this.particleTrails.get(particleId);
+                if (trail) {
+                    this.scene.remove(trail.mesh);
+                    this.particleTrails.delete(particleId);
+                }
+            }
+
+            triggerPreciseCollision() {
+                if (!this.beamActive) return;
+
+                const collisionCandidates = this.findPreciseCollisionCandidates();
+                
+                if (collisionCandidates.length >= 2) {
+                    const [particle1, particle2] = collisionCandidates;
+                    this.executePreciseCollision(particle1, particle2);
+                }
+            }
+
+            findPreciseCollisionCandidates() {
+                const candidates = [];
+                const collisionDistance = 0.2; // Very precise collision detection
+
+                // Check beam1 particles against beam2 particles
+                this.beam1.forEach(p1 => {
+                    if (p1.userData.hasCollided) return;
+                    
+                    this.beam2.forEach(p2 => {
+                        if (p2.userData.hasCollided) return;
+                        
+                        if (p1.position.distanceTo(p2.position) < collisionDistance) {
+                            candidates.push([p1, p2]);
+                        }
+                    });
+                });
+
+                return candidates.length > 0 ? candidates[0] : [];
+            }
+
+            executePreciseCollision(particle1, particle2) {
+                particle1.userData.hasCollided = true;
+                particle2.userData.hasCollided = true;
+
+                // Calculate precise collision point
+                const collisionPoint = new THREE.Vector3()
+                    .addVectors(particle1.position, particle2.position)
+                    .multiplyScalar(0.5);
+
+                // Create enhanced collision effects
+                this.createPreciseCollisionEffects(collisionPoint, particle1, particle2);
+
+                // Generate collision products with precise kinematics
+                const products = this.generatePreciseCollisionProducts(particle1, particle2);
+                
+                // Launch products with conservation laws
+                products.forEach(product => {
+                    this.launchPreciseCollisionProduct(product, collisionPoint);
+                });
+
+                // Update statistics and logging
+                this.updatePreciseStatistics(products, particle1, particle2);
+                this.logPreciseCollisionEvent(products, collisionPoint);
+                
+                this.stats.totalCollisions++;
+            }
+
+            createPreciseCollisionEffects(collisionPoint, particle1, particle2) {
+                // Multi-stage collision effects
+                this.createCollisionFlash(collisionPoint);
+                this.createEnergyShockwave(collisionPoint);
+                this.createParticleShower(collisionPoint);
+                this.createMomentumTransferEffect(particle1, particle2, collisionPoint);
+            }
+
+            createCollisionFlash(position) {
+                const flashGeometry = new THREE.SphereGeometry(1.5, 32, 32);
+                const flashMaterial = new THREE.MeshBasicMaterial({
+                    color: 0xffffff,
+                    transparent: true,
+                    opacity: 1.0
+                });
+                const flash = new THREE.Mesh(flashGeometry, flashMaterial);
+                flash.position.copy(position);
+                this.scene.add(flash);
+
+                new TWEEN.Tween(flash.scale)
+                    .to({ x: 3, y: 3, z: 3 }, 80)
+                    .easing(TWEEN.Easing.Exponential.Out)
+                    .start();
+
+                new TWEEN.Tween(flashMaterial)
+                    .to({ opacity: 0 }, 200)
+                    .onComplete(() => this.scene.remove(flash))
+                    .start();
+            }
+
+            createEnergyShockwave(position) {
+                const shockwaveGeometry = new THREE.RingGeometry(0.5, 1, 32);
+                const shockwaveMaterial = new THREE.MeshBasicMaterial({
+                    color: 0xff9ff3,
+                    transparent: true,
+                    opacity: 0.8,
+                    side: THREE.DoubleSide
+                });
+                const shockwave = new THREE.Mesh(shockwaveGeometry, shockwaveMaterial);
+                shockwave.position.copy(position);
+                shockwave.rotation.x = Math.PI / 2;
+                this.scene.add(shockwave);
+
+                new TWEEN.Tween(shockwave.scale)
+                    .to({ x: 8, y: 8, z: 8 }, 500)
+                    .easing(TWEEN.Easing.Exponential.Out)
+                    .start();
+
+                new TWEEN.Tween(shockwaveMaterial)
+                    .to({ opacity: 0 }, 600)
+                    .onComplete(() => this.scene.remove(shockwave))
+                    .start();
+            }
+
+            createParticleShower(position) {
+                const showerSize = 15 + Math.floor(this.beamEnergy * 12);
+                
+                for (let i = 0; i < showerSize; i++) {
+                    setTimeout(() => {
+                        this.createShowerParticle(position);
+                    }, i * 5);
+                }
+            }
+
+            createShowerParticle(position) {
+                const types = ['PHOTON', 'ELECTRON', 'POSITRON', 'PION_PLUS', 'PION_ZERO'];
+                const type = types[Math.floor(Math.random() * types.length)];
+                const particleData = PRECISE_PARTICLES[type];
+
+                const geometry = new THREE.SphereGeometry(0.04, 12, 12);
+                const material = new THREE.MeshBasicMaterial({
+                    color: particleData.color,
+                    emissive: particleData.color
+                });
+
+                const mesh = new THREE.Mesh(geometry, material);
+                mesh.position.copy(position);
+
+                // Precise angular distribution
+                const phi = Math.random() * Math.PI * 2;
+                const theta = Math.acos(2 * Math.random() - 1);
+                const direction = new THREE.Vector3(
+                    Math.sin(theta) * Math.cos(phi),
+                    Math.sin(theta) * Math.sin(phi),
+                    Math.cos(theta)
+                );
+
+                const speed = 0.12 * Math.sqrt(this.beamEnergy);
+                const velocity = direction.multiplyScalar(speed);
+
+                mesh.userData = {
+                    type,
+                    velocity,
+                    creationTime: Date.now(),
+                    lifetime: 1.5 + Math.random() * 1.5
+                };
+
+                this.scene.add(mesh);
+                const id = Date.now() + Math.random();
+                this.collisionProducts.set(id, mesh);
+                this.createEnhancedParticleTrail(mesh, particleData.color);
+            }
+
+            createMomentumTransferEffect(particle1, particle2, collisionPoint) {
+                // Visualize momentum transfer with particle trails
+                const p1Momentum = particle1.userData.initialMomentum;
+                const p2Momentum = particle2.userData.initialMomentum;
+                
+                this.createMomentumVector(particle1.position, p1Momentum, 0x4EA8DE);
+                this.createMomentumVector(particle2.position, p2Momentum, 0x4361EE);
+            }
+
+            createMomentumVector(start, momentum, color) {
+                const direction = momentum.clone().normalize();
+                const length = momentum.length() * 0.5;
+                
+                const arrowHelper = new THREE.ArrowHelper(
+                    direction,
+                    start,
+                    length,
+                    color,
+                    0.3,
+                    0.15
+                );
+                this.scene.add(arrowHelper);
+
+                setTimeout(() => {
+                    this.scene.remove(arrowHelper);
+                }, 1000);
+            }
+
+            generatePreciseCollisionProducts(particle1, particle2) {
+                const products = [];
+                const availableParticles = Object.keys(PRECISE_PARTICLES);
+                const centerOfMassEnergy = this.beamEnergy * 2;
+                
+                // Calculate multiplicity based on energy and precision
+                const baseMultiplicity = 4;
+                const energyMultiplicity = Math.floor(centerOfMassEnergy * 0.8);
+                const precisionMultiplicity = this.precisionMode === 'ultra' ? 3 : 1;
+                const multiplicity = baseMultiplicity + energyMultiplicity + precisionMultiplicity;
+
+                let totalMass = 0;
+                const selectedParticles = [];
+
+                for (let i = 0; i < multiplicity; i++) {
+                    const randomParticle = availableParticles[Math.floor(Math.random() * availableParticles.length)];
+                    const particleData = PRECISE_PARTICLES[randomParticle];
+                    
+                    if (totalMass + particleData.mass <= centerOfMassEnergy) {
+                        const probability = this.calculatePreciseProductionProbability(particleData, centerOfMassEnergy);
+                        
+                        if (Math.random() < probability) {
+                            selectedParticles.push({
+                                type: randomParticle,
+                                data: particleData,
+                                energy: particleData.mass + Math.random() * (centerOfMassEnergy - totalMass) * 0.2
+                            });
+                            totalMass += particleData.mass;
+                            
+                            this.trackRareParticles(randomParticle);
+                        }
+                    }
+                }
+
+                // Distribute remaining energy as kinetic energy
+                const remainingEnergy = centerOfMassEnergy - totalMass;
+                selectedParticles.forEach(particle => {
+                    particle.energy += remainingEnergy / selectedParticles.length;
+                });
+
+                this.stats.eventMultiplicity = selectedParticles.length;
+                return selectedParticles;
+            }
+
+            calculatePreciseProductionProbability(particleData, comEnergy) {
+                let probability = 0.15;
+
+                // Mass-based probability (heavier particles less likely)
+                if (particleData.mass > 50) probability *= 0.2;
+                else if (particleData.mass > 10) probability *= 0.4;
+                else if (particleData.mass > 1) probability *= 0.7;
+
+                // Lifetime-based probability (short-lived particles less likely)
+                if (particleData.lifetime < 1e-12) probability *= 0.6;
+
+                // Type-based adjustments
+                if (particleData.type === 'boson') probability *= 0.3;
+                if (particleData.type === 'quark') probability *= 0.8;
+
+                // Energy threshold
+                const energyFactor = Math.min(1, comEnergy / (particleData.mass * 2 || 1));
+                probability *= energyFactor;
+
+                // Luminosity scaling
+                probability *= this.luminosity;
+
+                return Math.min(probability, 0.9);
+            }
+
+            trackRareParticles(particleType) {
+                const rareParticles = {
+                    'HIGGS': 'higgs',
+                    'QUARK_TOP': 'top',
+                    'Z_BOSON': 'zBoson',
+                    'W_BOSON': 'wBoson',
+                    'TAU': 'tau',
+                    'QUARK_BOTTOM': 'beauty',
+                    'QUARK_CHARM': 'charm'
+                };
+
+                if (rareParticles[particleType]) {
+                    this.stats.rareParticles[rareParticles[particleType]]++;
+                }
+            }
+
+            launchPreciseCollisionProduct(product, collisionPoint) {
+                const { type, data, energy } = product;
+                
+                const geometry = new THREE.SphereGeometry(0.1, 20, 20);
+                const material = new THREE.MeshPhongMaterial({
+                    color: data.color,
+                    emissive: data.color,
+                    emissiveIntensity: 0.6,
+                    shininess: 90
+                });
+
+                const mesh = new THREE.Mesh(geometry, material);
+                mesh.position.copy(collisionPoint);
+
+                // Precise angular distribution with momentum conservation
+                const direction = this.calculateProductDirection();
+                const speed = this.calculateProductSpeed(data.mass, energy);
+                const velocity = direction.multiplyScalar(speed);
+                const momentum = velocity.clone().multiplyScalar(data.mass);
+
+                mesh.userData = {
+                    type,
+                    data,
+                    velocity,
+                    momentum,
+                    energy,
+                    creationTime: Date.now(),
+                    lifetime: data.lifetime === Infinity ? 8 : data.lifetime * 1e10,
+                    decayed: false
+                };
+
+                this.scene.add(mesh);
+                const id = Date.now() + Math.random();
+                this.collisionProducts.set(id, mesh);
+                this.createEnhancedParticleTrail(mesh, data.color);
+
+                // Monitor unstable particles for decay
+                if (data.lifetime !== Infinity) {
+                    this.monitorParticleDecay(mesh, id);
+                }
+
+                // Create jet cones for high-energy quarks and gluons
+                if (['QUARK_UP', 'QUARK_DOWN', 'QUARK_CHARM', 'QUARK_STRANGE', 'QUARK_TOP', 'QUARK_BOTTOM', 'GLUON'].includes(type)) {
+                    this.createJetCone(mesh, id, data.color);
+                }
+            }
+
+            calculateProductDirection() {
+                // Precise angular distribution with slight forward bias
+                const phi = Math.random() * Math.PI * 2;
+                const theta = Math.acos(1 - 2 * Math.random()); // Uniform in solid angle
+                
+                return new THREE.Vector3(
+                    Math.sin(theta) * Math.cos(phi),
+                    Math.sin(theta) * Math.sin(phi),
+                    Math.cos(theta)
+                ).normalize();
+            }
+
+            calculateProductSpeed(mass, totalEnergy) {
+                const gamma = totalEnergy / (mass || 0.001);
+                const beta = Math.sqrt(1 - 1 / (gamma * gamma));
+                return beta * 0.2; // Scaled for visualization
+            }
+
+            createJetCone(particle, id, color) {
+                const coneGeometry = new THREE.ConeGeometry(0.3, 1.5, 16);
+                const coneMaterial = new THREE.MeshBasicMaterial({
+                    color,
+                    transparent: true,
+                    opacity: 0.3,
+                    side: THREE.DoubleSide
+                });
+                const cone = new THREE.Mesh(coneGeometry, coneMaterial);
+                cone.visible = false; // Initially hidden
+                this.scene.add(cone);
+                
+                this.jetCones.set(id, cone);
+            }
+
+            updateJetCone(particle, id) {
+                const cone = this.jetCones.get(id);
+                if (!cone) return;
+
+                // Make cone visible after short delay and align with particle direction
+                if (Date.now() - particle.userData.creationTime > 100) {
+                    cone.visible = true;
+                    cone.position.copy(particle.position);
+                    
+                    const direction = particle.userData.velocity.clone().normalize();
+                    cone.lookAt(particle.position.clone().add(direction));
+                }
+            }
+
+            monitorParticleDecay(mesh, id) {
+                const startTime = Date.now();
+                const interval = setInterval(() => {
+                    const elapsed = (Date.now() - startTime) / 1000;
+                    
+                    if (elapsed >= mesh.userData.lifetime && !mesh.userData.decayed) {
+                        this.executeParticleDecay(mesh, id);
+                        clearInterval(interval);
+                    }
+                }, 50);
+            }
+
+            executeParticleDecay(mesh, id) {
+                mesh.userData.decayed = true;
+                const decayPoint = mesh.position.clone();
+                
+                // Create decay vertex marker
+                this.createDecayVertex(decayPoint);
+                
+                // Generate decay products
+                const decayProducts = this.generateDecayProducts(mesh.userData.type);
+                
+                // Launch decay products with inherited momentum
+                decayProducts.forEach(productType => {
+                    this.launchDecayProduct(productType, decayPoint, mesh.userData.momentum);
+                });
+
+                // Clean up original particle
+                this.scene.remove(mesh);
+                this.collisionProducts.delete(id);
+                this.removeParticleTrail(mesh.id);
+                
+                const jetCone = this.jetCones.get(id);
+                if (jetCone) {
+                    this.scene.remove(jetCone);
+                    this.jetCones.delete(id);
+                }
+            }
+
+            generateDecayProducts(particleType) {
+                const particleData = PRECISE_PARTICLES[particleType];
+                if (!particleData.decayModes || particleData.decayModes.length === 0) {
+                    return ['PHOTON', 'PHOTON'];
+                }
+
+                const rand = Math.random();
+                let cumulativeProb = 0;
+
+                for (const mode of particleData.decayModes) {
+                    cumulativeProb += mode.probability;
+                    if (rand <= cumulativeProb) {
+                        return mode.products;
+                    }
+                }
+
+                return particleData.decayModes[0].products;
+            }
+
+            launchDecayProduct(productType, position, parentMomentum) {
+                const particleData = PRECISE_PARTICLES[productType];
+                const geometry = new THREE.SphereGeometry(0.06, 12, 12);
+                const material = new THREE.MeshBasicMaterial({
+                    color: particleData.color,
+                    emissive: particleData.color
+                });
+
+                const mesh = new THREE.Mesh(geometry, material);
+                mesh.position.copy(position);
+
+                // Inherit some parent momentum plus random component
+                const inheritedDirection = parentMomentum.clone().normalize();
+                const randomDirection = new THREE.Vector3(
+                    Math.random() - 0.5,
+                    Math.random() - 0.5,
+                    Math.random() - 0.5
+                ).normalize();
+                
+                const direction = inheritedDirection.add(randomDirection).normalize();
+                const velocity = direction.multiplyScalar(0.15);
+
+                mesh.userData = {
+                    type: productType,
+                    velocity,
+                    creationTime: Date.now(),
+                    lifetime: 4
+                };
+
+                this.scene.add(mesh);
+                const id = Date.now() + Math.random();
+                this.collisionProducts.set(id, mesh);
+                this.createEnhancedParticleTrail(mesh, particleData.color);
+            }
+
+            createDecayVertex(position) {
+                const geometry = new THREE.SphereGeometry(0.2, 12, 12);
+                const material = new THREE.MeshBasicMaterial({
+                    color: 0xff9ff3,
+                    emissive: 0xff9ff3,
+                    emissiveIntensity: 0.8
+                });
+
+                const vertex = new THREE.Mesh(geometry, material);
+                vertex.position.copy(position);
+                this.scene.add(vertex);
+
+                new TWEEN.Tween(material)
+                    .to({ opacity: 0 }, 3000)
+                    .onComplete(() => this.scene.remove(vertex))
+                    .start();
+            }
+
+            updatePreciseStatistics(products, particle1, particle2) {
+                this.stats.activeParticles = this.collisionProducts.size;
+                this.stats.jetsIdentified = products.filter(p => 
+                    p.data.type === 'quark' || p.data.type === 'gluon'
+                ).length;
+
+                // Calculate transverse momentum
+                let totalTransverseMomentum = 0;
+                products.forEach(product => {
+                    const pT = Math.sqrt(
+                        product.data.mass * product.data.mass * 
+                        (product.velocity.x * product.velocity.x + product.velocity.y * product.velocity.y)
+                    );
+                    totalTransverseMomentum += pT;
+                });
+                this.stats.transverseMomentum = totalTransverseMomentum;
+
+                // Update UI
+                document.getElementById('active-count').textContent = this.stats.activeParticles;
+                document.getElementById('total-collisions').textContent = this.stats.totalCollisions;
+                document.getElementById('event-multiplicity').textContent = this.stats.eventMultiplicity;
+                document.getElementById('jet-count').textContent = this.stats.jetsIdentified;
+                document.getElementById('transverse-momentum').textContent = totalTransverseMomentum.toFixed(2) + ' GeV/c';
+
+                // Update rare particle counts
+                document.getElementById('higgs-count').textContent = this.stats.rareParticles.higgs;
+                document.getElementById('top-count').textContent = this.stats.rareParticles.top;
+                document.getElementById('z-count').textContent = this.stats.rareParticles.zBoson;
+                document.getElementById('w-count').textContent = this.stats.rareParticles.wBoson;
+                document.getElementById('tau-count').textContent = this.stats.rareParticles.tau;
+                document.getElementById('beauty-count').textContent = this.stats.rareParticles.beauty;
+            }
+
+            logPreciseCollisionEvent(products, collisionPoint) {
+                const eventLog = document.getElementById('event-log');
+                const eventDiv = document.createElement('div');
+                eventDiv.className = 'collision-event';
+                
+                const time = new Date().toLocaleTimeString();
+                const mainProducts = products.slice(0, 4).map(p => p.data.name);
+                const rareProduct = products.find(p => 
+                    ['HIGGS', 'QUARK_TOP', 'Z_BOSON', 'W_BOSON'].includes(p.type)
+                );
+                
+                eventDiv.innerHTML = `
+                    <strong>${time}</strong> - ${products.length} particles<br>
+                    <small>Main: ${mainProducts.join(', ')}</small>
+                    ${rareProduct ? `<br><small style="color: #ffd54f;">Rare: ${rareProduct.data.name}</small>` : ''}
+                `;
+                
+                eventLog.appendChild(eventDiv);
+                eventLog.scrollTop = eventLog.scrollHeight;
+                
+                // Keep only recent events
+                while (eventLog.children.length > 6) {
+                    eventLog.removeChild(eventLog.firstChild);
+                }
+            }
+
+            updateBeamVisualization() {
+                const intensity = this.beamEnergy / 13;
+                document.getElementById('beam1-display').style.opacity = intensity;
+                document.getElementById('beam2-display').style.opacity = intensity;
+            }
+
+            updateUIState() {
+                // Update beam intensity displays
+                const baseIntensity = 1.15e11;
+                const variation = 0.9 + Math.random() * 0.2;
+                const currentIntensity = (baseIntensity * variation).toExponential(2);
+                
+                document.getElementById('beam1-intensity').textContent = currentIntensity + ' protons';
+                document.getElementById('beam2-intensity').textContent = currentIntensity + ' protons';
+            }
+
+            animate() {
+                requestAnimationFrame(() => this.animate());
+                
+                const deltaTime = 0.016;
+
+                // Update beam particles with precise physics
+                this.updateBeamParticles();
+                
+                // Update collision products with enhanced effects
+                this.updateCollisionProducts();
+                
+                // Update field effects
+                this.updateFieldEffects();
+
+                TWEEN.update();
+                this.controls.update();
+                this.renderer.render(this.scene, this.camera);
+            }
+
+            updateBeamParticles() {
+                [this.beam1, this.beam2].forEach((beam, beamIndex) => {
+                    for (let i = beam.length - 1; i >= 0; i--) {
+                        const particle = beam[i];
+                        
+                        // Precise position update
+                        particle.position.add(particle.userData.velocity);
+                        
+                        // Update particle trail
+                        this.updateParticleTrail(particle);
+
+                        // Remove particles that are too far or collided
+                        if (Math.abs(particle.position.x) > 16 || particle.userData.hasCollided) {
+                            this.scene.remove(particle);
+                            this.removeParticleTrail(particle.id);
+                            beam.splice(i, 1);
+                        }
+                    }
+                });
+            }
+
+            updateCollisionProducts() {
+                this.collisionProducts.forEach((particle, id) => {
+                    // Update position
+                    particle.position.add(particle.userData.velocity);
+                    
+                    // Update trail
+                    this.updateParticleTrail(particle);
+
+                    // Apply magnetic field to charged particles
+                    if (particle.userData.data.charge !== 0) {
+                        this.applyPreciseMagneticField(particle);
+                    }
+
+                    // Update jet cones
+                    this.updateJetCone(particle, id);
+
+                    // Remove expired particles
+                    if (Date.now() - particle.userData.creationTime > particle.userData.lifetime * 1000) {
+                        this.scene.remove(particle);
+                        this.collisionProducts.delete(id);
+                        this.removeParticleTrail(particle.id);
+                        
+                        const jetCone = this.jetCones.get(id);
+                        if (jetCone) {
+                            this.scene.remove(jetCone);
+                            this.jetCones.delete(id);
+                        }
+                    }
+                });
+            }
+
+            applyPreciseMagneticField(particle) {
+                const charge = particle.userData.data.charge;
+                const B = new THREE.Vector3(0, this.magneticField * 0.002, 0);
+                const force = new THREE.Vector3()
+                    .crossVectors(particle.userData.velocity, B)
+                    .multiplyScalar(charge);
+                
+                // Apply force with proper mass scaling
+                const acceleration = force.multiplyScalar(1 / (particle.userData.data.mass || 0.001));
+                particle.userData.velocity.add(acceleration.multiplyScalar(0.016));
+            }
+
+            updateFieldEffects() {
+                // Update any dynamic field visualizations
+                // This could include time-varying magnetic fields, etc.
+            }
+
+            onWindowResize() {
+                this.camera.aspect = window.innerWidth / window.innerHeight;
+                this.camera.updateProjectionMatrix();
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
+            }
+        }
+
+        // Global simulation instance
+        let preciseSimulation;
+
+        // Initialize when page loads
+        window.addEventListener('DOMContentLoaded', () => {
+            preciseSimulation = new PreciseCollisionSimulator();
+        });
+
+        // Enhanced UI Control Functions
+        function startPreciseBeams() {
+            preciseSimulation.startPreciseBeams();
+        }
+
+        function emergencyDump() {
+            preciseSimulation.emergencyDump();
+        }
+
+        function triggerPreciseCollision() {
+            preciseSimulation.triggerPreciseCollision();
+        }
+
+        function setPrecisionMode(mode) {
+            preciseSimulation.precisionMode = mode;
+            document.querySelectorAll('#physics-controls .toggle-btn').forEach(btn => {
+                btn.classList.remove('success');
+            });
+            event.target.classList.add('success');
+        }
+
+        function toggleDetector(detector) {
+            event.target.classList.toggle('success');
+            // Additional detector-specific logic can be added here
+        }
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            if (preciseSimulation) {
+                preciseSimulation.onWindowResize();
+            }
+        });
+
+        // Add keyboard controls
+        document.addEventListener('keydown', (e) => {
+            switch(e.key) {
+                case ' ':
+                    e.preventDefault();
+                    triggerPreciseCollision();
+                    break;
+                case 'Enter':
+                    e.preventDefault();
+                    startPreciseBeams();
+                    break;
+                case 'Escape':
+                    e.preventDefault();
+                    emergencyDump();
+                    break;
+            }
+        });
+    </script>
+</body>
+</html>

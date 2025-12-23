@@ -1,0 +1,1959 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HVAC System Design Calculator</title>
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --secondary: #3498db;
+            --accent: #e74c3c;
+            --light: #ecf0f1;
+            --dark: #2c3e50;
+            --success: #27ae60;
+            --warning: #f39c12;
+            --danger: #e74c3c;
+            --sidebar-width: 280px;
+            --sidebar-collapsed: 60px;
+            --transition: all 0.3s ease;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: #f5f7fa;
+            color: #333;
+            line-height: 1.6;
+            overflow-x: hidden;
+        }
+
+        .app-container {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* Sidebar Styles */
+        .sidebar {
+            width: var(--sidebar-width);
+            background: linear-gradient(135deg, var(--primary), #1a2530);
+            color: white;
+            transition: var(--transition);
+            height: 100vh;
+            position: fixed;
+            overflow-y: auto;
+            z-index: 1000;
+            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        .sidebar.collapsed {
+            width: var(--sidebar-collapsed);
+        }
+
+        .sidebar-header {
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .sidebar-header h2 {
+            font-size: 1.4rem;
+            font-weight: 600;
+            white-space: nowrap;
+            overflow: hidden;
+        }
+
+        .sidebar.collapsed .sidebar-header h2 {
+            display: none;
+        }
+
+        .toggle-btn {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1.2rem;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .toggle-btn:hover {
+            color: var(--secondary);
+        }
+
+        .sidebar.collapsed .toggle-btn {
+            transform: rotate(180deg);
+        }
+
+        .menu-items {
+            list-style: none;
+            padding: 10px 0;
+        }
+
+        .menu-item {
+            padding: 12px 20px;
+            cursor: pointer;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            border-left: 4px solid transparent;
+        }
+
+        .menu-item:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .menu-item.active {
+            background-color: rgba(52, 152, 219, 0.2);
+            border-left-color: var(--secondary);
+            font-weight: bold;
+            transform: translateX(5px);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .menu-item i {
+            margin-right: 10px;
+            font-size: 1.1rem;
+            width: 24px;
+            text-align: center;
+        }
+
+        .sidebar.collapsed .menu-item span {
+            display: none;
+        }
+
+        /* Main Content Styles */
+        .main-content {
+            flex: 1;
+            margin-left: var(--sidebar-width);
+            transition: var(--transition);
+            padding: 20px;
+        }
+
+        .sidebar.collapsed ~ .main-content {
+            margin-left: var(--sidebar-collapsed);
+        }
+
+        .section {
+            display: none;
+            background: white;
+            border-radius: 10px;
+            padding: 25px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+            margin-bottom: 20px;
+            animation: fadeIn 0.5s ease;
+        }
+
+        .section.active {
+            display: block;
+        }
+
+        .section-header {
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid var(--light);
+        }
+
+        .section-header h2 {
+            color: var(--primary);
+            font-size: 1.8rem;
+            margin-bottom: 5px;
+        }
+
+        .section-header p {
+            color: #7f8c8d;
+            font-size: 1rem;
+        }
+
+        /* Block Styles */
+        .block {
+            background: white;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            overflow: hidden;
+            border-left: 4px solid var(--secondary);
+        }
+
+        .block-header {
+            padding: 15px 20px;
+            background-color: #f8f9fa;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .block-header:hover {
+            background-color: #e9ecef;
+        }
+
+        .block-header h3 {
+            color: var(--primary);
+            font-size: 1.3rem;
+            margin: 0;
+        }
+
+        .block-content {
+            padding: 20px;
+            border-top: 1px solid #eee;
+        }
+
+        .block.collapsed .block-content {
+            display: none;
+        }
+
+        /* Form Styles */
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: #555;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 10px 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 1rem;
+            transition: var(--transition);
+        }
+
+        .form-control:focus {
+            border-color: var(--secondary);
+            box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+            outline: none;
+        }
+
+        .btn {
+            padding: 10px 15px;
+            border: none;
+            border-radius: 5px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: var(--transition);
+            font-weight: 500;
+        }
+
+        .btn-primary {
+            background-color: var(--secondary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: #2980b9;
+        }
+
+        .btn-success {
+            background-color: var(--success);
+            color: white;
+        }
+
+        .btn-success:hover {
+            background-color: #219653;
+        }
+
+        .btn-danger {
+            background-color: var(--danger);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background-color: #c0392b;
+        }
+
+        .btn-warning {
+            background-color: var(--warning);
+            color: white;
+        }
+
+        .btn-warning:hover {
+            background-color: #e67e22;
+        }
+
+        /* Result Styles */
+        .result-item {
+            background: #f8f9fa;
+            padding: 12px 15px;
+            border-radius: 5px;
+            margin-bottom: 10px;
+            border-left: 4px solid var(--success);
+        }
+
+        .result-item h4 {
+            color: var(--primary);
+            margin-bottom: 5px;
+            font-size: 1.1rem;
+        }
+
+        .result-value {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: var(--success);
+        }
+
+        .advisory {
+            background: #fff9e6;
+            border-left: 4px solid var(--warning);
+            padding: 12px 15px;
+            border-radius: 5px;
+            margin-top: 15px;
+        }
+
+        .advisory h4 {
+            color: var(--warning);
+            margin-bottom: 5px;
+        }
+
+        /* Space and AC Block Styles */
+        .space-block {
+            background: linear-gradient(135deg, #f5f7fa, #e4e8f0);
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            border: 1px solid #ddd;
+            transition: var(--transition);
+        }
+
+        .space-block:hover {
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .space-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .space-title {
+            font-weight: bold;
+            color: var(--primary);
+        }
+
+        .space-actions {
+            display: flex;
+            gap: 10px;
+        }
+
+        .space-result {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .result-card {
+            background: white;
+            padding: 10px;
+            border-radius: 5px;
+            text-align: center;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+        }
+
+        .result-card .label {
+            font-size: 0.9rem;
+            color: #7f8c8d;
+        }
+
+        .result-card .value {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: var(--secondary);
+            margin-top: 5px;
+        }
+
+        /* Animation */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 100%;
+                transform: translateX(-100%);
+            }
+
+            .sidebar.open {
+                transform: translateX(0);
+            }
+
+            .sidebar.collapsed {
+                width: 100%;
+                transform: translateX(-100%);
+            }
+
+            .main-content {
+                margin-left: 0;
+                width: 100%;
+            }
+
+            .menu-toggle {
+                display: block;
+                position: fixed;
+                top: 15px;
+                left: 15px;
+                z-index: 1100;
+                background: var(--primary);
+                color: white;
+                border: none;
+                border-radius: 5px;
+                padding: 10px;
+                font-size: 1.2rem;
+                cursor: pointer;
+            }
+        }
+
+        /* Table Styles */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+
+        .data-table th, .data-table td {
+            padding: 12px 15px;
+            text-align: center;
+            border: 1px solid #ddd;
+        }
+
+        .data-table th {
+            background-color: #f8f9fa;
+            color: var(--primary);
+            font-weight: 600;
+        }
+
+        .data-table tr:nth-child(even) {
+            background-color: #f8f9fa;
+        }
+
+        .data-table tr:hover {
+            background-color: #e9ecef;
+        }
+
+        .selected-cell {
+            background-color: rgba(52, 152, 219, 0.2) !important;
+            font-weight: bold;
+        }
+
+        /* File Actions */
+        .file-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        /* Color coding for sections */
+        .section-problem-definition { border-top: 4px solid #e74c3c; }
+        .section-building-dimension { border-top: 4px solid #3498db; }
+        .section-load-estimation { border-top: 4px solid #2ecc71; }
+        .section-ac-station { border-top: 4px solid #9b59b6; }
+        .section-airflow-calculation { border-top: 4px solid #f1c40f; }
+        .section-duct-ventilation { border-top: 4px solid #1abc9c; }
+        .section-rotary-filtration { border-top: 4px solid #d35400; }
+        .section-air-washer { border-top: 4px solid #34495e; }
+        .section-damper-coil { border-top: 4px solid #7f8c8d; }
+        .section-fan-motors { border-top: 4px solid #16a085; }
+        .section-report { border-top: 4px solid #8e44ad; }
+        .section-bom { border-top: 4px solid #c0392b; }
+        .section-plan-drawing { border-top: 4px solid #27ae60; }
+        .section-heat-exchangers { border-top: 4px solid #2980b9; }
+        .section-humidifier { border-top: 4px solid #f39c12; }
+        .section-dehumidifier { border-top: 4px solid #2c3e50; }
+        .section-file-database { border-top: 4px solid #7d3c98; }
+    </style>
+</head>
+<body>
+    <div class="app-container" x-data="app()">
+        <!-- Mobile Menu Toggle -->
+        <button class="menu-toggle" @click="sidebarOpen = !sidebarOpen" x-show="isMobile()">
+            <i x-text="sidebarOpen ? '✕' : '☰'"></i>
+        </button>
+
+        <!-- Sidebar -->
+        <div class="sidebar" :class="{ 'collapsed': sidebarCollapsed, 'open': sidebarOpen }">
+            <div class="sidebar-header">
+                <h2>HVAC Design Calculator</h2>
+                <button class="toggle-btn" @click="sidebarCollapsed = !sidebarCollapsed">
+                    <i x-text="sidebarCollapsed ? '→' : '←'"></i>
+                </button>
+            </div>
+            <ul class="menu-items">
+                <template x-for="item in menuItems" :key="item.id">
+                    <li class="menu-item" 
+                        :class="{ 'active': activeSection === item.id }"
+                        @click="setActiveSection(item.id)">
+                        <i x-text="item.icon"></i>
+                        <span x-text="item.name"></span>
+                    </li>
+                </template>
+            </ul>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Problem Definition Section -->
+            <div class="section section-problem-definition" :class="{ 'active': activeSection === 'problem-definition' }">
+                <div class="section-header">
+                    <h2>Problem Definition</h2>
+                    <p>Define the HVAC system requirements and constraints</p>
+                </div>
+                
+                <div class="block">
+                    <div class="block-header" @click="toggleBlock('problemRequirements')">
+                        <h3>System Requirements</h3>
+                        <i x-text="blocks.problemRequirements ? '−' : '+'"></i>
+                    </div>
+                    <div class="block-content" x-show="blocks.problemRequirements">
+                        <div class="form-group">
+                            <label for="project-name">Project Name</label>
+                            <input type="text" id="project-name" class="form-control" x-model="globalData.projectName">
+                        </div>
+                        <div class="form-group">
+                            <label for="project-description">Project Description</label>
+                            <textarea id="project-description" class="form-control" rows="4" x-model="globalData.projectDescription"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label for="building-type">Building Type</label>
+                            <select id="building-type" class="form-control" x-model="globalData.buildingType">
+                                <option value="residential">Residential</option>
+                                <option value="commercial">Commercial</option>
+                                <option value="industrial">Industrial</option>
+                                <option value="healthcare">Healthcare</option>
+                                <option value="educational">Educational</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="block">
+                    <div class="block-header" @click="toggleBlock('problemConstraints')">
+                        <h3>Design Constraints</h3>
+                        <i x-text="blocks.problemConstraints ? '−' : '+'"></i>
+                    </div>
+                    <div class="block-content" x-show="blocks.problemConstraints">
+                        <div class="form-group">
+                            <label for="budget-constraint">Budget Constraint ($)</label>
+                            <input type="number" id="budget-constraint" class="form-control" x-model="globalData.budgetConstraint">
+                        </div>
+                        <div class="form-group">
+                            <label for="space-constraint">Space Constraint (m²)</label>
+                            <input type="number" id="space-constraint" class="form-control" x-model="globalData.spaceConstraint">
+                        </div>
+                        <div class="form-group">
+                            <label for="energy-constraint">Energy Efficiency Target (%)</label>
+                            <input type="number" id="energy-constraint" class="form-control" x-model="globalData.energyEfficiencyTarget" min="0" max="100">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Building Dimension Section -->
+            <div class="section section-building-dimension" :class="{ 'active': activeSection === 'building-dimension' }">
+                <div class="section-header">
+                    <h2>Building Dimension</h2>
+                    <p>Define building dimensions and layout</p>
+                </div>
+                
+                <div class="block">
+                    <div class="block-header" @click="toggleBlock('buildingOverall')">
+                        <h3>Overall Dimensions</h3>
+                        <i x-text="blocks.buildingOverall ? '−' : '+'"></i>
+                    </div>
+                    <div class="block-content" x-show="blocks.buildingOverall">
+                        <div class="form-group">
+                            <label for="building-length">Building Length (m)</label>
+                            <input type="number" id="building-length" class="form-control" x-model="globalData.buildingLength" step="0.1">
+                        </div>
+                        <div class="form-group">
+                            <label for="building-width">Building Width (m)</label>
+                            <input type="number" id="building-width" class="form-control" x-model="globalData.buildingWidth" step="0.1">
+                        </div>
+                        <div class="form-group">
+                            <label for="building-height">Building Height (m)</label>
+                            <input type="number" id="building-height" class="form-control" x-model="globalData.buildingHeight" step="0.1">
+                        </div>
+                        <div class="result-item">
+                            <h4>Building Area</h4>
+                            <p class="result-value" x-text="`${calculateBuildingArea()} m²`"></p>
+                        </div>
+                        <div class="result-item">
+                            <h4>Building Volume</h4>
+                            <p class="result-value" x-text="`${calculateBuildingVolume()} m³`"></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Load Estimation Section -->
+            <div class="section section-load-estimation" :class="{ 'active': activeSection === 'load-estimation' }">
+                <div class="section-header">
+                    <h2>Load Estimation</h2>
+                    <p>Calculate heating and cooling loads for the building</p>
+                </div>
+                
+                <div class="block">
+                    <div class="block-header" @click="toggleBlock('loadSunlight')">
+                        <h3>Sunlight Heat Load</h3>
+                        <i x-text="blocks.loadSunlight ? '−' : '+'"></i>
+                    </div>
+                    <div class="block-content" x-show="blocks.loadSunlight">
+                        <div class="form-group">
+                            <label for="sunlight-watt">Sunlight Power (W/m²)</label>
+                            <input type="number" id="sunlight-watt" class="form-control" x-model="loadEstimationData.sunlightPower" step="0.1">
+                        </div>
+                        <div class="result-item">
+                            <h4>Sunlight Heating</h4>
+                            <p class="result-value" x-text="`${calculateSunlightHeating()} kW`"></p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="block">
+                    <div class="block-header" @click="toggleBlock('loadMachine')">
+                        <h3>Machine Heat Load</h3>
+                        <i x-text="blocks.loadMachine ? '−' : '+'"></i>
+                    </div>
+                    <div class="block-content" x-show="blocks.loadMachine">
+                        <div class="form-group">
+                            <label for="machine-power">Machine Power Consumption (kW)</label>
+                            <input type="number" id="machine-power" class="form-control" x-model="loadEstimationData.machinePower" step="0.1">
+                        </div>
+                        <div class="result-item">
+                            <h4>Total Added Heat</h4>
+                            <p class="result-value" x-text="`${calculateTotalAddedHeat()} kW`"></p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="block">
+                    <div class="block-header" @click="toggleBlock('loadWall')">
+                        <h3>Wall & Roof Heat Conduction</h3>
+                        <i x-text="blocks.loadWall ? '−' : '+'"></i>
+                    </div>
+                    <div class="block-content" x-show="blocks.loadWall">
+                        <div class="form-group">
+                            <label for="wall-material">Wall Material</label>
+                            <select id="wall-material" class="form-control" x-model="loadEstimationData.wallMaterial">
+                                <option value="brick">Brick</option>
+                                <option value="concrete">Concrete</option>
+                                <option value="wood">Wood</option>
+                                <option value="insulated">Insulated Panel</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="wall-area">Wall Area (m²)</label>
+                            <input type="number" id="wall-area" class="form-control" x-model="loadEstimationData.wallArea" step="0.1">
+                        </div>
+                        <div class="form-group">
+                            <label for="roof-area">Roof Area (m²)</label>
+                            <input type="number" id="roof-area" class="form-control" x-model="loadEstimationData.roofArea" step="0.1">
+                        </div>
+                        <div class="form-group">
+                            <label for="outside-temp">Outside Temperature (°C)</label>
+                            <input type="number" id="outside-temp" class="form-control" x-model="loadEstimationData.outsideTemp" step="0.1">
+                        </div>
+                        <div class="form-group">
+                            <label for="inside-temp">Inside Temperature (°C)</label>
+                            <input type="number" id="inside-temp" class="form-control" x-model="loadEstimationData.insideTemp" step="0.1">
+                        </div>
+                        <div class="result-item">
+                            <h4>Heat Conduction</h4>
+                            <p class="result-value" x-text="`${calculateHeatConduction()} W`"></p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="file-actions">
+                    <button class="btn btn-primary" @click="saveLoadEstimationData()">Save to JSON</button>
+                    <button class="btn btn-success" @click="loadLoadEstimationData()">Load from JSON</button>
+                </div>
+            </div>
+
+            <!-- Airflow Calculation Section -->
+            <div class="section section-airflow-calculation" :class="{ 'active': activeSection === 'airflow-calculation' }">
+                <div class="section-header">
+                    <h2>Airflow Calculation</h2>
+                    <p>Calculate airflow requirements for different spaces</p>
+                </div>
+                
+                <template x-for="(ac, index) in airflowData.acUnits" :key="ac.id">
+                    <div class="block">
+                        <div class="block-header" @click="toggleBlock(`acUnit${ac.id}`)">
+                            <h3 x-text="`AC Unit ${ac.id}`"></h3>
+                            <i x-text="blocks[`acUnit${ac.id}`] ? '−' : '+'"></i>
+                        </div>
+                        <div class="block-content" x-show="blocks[`acUnit${ac.id}`]">
+                            <div class="space-actions">
+                                <button class="btn btn-primary" @click="addSpace(ac.id)">Add Space</button>
+                                <button class="btn btn-danger" @click="removeAcUnit(ac.id)">Remove AC Unit</button>
+                                <button class="btn btn-warning" @click="resetAcUnit(ac.id)">Reset AC Unit</button>
+                            </div>
+                            
+                            <template x-for="(space, spaceIndex) in ac.spaces" :key="space.id">
+                                <div class="space-block" 
+                                     :style="`background: linear-gradient(135deg, ${space.color1}, ${space.color2})`"
+                                     @dblclick="copySpaceValues(space)">
+                                    <div class="space-header">
+                                        <div class="space-title" x-text="space.name || `Space ${spaceIndex + 1}`"></div>
+                                        <div class="space-actions">
+                                            <button class="btn btn-danger btn-sm" @click="removeSpace(ac.id, space.id)">Remove</button>
+                                            <button class="btn btn-warning btn-sm" @click="resetSpace(space)">Reset</button>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="form-group">
+                                        <label>Space Name</label>
+                                        <input type="text" class="form-control" x-model="space.name" placeholder="Enter space name">
+                                    </div>
+                                    
+                                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px;">
+                                        <div class="form-group">
+                                            <label>Width (m)</label>
+                                            <input type="number" class="form-control" x-model="space.width" step="0.1" @change="calculateSpaceValues(space)">
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Length (m)</label>
+                                            <input type="number" class="form-control" x-model="space.length" step="0.1" @change="calculateSpaceValues(space)">
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Height (m)</label>
+                                            <input type="number" class="form-control" x-model="space.height" step="0.1" @change="calculateSpaceValues(space)">
+                                        </div>
+                                        <div class="form-group">
+                                            <label>ACH</label>
+                                            <input type="number" class="form-control" x-model="space.ach" step="0.1" @change="calculateSpaceValues(space)">
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="space-result">
+                                        <div class="result-card">
+                                            <div class="label">Area</div>
+                                            <div class="value" x-text="`${space.area.toFixed(2)} m²`"></div>
+                                        </div>
+                                        <div class="result-card">
+                                            <div class="label">Volume</div>
+                                            <div class="value" x-text="`${space.volume.toFixed(2)} m³`"></div>
+                                        </div>
+                                        <div class="result-card">
+                                            <div class="label">Airflow (m³/hr)</div>
+                                            <div class="value" x-text="`${space.airflowM3Hr.toFixed(2)}`"></div>
+                                        </div>
+                                        <div class="result-card">
+                                            <div class="label">Airflow (m³/s)</div>
+                                            <div class="value" x-text="`${space.airflowM3S.toFixed(4)}`"></div>
+                                        </div>
+                                        <div class="result-card">
+                                            <div class="label">Airflow (CFM)</div>
+                                            <div class="value" x-text="`${space.airflowCFM.toFixed(2)}`"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </template>
+                
+                <div class="block">
+                    <div class="block-header" @click="toggleBlock('addAcUnit')">
+                        <h3>Add New AC Unit</h3>
+                        <i x-text="blocks.addAcUnit ? '−' : '+'"></i>
+                    </div>
+                    <div class="block-content" x-show="blocks.addAcUnit">
+                        <button class="btn btn-success" @click="addAcUnit()">Add New AC Unit</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Duct & Ventilation Section -->
+            <div class="section section-duct-ventilation" :class="{ 'active': activeSection === 'duct-ventilation' }">
+                <div class="section-header">
+                    <h2>Duct & Ventilation</h2>
+                    <p>Design and calculate ductwork and ventilation systems</p>
+                </div>
+                
+                <div class="block">
+                    <div class="block-header" @click="toggleBlock('supplyDuct')">
+                        <h3>Supply Duct</h3>
+                        <i x-text="blocks.supplyDuct ? '−' : '+'"></i>
+                    </div>
+                    <div class="block-content" x-show="blocks.supplyDuct">
+                        <div class="form-group">
+                            <label for="supply-duct-shape">Duct Shape</label>
+                            <select id="supply-duct-shape" class="form-control" x-model="ductData.supply.shape">
+                                <option value="circular">Circular</option>
+                                <option value="rectangular">Rectangular</option>
+                            </select>
+                        </div>
+                        
+                        <div x-show="ductData.supply.shape === 'rectangular'">
+                            <div class="form-group">
+                                <label for="supply-duct-height">Duct Height (m)</label>
+                                <input type="number" id="supply-duct-height" class="form-control" x-model="ductData.supply.height" step="0.01">
+                            </div>
+                            <div class="form-group">
+                                <label for="supply-duct-width">Duct Width (m)</label>
+                                <input type="number" id="supply-duct-width" class="form-control" x-model="ductData.supply.width" step="0.01">
+                            </div>
+                        </div>
+                        
+                        <div x-show="ductData.supply.shape === 'circular'">
+                            <div class="form-group">
+                                <label for="supply-duct-diameter">Duct Diameter (m)</label>
+                                <input type="number" id="supply-duct-diameter" class="form-control" x-model="ductData.supply.diameter" step="0.01">
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="supply-duct-number">Number of Ducts</label>
+                            <input type="number" id="supply-duct-number" class="form-control" x-model="ductData.supply.number" min="1">
+                        </div>
+                        
+                        <div class="result-item">
+                            <h4>Duct Cross-Sectional Area</h4>
+                            <p class="result-value" x-text="`${calculateSupplyDuctArea()} m²`"></p>
+                        </div>
+                        
+                        <div class="result-item">
+                            <h4>Total Duct Area</h4>
+                            <p class="result-value" x-text="`${calculateTotalSupplyDuctArea()} m²`"></p>
+                        </div>
+                        
+                        <div class="result-item">
+                            <h4>Air Velocity in Duct</h4>
+                            <p class="result-value" x-text="`${calculateSupplyAirVelocity()} m/s`"></p>
+                        </div>
+                        
+                        <div class="advisory" x-show="calculateSupplyAirVelocity() > 7.23">
+                            <h4>Advisory</h4>
+                            <p>Air velocity is too high. Consider increasing duct size to reduce velocity below 7.23 m/s.</p>
+                        </div>
+                        
+                        <div class="advisory" x-show="calculateSupplyAirVelocity() <= 7.23 && calculateSupplyAirVelocity() > 6">
+                            <h4>Advisory</h4>
+                            <p>Air velocity is acceptable but could be optimized. Ideal range is around 6 m/s.</p>
+                        </div>
+                        
+                        <div class="advisory" x-show="calculateSupplyAirVelocity() <= 6">
+                            <h4>Advisory</h4>
+                            <p>Air velocity is within optimal range.</p>
+                        </div>
+                        
+                        <h4 style="margin-top: 20px;">Vent Calculation</h4>
+                        <div class="form-group">
+                            <label for="supply-vent-width">Vent Width (m)</label>
+                            <input type="number" id="supply-vent-width" class="form-control" x-model="ductData.supply.ventWidth" step="0.01">
+                        </div>
+                        <div class="form-group">
+                            <label for="supply-vent-length">Vent Length (m)</label>
+                            <input type="number" id="supply-vent-length" class="form-control" x-model="ductData.supply.ventLength" step="0.01">
+                        </div>
+                        <div class="form-group">
+                            <label for="supply-vent-number">Number of Vents</label>
+                            <input type="number" id="supply-vent-number" class="form-control" x-model="ductData.supply.ventNumber" min="1">
+                        </div>
+                        
+                        <div class="result-item">
+                            <h4>Vent Area</h4>
+                            <p class="result-value" x-text="`${calculateSupplyVentArea()} m²`"></p>
+                        </div>
+                        
+                        <div class="result-item">
+                            <h4>Total Vent Area</h4>
+                            <p class="result-value" x-text="`${calculateTotalSupplyVentArea()} m²`"></p>
+                        </div>
+                        
+                        <div class="result-item">
+                            <h4>Air Velocity in Vent</h4>
+                            <p class="result-value" x-text="`${calculateSupplyVentAirVelocity()} m/s`"></p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="block">
+                    <div class="block-header" @click="toggleBlock('returnDuct')">
+                        <h3>Return Duct</h3>
+                        <i x-text="blocks.returnDuct ? '−' : '+'"></i>
+                    </div>
+                    <div class="block-content" x-show="blocks.returnDuct">
+                        <div class="form-group">
+                            <label for="return-duct-width">Duct Width (m)</label>
+                            <input type="number" id="return-duct-width" class="form-control" x-model="ductData.return.width" step="0.01">
+                        </div>
+                        <div class="form-group">
+                            <label for="return-duct-height">Duct Height (m)</label>
+                            <input type="number" id="return-duct-height" class="form-control" x-model="ductData.return.height" step="0.01">
+                        </div>
+                        <div class="form-group">
+                            <label for="return-duct-number">Number of Ducts</label>
+                            <input type="number" id="return-duct-number" class="form-control" x-model="ductData.return.number" min="1">
+                        </div>
+                        
+                        <div class="result-item">
+                            <h4>Duct Cross-Sectional Area</h4>
+                            <p class="result-value" x-text="`${calculateReturnDuctArea()} m²`"></p>
+                        </div>
+                        
+                        <div class="result-item">
+                            <h4>Total Duct Area</h4>
+                            <p class="result-value" x-text="`${calculateTotalReturnDuctArea()} m²`"></p>
+                        </div>
+                        
+                        <div class="result-item">
+                            <h4>Air Velocity in Duct</h4>
+                            <p class="result-value" x-text="`${calculateReturnAirVelocity()} m/s`"></p>
+                        </div>
+                        
+                        <h4 style="margin-top: 20px;">Return Vent Calculation</h4>
+                        <div class="form-group">
+                            <label for="return-vent-width">Vent Width (mm)</label>
+                            <input type="number" id="return-vent-width" class="form-control" x-model="ductData.return.ventWidth" step="1">
+                        </div>
+                        <div class="form-group">
+                            <label for="return-vent-length">Vent Length (m)</label>
+                            <input type="number" id="return-vent-length" class="form-control" x-model="ductData.return.ventLength" step="0.01">
+                        </div>
+                        <div class="form-group">
+                            <label for="return-vent-number">Number of Vents</label>
+                            <input type="number" id="return-vent-number" class="form-control" x-model="ductData.return.ventNumber" min="1">
+                        </div>
+                        
+                        <div class="result-item">
+                            <h4>Vent Area</h4>
+                            <p class="result-value" x-text="`${calculateReturnVentArea()} m²`"></p>
+                        </div>
+                        
+                        <div class="result-item">
+                            <h4>Total Vent Area</h4>
+                            <p class="result-value" x-text="`${calculateTotalReturnVentArea()} m²`"></p>
+                        </div>
+                        
+                        <div class="result-item">
+                            <h4>Air Velocity in Vent</h4>
+                            <p class="result-value" x-text="`${calculateReturnVentAirVelocity()} m/s`"></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Rotary Filtration Section -->
+            <div class="section section-rotary-filtration" :class="{ 'active': activeSection === 'rotary-filtration' }">
+                <div class="section-header">
+                    <h2>Rotary Filtration</h2>
+                    <p>Design and calculate rotary filtration systems</p>
+                </div>
+                
+                <div class="block">
+                    <div class="block-header" @click="toggleBlock('rotaryFilter')">
+                        <h3>Filter Selection</h3>
+                        <i x-text="blocks.rotaryFilter ? '−' : '+'"></i>
+                    </div>
+                    <div class="block-content" x-show="blocks.rotaryFilter">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Diameter / Length</th>
+                                    <th x-text="`${rotaryFilterData.lengths[0]} m`" 
+                                        :class="{ 'selected-cell': rotaryFilterData.selectedLength === rotaryFilterData.lengths[0] }"
+                                        @click="rotaryFilterData.selectedLength = rotaryFilterData.lengths[0]"></th>
+                                    <th x-text="`${rotaryFilterData.lengths[1]} m`" 
+                                        :class="{ 'selected-cell': rotaryFilterData.selectedLength === rotaryFilterData.lengths[1] }"
+                                        @click="rotaryFilterData.selectedLength = rotaryFilterData.lengths[1]"></th>
+                                    <th x-text="`${rotaryFilterData.lengths[2]} m`" 
+                                        :class="{ 'selected-cell': rotaryFilterData.selectedLength === rotaryFilterData.lengths[2] }"
+                                        @click="rotaryFilterData.selectedLength = rotaryFilterData.lengths[2]"></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <template x-for="(diameter, index) in rotaryFilterData.diameters" :key="index">
+                                    <tr>
+                                        <td x-text="`${diameter} m`" 
+                                            :class="{ 'selected-cell': rotaryFilterData.selectedDiameter === diameter }"
+                                            @click="rotaryFilterData.selectedDiameter = diameter"></td>
+                                        <template x-for="(length, lIndex) in rotaryFilterData.lengths" :key="lIndex">
+                                            <td x-text="`${calculateFilterArea(diameter, length).toFixed(2)} m²`"
+                                                :class="{ 'selected-cell': rotaryFilterData.selectedDiameter === diameter && rotaryFilterData.selectedLength === length }"
+                                                @click="selectFilter(diameter, length)"></td>
+                                        </template>
+                                    </tr>
+                                </template>
+                            </tbody>
+                        </table>
+                        
+                        <div class="form-group" style="margin-top: 20px;">
+                            <label for="filter-number">Number of Filters</label>
+                            <input type="number" id="filter-number" class="form-control" x-model="rotaryFilterData.filterNumber" min="1">
+                        </div>
+                        
+                        <div class="result-item">
+                            <h4>Single Filter Area</h4>
+                            <p class="result-value" x-text="`${calculateSingleFilterArea()} m²`"></p>
+                        </div>
+                        
+                        <div class="result-item">
+                            <h4>Total Filter Area</h4>
+                            <p class="result-value" x-text="`${calculateTotalFilterArea()} m²`"></p>
+                        </div>
+                        
+                        <div class="result-item">
+                            <h4>Air Velocity Through Filter</h4>
+                            <p class="result-value" x-text="`${calculateFilterAirVelocity()} m/s`"></p>
+                        </div>
+                        
+                        <div class="advisory" x-show="calculateFilterAirVelocity() > 1.05">
+                            <h4>Advisory</h4>
+                            <p>Air velocity is too high. Consider increasing filter area or number of filters to reduce velocity below 1.05 m/s.</p>
+                        </div>
+                        
+                        <div class="advisory" x-show="calculateFilterAirVelocity() <= 1.05 && calculateFilterAirVelocity() > 0.9">
+                            <h4>Advisory</h4>
+                            <p>Air velocity is acceptable. For minimal pressure drop, aim for around 0.9 m/s.</p>
+                        </div>
+                        
+                        <div class="advisory" x-show="calculateFilterAirVelocity() <= 0.9">
+                            <h4>Advisory</h4>
+                            <p>Air velocity is within optimal range for minimal pressure drop.</p>
+                        </div>
+                        
+                        <div class="file-actions">
+                            <button class="btn btn-primary" @click="saveRotaryFilterData()">Save to File</button>
+                            <button class="btn btn-success" @click="loadRotaryFilterData()">Load from File</button>
+                            <button class="btn btn-warning" @click="resetRotaryFilterData()">Reset Data</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Air Washer Section -->
+            <div class="section section-air-washer" :class="{ 'active': activeSection === 'air-washer' }">
+                <div class="section-header">
+                    <h2>Air Washer System</h2>
+                    <p>Design and calculate air washer components</p>
+                </div>
+                
+                <div class="block">
+                    <div class="block-header" @click="toggleBlock('airWasherBasic')">
+                        <h3>Basic Parameters</h3>
+                        <i x-text="blocks.airWasherBasic ? '−' : '+'"></i>
+                    </div>
+                    <div class="block-content" x-show="blocks.airWasherBasic">
+                        <div class="form-group">
+                            <label for="airflow-rate">Airflow Rate (m³/s)</label>
+                            <input type="number" id="airflow-rate" class="form-control" x-model="airWasherData.airflowRate" step="0.01">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="vent-width">Vent Window Width (m)</label>
+                            <input type="number" id="vent-width" class="form-control" x-model="airWasherData.ventWidth" step="0.01">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="vent-height">Vent Window Height (m)</label>
+                            <input type="number" id="vent-height" class="form-control" x-model="airWasherData.ventHeight" step="0.01">
+                        </div>
+                        
+                        <div class="result-item">
+                            <h4>Vent Area</h4>
+                            <p class="result-value" x-text="`${calculateVentArea()} m²`"></p>
+                        </div>
+                        
+                        <div class="result-item">
+                            <h4>Air Velocity in Vent</h4>
+                            <p class="result-value" x-text="`${calculateVentAirVelocity()} m/s`"></p>
+                        </div>
+                        
+                        <div class="advisory" x-show="calculateVentAirVelocity() > 3.95">
+                            <h4>Advisory</h4>
+                            <p>Air velocity is too high. Consider increasing vent size to reduce velocity below 3.95 m/s.</p>
+                        </div>
+                        
+                        <div class="advisory" x-show="calculateVentAirVelocity() <= 3.95 && calculateVentAirVelocity() > 3.44">
+                            <h4>Advisory</h4>
+                            <p>Air velocity is acceptable but could be optimized. Ideal range is around 3.44 m/s.</p>
+                        </div>
+                        
+                        <div class="advisory" x-show="calculateVentAirVelocity() <= 3.44">
+                            <h4>Advisory</h4>
+                            <p>Air velocity is within optimal range.</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="block">
+                    <div class="block-header" @click="toggleBlock('nozzleCalculation')">
+                        <h3>Nozzle Calculation</h3>
+                        <i x-text="blocks.nozzleCalculation ? '−' : '+'"></i>
+                    </div>
+                    <div class="block-content" x-show="blocks.nozzleCalculation">
+                        <div class="form-group">
+                            <label for="nozzle-spacing">Space Between Nozzles (mm)</label>
+                            <input type="number" id="nozzle-spacing" class="form-control" x-model="airWasherData.nozzleSpacing" step="1">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="riser-spacing">Space Between Risers (mm)</label>
+                            <input type="number" id="riser-spacing" class="form-control" x-model="airWasherData.riserSpacing" step="1">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="collector-diameter">Collector Diameter (mm)</label>
+                            <input type="number" id="collector-diameter" class="form-control" x-model="airWasherData.collectorDiameter" step="1">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="row-number">Number of Rows</label>
+                            <input type="number" id="row-number" class="form-control" x-model="airWasherData.rowNumber" min="1">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="nozzle-flowrate">Nozzle Water Flow Rate (L/min)</label>
+                            <input type="number" id="nozzle-flowrate" class="form-control" x-model="airWasherData.nozzleFlowRate" step="0.1">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="pump-head">Pump Head (m)</label>
+                            <input type="number" id="pump-head" class="form-control" x-model="airWasherData.pumpHead" step="0.1">
+                        </div>
+                        
+                        <div class="result-item">
+                            <h4>Riser Length</h4>
+                            <p class="result-value" x-text="`${calculateRiserLength()} m`"></p>
+                        </div>
+                        
+                        <div class="result-item">
+                            <h4>Risers per Collector</h4>
+                            <p class="result-value" x-text="`${calculateRisersPerCollector()}`"></p>
+                        </div>
+                        
+                        <div class="result-item">
+                            <h4>Nozzles per Riser</h4>
+                            <p class="result-value" x-text="`${calculateNozzlesPerRiser()}`"></p>
+                        </div>
+                        
+                        <div class="result-item">
+                            <h4>Total Nozzles</h4>
+                            <p class="result-value" x-text="`${calculateTotalNozzles()}`"></p>
+                        </div>
+                        
+                        <div class="result-item">
+                            <h4>Total Water Flow Rate</h4>
+                            <p class="result-value" x-text="`${calculateTotalWaterFlow()} L/min`"></p>
+                        </div>
+                        
+                        <div class="result-item">
+                            <h4>Pump Motor Power</h4>
+                            <p class="result-value" x-text="`${calculatePumpPower()} kW`"></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Damper & Coil Section -->
+            <div class="section section-damper-coil" :class="{ 'active': activeSection === 'damper-coil' }">
+                <div class="section-header">
+                    <h2>Damper & Coil</h2>
+                    <p>Design and calculate dampers and heating coils</p>
+                </div>
+                
+                <div class="block">
+                    <div class="block-header" @click="toggleBlock('freshAirDamper')">
+                        <h3>Fresh Air Damper</h3>
+                        <i x-text="blocks.freshAirDamper ? '−' : '+'"></i>
+                    </div>
+                    <div class="block-content" x-show="blocks.freshAirDamper">
+                        <div class="form-group">
+                            <label for="fresh-damper-width">Damper Width (mm)</label>
+                            <input type="number" id="fresh-damper-width" class="form-control" x-model="damperData.fresh.width" step="1">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="fresh-damper-height">Damper Height (mm)</label>
+                            <input type="number" id="fresh-damper-height" class="form-control" x-model="damperData.fresh.height" step="1">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="fresh-damper-number">Number of Dampers</label>
+                            <input type="number" id="fresh-damper-number" class="form-control" x-model="damperData.fresh.number" min="1">
+                        </div>
+                        
+                        <div class="result-item">
+                            <h4>Damper Area</h4>
+                            <p class="result-value" x-text="`${calculateFreshDamperArea()} m²`"></p>
+                        </div>
+                        
+                        <div class="result-item">
+                            <h4>Total Damper Area</h4>
+                            <p class="result-value" x-text="`${calculateTotalFreshDamperArea()} m²`"></p>
+                        </div>
+                        
+                        <div class="result-item">
+                            <h4>Air Velocity Through Damper</h4>
+                            <p class="result-value" x-text="`${calculateFreshDamperVelocity()} m/s`"></p>
+                        </div>
+                        
+                        <div class="advisory" x-show="calculateFreshDamperVelocity() > 7.23">
+                            <h4>Advisory</h4>
+                            <p>Air velocity is too high. Consider increasing damper size to reduce velocity below 7.23 m/s.</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="block">
+                    <div class="block-header" @click="toggleBlock('exhaustDamper')">
+                        <h3>Exhaust Damper</h3>
+                        <i x-text="blocks.exhaustDamper ? '−' : '+'"></i>
+                    </div>
+                    <div class="block-content" x-show="blocks.exhaustDamper">
+                        <div class="form-group">
+                            <label for="exhaust-damper-width">Damper Width (mm)</label>
+                            <input type="number" id="exhaust-damper-width" class="form-control" x-model="damperData.exhaust.width" step="1">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="exhaust-damper-height">Damper Height (mm)</label>
+                            <input type="number" id="exhaust-damper-height" class="form-control" x-model="damperData.exhaust.height" step="1">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="exhaust-damper-number">Number of Dampers</label>
+                            <input type="number" id="exhaust-damper-number" class="form-control" x-model="damperData.exhaust.number" min="1">
+                        </div>
+                        
+                        <div class="result-item">
+                            <h4>Damper Area</h4>
+                            <p class="result-value" x-text="`${calculateExhaustDamperArea()} m²`"></p>
+                        </div>
+                        
+                        <div class="result-item">
+                            <h4>Total Damper Area</h4>
+                            <p class="result-value" x-text="`${calculateTotalExhaustDamperArea()} m²`"></p>
+                        </div>
+                        
+                        <div class="result-item">
+                            <h4>Air Velocity Through Damper</h4>
+                            <p class="result-value" x-text="`${calculateExhaustDamperVelocity()} m/s`"></p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="block">
+                    <div class="block-header" @click="toggleBlock('returnDamper')">
+                        <h3>Return Damper & Heating Coil</h3>
+                        <i x-text="blocks.returnDamper ? '−' : '+'"></i>
+                    </div>
+                    <div class="block-content" x-show="blocks.returnDamper">
+                        <div class="form-group">
+                            <label for="return-damper-width">Damper Width (mm)</label>
+                            <input type="number" id="return-damper-width" class="form-control" x-model="damperData.return.width" step="1">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="return-damper-height">Damper Height (mm)</label>
+                            <input type="number" id="return-damper-height" class="form-control" x-model="damperData.return.height" step="1">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="return-damper-number">Number of Dampers</label>
+                            <input type="number" id="return-damper-number" class="form-control" x-model="damperData.return.number" min="1">
+                        </div>
+                        
+                        <div class="result-item">
+                            <h4>Damper Area</h4>
+                            <p class="result-value" x-text="`${calculateReturnDamperArea()} m²`"></p>
+                        </div>
+                        
+                        <div class="result-item">
+                            <h4>Total Damper Area</h4>
+                            <p class="result-value" x-text="`${calculateTotalReturnDamperArea()} m²`"></p>
+                        </div>
+                        
+                        <div class="result-item">
+                            <h4>Air Velocity Through Damper</h4>
+                            <p class="result-value" x-text="`${calculateReturnDamperVelocity()} m/s`"></p>
+                        </div>
+                        
+                        <h4 style="margin-top: 20px;">Heating Coil</h4>
+                        <div class="form-group">
+                            <label for="coil-width">Coil Width (m)</label>
+                            <input type="number" id="coil-width" class="form-control" x-model="damperData.coil.width" step="0.01">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="coil-height">Coil Height (m)</label>
+                            <input type="number" id="coil-height" class="form-control" x-model="damperData.coil.height" step="0.01">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="coil-type">Coil Type (Tube Rows)</label>
+                            <select id="coil-type" class="form-control" x-model="damperData.coil.type">
+                                <option value="1">1 Row</option>
+                                <option value="2">2 Rows</option>
+                                <option value="3">3 Rows</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="coil-number">Number of Coils</label>
+                            <input type="number" id="coil-number" class="form-control" x-model="damperData.coil.number" min="1">
+                        </div>
+                        
+                        <div class="result-item">
+                            <h4>Coil Area</h4>
+                            <p class="result-value" x-text="`${calculateCoilArea()} m²`"></p>
+                        </div>
+                        
+                        <div class="result-item">
+                            <h4>Total Coil Area</h4>
+                            <p class="result-value" x-text="`${calculateTotalCoilArea()} m²`"></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- File & Database Section -->
+            <div class="section section-file-database" :class="{ 'active': activeSection === 'file-database' }">
+                <div class="section-header">
+                    <h2>File & Database</h2>
+                    <p>Save and load project data</p>
+                </div>
+                
+                <div class="block">
+                    <div class="block-header" @click="toggleBlock('fileOperations')">
+                        <h3>File Operations</h3>
+                        <i x-text="blocks.fileOperations ? '−' : '+'"></i>
+                    </div>
+                    <div class="block-content" x-show="blocks.fileOperations">
+                        <div class="form-group">
+                            <label for="project-data">Project Data (JSON)</label>
+                            <textarea id="project-data" class="form-control" rows="10" x-model="projectJsonData"></textarea>
+                        </div>
+                        
+                        <div class="file-actions">
+                            <button class="btn btn-primary" @click="saveProjectData()">Save Project</button>
+                            <button class="btn btn-success" @click="loadProjectData()">Load Project</button>
+                            <button class="btn btn-warning" @click="exportProjectData()">Export Project</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function app() {
+            return {
+                // App state
+                activeSection: 'problem-definition',
+                sidebarCollapsed: false,
+                sidebarOpen: false,
+                blocks: {
+                    problemRequirements: true,
+                    problemConstraints: true,
+                    buildingOverall: true,
+                    loadSunlight: true,
+                    loadMachine: true,
+                    loadWall: true,
+                    addAcUnit: true,
+                    supplyDuct: true,
+                    returnDuct: true,
+                    rotaryFilter: true,
+                    airWasherBasic: true,
+                    nozzleCalculation: true,
+                    freshAirDamper: true,
+                    exhaustDamper: true,
+                    returnDamper: true,
+                    fileOperations: true
+                },
+                
+                // Global data shared across all sections
+                globalData: {
+                    projectName: 'HVAC Project',
+                    projectDescription: '',
+                    buildingType: 'commercial',
+                    budgetConstraint: 100000,
+                    spaceConstraint: 1000,
+                    energyEfficiencyTarget: 80,
+                    buildingLength: 50,
+                    buildingWidth: 30,
+                    buildingHeight: 10
+                },
+                
+                // Menu items
+                menuItems: [
+                    { id: 'problem-definition', name: 'Problem Definition', icon: '📋' },
+                    { id: 'building-dimension', name: 'Building Dimension', icon: '🏢' },
+                    { id: 'load-estimation', name: 'Load Estimation', icon: '⚖️' },
+                    { id: 'ac-station', name: 'AC Station', icon: '❄️' },
+                    { id: 'airflow-calculation', name: 'AirFlow Calculation', icon: '🌬️' },
+                    { id: 'duct-ventilation', name: 'Duct & Ventilation', icon: '📏' },
+                    { id: 'rotary-filtration', name: 'Rotary Filtration', icon: '🌀' },
+                    { id: 'air-washer', name: 'Air Washer', icon: '💧' },
+                    { id: 'damper-coil', name: 'Damper & Coil', icon: '🔧' },
+                    { id: 'fan-motors', name: 'Fan & Motors', icon: '🌀' },
+                    { id: 'report', name: 'Report', icon: '📊' },
+                    { id: 'bom', name: 'BOM', icon: '📦' },
+                    { id: 'plan-drawing', name: 'Plan & Drawing', icon: '📐' },
+                    { id: 'heat-exchangers', name: 'Heat Exchangers', icon: '🔥' },
+                    { id: 'humidifier', name: 'Humidifier', icon: '💦' },
+                    { id: 'dehumidifier', name: 'Dehumidifier', icon: '🌵' },
+                    { id: 'file-database', name: 'File & Database', icon: '💾' }
+                ],
+                
+                // Load Estimation Data
+                loadEstimationData: {
+                    sunlightPower: 800,
+                    machinePower: 50,
+                    wallMaterial: 'brick',
+                    wallArea: 800,
+                    roofArea: 1500,
+                    outsideTemp: 35,
+                    insideTemp: 22
+                },
+                
+                // Airflow Calculation Data
+                airflowData: {
+                    acUnits: [
+                        {
+                            id: 1,
+                            spaces: [
+                                {
+                                    id: 1,
+                                    name: 'Main Hall',
+                                    width: 21,
+                                    length: 44,
+                                    height: 4.4,
+                                    ach: 33,
+                                    area: 0,
+                                    volume: 0,
+                                    airflowM3Hr: 0,
+                                    airflowM3S: 0,
+                                    airflowCFM: 0,
+                                    color1: '#e3f2fd',
+                                    color2: '#bbdefb'
+                                }
+                            ]
+                        }
+                    ],
+                    nextAcId: 2,
+                    nextSpaceId: 2
+                },
+                
+                // Duct & Ventilation Data
+                ductData: {
+                    supply: {
+                        shape: 'circular',
+                        height: 1.2,
+                        width: 1.2,
+                        diameter: 1.2,
+                        number: 1,
+                        ventWidth: 0.5,
+                        ventLength: 1.2,
+                        ventNumber: 1
+                    },
+                    return: {
+                        width: 1.8,
+                        height: 1.2,
+                        number: 1,
+                        ventWidth: 50,
+                        ventLength: 1.8,
+                        ventNumber: 1
+                    }
+                },
+                
+                // Rotary Filtration Data
+                rotaryFilterData: {
+                    diameters: [2, 2.5, 3],
+                    lengths: [1.7, 3.4, 5.1],
+                    selectedDiameter: 2,
+                    selectedLength: 1.7,
+                    filterNumber: 1
+                },
+                
+                // Air Washer Data
+                airWasherData: {
+                    airflowRate: 55,
+                    ventWidth: 5.3,
+                    ventHeight: 3.2,
+                    nozzleSpacing: 76,
+                    riserSpacing: 304,
+                    collectorDiameter: 100,
+                    rowNumber: 2,
+                    nozzleFlowRate: 2.5,
+                    pumpHead: 34
+                },
+                
+                // Damper & Coil Data
+                damperData: {
+                    fresh: {
+                        width: 1520,
+                        height: 2820,
+                        number: 1
+                    },
+                    exhaust: {
+                        width: 1520,
+                        height: 2820,
+                        number: 1
+                    },
+                    return: {
+                        width: 1520,
+                        height: 2820,
+                        number: 1
+                    },
+                    coil: {
+                        width: 1.5,
+                        height: 2.8,
+                        type: '2',
+                        number: 1
+                    }
+                },
+                
+                // Project JSON data for file operations
+                projectJsonData: '',
+                
+                // Methods
+                setActiveSection(section) {
+                    this.activeSection = section;
+                    if (this.isMobile()) {
+                        this.sidebarOpen = false;
+                    }
+                },
+                
+                toggleBlock(blockName) {
+                    this.blocks[blockName] = !this.blocks[blockName];
+                },
+                
+                isMobile() {
+                    return window.innerWidth <= 768;
+                },
+                
+                // Building Dimension Calculations
+                calculateBuildingArea() {
+                    return this.globalData.buildingLength * this.globalData.buildingWidth;
+                },
+                
+                calculateBuildingVolume() {
+                    return this.calculateBuildingArea() * this.globalData.buildingHeight;
+                },
+                
+                // Load Estimation Calculations
+                calculateSunlightHeating() {
+                    const area = this.calculateBuildingArea();
+                    return (area * this.loadEstimationData.sunlightPower) / 1000;
+                },
+                
+                calculateTotalAddedHeat() {
+                    return this.calculateSunlightHeating() + this.loadEstimationData.machinePower;
+                },
+                
+                calculateHeatConduction() {
+                    // Simplified calculation - in a real app, this would be more complex
+                    const tempDifference = this.loadEstimationData.outsideTemp - this.loadEstimationData.insideTemp;
+                    const wallUValue = this.getUValue(this.loadEstimationData.wallMaterial);
+                    const roofUValue = 0.5; // Assumed value for roof
+                    
+                    return (this.loadEstimationData.wallArea * wallUValue * tempDifference) + 
+                           (this.loadEstimationData.roofArea * roofUValue * tempDifference);
+                },
+                
+                getUValue(material) {
+                    const uValues = {
+                        'brick': 2.0,
+                        'concrete': 3.0,
+                        'wood': 1.5,
+                        'insulated': 0.5
+                    };
+                    return uValues[material] || 2.0;
+                },
+                
+                // Airflow Calculation Methods
+                calculateSpaceValues(space) {
+                    space.area = space.width * space.length;
+                    space.volume = space.area * space.height;
+                    space.airflowM3Hr = space.volume * space.ach;
+                    space.airflowM3S = space.airflowM3Hr / 3600;
+                    space.airflowCFM = space.airflowM3Hr / 1.699;
+                },
+                
+                addSpace(acId) {
+                    const acUnit = this.airflowData.acUnits.find(ac => ac.id === acId);
+                    if (acUnit) {
+                        const newSpace = {
+                            id: this.airflowData.nextSpaceId++,
+                            name: '',
+                            width: 21,
+                            length: 44,
+                            height: 4.4,
+                            ach: 33,
+                            area: 0,
+                            volume: 0,
+                            airflowM3Hr: 0,
+                            airflowM3S: 0,
+                            airflowCFM: 0,
+                            color1: this.getRandomLightColor(),
+                            color2: this.getRandomLightColor()
+                        };
+                        this.calculateSpaceValues(newSpace);
+                        acUnit.spaces.push(newSpace);
+                    }
+                },
+                
+                removeSpace(acId, spaceId) {
+                    const acUnit = this.airflowData.acUnits.find(ac => ac.id === acId);
+                    if (acUnit) {
+                        acUnit.spaces = acUnit.spaces.filter(space => space.id !== spaceId);
+                    }
+                },
+                
+                resetSpace(space) {
+                    space.width = 21;
+                    space.length = 44;
+                    space.height = 4.4;
+                    space.ach = 33;
+                    this.calculateSpaceValues(space);
+                },
+                
+                addAcUnit() {
+                    const newAcUnit = {
+                        id: this.airflowData.nextAcId++,
+                        spaces: []
+                    };
+                    this.airflowData.acUnits.push(newAcUnit);
+                    this.addSpace(newAcUnit.id);
+                },
+                
+                removeAcUnit(acId) {
+                    this.airflowData.acUnits = this.airflowData.acUnits.filter(ac => ac.id !== acId);
+                },
+                
+                resetAcUnit(acId) {
+                    const acUnit = this.airflowData.acUnits.find(ac => ac.id === acId);
+                    if (acUnit) {
+                        acUnit.spaces.forEach(space => this.resetSpace(space));
+                    }
+                },
+                
+                copySpaceValues(space) {
+                    // In a real app, this would copy values to clipboard
+                    alert(`Values for ${space.name} copied!`);
+                },
+                
+                getRandomLightColor() {
+                    const letters = 'BCDEF';
+                    let color = '#';
+                    for (let i = 0; i < 6; i++) {
+                        color += letters[Math.floor(Math.random() * letters.length)];
+                    }
+                    return color;
+                },
+                
+                // Duct & Ventilation Calculations
+                calculateSupplyDuctArea() {
+                    if (this.ductData.supply.shape === 'circular') {
+                        return Math.PI * Math.pow(this.ductData.supply.diameter / 2, 2);
+                    } else {
+                        return this.ductData.supply.width * this.ductData.supply.height;
+                    }
+                },
+                
+                calculateTotalSupplyDuctArea() {
+                    return this.calculateSupplyDuctArea() * this.ductData.supply.number;
+                },
+                
+                calculateSupplyAirVelocity() {
+                    // Using the first space of the first AC unit for airflow calculation
+                    if (this.airflowData.acUnits.length > 0 && this.airflowData.acUnits[0].spaces.length > 0) {
+                        const airflowM3S = this.airflowData.acUnits[0].spaces[0].airflowM3S;
+                        return airflowM3S / this.calculateTotalSupplyDuctArea();
+                    }
+                    return 0;
+                },
+                
+                calculateSupplyVentArea() {
+                    return this.ductData.supply.ventWidth * this.ductData.supply.ventLength;
+                },
+                
+                calculateTotalSupplyVentArea() {
+                    return this.calculateSupplyVentArea() * this.ductData.supply.ventNumber;
+                },
+                
+                calculateSupplyVentAirVelocity() {
+                    if (this.airflowData.acUnits.length > 0 && this.airflowData.acUnits[0].spaces.length > 0) {
+                        const airflowM3S = this.airflowData.acUnits[0].spaces[0].airflowM3S;
+                        return airflowM3S / this.calculateTotalSupplyVentArea();
+                    }
+                    return 0;
+                },
+                
+                calculateReturnDuctArea() {
+                    return this.ductData.return.width * this.ductData.return.height;
+                },
+                
+                calculateTotalReturnDuctArea() {
+                    return this.calculateReturnDuctArea() * this.ductData.return.number;
+                },
+                
+                calculateReturnAirVelocity() {
+                    if (this.airflowData.acUnits.length > 0 && this.airflowData.acUnits[0].spaces.length > 0) {
+                        const airflowM3S = this.airflowData.acUnits[0].spaces[0].airflowM3S;
+                        return airflowM3S / this.calculateTotalReturnDuctArea();
+                    }
+                    return 0;
+                },
+                
+                calculateReturnVentArea() {
+                    return (this.ductData.return.ventWidth / 1000) * this.ductData.return.ventLength;
+                },
+                
+                calculateTotalReturnVentArea() {
+                    return this.calculateReturnVentArea() * this.ductData.return.ventNumber;
+                },
+                
+                calculateReturnVentAirVelocity() {
+                    if (this.airflowData.acUnits.length > 0 && this.airflowData.acUnits[0].spaces.length > 0) {
+                        const airflowM3S = this.airflowData.acUnits[0].spaces[0].airflowM3S;
+                        return airflowM3S / this.calculateTotalReturnVentArea();
+                    }
+                    return 0;
+                },
+                
+                // Rotary Filtration Calculations
+                calculateFilterArea(diameter, length) {
+                    return (Math.PI * Math.pow(diameter, 2) / 4) * length;
+                },
+                
+                selectFilter(diameter, length) {
+                    this.rotaryFilterData.selectedDiameter = diameter;
+                    this.rotaryFilterData.selectedLength = length;
+                },
+                
+                calculateSingleFilterArea() {
+                    return this.calculateFilterArea(
+                        this.rotaryFilterData.selectedDiameter, 
+                        this.rotaryFilterData.selectedLength
+                    );
+                },
+                
+                calculateTotalFilterArea() {
+                    return this.calculateSingleFilterArea() * this.rotaryFilterData.filterNumber;
+                },
+                
+                calculateFilterAirVelocity() {
+                    if (this.airflowData.acUnits.length > 0 && this.airflowData.acUnits[0].spaces.length > 0) {
+                        const airflowM3S = this.airflowData.acUnits[0].spaces[0].airflowM3S;
+                        return airflowM3S / this.calculateTotalFilterArea();
+                    }
+                    return 0;
+                },
+                
+                // Air Washer Calculations
+                calculateVentArea() {
+                    return this.airWasherData.ventWidth * this.airWasherData.ventHeight;
+                },
+                
+                calculateVentAirVelocity() {
+                    return this.airWasherData.airflowRate / this.calculateVentArea();
+                },
+                
+                calculateRiserLength() {
+                    return this.airWasherData.ventHeight - (this.airWasherData.collectorDiameter / 1000);
+                },
+                
+                calculateRisersPerCollector() {
+                    return Math.floor(this.airWasherData.ventWidth / (this.airWasherData.riserSpacing / 1000)) - 1;
+                },
+                
+                calculateNozzlesPerRiser() {
+                    return Math.floor(this.calculateRiserLength() / (this.airWasherData.nozzleSpacing / 1000)) - 1;
+                },
+                
+                calculateTotalNozzles() {
+                    return this.airWasherData.rowNumber * this.calculateNozzlesPerRiser() * this.calculateRisersPerCollector();
+                },
+                
+                calculateTotalWaterFlow() {
+                    return this.calculateTotalNozzles() * this.airWasherData.nozzleFlowRate;
+                },
+                
+                calculatePumpPower() {
+                    // Simplified pump power calculation
+                    const flowRateM3S = this.calculateTotalWaterFlow() / 60000; // Convert L/min to m³/s
+                    const density = 1000; // Water density in kg/m³
+                    const gravity = 9.81; // Gravity in m/s²
+                    const efficiency = 0.8; // Pump efficiency
+                    
+                    return (flowRateM3S * density * gravity * this.airWasherData.pumpHead) / (efficiency * 1000);
+                },
+                
+                // Damper & Coil Calculations
+                calculateFreshDamperArea() {
+                    return (this.damperData.fresh.width / 1000) * (this.damperData.fresh.height / 1000);
+                },
+                
+                calculateTotalFreshDamperArea() {
+                    return this.calculateFreshDamperArea() * this.damperData.fresh.number;
+                },
+                
+                calculateFreshDamperVelocity() {
+                    if (this.airflowData.acUnits.length > 0 && this.airflowData.acUnits[0].spaces.length > 0) {
+                        const airflowM3S = this.airflowData.acUnits[0].spaces[0].airflowM3S;
+                        return airflowM3S / this.calculateTotalFreshDamperArea();
+                    }
+                    return 0;
+                },
+                
+                calculateExhaustDamperArea() {
+                    return (this.damperData.exhaust.width / 1000) * (this.damperData.exhaust.height / 1000);
+                },
+                
+                calculateTotalExhaustDamperArea() {
+                    return this.calculateExhaustDamperArea() * this.damperData.exhaust.number;
+                },
+                
+                calculateExhaustDamperVelocity() {
+                    if (this.airflowData.acUnits.length > 0 && this.airflowData.acUnits[0].spaces.length > 0) {
+                        const airflowM3S = this.airflowData.acUnits[0].spaces[0].airflowM3S;
+                        return airflowM3S / this.calculateTotalExhaustDamperArea();
+                    }
+                    return 0;
+                },
+                
+                calculateReturnDamperArea() {
+                    return (this.damperData.return.width / 1000) * (this.damperData.return.height / 1000);
+                },
+                
+                calculateTotalReturnDamperArea() {
+                    return this.calculateReturnDamperArea() * this.damperData.return.number;
+                },
+                
+                calculateReturnDamperVelocity() {
+                    if (this.airflowData.acUnits.length > 0 && this.airflowData.acUnits[0].spaces.length > 0) {
+                        const airflowM3S = this.airflowData.acUnits[0].spaces[0].airflowM3S;
+                        return airflowM3S / this.calculateTotalReturnDamperArea();
+                    }
+                    return 0;
+                },
+                
+                calculateCoilArea() {
+                    return this.damperData.coil.width * this.damperData.coil.height;
+                },
+                
+                calculateTotalCoilArea() {
+                    return this.calculateCoilArea() * this.damperData.coil.number;
+                },
+                
+                // File Operations
+                saveLoadEstimationData() {
+                    const data = JSON.stringify(this.loadEstimationData, null, 2);
+                    this.downloadJSON(data, 'load_estimation_data.json');
+                },
+                
+                loadLoadEstimationData() {
+                    // In a real app, this would load from a file
+                    // For demo purposes, we'll just show an alert
+                    alert('Load estimation data loaded from file!');
+                },
+                
+                saveRotaryFilterData() {
+                    const data = JSON.stringify(this.rotaryFilterData, null, 2);
+                    this.downloadJSON(data, 'rotary_filter_data.json');
+                },
+                
+                loadRotaryFilterData() {
+                    // In a real app, this would load from a file
+                    // For demo purposes, we'll just show an alert
+                    alert('Rotary filter data loaded from file!');
+                },
+                
+                resetRotaryFilterData() {
+                    this.rotaryFilterData = {
+                        diameters: [2, 2.5, 3],
+                        lengths: [1.7, 3.4, 5.1],
+                        selectedDiameter: 2,
+                        selectedLength: 1.7,
+                        filterNumber: 1
+                    };
+                },
+                
+                saveProjectData() {
+                    const projectData = {
+                        globalData: this.globalData,
+                        loadEstimationData: this.loadEstimationData,
+                        airflowData: this.airflowData,
+                        ductData: this.ductData,
+                        rotaryFilterData: this.rotaryFilterData,
+                        airWasherData: this.airWasherData,
+                        damperData: this.damperData
+                    };
+                    this.projectJsonData = JSON.stringify(projectData, null, 2);
+                },
+                
+                loadProjectData() {
+                    try {
+                        const projectData = JSON.parse(this.projectJsonData);
+                        this.globalData = projectData.globalData || this.globalData;
+                        this.loadEstimationData = projectData.loadEstimationData || this.loadEstimationData;
+                        this.airflowData = projectData.airflowData || this.airflowData;
+                        this.ductData = projectData.ductData || this.ductData;
+                        this.rotaryFilterData = projectData.rotaryFilterData || this.rotaryFilterData;
+                        this.airWasherData = projectData.airWasherData || this.airWasherData;
+                        this.damperData = projectData.damperData || this.damperData;
+                        alert('Project data loaded successfully!');
+                    } catch (e) {
+                        alert('Error loading project data: Invalid JSON format');
+                    }
+                },
+                
+                exportProjectData() {
+                    this.saveProjectData();
+                    this.downloadJSON(this.projectJsonData, 'hvac_project_data.json');
+                },
+                
+                downloadJSON(data, filename) {
+                    const blob = new Blob([data], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = filename;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                },
+                
+                // Initialize calculations
+                init() {
+                    // Calculate initial values for spaces
+                    this.airflowData.acUnits.forEach(ac => {
+                        ac.spaces.forEach(space => {
+                            this.calculateSpaceValues(space);
+                        });
+                    });
+                    
+                    // Set initial project JSON data
+                    this.saveProjectData();
+                }
+            };
+        }
+        
+        // Initialize the app when Alpine is ready
+        document.addEventListener('alpine:init', () => {
+            Alpine.data('app', app);
+        });
+    </script>
+</body>
+</html>

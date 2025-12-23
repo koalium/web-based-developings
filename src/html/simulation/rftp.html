@@ -1,0 +1,1433 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Digital Caliper & Pressure Monitor</title>
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1d4ed8;
+            --secondary: #64748b;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --dark: #1e293b;
+            --light: #f8fafc;
+            --gray: #94a3b8;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #0f172a, #1e293b);
+            color: var(--light);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            background: linear-gradient(to right, #60a5fa, #3b82f6);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+        
+        .header p {
+            color: var(--gray);
+            font-size: 1.1rem;
+        }
+        
+        .connection-panel {
+            background: rgba(30, 41, 59, 0.7);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        
+        .connection-controls {
+            display: flex;
+            gap: 15px;
+            align-items: flex-end;
+        }
+        
+        .form-group {
+            flex: 1;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: var(--gray);
+        }
+        
+        select, input {
+            width: 100%;
+            padding: 12px 15px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(15, 23, 42, 0.7);
+            color: var(--light);
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+        
+        select:focus, input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
+        }
+        
+        .btn {
+            padding: 12px 25px;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+        
+        .btn-primary:hover:not(:disabled) {
+            background: var(--primary-dark);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+        
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+        
+        .btn-success:hover:not(:disabled) {
+            background: #0da271;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+        
+        .btn-warning {
+            background: var(--warning);
+            color: white;
+        }
+        
+        .btn-warning:hover:not(:disabled) {
+            background: #e69500;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+        
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+        }
+        
+        .btn-danger:hover:not(:disabled) {
+            background: #dc2626;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+        
+        .btn-secondary {
+            background: var(--secondary);
+            color: white;
+        }
+        
+        .btn-secondary:hover:not(:disabled) {
+            background: #58657a;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+        
+        .tabs {
+            display: flex;
+            background: rgba(30, 41, 59, 0.7);
+            border-radius: 12px;
+            padding: 10px;
+            margin-bottom: 20px;
+            gap: 10px;
+        }
+        
+        .tab {
+            flex: 1;
+            padding: 15px;
+            text-align: center;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+            background: rgba(15, 23, 42, 0.7);
+        }
+        
+        .tab.active {
+            background: var(--primary);
+            color: white;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+        }
+        
+        .gauges-panel {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        
+        .gauge-container {
+            background: rgba(30, 41, 59, 0.7);
+            border-radius: 12px;
+            padding: 25px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        
+        .gauge-title {
+            font-size: 1.2rem;
+            margin-bottom: 20px;
+            color: var(--gray);
+            text-align: center;
+        }
+        
+        .gauge {
+            position: relative;
+            width: 200px;
+            height: 200px;
+        }
+        
+        .gauge-circle {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            position: relative;
+            overflow: hidden;
+            background: rgba(15, 23, 42, 0.7);
+            box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.3);
+        }
+        
+        .gauge-fill {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            clip-path: polygon(50% 50%, 50% 0%, 100% 0%, 100% 100%, 0% 100%, 0% 0%, 50% 0%);
+            transform: rotate(0deg);
+            transition: transform 0.5s ease;
+        }
+        
+        .gauge-center {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80%;
+            height: 80%;
+            border-radius: 50%;
+            background: rgba(30, 41, 59, 0.9);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.3);
+        }
+        
+        .gauge-value {
+            font-size: 2.2rem;
+            font-weight: 700;
+            color: var(--light);
+        }
+        
+        .gauge-unit {
+            font-size: 1rem;
+            color: var(--gray);
+            margin-top: 5px;
+        }
+        
+        .gauge-labels {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            margin-top: 15px;
+            font-size: 0.9rem;
+            color: var(--gray);
+        }
+        
+        .motor-container {
+            grid-column: 1 / -1;
+            background: rgba(30, 41, 59, 0.7);
+            border-radius: 12px;
+            padding: 25px;
+            margin-top: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        
+        .motor-visualization {
+            width: 300px;
+            height: 200px;
+            position: relative;
+            margin: 20px 0;
+        }
+        
+        .motor-body {
+            width: 180px;
+            height: 120px;
+            background: linear-gradient(to bottom, #475569, #334155);
+            border-radius: 10px;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+        
+        .motor-shaft {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+            position: relative;
+            transition: transform 0.5s ease;
+        }
+        
+        .motor-running .motor-shaft {
+            animation: rotate 2s linear infinite;
+        }
+        
+        .motor-label {
+            position: absolute;
+            bottom: -30px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 1.1rem;
+            color: var(--gray);
+        }
+        
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        
+        .controls-panel {
+            background: rgba(30, 41, 59, 0.7);
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        
+        .controls-title {
+            font-size: 1.3rem;
+            margin-bottom: 20px;
+            color: var(--light);
+            text-align: center;
+        }
+        
+        .input-group {
+            margin-bottom: 20px;
+        }
+        
+        .radio-group {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 25px;
+        }
+        
+        .radio-option {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 15px;
+            border-radius: 8px;
+            background: rgba(15, 23, 42, 0.7);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        
+        .radio-option:hover {
+            background: rgba(15, 23, 42, 0.9);
+        }
+        
+        .radio-option.selected {
+            background: rgba(37, 99, 235, 0.2);
+            border-color: var(--primary);
+        }
+        
+        .radio-option input {
+            width: auto;
+        }
+        
+        .control-buttons {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+        
+        .action-buttons {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+        }
+        
+        .btn-lg {
+            padding: 15px;
+            font-size: 1.1rem;
+        }
+        
+        .data-panel {
+            grid-column: 1 / -1;
+            background: rgba(30, 41, 59, 0.7);
+            border-radius: 12px;
+            padding: 25px;
+            margin-top: 30px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        
+        .data-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .data-title {
+            font-size: 1.3rem;
+            color: var(--light);
+        }
+        
+        .chart-container {
+            height: 300px;
+            margin-bottom: 20px;
+        }
+        
+        .status-panel {
+            background: rgba(30, 41, 59, 0.7);
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 30px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        
+        .status-title {
+            font-size: 1.2rem;
+            margin-bottom: 15px;
+            color: var(--light);
+        }
+        
+        .status-log {
+            height: 150px;
+            overflow-y: auto;
+            background: rgba(15, 23, 42, 0.7);
+            border-radius: 8px;
+            padding: 15px;
+            font-family: monospace;
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+        
+        .log-entry {
+            margin-bottom: 8px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        
+        .log-time {
+            color: var(--gray);
+        }
+        
+        .log-info {
+            color: #60a5fa;
+        }
+        
+        .log-success {
+            color: var(--success);
+        }
+        
+        .log-warning {
+            color: var(--warning);
+        }
+        
+        .log-error {
+            color: var(--danger);
+        }
+        
+        .connection-status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 15px;
+            padding: 10px 15px;
+            border-radius: 8px;
+            background: rgba(239, 68, 68, 0.2);
+        }
+        
+        .connection-status.connected {
+            background: rgba(16, 185, 129, 0.2);
+        }
+        
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: var(--danger);
+        }
+        
+        .connection-status.connected .status-indicator {
+            background: var(--success);
+        }
+        
+        .auto-connect {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 24px;
+        }
+        
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #475569;
+            transition: .4s;
+            border-radius: 24px;
+        }
+        
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        
+        input:checked + .toggle-slider {
+            background-color: var(--primary);
+        }
+        
+        input:checked + .toggle-slider:before {
+            transform: translateX(26px);
+        }
+        
+        .rupture-indicator {
+            background: rgba(239, 68, 68, 0.2);
+            border: 1px solid var(--danger);
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 20px;
+            text-align: center;
+        }
+        
+        .rupture-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--danger);
+            margin-top: 10px;
+        }
+        
+        @media (max-width: 900px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+            
+            .gauges-panel {
+                grid-template-columns: 1fr;
+            }
+            
+            .control-buttons, .action-buttons {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container" x-data="app()">
+        <!-- Header -->
+        <div class="header">
+            <h1>Digital Caliper & Pressure Monitor</h1>
+            <p>Real-time monitoring and control for forming operations</p>
+        </div>
+        
+        <!-- Connection Panel -->
+        <div class="connection-panel">
+            <div class="connection-controls">
+                <div class="form-group">
+                    <label for="serialPort">Serial Port</label>
+                    <select id="serialPort" x-model="selectedPort">
+                        <option value="" disabled selected>Select a serial port</option>
+                        <template x-for="port in serialPorts" :key="port">
+                            <option :value="port" x-text="port"></option>
+                        </template>
+                    </select>
+                </div>
+                <button class="btn btn-primary" @click="connect()" :disabled="isConnected || !selectedPort">
+                    <span x-text="isConnected ? 'Connected' : 'Connect'"></span>
+                </button>
+                <button class="btn btn-secondary" @click="refreshPorts()">
+                    Refresh Ports
+                </button>
+            </div>
+            
+            <div class="auto-connect">
+                <div class="toggle-switch">
+                    <input type="checkbox" x-model="autoConnect">
+                    <span class="toggle-slider"></span>
+                </div>
+                <span>Auto-connect to available devices</span>
+            </div>
+            
+            <div class="connection-status" :class="{ 'connected': isConnected }">
+                <div class="status-indicator"></div>
+                <span x-text="isConnected ? 'Connected to ' + selectedPort : 'Not Connected'"></span>
+            </div>
+        </div>
+        
+        <!-- Tabs -->
+        <div class="tabs">
+            <div class="tab" :class="{ 'active': activeTab === 'forming' }" @click="activeTab = 'forming'">Forming Process</div>
+            <div class="tab" :class="{ 'active': activeTab === 'rupture' }" @click="activeTab = 'rupture'">Rupture Testing</div>
+        </div>
+        
+        <!-- Forming Process Tab -->
+        <div class="tab-content" :class="{ 'active': activeTab === 'forming' }">
+            <!-- Main Content -->
+            <div class="main-content" :class="{ 'disabled-content': !isConnected }" :disabled="!isConnected">
+                <!-- Gauges Panel -->
+                <div class="gauges-panel">
+                    <div class="gauge-container">
+                        <div class="gauge-title">Caliper Measurement</div>
+                        <div class="gauge">
+                            <div class="gauge-circle">
+                                <div class="gauge-fill" :style="`background: ${caliperColor}; transform: rotate(${caliperAngle}deg);`"></div>
+                                <div class="gauge-center">
+                                    <div class="gauge-value" x-text="caliperValue.toFixed(2)"></div>
+                                    <div class="gauge-unit">mm</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="gauge-labels">
+                            <span>0.00</span>
+                            <span>150.00</span>
+                        </div>
+                    </div>
+                    
+                    <div class="gauge-container">
+                        <div class="gauge-title">Pressure Measurement</div>
+                        <div class="gauge">
+                            <div class="gauge-circle">
+                                <div class="gauge-fill" :style="`background: ${pressureColor}; transform: rotate(${pressureAngle}deg);`"></div>
+                                <div class="gauge-center">
+                                    <div class="gauge-value" x-text="pressureValue.toFixed(2)"></div>
+                                    <div class="gauge-unit">bar</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="gauge-labels">
+                            <span>0.00</span>
+                            <span>250.00</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Motor Visualization -->
+                    <div class="motor-container">
+                        <div class="gauge-title">Motor Status</div>
+                        <div class="motor-visualization">
+                            <div class="motor-body" :class="{ 'motor-running': isRunning && !isPaused }">
+                                <div class="motor-shaft"></div>
+                            </div>
+                            <div class="motor-label" x-text="isRunning && !isPaused ? 'RUNNING' : (isPaused ? 'PAUSED' : 'STOPPED')"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Controls Panel -->
+                <div class="controls-panel">
+                    <div class="controls-title">Control Parameters</div>
+                    
+                    <div class="input-group">
+                        <label for="formingHeight">Forming Height (mm)</label>
+                        <input type="number" id="formingHeight" x-model="formingHeight" min="0" max="150" step="0.01" :disabled="!isConnected">
+                    </div>
+                    
+                    <div class="input-group">
+                        <label for="formingPressure">Forming Pressure (bar)</label>
+                        <input type="number" id="formingPressure" x-model="formingPressure" min="0" max="250" step="0.01" :disabled="!isConnected">
+                    </div>
+                    
+                    <div class="radio-group">
+                        <div class="radio-option" :class="{ 'selected': controlMode === 'height' }" @click="controlMode = 'height'">
+                            <input type="radio" id="heightMode" x-model="controlMode" value="height">
+                            <label for="heightMode">Height Control</label>
+                        </div>
+                        <div class="radio-option" :class="{ 'selected': controlMode === 'pressure' }" @click="controlMode = 'pressure'">
+                            <input type="radio" id="pressureMode" x-model="controlMode" value="pressure">
+                            <label for="pressureMode">Pressure Control</label>
+                        </div>
+                    </div>
+                    
+                    <div class="control-buttons">
+                        <button class="btn btn-secondary" @click="setZero()" :disabled="!isConnected">Set Zero</button>
+                        <button class="btn btn-warning" @click="reset()" :disabled="!isConnected">Reset</button>
+                        <button class="btn btn-success" @click="start()" :disabled="!isConnected || isRunning">Start</button>
+                    </div>
+                    
+                    <div class="action-buttons">
+                        <button class="btn btn-danger btn-lg" @click="stop()" :disabled="!isConnected || !isRunning">Stop</button>
+                        <button class="btn btn-warning btn-lg" @click="pause()" :disabled="!isConnected || !isRunning" x-text="isPaused ? 'Resume' : 'Pause'"></button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Data Panel -->
+            <div class="data-panel">
+                <div class="data-header">
+                    <div class="data-title">Pressure vs. Forming Height</div>
+                    <div>
+                        <button class="btn btn-secondary" @click="exportData('json')">Export JSON</button>
+                        <button class="btn btn-secondary" @click="exportData('csv')">Export CSV</button>
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <canvas id="dataChart"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Rupture Testing Tab -->
+        <div class="tab-content" :class="{ 'active': activeTab === 'rupture' }">
+            <!-- Main Content -->
+            <div class="main-content" :class="{ 'disabled-content': !isConnected }" :disabled="!isConnected">
+                <!-- Gauges Panel -->
+                <div class="gauges-panel">
+                    <div class="gauge-container">
+                        <div class="gauge-title">Temperature</div>
+                        <div class="gauge">
+                            <div class="gauge-circle">
+                                <div class="gauge-fill" :style="`background: ${temperatureColor}; transform: rotate(${temperatureAngle}deg);`"></div>
+                                <div class="gauge-center">
+                                    <div class="gauge-value" x-text="temperatureValue.toFixed(1)"></div>
+                                    <div class="gauge-unit">°C</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="gauge-labels">
+                            <span>0</span>
+                            <span>200</span>
+                        </div>
+                    </div>
+                    
+                    <div class="gauge-container">
+                        <div class="gauge-title">Pressure</div>
+                        <div class="gauge">
+                            <div class="gauge-circle">
+                                <div class="gauge-fill" :style="`background: ${rupturePressureColor}; transform: rotate(${rupturePressureAngle}deg);`"></div>
+                                <div class="gauge-center">
+                                    <div class="gauge-value" x-text="rupturePressureValue.toFixed(1)"></div>
+                                    <div class="gauge-unit">bar</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="gauge-labels">
+                            <span>0</span>
+                            <span>500</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Rupture Indicator -->
+                    <div class="motor-container">
+                        <div class="gauge-title">Rupture Test Status</div>
+                        <div class="rupture-indicator" x-show="burstPressure > 0">
+                            <div>Burst Pressure Detected</div>
+                            <div class="rupture-value" x-text="`${burstPressure.toFixed(1)} bar`"></div>
+                        </div>
+                        <div class="motor-visualization">
+                            <div class="motor-body" :class="{ 'motor-running': isRuptureTestRunning && !isRuptureTestPaused }">
+                                <div class="motor-shaft"></div>
+                            </div>
+                            <div class="motor-label" x-text="isRuptureTestRunning && !isRuptureTestPaused ? 'TEST RUNNING' : (isRuptureTestPaused ? 'TEST PAUSED' : 'TEST STOPPED')"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Controls Panel -->
+                <div class="controls-panel">
+                    <div class="controls-title">Rupture Test Parameters</div>
+                    
+                    <div class="input-group">
+                        <label for="testTemperature">Target Temperature (°C)</label>
+                        <input type="number" id="testTemperature" x-model="testTemperature" min="20" max="200" step="1" :disabled="!isConnected">
+                    </div>
+                    
+                    <div class="input-group">
+                        <label for="pressureRate">Pressure Increase Rate (bar/s)</label>
+                        <input type="number" id="pressureRate" x-model="pressureRate" min="0.1" max="10" step="0.1" :disabled="!isConnected">
+                    </div>
+                    
+                    <div class="input-group">
+                        <label for="maxPressure">Maximum Pressure (bar)</label>
+                        <input type="number" id="maxPressure" x-model="maxPressure" min="50" max="500" step="10" :disabled="!isConnected">
+                    </div>
+                    
+                    <div class="control-buttons">
+                        <button class="btn btn-secondary" @click="resetRuptureTest()" :disabled="!isConnected">Reset Test</button>
+                        <button class="btn btn-warning" @click="calibrateRupture()" :disabled="!isConnected">Calibrate</button>
+                        <button class="btn btn-success" @click="startRuptureTest()" :disabled="!isConnected || isRuptureTestRunning">Start Test</button>
+                    </div>
+                    
+                    <div class="action-buttons">
+                        <button class="btn btn-danger btn-lg" @click="stopRuptureTest()" :disabled="!isConnected || !isRuptureTestRunning">Emergency Stop</button>
+                        <button class="btn btn-warning btn-lg" @click="pauseRuptureTest()" :disabled="!isConnected || !isRuptureTestRunning" x-text="isRuptureTestPaused ? 'Resume Test' : 'Pause Test'"></button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Data Panel -->
+            <div class="data-panel">
+                <div class="data-header">
+                    <div class="data-title">Rupture Test: Pressure vs. Time</div>
+                    <div>
+                        <button class="btn btn-secondary" @click="exportRuptureData('json')">Export JSON</button>
+                        <button class="btn btn-secondary" @click="exportRuptureData('csv')">Export CSV</button>
+                    </div>
+                </div>
+                <div class="chart-container">
+                    <canvas id="ruptureChart"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Status Panel -->
+        <div class="status-panel">
+            <div class="status-title">Operation Log</div>
+            <div class="status-log">
+                <template x-for="log in logs" :key="log.id">
+                    <div class="log-entry">
+                        <span class="log-time" x-text="log.time"></span>
+                        <span :class="'log-' + log.type" x-text="' ' + log.message"></span>
+                    </div>
+                </template>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function app() {
+            return {
+                // Connection state
+                serialPorts: ['COM1', 'COM2', 'COM3', 'COM4', 'COM5'],
+                selectedPort: '',
+                isConnected: false,
+                autoConnect: true,
+                activeTab: 'forming',
+                
+                // Forming Process State
+                caliperValue: 0.00,
+                pressureValue: 0.00,
+                formingHeight: 50.00,
+                formingPressure: 100.00,
+                controlMode: 'height',
+                isRunning: false,
+                isPaused: false,
+                dataPoints: [],
+                maxDataPoints: 100,
+                
+                // Rupture Test State
+                temperatureValue: 20.0,
+                rupturePressureValue: 0.0,
+                testTemperature: 100,
+                pressureRate: 2.0,
+                maxPressure: 300,
+                isRuptureTestRunning: false,
+                isRuptureTestPaused: false,
+                burstPressure: 0,
+                ruptureDataPoints: [],
+                ruptureStartTime: null,
+                
+                // Logs
+                logs: [],
+                logId: 0,
+                
+                // Chart references
+                chart: null,
+                ruptureChart: null,
+                
+                // Computed properties for gauge visualization
+                get caliperAngle() {
+                    return (this.caliperValue / 150) * 180;
+                },
+                
+                get pressureAngle() {
+                    return (this.pressureValue / 250) * 180;
+                },
+                
+                get temperatureAngle() {
+                    return (this.temperatureValue / 200) * 180;
+                },
+                
+                get rupturePressureAngle() {
+                    return (this.rupturePressureValue / 500) * 180;
+                },
+                
+                get caliperColor() {
+                    const percentage = this.caliperValue / 150;
+                    if (percentage < 0.5) return '#10b981';
+                    if (percentage < 0.8) return '#f59e0b';
+                    return '#ef4444';
+                },
+                
+                get pressureColor() {
+                    const percentage = this.pressureValue / 250;
+                    if (percentage < 0.5) return '#10b981';
+                    if (percentage < 0.8) return '#f59e0b';
+                    return '#ef4444';
+                },
+                
+                get temperatureColor() {
+                    const percentage = this.temperatureValue / 200;
+                    if (percentage < 0.5) return '#10b981';
+                    if (percentage < 0.8) return '#f59e0b';
+                    return '#ef4444';
+                },
+                
+                get rupturePressureColor() {
+                    const percentage = this.rupturePressureValue / 500;
+                    if (percentage < 0.5) return '#10b981';
+                    if (percentage < 0.8) return '#f59e0b';
+                    return '#ef4444';
+                },
+                
+                // Methods
+                refreshPorts() {
+                    this.addLog('info', 'Scanning for available serial ports...');
+                    
+                    setTimeout(() => {
+                        if (Math.random() > 0.7 && this.serialPorts.length < 7) {
+                            const newPort = `COM${this.serialPorts.length + 1}`;
+                            this.serialPorts.push(newPort);
+                            this.addLog('success', `Found new port: ${newPort}`);
+                            
+                            if (this.autoConnect && !this.isConnected) {
+                                this.selectedPort = newPort;
+                                setTimeout(() => this.connect(), 500);
+                            }
+                        } else {
+                            this.addLog('info', 'Port scan completed');
+                        }
+                    }, 1000);
+                },
+                
+                connect() {
+                    if (this.selectedPort) {
+                        this.addLog('info', `Attempting to connect to ${this.selectedPort}...`);
+                        
+                        setTimeout(() => {
+                            this.isConnected = true;
+                            this.addLog('success', `Successfully connected to ${this.selectedPort}`);
+                            
+                            this.startDataStream();
+                            this.startRuptureDataStream();
+                        }, 1000);
+                    }
+                },
+                
+                startDataStream() {
+                    if (this.isConnected && !this.dataStreamInterval) {
+                        this.dataStreamInterval = setInterval(() => {
+                            if (!this.isPaused) {
+                                const caliperNoise = (Math.random() - 0.5) * 0.1;
+                                const pressureNoise = (Math.random() - 0.5) * 0.5;
+                                
+                                if (this.isRunning) {
+                                    const caliperStep = (this.formingHeight - this.caliperValue) * 0.02;
+                                    const pressureStep = (this.formingPressure - this.pressureValue) * 0.02;
+                                    
+                                    this.caliperValue = Math.max(0, Math.min(150, this.caliperValue + caliperStep + caliperNoise));
+                                    this.pressureValue = Math.max(0, Math.min(250, this.pressureValue + pressureStep + pressureNoise));
+                                } else {
+                                    this.caliperValue = Math.max(0, Math.min(150, this.caliperValue + caliperNoise));
+                                    this.pressureValue = Math.max(0, Math.min(250, this.pressureValue + pressureNoise));
+                                }
+                                
+                                this.logDataPoint();
+                                
+                                if (this.isRunning) {
+                                    if (this.controlMode === 'height' && 
+                                        Math.abs(this.caliperValue - this.formingHeight) < 0.5) {
+                                        this.addLog('success', 'Target height reached!');
+                                        this.stop();
+                                    } else if (this.controlMode === 'pressure' && 
+                                               Math.abs(this.pressureValue - this.formingPressure) < 1) {
+                                        this.addLog('success', 'Target pressure reached!');
+                                        this.stop();
+                                    }
+                                }
+                            }
+                        }, 200);
+                    }
+                },
+                
+                startRuptureDataStream() {
+                    if (this.isConnected && !this.ruptureDataStreamInterval) {
+                        this.ruptureDataStreamInterval = setInterval(() => {
+                            if (this.isRuptureTestRunning && !this.isRuptureTestPaused) {
+                                // Simulate temperature increase
+                                const tempStep = (this.testTemperature - this.temperatureValue) * 0.01;
+                                const tempNoise = (Math.random() - 0.5) * 0.2;
+                                this.temperatureValue = Math.max(20, Math.min(200, this.temperatureValue + tempStep + tempNoise));
+                                
+                                // Simulate pressure increase until burst
+                                if (this.rupturePressureValue < this.maxPressure && this.burstPressure === 0) {
+                                    const pressureStep = this.pressureRate * 0.2; // Convert to per interval
+                                    const pressureNoise = (Math.random() - 0.5) * 0.5;
+                                    this.rupturePressureValue = Math.min(this.maxPressure, this.rupturePressureValue + pressureStep + pressureNoise);
+                                    
+                                    // Random burst simulation (higher probability at higher pressures)
+                                    const burstProbability = (this.rupturePressureValue / this.maxPressure) * 0.02;
+                                    if (Math.random() < burstProbability && this.rupturePressureValue > 100) {
+                                        this.burstPressure = this.rupturePressureValue;
+                                        this.addLog('warning', `Burst detected at ${this.burstPressure.toFixed(1)} bar!`);
+                                        this.stopRuptureTest();
+                                    }
+                                }
+                                
+                                this.logRuptureDataPoint();
+                            }
+                        }, 200);
+                    }
+                },
+                
+                logDataPoint() {
+                    const timestamp = new Date().toISOString();
+                    this.dataPoints.push({
+                        timestamp: timestamp,
+                        caliper: this.caliperValue,
+                        pressure: this.pressureValue,
+                        formingHeight: this.formingHeight,
+                        formingPressure: this.formingPressure
+                    });
+                    
+                    if (this.dataPoints.length > this.maxDataPoints) {
+                        this.dataPoints.shift();
+                    }
+                    
+                    this.updateChart();
+                },
+                
+                logRuptureDataPoint() {
+                    if (!this.ruptureStartTime) {
+                        this.ruptureStartTime = Date.now();
+                    }
+                    
+                    const elapsedTime = (Date.now() - this.ruptureStartTime) / 1000; // Convert to seconds
+                    this.ruptureDataPoints.push({
+                        time: elapsedTime,
+                        pressure: this.rupturePressureValue,
+                        temperature: this.temperatureValue,
+                        burstPressure: this.burstPressure
+                    });
+                    
+                    if (this.ruptureDataPoints.length > this.maxDataPoints) {
+                        this.ruptureDataPoints.shift();
+                    }
+                    
+                    this.updateRuptureChart();
+                },
+                
+                updateChart() {
+                    if (this.chart && this.dataPoints.length > 0) {
+                        const labels = this.dataPoints.map((_, i) => i);
+                        const caliperData = this.dataPoints.map(d => d.caliper);
+                        const pressureData = this.dataPoints.map(d => d.pressure);
+                        
+                        this.chart.data.labels = labels;
+                        this.chart.data.datasets[0].data = caliperData;
+                        this.chart.data.datasets[1].data = pressureData;
+                        this.chart.update('none');
+                    }
+                },
+                
+                updateRuptureChart() {
+                    if (this.ruptureChart && this.ruptureDataPoints.length > 0) {
+                        const times = this.ruptureDataPoints.map(d => d.time);
+                        const pressures = this.ruptureDataPoints.map(d => d.pressure);
+                        const temperatures = this.ruptureDataPoints.map(d => d.temperature);
+                        
+                        this.ruptureChart.data.labels = times;
+                        this.ruptureChart.data.datasets[0].data = pressures;
+                        this.ruptureChart.data.datasets[1].data = temperatures;
+                        
+                        // Add burst point annotation
+                        if (this.burstPressure > 0) {
+                            const burstIndex = pressures.findIndex(p => p === this.burstPressure);
+                            if (burstIndex !== -1) {
+                                this.ruptureChart.data.datasets[2].data = Array(pressures.length).fill(null);
+                                this.ruptureChart.data.datasets[2].data[burstIndex] = this.burstPressure;
+                            }
+                        }
+                        
+                        this.ruptureChart.update('none');
+                    }
+                },
+                
+                // Forming Process Methods
+                setZero() {
+                    this.caliperValue = 0.00;
+                    this.pressureValue = 0.00;
+                    this.addLog('info', 'Zero point set for both measurements');
+                },
+                
+                reset() {
+                    this.caliperValue = 0.00;
+                    this.pressureValue = 0.00;
+                    this.isRunning = false;
+                    this.isPaused = false;
+                    this.dataPoints = [];
+                    this.updateChart();
+                    this.addLog('info', 'System reset to initial state');
+                },
+                
+                start() {
+                    this.isRunning = true;
+                    this.isPaused = false;
+                    this.addLog('success', `Forming process started in ${this.controlMode} control mode`);
+                },
+                
+                stop() {
+                    this.isRunning = false;
+                    this.isPaused = false;
+                    this.addLog('info', 'Forming process stopped');
+                },
+                
+                pause() {
+                    this.isPaused = !this.isPaused;
+                    this.addLog('warning', this.isPaused ? 'Process paused' : 'Process resumed');
+                },
+                
+                // Rupture Test Methods
+                resetRuptureTest() {
+                    this.temperatureValue = 20.0;
+                    this.rupturePressureValue = 0.0;
+                    this.isRuptureTestRunning = false;
+                    this.isRuptureTestPaused = false;
+                    this.burstPressure = 0;
+                    this.ruptureDataPoints = [];
+                    this.ruptureStartTime = null;
+                    this.updateRuptureChart();
+                    this.addLog('info', 'Rupture test reset');
+                },
+                
+                calibrateRupture() {
+                    this.addLog('info', 'Calibrating rupture test sensors...');
+                    setTimeout(() => {
+                        this.addLog('success', 'Rupture test calibration completed');
+                    }, 1500);
+                },
+                
+                startRuptureTest() {
+                    this.isRuptureTestRunning = true;
+                    this.isRuptureTestPaused = false;
+                    this.ruptureStartTime = Date.now();
+                    this.addLog('success', 'Rupture test started');
+                },
+                
+                stopRuptureTest() {
+                    this.isRuptureTestRunning = false;
+                    this.isRuptureTestPaused = false;
+                    if (this.burstPressure > 0) {
+                        this.addLog('warning', `Rupture test stopped. Burst pressure: ${this.burstPressure.toFixed(1)} bar`);
+                    } else {
+                        this.addLog('info', 'Rupture test stopped');
+                    }
+                },
+                
+                pauseRuptureTest() {
+                    this.isRuptureTestPaused = !this.isRuptureTestPaused;
+                    this.addLog('warning', this.isRuptureTestPaused ? 'Rupture test paused' : 'Rupture test resumed');
+                },
+                
+                // Data Export Methods
+                exportData(format) {
+                    if (this.dataPoints.length === 0) {
+                        this.addLog('warning', 'No data available to export');
+                        return;
+                    }
+                    
+                    let dataStr, mimeType, filename;
+                    
+                    if (format === 'json') {
+                        dataStr = JSON.stringify(this.dataPoints, null, 2);
+                        mimeType = 'application/json';
+                        filename = 'forming-data.json';
+                    } else if (format === 'csv') {
+                        let csv = 'Timestamp,Caliper (mm),Pressure (bar),Target Height (mm),Target Pressure (bar)\n';
+                        this.dataPoints.forEach(point => {
+                            csv += `${point.timestamp},${point.caliper.toFixed(2)},${point.pressure.toFixed(2)},${point.formingHeight},${point.formingPressure}\n`;
+                        });
+                        dataStr = csv;
+                        mimeType = 'text/csv';
+                        filename = 'forming-data.csv';
+                    }
+                    
+                    this.downloadFile(dataStr, mimeType, filename);
+                    this.addLog('success', `Forming data exported as ${format.toUpperCase()}`);
+                },
+                
+                exportRuptureData(format) {
+                    if (this.ruptureDataPoints.length === 0) {
+                        this.addLog('warning', 'No rupture test data available to export');
+                        return;
+                    }
+                    
+                    let dataStr, mimeType, filename;
+                    
+                    if (format === 'json') {
+                        const exportData = {
+                            testParameters: {
+                                targetTemperature: this.testTemperature,
+                                pressureRate: this.pressureRate,
+                                maxPressure: this.maxPressure,
+                                burstPressure: this.burstPressure
+                            },
+                            dataPoints: this.ruptureDataPoints
+                        };
+                        dataStr = JSON.stringify(exportData, null, 2);
+                        mimeType = 'application/json';
+                        filename = 'rupture-test-data.json';
+                    } else if (format === 'csv') {
+                        let csv = 'Time (s),Pressure (bar),Temperature (°C),Burst Pressure (bar)\n';
+                        this.ruptureDataPoints.forEach(point => {
+                            const burstValue = point.burstPressure > 0 ? point.burstPressure : '';
+                            csv += `${point.time.toFixed(1)},${point.pressure.toFixed(1)},${point.temperature.toFixed(1)},${burstValue}\n`;
+                        });
+                        dataStr = csv;
+                        mimeType = 'text/csv';
+                        filename = 'rupture-test-data.csv';
+                    }
+                    
+                    this.downloadFile(dataStr, mimeType, filename);
+                    this.addLog('success', `Rupture test data exported as ${format.toUpperCase()}`);
+                },
+                
+                downloadFile(dataStr, mimeType, filename) {
+                    const blob = new Blob([dataStr], { type: mimeType });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = filename;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                },
+                
+                addLog(type, message) {
+                    const now = new Date();
+                    const timeString = now.toLocaleTimeString();
+                    this.logs.unshift({
+                        id: this.logId++,
+                        time: timeString,
+                        type: type,
+                        message: message
+                    });
+                    
+                    if (this.logs.length > 20) {
+                        this.logs.pop();
+                    }
+                },
+                
+                // Lifecycle
+                init() {
+                    this.addLog('info', 'Application initialized. Scanning for serial ports...');
+                    
+                    // Initialize forming chart
+                    const ctx = document.getElementById('dataChart').getContext('2d');
+                    this.chart = new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: [],
+                            datasets: [
+                                {
+                                    label: 'Caliper (mm)',
+                                    data: [],
+                                    borderColor: '#3b82f6',
+                                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                                    tension: 0.4,
+                                    fill: true
+                                },
+                                {
+                                    label: 'Pressure (bar)',
+                                    data: [],
+                                    borderColor: '#ef4444',
+                                    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                                    tension: 0.4,
+                                    fill: true
+                                }
+                            ]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    grid: { color: 'rgba(255, 255, 255, 0.1)' },
+                                    ticks: { color: '#94a3b8' }
+                                },
+                                x: {
+                                    grid: { color: 'rgba(255, 255, 255, 0.1)' },
+                                    ticks: { color: '#94a3b8' }
+                                }
+                            },
+                            plugins: {
+                                legend: { labels: { color: '#f8fafc' } }
+                            }
+                        }
+                    });
+                    
+                    // Initialize rupture chart
+                    const ruptureCtx = document.getElementById('ruptureChart').getContext('2d');
+                    this.ruptureChart = new Chart(ruptureCtx, {
+                        type: 'line',
+                        data: {
+                            labels: [],
+                            datasets: [
+                                {
+                                    label: 'Pressure (bar)',
+                                    data: [],
+                                    borderColor: '#ef4444',
+                                    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                                    tension: 0.4,
+                                    fill: false
+                                },
+                                {
+                                    label: 'Temperature (°C)',
+                                    data: [],
+                                    borderColor: '#f59e0b',
+                                    backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                                    tension: 0.4,
+                                    fill: false
+                                },
+                                {
+                                    label: 'Burst Point',
+                                    data: [],
+                                    borderColor: '#dc2626',
+                                    backgroundColor: 'rgba(220, 38, 38, 0.8)',
+                                    pointRadius: 6,
+                                    pointHoverRadius: 8,
+                                    showLine: false
+                                }
+                            ]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    grid: { color: 'rgba(255, 255, 255, 0.1)' },
+                                    ticks: { color: '#94a3b8' }
+                                },
+                                x: {
+                                    title: { display: true, text: 'Time (s)', color: '#94a3b8' },
+                                    grid: { color: 'rgba(255, 255, 255, 0.1)' },
+                                    ticks: { color: '#94a3b8' }
+                                }
+                            },
+                            plugins: {
+                                legend: { labels: { color: '#f8fafc' } },
+                                annotation: {
+                                    annotations: {}
+                                }
+                            }
+                        }
+                    });
+                    
+                    // Initial port scan
+                    this.refreshPorts();
+                }
+            }
+        }
+    </script>
+</body>
+</html>

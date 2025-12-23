@@ -1,0 +1,1457 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Rupture Disk 3D Simulation</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #0a1520, #1a2a3a);
+            color: #e0e0e0;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        
+        .container {
+            max-width: 1800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 25px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(79, 195, 247, 0.1);
+        }
+        
+        h1 {
+            font-size: 2.8rem;
+            margin-bottom: 10px;
+            background: linear-gradient(90deg, #4fc3f7, #29b6f6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 20px rgba(79, 195, 247, 0.3);
+        }
+        
+        .subtitle {
+            font-size: 1.3rem;
+            color: #b0bec5;
+            max-width: 800px;
+            margin: 0 auto;
+            line-height: 1.6;
+        }
+        
+        .content {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 25px;
+        }
+        
+        .controls {
+            flex: 1;
+            min-width: 350px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(79, 195, 247, 0.1);
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .viewer-container {
+            flex: 2;
+            min-width: 800px;
+            height: 750px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+            position: relative;
+            border: 1px solid rgba(79, 195, 247, 0.1);
+        }
+        
+        #viewer {
+            width: 100%;
+            height: 100%;
+        }
+        
+        .control-group {
+            margin-bottom: 30px;
+        }
+        
+        h2 {
+            font-size: 1.6rem;
+            margin-bottom: 18px;
+            color: #4fc3f7;
+            border-bottom: 1px solid rgba(79, 195, 247, 0.3);
+            padding-bottom: 8px;
+            display: flex;
+            align-items: center;
+        }
+        
+        h2 i {
+            margin-right: 10px;
+            font-size: 1.4rem;
+        }
+        
+        .option-group {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+            gap: 12px;
+            margin-bottom: 15px;
+        }
+        
+        .option {
+            padding: 12px 15px;
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 8px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 1px solid transparent;
+        }
+        
+        .option:hover {
+            background: rgba(79, 195, 247, 0.15);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+        
+        .option.selected {
+            background: rgba(79, 195, 247, 0.25);
+            box-shadow: 0 0 15px rgba(79, 195, 247, 0.4);
+            border: 1px solid rgba(79, 195, 247, 0.5);
+        }
+        
+        .pressure-control {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            margin-top: 25px;
+        }
+        
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .slider-container span {
+            min-width: 140px;
+            font-weight: 500;
+        }
+        
+        input[type="range"] {
+            flex: 1;
+            height: 10px;
+            -webkit-appearance: none;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 5px;
+            outline: none;
+        }
+        
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 22px;
+            height: 22px;
+            background: #4fc3f7;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 0 15px rgba(79, 195, 247, 0.8);
+            transition: all 0.2s ease;
+        }
+        
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.1);
+            box-shadow: 0 0 20px rgba(79, 195, 247, 1);
+        }
+        
+        .pressure-gauge-container {
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 12px;
+            padding: 15px;
+            margin-top: 15px;
+            position: relative;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .pressure-gauge {
+            height: 200px;
+            position: relative;
+            background: #0a1520;
+            border-radius: 8px;
+            overflow: hidden;
+            border: 2px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .gauge-background {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(to top, 
+                #4caf50 0%, #4caf50 30%,
+                #8bc34a 30%, #8bc34a 50%,
+                #ffeb3b 50%, #ffeb3b 70%,
+                #ff9800 70%, #ff9800 90%,
+                #f44336 90%, #f44336 100%);
+            opacity: 0.2;
+        }
+        
+        .gauge-fill {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 0%;
+            background: linear-gradient(to top, #4caf50, #8bc34a, #ffeb3b, #ff9800, #f44336);
+            transition: height 0.5s ease;
+            border-radius: 0 0 8px 8px;
+        }
+        
+        .gauge-marks {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 10px 15px;
+        }
+        
+        .gauge-mark {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.9rem;
+            font-weight: 500;
+            position: relative;
+        }
+        
+        .gauge-mark::after {
+            content: '';
+            position: absolute;
+            right: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 10px;
+            height: 2px;
+            background: rgba(255, 255, 255, 0.5);
+        }
+        
+        .burst-indicator {
+            position: absolute;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            background: #ffeb3b;
+            box-shadow: 0 0 10px #ffeb3b;
+            z-index: 10;
+        }
+        
+        .pressure-value {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 2.2rem;
+            font-weight: bold;
+            text-shadow: 0 0 15px rgba(0, 0, 0, 0.8);
+            z-index: 10;
+            color: white;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px 20px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .action-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 10px;
+        }
+        
+        .action-btn {
+            padding: 14px 20px;
+            background: linear-gradient(135deg, #4fc3f7, #0288d1);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        
+        .action-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+        }
+        
+        .action-btn:active {
+            transform: translateY(1px);
+        }
+        
+        .action-btn:disabled {
+            background: #546e7a;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .action-btn.reset {
+            background: linear-gradient(135deg, #ff9800, #f57c00);
+            grid-column: span 2;
+        }
+        
+        .action-btn.burst {
+            background: linear-gradient(135deg, #f44336, #d32f2f);
+        }
+        
+        .dimensions {
+            margin-top: 25px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            padding: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        
+        .dimension-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .dimension-row:last-child {
+            border-bottom: none;
+        }
+        
+        .assembly-steps {
+            margin-top: 25px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            padding: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        
+        .step {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+            padding: 12px;
+            border-radius: 8px;
+            background: rgba(0, 0, 0, 0.2);
+            transition: all 0.3s ease;
+        }
+        
+        .step.active {
+            background: rgba(79, 195, 247, 0.2);
+            border: 1px solid rgba(79, 195, 247, 0.4);
+        }
+        
+        .step.completed {
+            background: rgba(76, 175, 80, 0.2);
+            border: 1px solid rgba(76, 175, 80, 0.4);
+        }
+        
+        .step-number {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 15px;
+            font-weight: bold;
+        }
+        
+        .step.active .step-number {
+            background: #4fc3f7;
+            color: white;
+        }
+        
+        .step.completed .step-number {
+            background: #4caf50;
+            color: white;
+        }
+        
+        .instructions {
+            margin-top: 25px;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            font-size: 0.95rem;
+            line-height: 1.6;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        
+        .instructions h3 {
+            color: #4fc3f7;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .instructions p {
+            margin-bottom: 10px;
+            padding-left: 10px;
+            border-left: 2px solid rgba(79, 195, 247, 0.3);
+            padding-left: 15px;
+        }
+        
+        .status {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            padding: 12px 20px;
+            background: rgba(0, 0, 0, 0.7);
+            border-radius: 8px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            z-index: 100;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .assembled {
+            color: #4caf50;
+            border-color: rgba(76, 175, 80, 0.3);
+        }
+        
+        .disassembled {
+            color: #ff9800;
+            border-color: rgba(255, 152, 0, 0.3);
+        }
+        
+        .burst {
+            color: #f44336;
+            border-color: rgba(244, 67, 54, 0.3);
+            animation: pulse 1s infinite;
+        }
+        
+        .camera-controls {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            display: flex;
+            gap: 10px;
+            z-index: 100;
+        }
+        
+        .camera-btn {
+            width: 45px;
+            height: 45px;
+            background: rgba(0, 0, 0, 0.7);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            transition: all 0.3s ease;
+        }
+        
+        .camera-btn:hover {
+            background: rgba(79, 195, 247, 0.3);
+            transform: scale(1.1);
+        }
+        
+        .ambient-control {
+            margin-top: 15px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .ambient-control span {
+            min-width: 120px;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.6; }
+            100% { opacity: 1; }
+        }
+        
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+            20%, 40%, 60%, 80% { transform: translateX(5px); }
+        }
+        
+        .shake {
+            animation: shake 0.5s;
+        }
+        
+        @keyframes flash {
+            0%, 50%, 100% { opacity: 1; }
+            25%, 75% { opacity: 0.5; }
+        }
+        
+        .flash {
+            animation: flash 0.5s 3;
+        }
+        
+        @media (max-width: 1200px) {
+            .content {
+                flex-direction: column;
+            }
+            
+            .viewer-container {
+                min-width: 100%;
+                height: 600px;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .viewer-container {
+                height: 500px;
+            }
+            
+            h1 {
+                font-size: 2.2rem;
+            }
+            
+            .option-group {
+                grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+            }
+        }
+        
+        .tooltip {
+            position: relative;
+            display: inline-block;
+        }
+        
+        .tooltip .tooltiptext {
+            visibility: hidden;
+            width: 200px;
+            background-color: rgba(0, 0, 0, 0.8);
+            color: #fff;
+            text-align: center;
+            border-radius: 6px;
+            padding: 10px;
+            position: absolute;
+            z-index: 1;
+            bottom: 125%;
+            left: 50%;
+            transform: translateX(-50%);
+            opacity: 0;
+            transition: opacity 0.3s;
+            font-size: 0.9rem;
+            line-height: 1.4;
+        }
+        
+        .tooltip:hover .tooltiptext {
+            visibility: visible;
+            opacity: 1;
+        }
+        
+        .burst-particles {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 50;
+        }
+        
+        .particle {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            background: #ff5722;
+            border-radius: 50%;
+            box-shadow: 0 0 10px #ff5722;
+        }
+    </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Advanced Rupture Disk 3D Simulation</h1>
+            <p class="subtitle">Realistic assembly process with bolt tightening, dramatic bursting effects, and professional pressure gauge</p>
+        </header>
+        
+        <div class="content">
+            <div class="controls">
+                <div class="control-group">
+                    <h2><i class="fas fa-compress-alt"></i> Disk Type</h2>
+                    <div class="option-group">
+                        <div class="option selected" data-type="reverse">
+                            <div class="tooltip">Reverse
+                                <span class="tooltiptext">Reverse buckling disk - bulges away from pressure source before rupture</span>
+                            </div>
+                        </div>
+                        <div class="option" data-type="forward">
+                            <div class="tooltip">Forward
+                                <span class="tooltiptext">Forward acting disk - bulges toward pressure source before rupture</span>
+                            </div>
+                        </div>
+                        <div class="option" data-type="defflat">
+                            <div class="tooltip">Def Flat
+                                <span class="tooltiptext">Flat disk with scored lines for controlled rupture</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="control-group">
+                    <h2><i class="fas fa-ruler"></i> Size (inches)</h2>
+                    <div class="option-group">
+                        <div class="option" data-size="1">1"</div>
+                        <div class="option selected" data-size="2">2"</div>
+                        <div class="option" data-size="3">3"</div>
+                        <div class="option" data-size="4">4"</div>
+                        <div class="option" data-size="6">6"</div>
+                        <div class="option" data-size="8">8"</div>
+                    </div>
+                </div>
+                
+                <div class="control-group">
+                    <h2><i class="fas fa-atom"></i> Material</h2>
+                    <div class="option-group">
+                        <div class="option" data-material="ss316">SS316</div>
+                        <div class="option" data-material="ss304">SS304</div>
+                        <div class="option" data-material="inconel">Inconel</div>
+                        <div class="option" data-material="monel">Monel</div>
+                        <div class="option selected" data-material="hastelloy">Hastelloy</div>
+                        <div class="option" data-material="graphite">Graphite</div>
+                        <div class="option" data-material="tantalum">Tantalum</div>
+                        <div class="option" data-material="aluminum">Aluminum</div>
+                    </div>
+                </div>
+                
+                <div class="assembly-steps">
+                    <h2><i class="fas fa-tools"></i> Assembly Steps</h2>
+                    <div class="step completed" id="step1">
+                        <div class="step-number">1</div>
+                        <div class="step-text">Place Disk in Holder</div>
+                    </div>
+                    <div class="step active" id="step2">
+                        <div class="step-number">2</div>
+                        <div class="step-text">Position Top Holder</div>
+                    </div>
+                    <div class="step" id="step3">
+                        <div class="step-number">3</div>
+                        <div class="step-text">Tighten Bolts</div>
+                    </div>
+                    <div class="step" id="step4">
+                        <div class="step-number">4</div>
+                        <div class="step-text">Apply Pressure</div>
+                    </div>
+                </div>
+                
+                <div class="control-group">
+                    <h2><i class="fas fa-tachometer-alt"></i> Pressure Control</h2>
+                    <div class="pressure-control">
+                        <div class="slider-container">
+                            <span>Pressure Level:</span>
+                            <input type="range" id="pressure-slider" min="0" max="100" value="0">
+                        </div>
+                        
+                        <div class="ambient-control">
+                            <span>Ambient Light:</span>
+                            <input type="range" id="ambient-slider" min="0" max="100" value="50">
+                        </div>
+                        
+                        <div class="pressure-gauge-container">
+                            <div class="pressure-gauge">
+                                <div class="gauge-background"></div>
+                                <div class="gauge-fill" id="gauge-fill"></div>
+                                <div class="gauge-marks">
+                                    <div class="gauge-mark"><span>0</span><span>PSI</span></div>
+                                    <div class="gauge-mark"><span>25</span><span>PSI</span></div>
+                                    <div class="gauge-mark"><span>50</span><span>PSI</span></div>
+                                    <div class="gauge-mark"><span>75</span><span>PSI</span></div>
+                                    <div class="gauge-mark"><span>100</span><span>PSI</span></div>
+                                </div>
+                                <div class="burst-indicator" id="burst-indicator"></div>
+                                <div class="pressure-value" id="pressure-value">0 PSI</div>
+                            </div>
+                        </div>
+                        
+                        <div class="action-buttons">
+                            <button class="action-btn" id="next-step-btn">
+                                <i class="fas fa-forward"></i> Next Step
+                            </button>
+                            <button class="action-btn burst" id="burst-btn" disabled>
+                                <i class="fas fa-bomb"></i> Burst Disk
+                            </button>
+                            <button class="action-btn reset" id="reset-btn">
+                                <i class="fas fa-redo"></i> Reset Simulation
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="dimensions">
+                    <h2><i class="fas fa-ruler-combined"></i> Component Dimensions (mm)</h2>
+                    <div class="dimension-row">
+                        <span>Rupture Disk OD:</span>
+                        <span id="rpfod-value">97 mm</span>
+                    </div>
+                    <div class="dimension-row">
+                        <span>Holder Top OD:</span>
+                        <span id="htod-value">107 mm</span>
+                    </div>
+                    <div class="dimension-row">
+                        <span>Holder Top ID:</span>
+                        <span id="htid-value">52 mm</span>
+                    </div>
+                    <div class="dimension-row">
+                        <span>Holder Top Thickness:</span>
+                        <span id="htth-value">20 mm</span>
+                    </div>
+                    <div class="dimension-row">
+                        <span>Holder Bottom OD:</span>
+                        <span id="hbod-value">110 mm</span>
+                    </div>
+                    <div class="dimension-row">
+                        <span>Holder Bottom ID:</span>
+                        <span id="hbid-value">50 mm</span>
+                    </div>
+                    <div class="dimension-row">
+                        <span>Holder Bottom Thickness:</span>
+                        <span id="hbth-value">25 mm</span>
+                    </div>
+                    <div class="dimension-row">
+                        <span>Burst Pressure:</span>
+                        <span id="burst-pressure-value">45 PSI</span>
+                    </div>
+                </div>
+                
+                <div class="instructions">
+                    <h3><i class="fas fa-info-circle"></i> Instructions & Features</h3>
+                    <p><strong>Assembly Steps:</strong> Follow the step-by-step process to properly assemble the rupture disk</p>
+                    <p><strong>Bolt Tightening:</strong> Realistic bolt tightening animation with visual feedback</p>
+                    <p><strong>Dramatic Burst:</strong> Explosive burst effect with particles and screen shake</p>
+                    <p><strong>Professional Gauge:</strong> Realistic pressure gauge with color-coded safety zones</p>
+                    <p><strong>Camera Controls:</strong> Orbit, zoom, and reset camera for detailed inspection</p>
+                </div>
+            </div>
+            
+            <div class="viewer-container">
+                <div id="viewer"></div>
+                <div class="status disassembled" id="status">Step 1: Place Disk in Holder</div>
+                
+                <div class="camera-controls">
+                    <div class="camera-btn" id="reset-camera" title="Reset Camera">
+                        <i class="fas fa-crosshairs"></i>
+                    </div>
+                    <div class="camera-btn" id="zoom-in" title="Zoom In">
+                        <i class="fas fa-search-plus"></i>
+                    </div>
+                    <div class="camera-btn" id="zoom-out" title="Zoom Out">
+                        <i class="fas fa-search-minus"></i>
+                    </div>
+                </div>
+                
+                <div class="burst-particles" id="burst-particles"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Three.js Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.min.js"></script>
+    
+    <script>
+        // Enhanced 3D Rupture Disk Simulation with Realistic Assembly
+        let scene, camera, renderer, controls;
+        let ruptureDisk, holderTop, holderBottom;
+        let bolts = [];
+        let diskType = 'reverse';
+        let currentStep = 1;
+        let isAssembled = false;
+        let isBurst = false;
+        let burstPressure = 45;
+        let currentPressure = 0;
+        let ambientLight;
+        let burstParticles = [];
+        
+        // Material factors for burst pressure calculation
+        const materialFactors = {
+            'ss316': 1.0,
+            'ss304': 0.9,
+            'inconel': 1.2,
+            'monel': 1.1,
+            'hastelloy': 1.3,
+            'graphite': 0.7,
+            'tantalum': 1.4,
+            'aluminum': 0.5
+        };
+        
+        // Enhanced colors and textures for materials
+        const materialProperties = {
+            'ss316': { color: 0x8a8a8a, roughness: 0.4, metalness: 0.8 },
+            'ss304': { color: 0xa8a8a8, roughness: 0.3, metalness: 0.7 },
+            'inconel': { color: 0x4a4a4a, roughness: 0.5, metalness: 0.9 },
+            'monel': { color: 0x6a6a6a, roughness: 0.4, metalness: 0.8 },
+            'hastelloy': { color: 0x5a5a5a, roughness: 0.5, metalness: 0.85 },
+            'graphite': { color: 0x333333, roughness: 0.8, metalness: 0.1 },
+            'tantalum': { color: 0x7a7a7a, roughness: 0.6, metalness: 0.9 },
+            'aluminum': { color: 0xcccccc, roughness: 0.3, metalness: 0.6 }
+        };
+        
+        // Initialize the enhanced scene
+        function init() {
+            // Scene with fog for depth
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0a1520);
+            scene.fog = new THREE.Fog(0x0a1520, 100, 300);
+            
+            // Camera with better positioning
+            camera = new THREE.PerspectiveCamera(35, document.getElementById('viewer').clientWidth / document.getElementById('viewer').clientHeight, 0.1, 1000);
+            camera.position.set(80, 60, 120);
+            
+            // Enhanced renderer with antialiasing
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(document.getElementById('viewer').clientWidth, document.getElementById('viewer').clientHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            renderer.setPixelRatio(window.devicePixelRatio);
+            document.getElementById('viewer').appendChild(renderer.domElement);
+            
+            // Enhanced controls with damping
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.minDistance = 50;
+            controls.maxDistance = 300;
+            controls.maxPolarAngle = Math.PI / 2;
+            
+            // Enhanced lighting setup
+            ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+            scene.add(ambientLight);
+            
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(60, 80, 60);
+            directionalLight.castShadow = true;
+            directionalLight.shadow.mapSize.width = 2048;
+            directionalLight.shadow.mapSize.height = 2048;
+            scene.add(directionalLight);
+            
+            const backLight = new THREE.DirectionalLight(0xffffff, 0.3);
+            backLight.position.set(-50, 30, -50);
+            scene.add(backLight);
+            
+            // Add a point light for highlights
+            const pointLight = new THREE.PointLight(0x4fc3f7, 0.5, 100);
+            pointLight.position.set(0, 30, 0);
+            scene.add(pointLight);
+            
+            // Create a subtle grid helper for reference
+            const gridHelper = new THREE.GridHelper(200, 20, 0x1a2a3a, 0x1a2a3a);
+            gridHelper.position.y = -40;
+            scene.add(gridHelper);
+            
+            // Create initial components
+            createComponents(2, 'hastelloy');
+            
+            // Handle window resize
+            window.addEventListener('resize', onWindowResize);
+            
+            // Start animation loop
+            animate();
+        }
+        
+        // Create rupture disk and holders with enhanced geometry
+        function createComponents(size, material) {
+            // Clear existing components
+            if (ruptureDisk) scene.remove(ruptureDisk);
+            if (holderTop) scene.remove(holderTop);
+            if (holderBottom) scene.remove(holderBottom);
+            bolts.forEach(bolt => scene.remove(bolt));
+            bolts = [];
+            
+            // Calculate dimensions based on formulas
+            const rpfod = size * 25 + 22 + size * 3; // Rupture disk flat outer diameter
+            const htod = rpfod + 10; // Holder top outer diameter
+            const htid = size * 25 + 2; // Holder top inner diameter
+            const htth = 10 + 5 * size; // Holder top thickness
+            const hbod = htod + 3; // Holder bottom outer diameter
+            const hbid = htid - 2; // Holder bottom inner diameter
+            const hbth = htth + 5; // Holder bottom thickness
+            
+            // Calculate burst pressure
+            const diskThickness = 1; // Assuming 1mm thickness for simulation
+            burstPressure = Math.round(materialFactors[material] * diskThickness / size * 100);
+            
+            // Update dimension display
+            document.getElementById('rpfod-value').textContent = rpfod + ' mm';
+            document.getElementById('htod-value').textContent = htod + ' mm';
+            document.getElementById('htid-value').textContent = htid + ' mm';
+            document.getElementById('htth-value').textContent = htth + ' mm';
+            document.getElementById('hbod-value').textContent = hbod + ' mm';
+            document.getElementById('hbid-value').textContent = hbid + ' mm';
+            document.getElementById('hbth-value').textContent = hbth + ' mm';
+            document.getElementById('burst-pressure-value').textContent = burstPressure + ' PSI';
+            
+            // Update burst indicator position
+            const burstIndicator = document.getElementById('burst-indicator');
+            burstIndicator.style.bottom = (burstPressure) + '%';
+            
+            // Create rupture disk with enhanced geometry based on type
+            let diskGeometry;
+            const diskSegments = 64; // Higher resolution for better visual
+            
+            if (diskType === 'reverse') {
+                // Reverse buckling disk - concave shape
+                diskGeometry = new THREE.CylinderGeometry(rpfod/2, rpfod/2, 1, diskSegments);
+                // Create a concave deformation for reverse disk
+                const positionAttribute = diskGeometry.getAttribute('position');
+                for (let i = 0; i < positionAttribute.count; i++) {
+                    const x = positionAttribute.getX(i);
+                    const y = positionAttribute.getY(i);
+                    const z = positionAttribute.getZ(i);
+                    
+                    // Create a concave shape for reverse disk
+                    if (y > 0) {
+                        const distance = Math.sqrt(x*x + z*z);
+                        const maxDistance = rpfod/2;
+                        const factor = 1 - (distance / maxDistance) * 0.3;
+                        positionAttribute.setY(i, y * factor);
+                    }
+                }
+                positionAttribute.needsUpdate = true;
+                diskGeometry.computeVertexNormals();
+            } else if (diskType === 'forward') {
+                // Forward acting disk - convex shape
+                diskGeometry = new THREE.CylinderGeometry(rpfod/2, rpfod/2, 1, diskSegments);
+                // Create a convex deformation for forward disk
+                const positionAttribute = diskGeometry.getAttribute('position');
+                for (let i = 0; i < positionAttribute.count; i++) {
+                    const x = positionAttribute.getX(i);
+                    const y = positionAttribute.getY(i);
+                    const z = positionAttribute.getZ(i);
+                    
+                    // Create a convex shape for forward disk
+                    if (y > 0) {
+                        const distance = Math.sqrt(x*x + z*z);
+                        const maxDistance = rpfod/2;
+                        const factor = 1 + (distance / maxDistance) * 0.3;
+                        positionAttribute.setY(i, y * factor);
+                    }
+                }
+                positionAttribute.needsUpdate = true;
+                diskGeometry.computeVertexNormals();
+            } else {
+                // Def Flat disk - flat with scored lines
+                diskGeometry = new THREE.CylinderGeometry(rpfod/2, rpfod/2, 1, diskSegments);
+                // Add scored lines to the disk surface
+                const edgesGeometry = new THREE.EdgesGeometry(diskGeometry);
+                const lineMaterial = new THREE.LineBasicMaterial({ color: 0x333333 });
+                const scoredLines = new THREE.LineSegments(edgesGeometry, lineMaterial);
+                scoredLines.rotation.x = Math.PI / 2;
+                scoredLines.position.y = 0.5;
+            }
+            
+            const diskMaterial = new THREE.MeshStandardMaterial({ 
+                color: materialProperties[material].color,
+                roughness: materialProperties[material].roughness,
+                metalness: materialProperties[material].metalness,
+                transparent: true,
+                opacity: 0.9
+            });
+            
+            ruptureDisk = new THREE.Mesh(diskGeometry, diskMaterial);
+            ruptureDisk.position.y = 0;
+            ruptureDisk.castShadow = true;
+            ruptureDisk.receiveShadow = true;
+            
+            // Create holder top with enhanced geometry
+            const holderTopGeometry = new THREE.CylinderGeometry(htod/2, htod/2, htth, diskSegments);
+            const holderTopMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0x4a76a8,
+                roughness: 0.4,
+                metalness: 0.7
+            });
+            holderTop = new THREE.Mesh(holderTopGeometry, holderTopMaterial);
+            holderTop.position.y = 30; // Start above for assembly animation
+            holderTop.castShadow = true;
+            holderTop.receiveShadow = true;
+            
+            // Create holder bottom
+            const holderBottomGeometry = new THREE.CylinderGeometry(hbod/2, hbod/2, hbth, diskSegments);
+            const holderBottomMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0x4a76a8,
+                roughness: 0.4,
+                metalness: 0.7
+            });
+            holderBottom = new THREE.Mesh(holderBottomGeometry, holderBottomMaterial);
+            holderBottom.position.y = -hbth/2 - 0.5;
+            holderBottom.castShadow = true;
+            holderBottom.receiveShadow = true;
+            
+            // Create bolts for assembly
+            createBolts(htod, htth, hbth);
+            
+            // Add components to scene
+            scene.add(ruptureDisk);
+            scene.add(holderTop);
+            scene.add(holderBottom);
+            bolts.forEach(bolt => scene.add(bolt));
+            
+            // Reset assembly state
+            currentStep = 1;
+            isAssembled = false;
+            isBurst = false;
+            updateStatus();
+            updateAssemblySteps();
+        }
+        
+        // Create bolts for the assembly
+        function createBolts(holderOD, topThickness, bottomThickness) {
+            const boltCount = 8;
+            const boltRadius = 3;
+            const boltLength = topThickness + bottomThickness + 2;
+            const boltPosRadius = holderOD / 2 + 8;
+            
+            for (let i = 0; i < boltCount; i++) {
+                const angle = (i / boltCount) * Math.PI * 2;
+                const x = Math.cos(angle) * boltPosRadius;
+                const z = Math.sin(angle) * boltPosRadius;
+                
+                // Bolt geometry (cylinder with hex head)
+                const boltGeometry = new THREE.CylinderGeometry(boltRadius, boltRadius, boltLength, 6);
+                const boltMaterial = new THREE.MeshStandardMaterial({ 
+                    color: 0x888888,
+                    roughness: 0.6,
+                    metalness: 0.8
+                });
+                
+                const bolt = new THREE.Mesh(boltGeometry, boltMaterial);
+                bolt.position.set(x, 0, z);
+                bolt.rotation.z = Math.PI / 2;
+                
+                // Start with bolts not in position
+                bolt.position.y = 40;
+                bolt.visible = false;
+                
+                bolts.push(bolt);
+            }
+        }
+        
+        // Advance to the next assembly step
+        function nextStep() {
+            if (currentStep >= 4 || isBurst) return;
+            
+            currentStep++;
+            updateAssemblySteps();
+            
+            switch(currentStep) {
+                case 2:
+                    animateStep2();
+                    break;
+                case 3:
+                    animateStep3();
+                    break;
+                case 4:
+                    animateStep4();
+                    break;
+            }
+        }
+        
+        // Update the assembly steps UI
+        function updateAssemblySteps() {
+            // Reset all steps
+            for (let i = 1; i <= 4; i++) {
+                const step = document.getElementById(`step${i}`);
+                step.classList.remove('completed', 'active');
+            }
+            
+            // Set completed and active steps
+            for (let i = 1; i < currentStep; i++) {
+                document.getElementById(`step${i}`).classList.add('completed');
+            }
+            document.getElementById(`step${currentStep}`).classList.add('active');
+            
+            // Update buttons
+            document.getElementById('next-step-btn').disabled = currentStep >= 4;
+            document.getElementById('burst-btn').disabled = currentStep < 4;
+        }
+        
+        // Animate step 2: Position top holder
+        function animateStep2() {
+            const startY = holderTop.position.y;
+            const targetY = 10.5;
+            const duration = 1200;
+            const startTime = Date.now();
+            
+            function update() {
+                const elapsed = Date.now() - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                
+                // Cubic easing out
+                const easeProgress = 1 - Math.pow(1 - progress, 3);
+                
+                holderTop.position.y = startY + (targetY - startY) * easeProgress;
+                
+                if (progress < 1) {
+                    requestAnimationFrame(update);
+                } else {
+                    updateStatus();
+                }
+            }
+            
+            update();
+        }
+        
+        // Animate step 3: Tighten bolts
+        function animateStep3() {
+            // Make bolts visible
+            bolts.forEach(bolt => {
+                bolt.visible = true;
+            });
+            
+            // Animate bolts moving into position
+            const duration = 1000;
+            const startTime = Date.now();
+            
+            function update() {
+                const elapsed = Date.now() - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                
+                // Cubic easing out
+                const easeProgress = 1 - Math.pow(1 - progress, 3);
+                
+                bolts.forEach(bolt => {
+                    bolt.position.y = 40 + (-5 - 40) * easeProgress;
+                });
+                
+                if (progress < 1) {
+                    requestAnimationFrame(update);
+                } else {
+                    isAssembled = true;
+                    updateStatus();
+                }
+            }
+            
+            update();
+        }
+        
+        // Animate step 4: Ready for pressure
+        function animateStep4() {
+            updateStatus();
+        }
+        
+        // Apply dramatic burst effect
+        function burstDisk() {
+            if (!isAssembled || isBurst) return;
+            
+            isBurst = true;
+            updateStatus();
+            
+            // Visual effect for bursting - change color and add emissive glow
+            ruptureDisk.material.color.set(0xff3333);
+            ruptureDisk.material.emissive.set(0xff0000);
+            ruptureDisk.material.emissiveIntensity = 0.7;
+            
+            // Create burst particles
+            createBurstParticles();
+            
+            // Screen shake effect
+            document.querySelector('.viewer-container').classList.add('shake');
+            
+            // Flash effect
+            document.querySelector('.pressure-gauge').classList.add('flash');
+            
+            // Animate disk rupture with dramatic deformation
+            const startTime = Date.now();
+            const duration = 800; // ms
+            
+            function update() {
+                const elapsed = Date.now() - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                
+                // Dramatic deformation and fragmentation effect
+                ruptureDisk.scale.y = Math.max(0.05, 1 - progress * 0.95);
+                ruptureDisk.scale.x = 1 + progress * 0.8;
+                ruptureDisk.scale.z = 1 + progress * 0.8;
+                ruptureDisk.rotation.y += 0.05;
+                
+                // Increase emissive intensity for burst effect
+                ruptureDisk.material.emissiveIntensity = 0.7 + progress * 1.0;
+                
+                // Animate bolts flying out
+                bolts.forEach(bolt => {
+                    const angle = Math.atan2(bolt.position.z, bolt.position.x);
+                    bolt.position.x += Math.cos(angle) * progress * 5;
+                    bolt.position.z += Math.sin(angle) * progress * 5;
+                    bolt.position.y += progress * 3;
+                    bolt.rotation.x += 0.1;
+                });
+                
+                // Update particles
+                updateBurstParticles(progress);
+                
+                if (progress < 1) {
+                    requestAnimationFrame(update);
+                } else {
+                    // Remove shake effect after animation
+                    setTimeout(() => {
+                        document.querySelector('.viewer-container').classList.remove('shake');
+                    }, 500);
+                }
+            }
+            
+            update();
+        }
+        
+        // Create burst particles for dramatic effect
+        function createBurstParticles() {
+            const particlesContainer = document.getElementById('burst-particles');
+            particlesContainer.innerHTML = '';
+            burstParticles = [];
+            
+            for (let i = 0; i < 30; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                
+                // Random position around the disk
+                const angle = Math.random() * Math.PI * 2;
+                const distance = 20 + Math.random() * 50;
+                const x = 50 + Math.cos(angle) * distance;
+                const y = 50 + Math.sin(angle) * distance;
+                
+                particle.style.left = `${x}%`;
+                particle.style.top = `${y}%`;
+                
+                // Random size and color
+                const size = 4 + Math.random() * 8;
+                particle.style.width = `${size}px`;
+                particle.style.height = `${size}px`;
+                
+                const hue = 10 + Math.random() * 30; // Red to orange
+                particle.style.background = `hsl(${hue}, 100%, 50%)`;
+                particle.style.boxShadow = `0 0 10px hsl(${hue}, 100%, 50%)`;
+                
+                // Random velocity
+                const velocity = {
+                    x: (Math.random() - 0.5) * 10,
+                    y: (Math.random() - 0.5) * 10
+                };
+                
+                particlesContainer.appendChild(particle);
+                burstParticles.push({
+                    element: particle,
+                    x: x,
+                    y: y,
+                    velocity: velocity,
+                    life: 1.0
+                });
+            }
+        }
+        
+        // Update burst particles animation
+        function updateBurstParticles(progress) {
+            burstParticles.forEach(particle => {
+                particle.x += particle.velocity.x;
+                particle.y += particle.velocity.y;
+                particle.life -= 0.02;
+                
+                particle.element.style.left = `${particle.x}%`;
+                particle.element.style.top = `${particle.y}%`;
+                particle.element.style.opacity = particle.life;
+                
+                // Apply gravity
+                particle.velocity.y += 0.2;
+            });
+            
+            // Remove dead particles
+            burstParticles = burstParticles.filter(particle => particle.life > 0);
+        }
+        
+        // Reset the simulation to initial state
+        function resetSimulation() {
+            // Reset pressure
+            currentPressure = 0;
+            updatePressureDisplay();
+            
+            // Reset slider
+            document.getElementById('pressure-slider').value = 0;
+            
+            // Remove effects
+            document.querySelector('.viewer-container').classList.remove('shake');
+            document.querySelector('.pressure-gauge').classList.remove('flash');
+            
+            // Clear particles
+            document.getElementById('burst-particles').innerHTML = '';
+            burstParticles = [];
+            
+            // Reset disk
+            const size = document.querySelector('.option.selected[data-size]').getAttribute('data-size');
+            const material = document.querySelector('.option.selected[data-material]').getAttribute('data-material');
+            
+            createComponents(parseInt(size), material);
+        }
+        
+        // Update pressure display with enhanced visual feedback
+        function updatePressureDisplay() {
+            document.getElementById('pressure-value').textContent = currentPressure + ' PSI';
+            document.getElementById('gauge-fill').style.height = currentPressure + '%';
+            
+            // Change gauge color based on pressure with smooth transitions
+            const gaugeFill = document.getElementById('gauge-fill');
+            if (currentPressure < burstPressure * 0.5) {
+                gaugeFill.style.background = 'linear-gradient(to top, #4caf50, #66bb6a)';
+            } else if (currentPressure < burstPressure * 0.8) {
+                gaugeFill.style.background = 'linear-gradient(to top, #8bc34a, #cddc39)';
+            } else if (currentPressure < burstPressure) {
+                gaugeFill.style.background = 'linear-gradient(to top, #ff9800, #ffc107)';
+            } else {
+                gaugeFill.style.background = 'linear-gradient(to top, #f44336, #ff5722)';
+            }
+        }
+        
+        // Update status display
+        function updateStatus() {
+            const statusElement = document.getElementById('status');
+            
+            if (isBurst) {
+                statusElement.textContent = 'DISK BURST!';
+                statusElement.className = 'status burst';
+            } else {
+                switch(currentStep) {
+                    case 1:
+                        statusElement.textContent = 'Step 1: Place Disk in Holder';
+                        statusElement.className = 'status disassembled';
+                        break;
+                    case 2:
+                        statusElement.textContent = 'Step 2: Positioning Top Holder';
+                        statusElement.className = 'status disassembled';
+                        break;
+                    case 3:
+                        statusElement.textContent = 'Step 3: Tightening Bolts';
+                        statusElement.className = 'status disassembled';
+                        break;
+                    case 4:
+                        statusElement.textContent = 'Step 4: Ready for Pressure';
+                        statusElement.className = 'status assembled';
+                        break;
+                }
+            }
+        }
+        
+        // Handle window resize
+        function onWindowResize() {
+            camera.aspect = document.getElementById('viewer').clientWidth / document.getElementById('viewer').clientHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(document.getElementById('viewer').clientWidth, document.getElementById('viewer').clientHeight);
+        }
+        
+        // Animation loop
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+        
+        // Event listeners for enhanced interactivity
+        document.addEventListener('DOMContentLoaded', () => {
+            // Initialize the simulation
+            init();
+            
+            // Disk type selection
+            document.querySelectorAll('.option[data-type]').forEach(option => {
+                option.addEventListener('click', function() {
+                    document.querySelectorAll('.option[data-type]').forEach(opt => opt.classList.remove('selected'));
+                    this.classList.add('selected');
+                    diskType = this.getAttribute('data-type');
+                    
+                    const size = parseInt(document.querySelector('.option.selected[data-size]').getAttribute('data-size'));
+                    const material = document.querySelector('.option.selected[data-material]').getAttribute('data-material');
+                    createComponents(size, material);
+                });
+            });
+            
+            // Size selection
+            document.querySelectorAll('.option[data-size]').forEach(option => {
+                option.addEventListener('click', function() {
+                    document.querySelectorAll('.option[data-size]').forEach(opt => opt.classList.remove('selected'));
+                    this.classList.add('selected');
+                    
+                    const size = parseInt(this.getAttribute('data-size'));
+                    const material = document.querySelector('.option.selected[data-material]').getAttribute('data-material');
+                    createComponents(size, material);
+                });
+            });
+            
+            // Material selection
+            document.querySelectorAll('.option[data-material]').forEach(option => {
+                option.addEventListener('click', function() {
+                    document.querySelectorAll('.option[data-material]').forEach(opt => opt.classList.remove('selected'));
+                    this.classList.add('selected');
+                    
+                    const size = parseInt(document.querySelector('.option.selected[data-size]').getAttribute('data-size'));
+                    const material = this.getAttribute('data-material');
+                    createComponents(size, material);
+                });
+            });
+            
+            // Pressure slider
+            document.getElementById('pressure-slider').addEventListener('input', function() {
+                currentPressure = parseInt(this.value);
+                updatePressureDisplay();
+                
+                if (currentPressure >= burstPressure && !isBurst && currentStep === 4) {
+                    burstDisk();
+                }
+            });
+            
+            // Ambient light control
+            document.getElementById('ambient-slider').addEventListener('input', function() {
+                const ambientValue = parseInt(this.value) / 100;
+                ambientLight.intensity = ambientValue * 0.7;
+            });
+            
+            // Button events
+            document.getElementById('next-step-btn').addEventListener('click', nextStep);
+            document.getElementById('burst-btn').addEventListener('click', burstDisk);
+            document.getElementById('reset-btn').addEventListener('click', resetSimulation);
+            
+            // Camera control buttons
+            document.getElementById('reset-camera').addEventListener('click', function() {
+                controls.reset();
+                camera.position.set(80, 60, 120);
+            });
+            
+            document.getElementById('zoom-in').addEventListener('click', function() {
+                camera.position.multiplyScalar(0.9);
+                controls.update();
+            });
+            
+            document.getElementById('zoom-out').addEventListener('click', function() {
+                camera.position.multiplyScalar(1.1);
+                controls.update();
+            });
+        });
+    </script>
+</body>
+</html>

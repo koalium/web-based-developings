@@ -1,0 +1,1037 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Double Pendulum Simulation</title>
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            color: white;
+            overflow-x: hidden;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 20px;
+            width: 100%;
+            max-width: 1200px;
+        }
+        
+        h1 {
+            font-size: 2.8rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 8px rgba(0, 0, 0, 0.5);
+            background: linear-gradient(90deg, #fdbb2d, #b21f1f);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .subtitle {
+            font-size: 1.2rem;
+            opacity: 0.9;
+            margin-bottom: 20px;
+        }
+        
+        .container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            width: 100%;
+            max-width: 1200px;
+            justify-content: center;
+        }
+        
+        .simulation-panel {
+            flex: 2;
+            min-width: 600px;
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(12px);
+            border-radius: 20px;
+            padding: 25px;
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .controls-panel {
+            flex: 1;
+            min-width: 300px;
+            background: rgba(255, 255, 255, 0.08);
+            backdrop-filter: blur(12px);
+            border-radius: 20px;
+            padding: 25px;
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+        }
+        
+        .canvas-container {
+            position: relative;
+            width: 100%;
+            height: 500px;
+            background: rgba(0, 0, 0, 0.25);
+            border-radius: 15px;
+            overflow: hidden;
+            margin-bottom: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+        }
+        
+        .control-group {
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        h2 {
+            font-size: 1.6rem;
+            margin-bottom: 18px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+            padding-bottom: 10px;
+            color: #fdbb2d;
+        }
+        
+        h3 {
+            font-size: 1.2rem;
+            margin-bottom: 15px;
+            color: #fdbb2d;
+        }
+        
+        .slider-container {
+            display: flex;
+            flex-direction: column;
+            margin-bottom: 18px;
+        }
+        
+        .slider-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 0.95rem;
+        }
+        
+        input[type="range"] {
+            width: 100%;
+            height: 10px;
+            border-radius: 5px;
+            background: rgba(255, 255, 255, 0.15);
+            outline: none;
+            -webkit-appearance: none;
+            transition: background 0.3s;
+        }
+        
+        input[type="range"]:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+        
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: #fdbb2d;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+            transition: all 0.2s;
+        }
+        
+        input[type="range"]::-webkit-slider-thumb:hover {
+            background: #ffcc44;
+            transform: scale(1.1);
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 12px;
+            margin-top: 15px;
+        }
+        
+        button {
+            padding: 12px 18px;
+            border: none;
+            border-radius: 8px;
+            background: linear-gradient(135deg, #fdbb2d, #e6a000);
+            color: #1a2a6c;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            flex: 1;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+        
+        button:hover {
+            background: linear-gradient(135deg, #ffcc44, #f0b000);
+            transform: translateY(-3px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.25);
+        }
+        
+        button:active {
+            transform: translateY(0);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+        
+        .reset-btn {
+            background: linear-gradient(135deg, #b21f1f, #8a1919);
+            color: white;
+        }
+        
+        .reset-btn:hover {
+            background: linear-gradient(135deg, #c42f2f, #9a2929);
+        }
+        
+        .data-display {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-top: 25px;
+        }
+        
+        .data-item {
+            background: rgba(0, 0, 0, 0.25);
+            padding: 12px;
+            border-radius: 8px;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s;
+        }
+        
+        .data-item:hover {
+            background: rgba(0, 0, 0, 0.35);
+            transform: translateY(-2px);
+        }
+        
+        .data-value {
+            font-size: 1.3rem;
+            font-weight: bold;
+            color: #fdbb2d;
+            margin-top: 5px;
+        }
+        
+        .toggle-group {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-top: 15px;
+        }
+        
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 54px;
+            height: 28px;
+        }
+        
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        
+        .slider-toggle {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(255, 255, 255, 0.2);
+            transition: .4s;
+            border-radius: 28px;
+        }
+        
+        .slider-toggle:before {
+            position: absolute;
+            content: "";
+            height: 20px;
+            width: 20px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        
+        input:checked + .slider-toggle {
+            background: linear-gradient(135deg, #fdbb2d, #e6a000);
+        }
+        
+        input:checked + .slider-toggle:before {
+            transform: translateX(26px);
+        }
+        
+        .instructions {
+            margin-top: 25px;
+            font-size: 0.95rem;
+            opacity: 0.85;
+            line-height: 1.5;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 15px;
+            border-radius: 10px;
+            border-left: 4px solid #fdbb2d;
+        }
+        
+        .drag-info {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: rgba(0, 0, 0, 0.6);
+            padding: 8px 15px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        .phase-space {
+            margin-top: 25px;
+            height: 150px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                flex-direction: column;
+            }
+            
+            .simulation-panel, .controls-panel {
+                width: 100%;
+                min-width: auto;
+            }
+            
+            .simulation-panel {
+                order: 2;
+            }
+            
+            .controls-panel {
+                order: 1;
+            }
+        }
+        
+        .energy-bar {
+            height: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+            margin-top: 5px;
+            overflow: hidden;
+        }
+        
+        .energy-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #00c6ff, #0072ff);
+            border-radius: 4px;
+            width: 100%;
+            transition: width 0.5s;
+        }
+        
+        .complexity-badge {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            background: linear-gradient(135deg, #b21f1f, #8a1919);
+            padding: 5px 12px;
+            border-radius: 15px;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body x-data="pendulumApp()" x-init="init()">
+    <header>
+        <h1>Advanced Double Pendulum Simulator</h1>
+        <p class="subtitle">Precise physics simulation with drag interaction and chaotic dynamics</p>
+    </header>
+    
+    <div class="container">
+        <div class="simulation-panel">
+            <div class="complexity-badge">High Precision Model</div>
+            <div class="drag-info">Drag pendulum to set initial position</div>
+            
+            <div class="canvas-container">
+                <canvas id="pendulumCanvas"></canvas>
+            </div>
+            
+            <div class="data-display">
+                <div class="data-item">
+                    <div>Total Energy</div>
+                    <div class="data-value" x-text="energy.toFixed(4) + ' J'"></div>
+                    <div class="energy-bar">
+                        <div class="energy-fill" :style="`width: ${Math.min(100, energy/50*100)}%`"></div>
+                    </div>
+                </div>
+                <div class="data-item">
+                    <div>Angular Velocity 1</div>
+                    <div class="data-value" x-text="(angularVelocity1 * 180 / Math.PI).toFixed(2) + '°/s'"></div>
+                </div>
+                <div class="data-item">
+                    <div>Angular Velocity 2</div>
+                    <div class="data-value" x-text="(angularVelocity2 * 180 / Math.PI).toFixed(2) + '°/s'"></div>
+                </div>
+                <div class="data-item">
+                    <div>Simulation Time</div>
+                    <div class="data-value" x-text="(time / 1000).toFixed(2) + ' s'"></div>
+                </div>
+            </div>
+            
+            <div class="phase-space">
+                <canvas id="phaseCanvas"></canvas>
+            </div>
+        </div>
+        
+        <div class="controls-panel">
+            <h2>Pendulum Controls</h2>
+            
+            <div class="control-group">
+                <h3>Pendulum Properties</h3>
+                
+                <div class="slider-container">
+                    <div class="slider-label">
+                        <span>Length 1: <span x-text="length1.toFixed(2)"></span> m</span>
+                    </div>
+                    <input type="range" min="0.5" max="3" step="0.01" x-model="length1">
+                </div>
+                
+                <div class="slider-container">
+                    <div class="slider-label">
+                        <span>Length 2: <span x-text="length2.toFixed(2)"></span> m</span>
+                    </div>
+                    <input type="range" min="0.5" max="3" step="0.01" x-model="length2">
+                </div>
+                
+                <div class="slider-container">
+                    <div class="slider-label">
+                        <span>Mass 1: <span x-text="mass1.toFixed(2)"></span> kg</span>
+                    </div>
+                    <input type="range" min="0.5" max="5" step="0.01" x-model="mass1">
+                </div>
+                
+                <div class="slider-container">
+                    <div class="slider-label">
+                        <span>Mass 2: <span x-text="mass2.toFixed(2)"></span> kg</span>
+                    </div>
+                    <input type="range" min="0.5" max="5" step="0.01" x-model="mass2">
+                </div>
+            </div>
+            
+            <div class="control-group">
+                <h3>Initial Conditions</h3>
+                
+                <div class="slider-container">
+                    <div class="slider-label">
+                        <span>Angle 1: <span x-text="(angle1 * 180 / Math.PI).toFixed(1)"></span>°</span>
+                    </div>
+                    <input type="range" min="-180" max="180" step="0.5" x-model="angle1Deg">
+                </div>
+                
+                <div class="slider-container">
+                    <div class="slider-label">
+                        <span>Angle 2: <span x-text="(angle2 * 180 / Math.PI).toFixed(1)"></span>°</span>
+                    </div>
+                    <input type="range" min="-180" max="180" step="0.5" x-model="angle2Deg">
+                </div>
+            </div>
+            
+            <div class="control-group">
+                <h3>Simulation Controls</h3>
+                
+                <div class="button-group">
+                    <button @click="startSimulation()" x-show="!isRunning">Start Simulation</button>
+                    <button @click="pauseSimulation()" x-show="isRunning">Pause Simulation</button>
+                    <button class="reset-btn" @click="resetSimulation()">Reset</button>
+                </div>
+                
+                <div class="toggle-group">
+                    <span>Show Trail:</span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" x-model="showTrail">
+                        <span class="slider-toggle"></span>
+                    </label>
+                    
+                    <span style="margin-left: 15px;">Show Phase Space:</span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" x-model="showPhaseSpace">
+                        <span class="slider-toggle"></span>
+                    </label>
+                </div>
+            </div>
+            
+            <div class="instructions">
+                <p><strong>Instructions:</strong> Drag either pendulum bob to set initial position. Adjust parameters using sliders. The simulation uses a 4th-order Runge-Kutta method for high precision physics.</p>
+                <p><strong>Physics Model:</strong> Lagrangian mechanics with numerical integration. Energy conservation is monitored for accuracy.</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function pendulumApp() {
+            return {
+                // Pendulum properties
+                length1: 1.44,
+                length2: 1.2,
+                mass1: 2.4,
+                mass2: 2,
+                
+                // Angles in radians
+                angle1: -Math.PI / 3,
+                angle2: Math.PI / 2,
+                
+                // Angular velocities
+                angularVelocity1: 0,
+                angularVelocity2: 1,
+                
+                // Simulation state
+                isRunning: false,
+                time: 0,
+                energy: 0,
+                showTrail: true,
+                showPhaseSpace: false,
+                isDragging: false,
+                dragTarget: null,
+                
+                // Computed properties for degrees
+                get angle1Deg() {
+                    return this.angle1 * 180 / Math.PI;
+                },
+                set angle1Deg(value) {
+                    this.angle1 = value * Math.PI / 180;
+                },
+                
+                get angle2Deg() {
+                    return this.angle2 * 180 / Math.PI;
+                },
+                set angle2Deg(value) {
+                    this.angle2 = value * Math.PI / 180;
+                },
+                
+                // Canvas and rendering context
+                canvas: null,
+                ctx: null,
+                phaseCanvas: null,
+                phaseCtx: null,
+                animationId: null,
+                trail: [],
+                maxTrailLength: 300,
+                phaseData: [],
+                maxPhasePoints: 500,
+                
+                init() {
+                    this.canvas = document.getElementById('pendulumCanvas');
+                    this.ctx = this.canvas.getContext('2d');
+                    this.phaseCanvas = document.getElementById('phaseCanvas');
+                    this.phaseCtx = this.phaseCanvas.getContext('2d');
+                    
+                    this.resizeCanvas();
+                    window.addEventListener('resize', () => this.resizeCanvas());
+                    
+                    // Set up drag events
+                    this.setupDragEvents();
+                    
+                    this.drawPendulum();
+                    this.drawPhaseSpace();
+                },
+                
+                setupDragEvents() {
+                    this.canvas.addEventListener('mousedown', (e) => this.handleDragStart(e));
+                    this.canvas.addEventListener('mousemove', (e) => this.handleDragMove(e));
+                    this.canvas.addEventListener('mouseup', () => this.handleDragEnd());
+                    this.canvas.addEventListener('mouseleave', () => this.handleDragEnd());
+                    
+                    // Touch events for mobile
+                    this.canvas.addEventListener('touchstart', (e) => {
+                        e.preventDefault();
+                        this.handleDragStart(e.touches[0]);
+                    });
+                    this.canvas.addEventListener('touchmove', (e) => {
+                        e.preventDefault();
+                        this.handleDragMove(e.touches[0]);
+                    });
+                    this.canvas.addEventListener('touchend', () => this.handleDragEnd());
+                },
+                
+                handleDragStart(e) {
+                    const rect = this.canvas.getBoundingClientRect();
+                    const x = e.clientX - rect.left;
+                    const y = e.clientY - rect.top;
+                    
+                    // Check if user clicked on either bob
+                    const originX = this.canvas.width / 2;
+                    const originY = this.canvas.height * 0.3;
+                    const scale = Math.min(this.canvas.width, this.canvas.height) / 7;
+                    
+                    const x1 = originX + this.length1 * scale * Math.sin(this.angle1);
+                    const y1 = originY + this.length1 * scale * Math.cos(this.angle1);
+                    const x2 = x1 + this.length2 * scale * Math.sin(this.angle2);
+                    const y2 = y1 + this.length2 * scale * Math.cos(this.angle2);
+                    
+                    const radius1 = 12 + this.mass1 * 2;
+                    const radius2 = 12 + this.mass2 * 2;
+                    
+                    // Check if click is on bob1
+                    const dist1 = Math.sqrt((x - x1) ** 2 + (y - y1) ** 2);
+                    if (dist1 <= radius1) {
+                        this.isDragging = true;
+                        this.dragTarget = 'bob1';
+                        this.pauseSimulation();
+                        return;
+                    }
+                    
+                    // Check if click is on bob2
+                    const dist2 = Math.sqrt((x - x2) ** 2 + (y - y2) ** 2);
+                    if (dist2 <= radius2) {
+                        this.isDragging = true;
+                        this.dragTarget = 'bob2';
+                        this.pauseSimulation();
+                    }
+                },
+                
+                handleDragMove(e) {
+                    if (!this.isDragging) return;
+                    
+                    const rect = this.canvas.getBoundingClientRect();
+                    const x = e.clientX - rect.left;
+                    const y = e.clientY - rect.top;
+                    
+                    const originX = this.canvas.width / 2;
+                    const originY = this.canvas.height * 0.3;
+                    const scale = Math.min(this.canvas.width, this.canvas.height) / 7;
+                    
+                    if (this.dragTarget === 'bob1') {
+                        // Calculate angle for bob1
+                        const dx = x - originX;
+                        const dy = y - originY;
+                        this.angle1 = Math.atan2(dx, dy);
+                        
+                        // Keep bob2 relative to bob1
+                        const x1 = originX + this.length1 * scale * Math.sin(this.angle1);
+                        const y1 = originY + this.length1 * scale * Math.cos(this.angle1);
+                        
+                        const dx2 = x - x1;
+                        const dy2 = y - y1;
+                        this.angle2 = Math.atan2(dx2, dy2);
+                    } else if (this.dragTarget === 'bob2') {
+                        // Calculate position of bob1
+                        const x1 = originX + this.length1 * scale * Math.sin(this.angle1);
+                        const y1 = originY + this.length1 * scale * Math.cos(this.angle1);
+                        
+                        // Calculate angle for bob2 relative to bob1
+                        const dx = x - x1;
+                        const dy = y - y1;
+                        this.angle2 = Math.atan2(dx, dy);
+                    }
+                    
+                    // Reset velocities when dragging
+                    this.angularVelocity1 = 0;
+                    this.angularVelocity2 = 0;
+                    
+                    this.drawPendulum();
+                },
+                
+                handleDragEnd() {
+                    this.isDragging = false;
+                    this.dragTarget = null;
+                },
+                
+                resizeCanvas() {
+                    this.canvas.width = this.canvas.offsetWidth;
+                    this.canvas.height = this.canvas.offsetHeight;
+                    
+                    this.phaseCanvas.width = this.phaseCanvas.offsetWidth;
+                    this.phaseCanvas.height = this.phaseCanvas.offsetHeight;
+                    
+                    this.drawPendulum();
+                    this.drawPhaseSpace();
+                },
+                
+                startSimulation() {
+                    if (!this.isRunning) {
+                        this.isRunning = true;
+                        this.simulate();
+                    }
+                },
+                
+                pauseSimulation() {
+                    this.isRunning = false;
+                    if (this.animationId) {
+                        cancelAnimationFrame(this.animationId);
+                    }
+                },
+                
+                resetSimulation() {
+                    this.pauseSimulation();
+                    this.angle1 = Math.PI / 2;
+                    this.angle2 = Math.PI / 2;
+                    this.angularVelocity1 = 0;
+                    this.angularVelocity2 = 0;
+                    this.time = 0;
+                    this.trail = [];
+                    this.phaseData = [];
+                    this.drawPendulum();
+                    this.drawPhaseSpace();
+                },
+                
+                simulate() {
+                    if (!this.isRunning) return;
+                    
+                    const timeStep = 16; // ~60 FPS
+                    
+                    // Use 4th-order Runge-Kutta for higher precision
+                    this.updatePhysicsRK4(timeStep / 1000);
+                    this.time += timeStep;
+                    
+                    // Calculate energy
+                    this.calculateEnergy();
+                    
+                    // Draw the pendulum
+                    this.drawPendulum();
+                    
+                    // Draw phase space if enabled
+                    if (this.showPhaseSpace) {
+                        this.drawPhaseSpace();
+                    }
+                    
+                    // Continue simulation
+                    this.animationId = requestAnimationFrame(() => this.simulate());
+                },
+                
+                // 4th-order Runge-Kutta integration for higher accuracy
+                updatePhysicsRK4(dt) {
+                    const state = [this.angle1, this.angle2, this.angularVelocity1, this.angularVelocity2];
+                    const k1 = this.derivatives(state);
+                    const k2 = this.derivatives(this.addVectors(state, this.scaleVector(k1, dt/2)));
+                    const k3 = this.derivatives(this.addVectors(state, this.scaleVector(k2, dt/2)));
+                    const k4 = this.derivatives(this.addVectors(state, this.scaleVector(k3, dt)));
+                    
+                    const k = this.addVectors(
+                        k1, 
+                        this.scaleVector(this.addVectors(k2, k3), 2),
+                        k4
+                    );
+                    
+                    const newState = this.addVectors(state, this.scaleVector(k, dt/6));
+                    
+                    [this.angle1, this.angle2, this.angularVelocity1, this.angularVelocity2] = newState;
+                },
+                
+                derivatives(state) {
+                    const [a1, a2, w1, w2] = state;
+                    const g = 9.81;
+                    const m1 = this.mass1;
+                    const m2 = this.mass2;
+                    const L1 = this.length1;
+                    const L2 = this.length2;
+                    
+                    // These are the equations of motion for a double pendulum
+                    // derived using Lagrangian mechanics
+                    const cos12 = Math.cos(a1 - a2);
+                    const sin12 = Math.sin(a1 - a2);
+                    const sin1 = Math.sin(a1);
+                    const sin2 = Math.sin(a2);
+                    
+                    const denominator = 2 * m1 + m2 - m2 * Math.cos(2 * a1 - 2 * a2);
+                    
+                    const a1_acc = (-g * (2 * m1 + m2) * sin1 - m2 * g * sin1 * cos12 
+                                   - 2 * sin12 * m2 * (w2 * w2 * L2 + w1 * w1 * L1 * cos12)) 
+                                   / (L1 * denominator);
+                    
+                    const a2_acc = (2 * sin12 * (w1 * w1 * L1 * (m1 + m2) + g * (m1 + m2) * cos12 
+                                   + w2 * w2 * L2 * m2 * cos12)) 
+                                   / (L2 * denominator);
+                    
+                    return [w1, w2, a1_acc, a2_acc];
+                },
+                
+                addVectors(v1, v2, v3 = null) {
+                    const result = [v1[0] + v2[0], v1[1] + v2[1], v1[2] + v2[2], v1[3] + v2[3]];
+                    if (v3) {
+                        result[0] += v3[0];
+                        result[1] += v3[1];
+                        result[2] += v3[2];
+                        result[3] += v3[3];
+                    }
+                    return result;
+                },
+                
+                scaleVector(v, scalar) {
+                    return [v[0] * scalar, v[1] * scalar, v[2] * scalar, v[3] * scalar];
+                },
+                
+                calculateEnergy() {
+                    const g = 9.81;
+                    const m1 = this.mass1;
+                    const m2 = this.mass2;
+                    const L1 = this.length1;
+                    const L2 = this.length2;
+                    const a1 = this.angle1;
+                    const a2 = this.angle2;
+                    const w1 = this.angularVelocity1;
+                    const w2 = this.angularVelocity2;
+                    
+                    // Calculate positions
+                    const y1 = -L1 * Math.cos(a1);
+                    const y2 = y1 - L2 * Math.cos(a2);
+                    
+                    // Kinetic energy
+                    const vx1 = L1 * Math.cos(a1) * w1;
+                    const vy1 = L1 * Math.sin(a1) * w1;
+                    const vx2 = vx1 + L2 * Math.cos(a2) * w2;
+                    const vy2 = vy1 + L2 * Math.sin(a2) * w2;
+                    
+                    const ke1 = 0.5 * m1 * (vx1 * vx1 + vy1 * vy1);
+                    const ke2 = 0.5 * m2 * (vx2 * vx2 + vy2 * vy2);
+                    const ke = ke1 + ke2;
+                    
+                    // Potential energy
+                    const pe1 = m1 * g * (y1 + L1 + L2);
+                    const pe2 = m2 * g * (y2 + L1 + L2);
+                    const pe = pe1 + pe2;
+                    
+                    // Total energy
+                    this.energy = ke + pe;
+                },
+                
+                drawPendulum() {
+                    const ctx = this.ctx;
+                    const width = this.canvas.width;
+                    const height = this.canvas.height;
+                    
+                    // Clear canvas with a slight fade for trail effect
+                    if (this.showTrail) {
+                        ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
+                        ctx.fillRect(0, 0, width, height);
+                    } else {
+                        ctx.clearRect(0, 0, width, height);
+                    }
+                    
+                    // Set origin to center top
+                    const originX = width / 2;
+                    const originY = height * 0.3;
+                    const scale = Math.min(width, height) / 7;
+                    
+                    // Calculate pendulum positions
+                    const x1 = originX + this.length1 * scale * Math.sin(this.angle1);
+                    const y1 = originY + this.length1 * scale * Math.cos(this.angle1);
+                    const x2 = x1 + this.length2 * scale * Math.sin(this.angle2);
+                    const y2 = y1 + this.length2 * scale * Math.cos(this.angle2);
+                    
+                    // Add to trail if simulation is running
+                    if (this.isRunning && this.showTrail) {
+                        this.trail.push({x: x2, y: y2});
+                        if (this.trail.length > this.maxTrailLength) {
+                            this.trail.shift();
+                        }
+                    }
+                    
+                    // Draw trail with gradient
+                    if (this.showTrail && this.trail.length > 1) {
+                        const gradient = ctx.createLinearGradient(0, 0, width, height);
+                        gradient.addColorStop(0, 'rgba(255, 100, 100, 0.8)');
+                        gradient.addColorStop(0.5, 'rgba(255, 200, 100, 0.8)');
+                        gradient.addColorStop(1, 'rgba(100, 200, 255, 0.8)');
+                        
+                        ctx.beginPath();
+                        ctx.moveTo(this.trail[0].x, this.trail[0].y);
+                        
+                        for (let i = 1; i < this.trail.length; i++) {
+                            const alpha = i / this.trail.length;
+                            ctx.strokeStyle = `rgba(253, 187, 45, ${alpha * 0.7})`;
+                            ctx.lineWidth = 2 + alpha * 2;
+                            ctx.lineTo(this.trail[i].x, this.trail[i].y);
+                            ctx.stroke();
+                            ctx.beginPath();
+                            ctx.moveTo(this.trail[i].x, this.trail[i].y);
+                        }
+                    }
+                    
+                    // Draw pendulum rods with gradient
+                    const rodGradient1 = ctx.createLinearGradient(originX, originY, x1, y1);
+                    rodGradient1.addColorStop(0, '#ffffff');
+                    rodGradient1.addColorStop(1, '#cccccc');
+                    
+                    const rodGradient2 = ctx.createLinearGradient(x1, y1, x2, y2);
+                    rodGradient2.addColorStop(0, '#ffffff');
+                    rodGradient2.addColorStop(1, '#cccccc');
+                    
+                    ctx.beginPath();
+                    ctx.moveTo(originX, originY);
+                    ctx.lineTo(x1, y1);
+                    ctx.strokeStyle = rodGradient1;
+                    ctx.lineWidth = 4;
+                    ctx.stroke();
+                    
+                    ctx.beginPath();
+                    ctx.moveTo(x1, y1);
+                    ctx.lineTo(x2, y2);
+                    ctx.strokeStyle = rodGradient2;
+                    ctx.lineWidth = 4;
+                    ctx.stroke();
+                    
+                    // Draw pendulum bobs with size based on mass
+                    const radius1 = 12 + this.mass1 * 2;
+                    const radius2 = 12 + this.mass2 * 2;
+                    
+                    // Bob 1 with gradient
+                    const bobGradient1 = ctx.createRadialGradient(
+                        x1 - radius1/3, y1 - radius1/3, 1,
+                        x1, y1, radius1
+                    );
+                    bobGradient1.addColorStop(0, '#ffcc44');
+                    bobGradient1.addColorStop(1, '#e6a000');
+                    
+                    ctx.beginPath();
+                    ctx.arc(x1, y1, radius1, 0, Math.PI * 2);
+                    ctx.fillStyle = bobGradient1;
+                    ctx.fill();
+                    ctx.strokeStyle = 'white';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                    
+                    // Bob 2 with gradient
+                    const bobGradient2 = ctx.createRadialGradient(
+                        x2 - radius2/3, y2 - radius2/3, 1,
+                        x2, y2, radius2
+                    );
+                    bobGradient2.addColorStop(0, '#ff6666');
+                    bobGradient2.addColorStop(1, '#cc3333');
+                    
+                    ctx.beginPath();
+                    ctx.arc(x2, y2, radius2, 0, Math.PI * 2);
+                    ctx.fillStyle = bobGradient2;
+                    ctx.fill();
+                    ctx.strokeStyle = 'white';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                    
+                    // Draw pivot point
+                    ctx.beginPath();
+                    ctx.arc(originX, originY, 6, 0, Math.PI * 2);
+                    ctx.fillStyle = 'white';
+                    ctx.fill();
+                    ctx.strokeStyle = '#fdbb2d';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                    
+                    // Draw drag indicator if dragging
+                    if (this.isDragging) {
+                        ctx.beginPath();
+                        ctx.arc(
+                            this.dragTarget === 'bob1' ? x1 : x2,
+                            this.dragTarget === 'bob1' ? y1 : y2,
+                            (this.dragTarget === 'bob1' ? radius1 : radius2) + 5,
+                            0, Math.PI * 2
+                        );
+                        ctx.strokeStyle = '#00ffff';
+                        ctx.lineWidth = 2;
+                        ctx.setLineDash([5, 5]);
+                        ctx.stroke();
+                        ctx.setLineDash([]);
+                    }
+                },
+                
+                drawPhaseSpace() {
+                    if (!this.showPhaseSpace) return;
+                    
+                    const ctx = this.phaseCtx;
+                    const width = this.phaseCanvas.width;
+                    const height = this.phaseCanvas.height;
+                    
+                    // Clear canvas
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+                    ctx.fillRect(0, 0, width, height);
+                    
+                    // Add current state to phase data
+                    if (this.isRunning) {
+                        this.phaseData.push({
+                            a1: this.angle1,
+                            w1: this.angularVelocity1,
+                            a2: this.angle2,
+                            w2: this.angularVelocity2
+                        });
+                        
+                        if (this.phaseData.length > this.maxPhasePoints) {
+                            this.phaseData.shift();
+                        }
+                    }
+                    
+                    // Draw phase space for angle1 vs angularVelocity1
+                    if (this.phaseData.length > 1) {
+                        ctx.strokeStyle = '#fdbb2d';
+                        ctx.lineWidth = 1;
+                        ctx.beginPath();
+                        
+                        for (let i = 0; i < this.phaseData.length; i++) {
+                            const point = this.phaseData[i];
+                            const x = (point.a1 + Math.PI) / (2 * Math.PI) * width;
+                            const y = (point.w1 / 8 + 0.5) * height;
+                            
+                            if (i === 0) {
+                                ctx.moveTo(x, y);
+                            } else {
+                                ctx.lineTo(x, y);
+                            }
+                        }
+                        
+                        ctx.stroke();
+                        
+                        // Draw current point
+                        const current = this.phaseData[this.phaseData.length - 1];
+                        const currentX = (current.a1 + Math.PI) / (2 * Math.PI) * width;
+                        const currentY = (current.w1 / 8 + 0.5) * height;
+                        
+                        ctx.beginPath();
+                        ctx.arc(currentX, currentY, 3, 0, Math.PI * 2);
+                        ctx.fillStyle = '#ff4444';
+                        ctx.fill();
+                    }
+                    
+                    // Draw axes and labels
+                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+                    ctx.lineWidth = 1;
+                    
+                    // Vertical line at center
+                    ctx.beginPath();
+                    ctx.moveTo(width/2, 0);
+                    ctx.lineTo(width/2, height);
+                    ctx.stroke();
+                    
+                    // Horizontal line at center
+                    ctx.beginPath();
+                    ctx.moveTo(0, height/2);
+                    ctx.lineTo(width, height/2);
+                    ctx.stroke();
+                    
+                    // Labels
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+                    ctx.font = '10px Arial';
+                    ctx.fillText('θ₁ (rad)', 10, 15);
+                    ctx.fillText('ω₁ (rad/s)', width - 50, height - 5);
+                    ctx.fillText('-π', 10, height/2 + 12);
+                    ctx.fillText('π', width - 10, height/2 + 12);
+                    ctx.fillText('0', width/2 - 5, 12);
+                }
+            }
+        }
+    </script>
+</body>
+</html>

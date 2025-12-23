@@ -1,0 +1,1006 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl" x-data="calendarApp()" x-init="init()">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تقویم فارسی پیشرفته - مدیریت کامل</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.0.0/css/all.min.css">
+    <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css" rel="stylesheet">
+    <style>
+        .glass-effect {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .drawing-canvas {
+            touch-action: none;
+            cursor: crosshair;
+        }
+        .mind-map-node {
+            transition: all 0.3s ease;
+        }
+        .mind-map-node:hover {
+            transform: scale(1.05);
+        }
+        .sticky-note {
+            transform: rotate(-1deg);
+            box-shadow: 5px 5px 15px rgba(0,0,0,0.1);
+        }
+        .sticky-note:nth-child(even) {
+            transform: rotate(1deg);
+        }
+        .resizable {
+            resize: both;
+            overflow: auto;
+        }
+        .task-completed {
+            text-decoration: line-through;
+            opacity: 0.7;
+        }
+    </style>
+</head>
+<body class="font-vazir bg-gradient-to-br from-gray-900 to-blue-900 text-white min-h-screen">
+    <!-- نوار وضعیت -->
+    <div class="fixed top-0 left-0 right-0 z-50 glass-effect px-4 py-2 flex justify-between items-center">
+        <div class="text-sm font-bold" x-text="liveTime"></div>
+        <div class="flex items-center space-x-3 space-x-reverse text-sm">
+            <i class="fas fa-wifi"></i>
+            <i class="fas fa-signal"></i>
+            <i class="fas fa-battery-half"></i>
+        </div>
+    </div>
+
+    <!-- محتوای اصلی -->
+    <div class="pt-16 pb-32 px-4 max-w-7xl mx-auto">
+        <!-- هدر -->
+        <div class="text-center mb-8">
+            <h1 class="text-3xl font-bold mb-2">تقویم فارسی پیشرفته</h1>
+            <div class="flex justify-center items-center space-x-4 space-x-reverse text-lg">
+                <div x-text="hijriDate" class="text-gray-300"></div>
+                <div class="bg-blue-500 px-4 py-2 rounded-full font-mono" x-text="digitalClock"></div>
+            </div>
+        </div>
+
+        <!-- تب‌های اصلی -->
+        <div class="flex overflow-x-auto space-x-4 space-x-reverse mb-8 pb-2">
+            <template x-for="tab in tabs" :key="tab.id">
+                <button 
+                    @click="activeTab = tab.id"
+                    :class="{
+                        'bg-blue-500 text-white': activeTab === tab.id,
+                        'bg-white/10 text-gray-300': activeTab !== tab.id
+                    }"
+                    class="px-6 py-3 rounded-xl font-medium whitespace-nowrap transition-colors flex items-center space-x-2 space-x-reverse"
+                >
+                    <i :class="tab.icon"></i>
+                    <span x-text="tab.name"></span>
+                </button>
+            </template>
+        </div>
+
+        <!-- محتوای تب تقویم -->
+        <div x-show="activeTab === 'calendar'" class="space-y-6">
+            <!-- ویجت تقویم -->
+            <div class="glass-effect rounded-2xl p-6">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-xl font-bold">تقویم فارسی</h2>
+                    <div class="flex items-center space-x-2 space-x-reverse">
+                        <button @click="changeYear(-1)" class="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center hover:bg-white/30">
+                            <i class="fas fa-angle-double-right"></i>
+                        </button>
+                        <button @click="changeMonth(-1)" class="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center hover:bg-white/30">
+                            <i class="fas fa-chevron-right"></i>
+                        </button>
+                        <span class="text-lg font-bold mx-2" x-text="`${monthNames[currentMonth-1]} ${currentYear}`"></span>
+                        <button @click="changeMonth(1)" class="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center hover:bg-white/30">
+                            <i class="fas fa-chevron-left"></i>
+                        </button>
+                        <button @click="changeYear(1)" class="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center hover:bg-white/30">
+                            <i class="fas fa-angle-double-left"></i>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-7 gap-1 mb-2">
+                    <template x-for="day in weekDays">
+                        <div class="text-center text-sm text-gray-400 py-2" x-text="day"></div>
+                    </template>
+                </div>
+                
+                <div class="grid grid-cols-7 gap-1">
+                    <template x-for="day in calendarDays">
+                        <div 
+                            @click="selectDate(day)"
+                            :class="{
+                                'bg-blue-500 text-white': day.isToday,
+                                'bg-white/10': !day.isToday && day.isCurrentMonth,
+                                'bg-white/5 text-gray-500': !day.isCurrentMonth,
+                                'border-2 border-green-400': selectedDate && selectedDate.day === day.day && day.isCurrentMonth
+                            }"
+                            class="aspect-square rounded-lg flex flex-col items-center justify-center cursor-pointer transition-all duration-200 hover:bg-white/20 relative"
+                        >
+                            <span x-text="day.day || ''" class="text-sm"></span>
+                            <div class="flex space-x-1 absolute bottom-1">
+                                <template x-for="event in getDayEvents(day)">
+                                    <div class="w-1 h-1 rounded-full" :class="{
+                                        'bg-red-400': event.priority === 'high',
+                                        'bg-yellow-400': event.priority === 'medium',
+                                        'bg-green-400': event.priority === 'low'
+                                    }"></div>
+                                </template>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </div>
+
+        <!-- محتوای تب یادداشت -->
+        <div x-show="activeTab === 'notes'" class="space-y-6">
+            <!-- ابزارهای یادداشت -->
+            <div class="glass-effect rounded-2xl p-6">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-xl font-bold">دفتر یادداشت پیشرفته</h2>
+                    <div class="flex space-x-3 space-x-reverse">
+                        <button @click="showNoteModal = true" class="bg-green-500 px-4 py-2 rounded-lg hover:bg-green-600 transition-colors">
+                            <i class="fas fa-plus ml-2"></i>
+                            یادداشت متنی
+                        </button>
+                        <button @click="showDrawingModal = true" class="bg-purple-500 px-4 py-2 rounded-lg hover:bg-purple-600 transition-colors">
+                            <i class="fas fa-paint-brush ml-2"></i>
+                            ترسیم پیشرفته
+                        </button>
+                        <button @click="showMindMapModal = true" class="bg-orange-500 px-4 py-2 rounded-lg hover:bg-orange-600 transition-colors">
+                            <i class="fas fa-project-diagram ml-2"></i>
+                            نقشه ذهنی
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- فیلتر و جستجو -->
+                <div class="flex space-x-4 space-x-reverse mb-6">
+                    <div class="flex-1">
+                        <input 
+                            type="text" 
+                            x-model="noteSearch" 
+                            placeholder="جستجو در یادداشت‌ها..." 
+                            class="w-full bg-white/10 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                    </div>
+                    <select x-model="noteFilter" class="bg-white/10 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="all">همه یادداشت‌ها</option>
+                        <option value="text">یادداشت متنی</option>
+                        <option value="drawing">ترسیم‌ها</option>
+                        <option value="mindmap">نقشه‌های ذهنی</option>
+                    </select>
+                </div>
+                
+                <!-- نمایش یادداشت‌ها -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                    <template x-for="note in filteredNotes" :key="note.id">
+                        <div 
+                            class="sticky-note rounded-xl p-4 relative group transition-all duration-300 hover:scale-105 cursor-pointer"
+                            :style="`background: ${note.color}; min-height: 200px;`"
+                            @click="openNote(note)"
+                        >
+                            <div class="absolute top-2 left-2 opacity-0 group-hover:opacity-100 transition-opacity space-x-2 space-x-reverse">
+                                <button @click.stop="editNote(note)" class="w-8 h-8 bg-blue-500 rounded text-white text-sm flex items-center justify-center">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <button @click.stop="deleteNote(note.id)" class="w-8 h-8 bg-red-500 rounded text-white text-sm flex items-center justify-center">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                            
+                            <template x-if="note.type === 'text'">
+                                <div>
+                                    <h3 class="font-bold text-lg mb-2" x-text="note.title" :style="`font-size: ${note.fontSize || '16'}px; color: ${note.textColor || '#000'}; font-family: ${note.fontFamily || 'Vazirmatn'}`"></h3>
+                                    <p class="text-gray-700 text-sm mb-4" x-text="note.content" :style="`font-size: ${note.contentSize || '14'}px; color: ${note.textColor || '#000'}`"></p>
+                                    <div class="absolute bottom-2 left-2 right-2 flex justify-between items-center">
+                                        <span class="text-xs text-gray-600" x-text="note.date"></span>
+                                        <i class="fas fa-sticky-note text-gray-500"></i>
+                                    </div>
+                                </div>
+                            </template>
+                            
+                            <template x-if="note.type === 'drawing'">
+                                <div class="h-full flex items-center justify-center">
+                                    <img :src="note.drawingData" alt="Drawing" class="max-w-full max-h-32 rounded">
+                                    <div class="absolute bottom-2 left-2 right-2 flex justify-between items-center">
+                                        <span class="text-xs text-gray-600" x-text="note.date"></span>
+                                        <i class="fas fa-drawing text-gray-500"></i>
+                                    </div>
+                                </div>
+                            </template>
+                            
+                            <template x-if="note.type === 'mindmap'">
+                                <div class="h-full flex flex-col justify-center">
+                                    <i class="fas fa-project-diagram text-3xl text-center mb-2 text-gray-600"></i>
+                                    <h3 class="font-bold text-center" x-text="note.title"></h3>
+                                    <div class="absolute bottom-2 left-2 right-2 flex justify-between items-center">
+                                        <span class="text-xs text-gray-600" x-text="note.date"></span>
+                                        <i class="fas fa-map text-gray-500"></i>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </div>
+
+        <!-- محتوای تب کارها -->
+        <div x-show="activeTab === 'tasks'" class="space-y-6">
+            <div class="glass-effect rounded-2xl p-6">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-xl font-bold">مدیریت کارها و برنامه‌ریزی</h2>
+                    <button @click="showTaskModal = true" class="bg-green-500 px-4 py-2 rounded-lg hover:bg-green-600 transition-colors">
+                        <i class="fas fa-plus ml-2"></i>
+                        کار جدید
+                    </button>
+                </div>
+
+                <!-- لیست کارها -->
+                <div class="space-y-4">
+                    <template x-for="task in tasks" :key="task.id">
+                        <div class="bg-white/10 rounded-xl p-4 border-r-4 transition-all duration-200 hover:bg-white/15" :class="{
+                            'border-red-400': task.priority === 'high',
+                            'border-yellow-400': task.priority === 'medium', 
+                            'border-green-400': task.priority === 'low'
+                        }">
+                            <div class="flex items-start justify-between">
+                                <div class="flex items-start space-x-3 space-x-reverse flex-1">
+                                    <input 
+                                        type="checkbox" 
+                                        x-model="task.completed"
+                                        @change="updateTask(task)"
+                                        class="mt-1 w-5 h-5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                    >
+                                    <div class="flex-1">
+                                        <h3 
+                                            :class="{'task-completed': task.completed}"
+                                            class="font-bold text-lg mb-1"
+                                            x-text="task.title"
+                                        ></h3>
+                                        <p class="text-gray-300 text-sm mb-2" x-text="task.description"></p>
+                                        <div class="flex items-center space-x-4 space-x-reverse text-xs text-gray-400">
+                                            <span><i class="fas fa-calendar ml-1"></i> <span x-text="task.dueDate"></span></span>
+                                            <span><i class="fas fa-tag ml-1"></i> <span x-text="task.category"></span></span>
+                                            <span><i class="fas fa-flag ml-1"></i> <span x-text="taskPriorityText(task.priority)"></span></span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="flex space-x-2 space-x-reverse">
+                                    <button @click="editTask(task)" class="w-8 h-8 bg-blue-500 rounded flex items-center justify-center hover:bg-blue-600">
+                                        <i class="fas fa-edit text-white text-sm"></i>
+                                    </button>
+                                    <button @click="deleteTask(task.id)" class="w-8 h-8 bg-red-500 rounded flex items-center justify-center hover:bg-red-600">
+                                        <i class="fas fa-trash text-white text-sm"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- نوار پایین -->
+    <div class="fixed bottom-0 left-0 right-0 glass-effect border-t border-white/20">
+        <div class="flex justify-around items-center py-3">
+            <template x-for="tab in tabs" :key="tab.id">
+                <button 
+                    @click="activeTab = tab.id"
+                    :class="{'text-blue-400': activeTab === tab.id, 'text-gray-400': activeTab !== tab.id}"
+                    class="flex flex-col items-center space-y-1 transition-colors"
+                >
+                    <i :class="tab.icon" class="text-lg"></i>
+                    <span class="text-xs" x-text="tab.name"></span>
+                </button>
+            </template>
+        </div>
+    </div>
+
+    <!-- مودال یادداشت متنی پیشرفته -->
+    <div x-show="showNoteModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div class="bg-gray-800 rounded-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+            <div class="flex justify-between items-center p-6 border-b border-gray-700">
+                <h3 class="text-xl font-bold" x-text="editingNote ? 'ویرایش یادداشت' : 'یادداشت جدید'"></h3>
+                <button @click="showNoteModal = false" class="text-gray-400 hover:text-white">
+                    <i class="fas fa-times text-2xl"></i>
+                </button>
+            </div>
+            
+            <div class="flex-1 overflow-auto">
+                <div class="p-6">
+                    <!-- ابزارهای فرمت‌بندی -->
+                    <div class="flex flex-wrap gap-2 mb-4 p-4 bg-gray-700 rounded-lg">
+                        <select x-model="noteForm.fontFamily" class="bg-gray-600 rounded px-3 py-2 text-sm">
+                            <option value="Vazirmatn">Vazirmatn</option>
+                            <option value="Tahoma">Tahoma</option>
+                            <option value="Arial">Arial</option>
+                        </select>
+                        
+                        <select x-model="noteForm.fontSize" class="bg-gray-600 rounded px-3 py-2 text-sm">
+                            <option value="12">کوچک</option>
+                            <option value="16">متوسط</option>
+                            <option value="20">بزرگ</option>
+                            <option value="24">خیلی بزرگ</option>
+                        </select>
+                        
+                        <input type="color" x-model="noteForm.textColor" class="w-10 h-10 rounded cursor-pointer">
+                        
+                        <select x-model="noteForm.alignment" class="bg-gray-600 rounded px-3 py-2 text-sm">
+                            <option value="right">راست</option>
+                            <option value="center">وسط</option>
+                            <option value="left">چپ</option>
+                        </select>
+                        
+                        <div class="flex space-x-1 space-x-reverse">
+                            <button @click="formatText('bold')" class="w-8 h-8 bg-gray-600 rounded flex items-center justify-center hover:bg-gray-500">
+                                <i class="fas fa-bold"></i>
+                            </button>
+                            <button @click="formatText('italic')" class="w-8 h-8 bg-gray-600 rounded flex items-center justify-center hover:bg-gray-500">
+                                <i class="fas fa-italic"></i>
+                            </button>
+                            <button @click="formatText('underline')" class="w-8 h-8 bg-gray-600 rounded flex items-center justify-center hover:bg-gray-500">
+                                <i class="fas fa-underline"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <form @submit.prevent="saveNote">
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium mb-2">عنوان یادداشت</label>
+                                <input 
+                                    type="text" 
+                                    x-model="noteForm.title" 
+                                    class="w-full bg-gray-700 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    :style="`font-family: ${noteForm.fontFamily}; font-size: ${noteForm.fontSize}px; color: ${noteForm.textColor}; text-align: ${noteForm.alignment}`"
+                                >
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium mb-2">محتوای یادداشت</label>
+                                <textarea 
+                                    x-model="noteForm.content" 
+                                    rows="12"
+                                    class="w-full bg-gray-700 rounded-lg px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-vertical"
+                                    :style="`font-family: ${noteForm.fontFamily}; font-size: ${parseInt(noteForm.fontSize) - 2}px; color: ${noteForm.textColor}; text-align: ${noteForm.alignment}`"
+                                ></textarea>
+                            </div>
+                            
+                            <div>
+                                <label class="block text-sm font-medium mb-2">رنگ زمینه</label>
+                                <div class="flex flex-wrap gap-2">
+                                    <template x-for="color in noteColors">
+                                        <button 
+                                            type="button"
+                                            @click="noteForm.color = color"
+                                            :class="{'ring-2 ring-white ring-offset-2 ring-offset-gray-800': noteForm.color === color}"
+                                            class="w-8 h-8 rounded-full transition-all"
+                                            :style="`background: ${color}`"
+                                        ></button>
+                                    </template>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="flex space-x-3 space-x-reverse mt-6">
+                            <button type="button" @click="showNoteModal = false" class="flex-1 bg-gray-600 py-3 rounded-lg hover:bg-gray-700 transition-colors">انصراف</button>
+                            <button type="submit" class="flex-1 bg-green-500 py-3 rounded-lg hover:bg-green-600 transition-colors">ذخیره یادداشت</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- مودال ترسیم پیشرفته -->
+    <div x-show="showDrawingModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div class="bg-gray-800 rounded-2xl w-full max-w-6xl max-h-[95vh] overflow-hidden flex flex-col">
+            <div class="flex justify-between items-center p-6 border-b border-gray-700">
+                <h3 class="text-xl font-bold">برداشت و ترسیم پیشرفته</h3>
+                <button @click="showDrawingModal = false" class="text-gray-400 hover:text-white">
+                    <i class="fas fa-times text-2xl"></i>
+                </button>
+            </div>
+            
+            <div class="flex-1 overflow-hidden flex">
+                <!-- پنل ابزارها -->
+                <div class="w-20 bg-gray-700 flex flex-col items-center py-4 space-y-4">
+                    <!-- ابزارهای رسم -->
+                    <template x-for="tool in drawingTools" :key="tool.id">
+                        <button 
+                            @click="currentDrawingTool = tool.id"
+                            :class="{'bg-blue-500 text-white': currentDrawingTool === tool.id, 'text-gray-300': currentDrawingTool !== tool.id}"
+                            class="w-12 h-12 rounded-lg flex flex-col items-center justify-center text-xs transition-colors"
+                            :title="tool.name"
+                        >
+                            <i :class="tool.icon" class="text-lg mb-1"></i>
+                            <span x-text="tool.name"></span>
+                        </button>
+                    </template>
+                    
+                    <div class="h-px bg-gray-600 w-3/4 my-2"></div>
+                    
+                    <!-- رنگ‌ها -->
+                    <div class="space-y-2">
+                        <template x-for="color in drawingColors" :key="color">
+                            <button 
+                                @click="drawingColor = color"
+                                :class="{'ring-2 ring-white': drawingColor === color}"
+                                class="w-8 h-8 rounded-full border border-gray-300"
+                                :style="`background: ${color}`"
+                            ></button>
+                        </template>
+                    </div>
+                    
+                    <!-- ضخامت خط -->
+                    <div class="space-y-2">
+                        <template x-for="width in [1, 3, 5, 8]" :key="width">
+                            <button 
+                                @click="drawingLineWidth = width"
+                                :class="{'bg-blue-500': drawingLineWidth === width}"
+                                class="w-8 h-8 rounded flex items-center justify-center text-white"
+                            >
+                                <div :style="`width: ${width * 2}px; height: 2px; background: white;`"></div>
+                            </button>
+                        </template>
+                    </div>
+                </div>
+                
+                <!-- کانواس اصلی -->
+                <div class="flex-1 bg-white relative overflow-auto">
+                    <canvas 
+                        x-ref="drawingCanvas"
+                        @mousedown="startDrawing"
+                        @mousemove="draw"
+                        @mouseup="stopDrawing"
+                        @touchstart="startDrawing"
+                        @touchmove="draw"
+                        @touchend="stopDrawing"
+                        class="drawing-canvas absolute top-0 left-0"
+                        :width="canvasWidth"
+                        :height="canvasHeight"
+                    ></canvas>
+                </div>
+                
+                <!-- پنل اشکال و متن -->
+                <div class="w-80 bg-gray-700 p-4 overflow-y-auto">
+                    <div class="space-y-4">
+                        <!-- افزودن متن -->
+                        <div>
+                            <h4 class="font-bold mb-2">افزودن متن</h4>
+                            <input 
+                                type="text" 
+                                x-model="drawingText"
+                                placeholder="متن خود را وارد کنید..."
+                                class="w-full bg-gray-600 rounded px-3 py-2 text-sm mb-2"
+                            >
+                            <button 
+                                @click="addTextToCanvas"
+                                class="w-full bg-blue-500 py-2 rounded hover:bg-blue-600 transition-colors"
+                            >
+                                افزودن متن به کانواس
+                            </button>
+                        </div>
+                        
+                        <!-- اشکال هندسی -->
+                        <div>
+                            <h4 class="font-bold mb-2">اشکال هندسی</h4>
+                            <div class="grid grid-cols-2 gap-2">
+                                <button 
+                                    @click="addShape('rectangle')"
+                                    class="bg-gray-600 py-2 rounded hover:bg-gray-500 transition-colors flex flex-col items-center"
+                                >
+                                    <i class="fas fa-square text-lg mb-1"></i>
+                                    <span class="text-xs">مستطیل</span>
+                                </button>
+                                <button 
+                                    @click="addShape('circle')"
+                                    class="bg-gray-600 py-2 rounded hover:bg-gray-500 transition-colors flex flex-col items-center"
+                                >
+                                    <i class="fas fa-circle text-lg mb-1"></i>
+                                    <span class="text-xs">دایره</span>
+                                </button>
+                                <button 
+                                    @click="addShape('line')"
+                                    class="bg-gray-600 py-2 rounded hover:bg-gray-500 transition-colors flex flex-col items-center"
+                                >
+                                    <i class="fas fa-minus text-lg mb-1"></i>
+                                    <span class="text-xs">خط</span>
+                                </button>
+                                <button 
+                                    @click="addShape('triangle')"
+                                    class="bg-gray-600 py-2 rounded hover:bg-gray-500 transition-colors flex flex-col items-center"
+                                >
+                                    <i class="fas fa-play text-lg mb-1 rotate-90"></i>
+                                    <span class="text-xs">مثلث</span>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <!-- آپلود تصویر -->
+                        <div>
+                            <h4 class="font-bold mb-2">افزودن تصویر</h4>
+                            <input 
+                                type="file" 
+                                @change="handleImageUpload"
+                                accept="image/*"
+                                class="w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                            >
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="flex justify-between items-center p-4 border-t border-gray-700">
+                <div class="flex space-x-2 space-x-reverse">
+                    <button @click="clearCanvas" class="bg-red-500 px-4 py-2 rounded-lg hover:bg-red-600 transition-colors">
+                        <i class="fas fa-trash ml-2"></i>
+                        پاک کردن
+                    </button>
+                    <button @click="undoDrawing" class="bg-gray-600 px-4 py-2 rounded-lg hover:bg-gray-500 transition-colors">
+                        <i class="fas fa-undo ml-2"></i>
+                        بازگشت
+                    </button>
+                </div>
+                <div class="flex space-x-2 space-x-reverse">
+                    <button @click="showDrawingModal = false" class="bg-gray-600 px-4 py-2 rounded-lg hover:bg-gray-500 transition-colors">
+                        انصراف
+                    </button>
+                    <button @click="saveDrawing" class="bg-green-500 px-4 py-2 rounded-lg hover:bg-green-600 transition-colors">
+                        <i class="fas fa-save ml-2"></i>
+                        ذخیره ترسیم
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function calendarApp() {
+            return {
+                // داده‌های اصلی
+                activeTab: 'calendar',
+                currentYear: 1403,
+                currentMonth: 1,
+                selectedDate: null,
+                liveTime: '',
+                digitalClock: '',
+                hijriDate: '',
+                
+                // تب‌ها
+                tabs: [
+                    { id: 'calendar', name: 'تقویم', icon: 'fas fa-calendar' },
+                    { id: 'notes', name: 'یادداشت', icon: 'fas fa-sticky-note' },
+                    { id: 'tasks', name: 'کارها', icon: 'fas fa-tasks' },
+                    { id: 'events', name: 'رویدادها', icon: 'fas fa-bell' },
+                    { id: 'settings', name: 'تنظیمات', icon: 'fas fa-cog' }
+                ],
+                
+                // حالت‌های مودال
+                showNoteModal: false,
+                showDrawingModal: false,
+                showTaskModal: false,
+                showEventModal: false,
+                showMindMapModal: false,
+                
+                // داده‌های تقویم
+                weekDays: ['ش', 'ی', 'د', 'س', 'چ', 'پ', 'ج'],
+                monthNames: ['فروردین', 'اردیبهشت', 'خرداد', 'تیر', 'مرداد', 'شهریور', 'مهر', 'آبان', 'آذر', 'دی', 'بهمن', 'اسفند'],
+                
+                // فرم‌ها
+                noteForm: {
+                    id: null,
+                    type: 'text',
+                    title: '',
+                    content: '',
+                    color: '#ffeb3b',
+                    fontFamily: 'Vazirmatn',
+                    fontSize: '16',
+                    textColor: '#000000',
+                    alignment: 'right'
+                },
+                
+                // ترسیم
+                currentDrawingTool: 'pencil',
+                drawingTools: [
+                    { id: 'pencil', name: 'قلم', icon: 'fas fa-pencil' },
+                    { id: 'brush', name: 'قلمو', icon: 'fas fa-paint-brush' },
+                    { id: 'eraser', name: 'پاک‌کن', icon: 'fas fa-eraser' },
+                    { id: 'fill', name: 'رنگ‌آمیزی', icon: 'fas fa-fill-drip' }
+                ],
+                drawingColor: '#000000',
+                drawingColors: ['#000000', '#ff0000', '#0000ff', '#00ff00', '#ffff00', '#ff00ff', '#00ffff'],
+                drawingLineWidth: 3,
+                drawingText: '',
+                canvasWidth: 1200,
+                canvasHeight: 800,
+                isDrawing: false,
+                lastX: 0,
+                lastY: 0,
+                drawingHistory: [],
+                
+                // جستجو و فیلتر
+                noteSearch: '',
+                noteFilter: 'all',
+                
+                // داده‌های نمونه
+                events: [],
+                notes: [],
+                tasks: [],
+                reminders: [],
+                noteColors: ['#ffeb3b', '#4fc3f7', '#a5d6a7', '#f48fb1', '#ce93d8', '#ffcc80', '#b39ddb'],
+                
+                init() {
+                    this.loadData();
+                    this.updateTime();
+                    setInterval(() => this.updateTime(), 1000);
+                    this.setupDrawingCanvas();
+                },
+                
+                // فیلتر یادداشت‌ها
+                get filteredNotes() {
+                    let filtered = this.notes;
+                    
+                    if (this.noteFilter !== 'all') {
+                        filtered = filtered.filter(note => note.type === this.noteFilter);
+                    }
+                    
+                    if (this.noteSearch) {
+                        const search = this.noteSearch.toLowerCase();
+                        filtered = filtered.filter(note => 
+                            note.title.toLowerCase().includes(search) || 
+                            note.content.toLowerCase().includes(search)
+                        );
+                    }
+                    
+                    return filtered;
+                },
+                
+                // مدیریت یادداشت‌ها
+                saveNote() {
+                    if (this.editingNote) {
+                        const index = this.notes.findIndex(n => n.id === this.editingNote.id);
+                        this.notes[index] = { 
+                            ...this.noteForm,
+                            date: new Date().toLocaleDateString('fa-IR')
+                        };
+                    } else {
+                        const note = {
+                            id: Date.now().toString(),
+                            date: new Date().toLocaleDateString('fa-IR'),
+                            ...this.noteForm
+                        };
+                        this.notes.push(note);
+                    }
+                    
+                    this.saveData();
+                    this.showNoteModal = false;
+                    this.resetNoteForm();
+                },
+                
+                editNote(note) {
+                    this.editingNote = note;
+                    this.noteForm = { ...note };
+                    this.showNoteModal = true;
+                },
+                
+                deleteNote(id) {
+                    this.notes = this.notes.filter(note => note.id !== id);
+                    this.saveData();
+                },
+                
+                openNote(note) {
+                    this.editingNote = note;
+                    this.noteForm = { ...note };
+                    this.showNoteModal = true;
+                },
+                
+                resetNoteForm() {
+                    this.noteForm = {
+                        id: null,
+                        type: 'text',
+                        title: '',
+                        content: '',
+                        color: '#ffeb3b',
+                        fontFamily: 'Vazirmatn',
+                        fontSize: '16',
+                        textColor: '#000000',
+                        alignment: 'right'
+                    };
+                    this.editingNote = null;
+                },
+                
+                formatText(style) {
+                    // پیاده‌سازی فرمت‌بندی متن
+                    console.log('Format text:', style);
+                },
+                
+                // مدیریت ترسیم
+                setupDrawingCanvas() {
+                    this.$nextTick(() => {
+                        const canvas = this.$refs.drawingCanvas;
+                        this.ctx = canvas.getContext('2d');
+                        this.ctx.lineWidth = this.drawingLineWidth;
+                        this.ctx.lineCap = 'round';
+                        this.ctx.lineJoin = 'round';
+                    });
+                },
+                
+                startDrawing(e) {
+                    this.isDrawing = true;
+                    const rect = this.$refs.drawingCanvas.getBoundingClientRect();
+                    this.lastX = (e.clientX || e.touches[0].clientX) - rect.left;
+                    this.lastY = (e.clientY || e.touches[0].clientY) - rect.top;
+                    
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(this.lastX, this.lastY);
+                    
+                    // ذخیره حالت برای undo
+                    this.saveCanvasState();
+                },
+                
+                draw(e) {
+                    if (!this.isDrawing) return;
+                    e.preventDefault();
+                    
+                    const rect = this.$refs.drawingCanvas.getBoundingClientRect();
+                    const x = (e.clientX || e.touches[0].clientX) - rect.left;
+                    const y = (e.clientY || e.touches[0].clientY) - rect.top;
+                    
+                    this.ctx.strokeStyle = this.drawingColor;
+                    this.ctx.lineWidth = this.drawingLineWidth;
+                    
+                    this.ctx.lineTo(x, y);
+                    this.ctx.stroke();
+                    
+                    [this.lastX, this.lastY] = [x, y];
+                },
+                
+                stopDrawing() {
+                    this.isDrawing = false;
+                },
+                
+                addTextToCanvas() {
+                    if (!this.drawingText) return;
+                    
+                    this.ctx.font = '20px Vazirmatn';
+                    this.ctx.fillStyle = this.drawingColor;
+                    this.ctx.textAlign = 'right';
+                    this.ctx.fillText(this.drawingText, this.lastX, this.lastY);
+                    
+                    this.saveCanvasState();
+                    this.drawingText = '';
+                },
+                
+                addShape(shape) {
+                    this.ctx.strokeStyle = this.drawingColor;
+                    this.ctx.lineWidth = this.drawingLineWidth;
+                    
+                    const size = 50;
+                    
+                    switch (shape) {
+                        case 'rectangle':
+                            this.ctx.strokeRect(this.lastX, this.lastY, size, size);
+                            break;
+                        case 'circle':
+                            this.ctx.beginPath();
+                            this.ctx.arc(this.lastX + size/2, this.lastY + size/2, size/2, 0, 2 * Math.PI);
+                            this.ctx.stroke();
+                            break;
+                        case 'line':
+                            this.ctx.beginPath();
+                            this.ctx.moveTo(this.lastX, this.lastY);
+                            this.ctx.lineTo(this.lastX + size, this.lastY + size);
+                            this.ctx.stroke();
+                            break;
+                        case 'triangle':
+                            this.ctx.beginPath();
+                            this.ctx.moveTo(this.lastX, this.lastY);
+                            this.ctx.lineTo(this.lastX + size, this.lastY);
+                            this.ctx.lineTo(this.lastX + size/2, this.lastY - size);
+                            this.ctx.closePath();
+                            this.ctx.stroke();
+                            break;
+                    }
+                    
+                    this.saveCanvasState();
+                },
+                
+                handleImageUpload(e) {
+                    const file = e.target.files[0];
+                    if (!file) return;
+                    
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                        const img = new Image();
+                        img.onload = () => {
+                            this.ctx.drawImage(img, this.lastX, this.lastY, 200, 200);
+                            this.saveCanvasState();
+                        };
+                        img.src = event.target.result;
+                    };
+                    reader.readAsDataURL(file);
+                },
+                
+                saveCanvasState() {
+                    const canvas = this.$refs.drawingCanvas;
+                    this.drawingHistory.push(this.ctx.getImageData(0, 0, canvas.width, canvas.height));
+                    
+                    // محدود کردن تاریخچه به 50 حالت
+                    if (this.drawingHistory.length > 50) {
+                        this.drawingHistory.shift();
+                    }
+                },
+                
+                undoDrawing() {
+                    if (this.drawingHistory.length > 0) {
+                        this.drawingHistory.pop(); // حذف حالت فعلی
+                        if (this.drawingHistory.length > 0) {
+                            this.ctx.putImageData(this.drawingHistory[this.drawingHistory.length - 1], 0, 0);
+                        } else {
+                            this.clearCanvas();
+                        }
+                    }
+                },
+                
+                clearCanvas() {
+                    const canvas = this.$refs.drawingCanvas;
+                    this.ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    this.drawingHistory = [];
+                },
+                
+                saveDrawing() {
+                    const canvas = this.$refs.drawingCanvas;
+                    const dataURL = canvas.toDataURL('image/png');
+                    
+                    const drawingNote = {
+                        id: Date.now().toString(),
+                        type: 'drawing',
+                        title: 'ترسیم ' + new Date().toLocaleDateString('fa-IR'),
+                        drawingData: dataURL,
+                        color: '#ffffff',
+                        date: new Date().toLocaleDateString('fa-IR')
+                    };
+                    
+                    this.notes.push(drawingNote);
+                    this.saveData();
+                    this.showDrawingModal = false;
+                    this.clearCanvas();
+                },
+                
+                // توابع کمکی
+                updateTime() {
+                    const now = new Date();
+                    this.liveTime = now.toLocaleTimeString('fa-IR');
+                    this.digitalClock = now.toLocaleTimeString('fa-IR');
+                    this.hijriDate = now.toLocaleDateString('fa-IR', { 
+                        weekday: 'long', 
+                        year: 'numeric', 
+                        month: 'long', 
+                        day: 'numeric' 
+                    });
+                },
+                
+                loadData() {
+                    this.events = JSON.parse(localStorage.getItem('events')) || [];
+                    this.notes = JSON.parse(localStorage.getItem('notes')) || [];
+                    this.tasks = JSON.parse(localStorage.getItem('tasks')) || [];
+                    this.reminders = JSON.parse(localStorage.getItem('reminders')) || [];
+                },
+                
+                saveData() {
+                    localStorage.setItem('events', JSON.stringify(this.events));
+                    localStorage.setItem('notes', JSON.stringify(this.notes));
+                    localStorage.setItem('tasks', JSON.stringify(this.tasks));
+                    localStorage.setItem('reminders', JSON.stringify(this.reminders));
+                },
+                
+                // توابع تقویم (مشابه قبل)
+                get calendarDays() {
+                    const days = [];
+                    const daysInMonth = this.getDaysInMonth(this.currentYear, this.currentMonth);
+                    const firstDay = this.getFirstDayOfWeek(this.currentYear, this.currentMonth);
+                    
+                    for (let i = 0; i < firstDay; i++) {
+                        days.push({ day: 0, isCurrentMonth: false, isToday: false });
+                    }
+                    
+                    const today = this.getToday();
+                    for (let day = 1; day <= daysInMonth; day++) {
+                        const isToday = today.year === this.currentYear && 
+                                       today.month === this.currentMonth && 
+                                       today.day === day;
+                        days.push({ 
+                            day, 
+                            isCurrentMonth: true, 
+                            isToday 
+                        });
+                    }
+                    return days;
+                },
+                
+                getDaysInMonth(year, month) {
+                    if (month <= 6) return 31;
+                    if (month <= 11) return 30;
+                    return this.isLeapYear(year) ? 30 : 29;
+                },
+                
+                getFirstDayOfWeek(year, month) {
+                    return (year + month) % 7;
+                },
+                
+                isLeapYear(year) {
+                    const leapYears = [1, 5, 9, 13, 17, 22, 26, 30];
+                    return leapYears.includes(year % 33);
+                },
+                
+                getToday() {
+                    return { year: 1403, month: 1, day: 15 };
+                },
+                
+                changeMonth(delta) {
+                    this.currentMonth += delta;
+                    if (this.currentMonth > 12) {
+                        this.currentMonth = 1;
+                        this.currentYear++;
+                    } else if (this.currentMonth < 1) {
+                        this.currentMonth = 12;
+                        this.currentYear--;
+                    }
+                },
+                
+                changeYear(delta) {
+                    this.currentYear += delta;
+                },
+                
+                selectDate(day) {
+                    if (day.isCurrentMonth && day.day > 0) {
+                        this.selectedDate = day;
+                    }
+                },
+                
+                getDayEvents(day) {
+                    if (!day.isCurrentMonth || day.day === 0) return [];
+                    return this.events.filter(event => 
+                        event.year === this.currentYear && 
+                        event.month === this.currentMonth && 
+                        event.day === day.day
+                    );
+                },
+                
+                // توابع کارها
+                taskPriorityText(priority) {
+                    const texts = { high: 'بالا', medium: 'متوسط', low: 'کم' };
+                    return texts[priority] || 'نامشخص';
+                },
+                
+                updateTask(task) {
+                    const index = this.tasks.findIndex(t => t.id === task.id);
+                    if (index !== -1) {
+                        this.tasks[index] = task;
+                        this.saveData();
+                    }
+                },
+                
+                editTask(task) {
+                    // پیاده‌سازی ویرایش کار
+                    console.log('Edit task:', task);
+                },
+                
+                deleteTask(id) {
+                    this.tasks = this.tasks.filter(task => task.id !== id);
+                    this.saveData();
+                }
+            }
+        }
+    </script>
+</body>
+</html>

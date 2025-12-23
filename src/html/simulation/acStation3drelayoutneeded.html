@@ -1,0 +1,2138 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>شبیه‌سازی کامل ایستگاه تهویه مطبوع</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a2a3a, #0d1b2a);
+            color: #e0e0e0;
+            overflow: hidden;
+            touch-action: none;
+        }
+        #container {
+            position: fixed;
+            width: 100%;
+            height: 100%;
+            top: 0;
+            left: 0;
+        }
+        #ui-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 100;
+        }
+        #controls-panel {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(25, 35, 45, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(100, 150, 200, 0.3);
+            border-radius: 15px;
+            padding: 20px;
+            width: 350px;
+            max-height: 85vh;
+            overflow-y: auto;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            pointer-events: all;
+            transition: transform 0.3s ease, opacity 0.3s ease;
+        }
+        #controls-panel.collapsed {
+            transform: translateX(-85%);
+            opacity: 0.7;
+        }
+        #object-controls {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(25, 35, 45, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(100, 150, 200, 0.3);
+            border-radius: 15px;
+            padding: 20px;
+            width: 320px;
+            display: none;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            pointer-events: all;
+        }
+        #info-panel {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(25, 35, 45, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(100, 150, 200, 0.3);
+            border-radius: 15px;
+            padding: 20px;
+            width: 380px;
+            max-height: 40vh;
+            overflow-y: auto;
+            display: none;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            pointer-events: all;
+        }
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid rgba(100, 150, 200, 0.3);
+        }
+        .panel-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #64b5f6;
+        }
+        .close-btn {
+            background: none;
+            border: none;
+            color: #e0e0e0;
+            font-size: 20px;
+            cursor: pointer;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+        }
+        .close-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+        }
+        .control-group {
+            margin-bottom: 20px;
+        }
+        .section-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #90caf9;
+            margin-bottom: 12px;
+            padding: 5px 10px;
+            background: rgba(100, 150, 200, 0.1);
+            border-radius: 8px;
+        }
+        .control-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .control-label {
+            flex: 1;
+            font-size: 14px;
+            margin-right: 10px;
+        }
+        .control-value {
+            min-width: 50px;
+            text-align: left;
+            font-size: 14px;
+            color: #bbdefb;
+        }
+        input[type="range"] {
+            flex: 1;
+            height: 6px;
+            background: rgba(100, 150, 200, 0.2);
+            border-radius: 3px;
+            outline: none;
+            -webkit-appearance: none;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #64b5f6;
+            cursor: pointer;
+        }
+        select {
+            width: 100%;
+            padding: 8px 12px;
+            background: rgba(30, 40, 50, 0.8);
+            border: 1px solid rgba(100, 150, 200, 0.3);
+            border-radius: 8px;
+            color: #e0e0e0;
+            font-size: 14px;
+            outline: none;
+        }
+        .btn {
+            padding: 10px 15px;
+            background: linear-gradient(135deg, #1976d2, #1565c0);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 5px 0;
+        }
+        .btn:hover {
+            background: linear-gradient(135deg, #1e88e5, #1976d2);
+            transform: translateY(-1px);
+        }
+        .btn:active {
+            transform: translateY(1px);
+        }
+        .btn-toggle {
+            background: linear-gradient(135deg, #388e3c, #2e7d32);
+        }
+        .btn-toggle.off {
+            background: linear-gradient(135deg, #d32f2f, #c62828);
+        }
+        .btn-icon {
+            margin-right: 8px;
+        }
+        .toggle-controls-btn {
+            position: absolute;
+            right: -40px;
+            top: 20px;
+            background: rgba(25, 35, 45, 0.95);
+            border: 1px solid rgba(100, 150, 200, 0.3);
+            border-left: none;
+            border-radius: 0 8px 8px 0;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: #64b5f6;
+            font-size: 20px;
+        }
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        .status-on {
+            background: #4caf50;
+            box-shadow: 0 0 8px #4caf50;
+        }
+        .status-off {
+            background: #f44336;
+        }
+        .component-list {
+            max-height: 200px;
+            overflow-y: auto;
+            margin: 10px 0;
+            border: 1px solid rgba(100, 150, 200, 0.2);
+            border-radius: 8px;
+            padding: 5px;
+        }
+        .component-item {
+            padding: 8px 12px;
+            margin: 2px 0;
+            background: rgba(100, 150, 200, 0.1);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 0.2s;
+            font-size: 13px;
+        }
+        .component-item:hover {
+            background: rgba(100, 150, 200, 0.2);
+        }
+        .component-item.selected {
+            background: rgba(100, 150, 200, 0.3);
+            border-left: 3px solid #64b5f6;
+        }
+        @media (max-width: 768px) {
+            #controls-panel, #object-controls, #info-panel {
+                width: 90%;
+                max-width: 320px;
+            }
+            #controls-panel {
+                left: 10px;
+                top: 10px;
+            }
+            #object-controls {
+                right: 10px;
+                top: 10px;
+            }
+            #info-panel {
+                right: 10px;
+                bottom: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="container"></div>
+    
+    <div id="ui-overlay">
+        <div id="controls-panel">
+            <div class="panel-header">
+                <div class="panel-title">کنترل‌های سیستم تهویه</div>
+                <button class="close-btn" id="hide-controls">×</button>
+            </div>
+            
+            <div class="control-group">
+                <div class="section-title">نمایش صحنه</div>
+                <div class="control-row">
+                    <div class="control-label">پس‌زمینه:</div>
+                    <select id="bg-color">
+                        <option value="#0d1b2a">آبی تیره</option>
+                        <option value="#1b1b1b">مشکی</option>
+                        <option value="#2d2d2d">خاکستری تیره</option>
+                    </select>
+                </div>
+                <div class="control-row">
+                    <div class="control-label">شدت نور:</div>
+                    <input type="range" id="light-intensity" min="0.1" max="2" step="0.1" value="1">
+                    <div class="control-value" id="light-value">1.0</div>
+                </div>
+                <div class="control-row">
+                    <div class="control-label">شفافیت دیوارها:</div>
+                    <input type="range" id="wall-opacity" min="10" max="90" step="5" value="70">
+                    <div class="control-value" id="opacity-value">70%</div>
+                </div>
+                <div class="control-row">
+                    <button class="btn" id="toggle-wireframe">
+                        <span class="btn-icon">📐</span> حالت اسکلت
+                    </button>
+                    <button class="btn" id="reset-view">
+                        <span class="btn-icon">🔄</span> بازنشانی
+                    </button>
+                </div>
+            </div>
+            
+            <div class="control-group">
+                <div class="section-title">سیستم فن‌ها و فیلترها</div>
+                <div class="control-row">
+                    <div class="control-label">قطر فن‌ها:</div>
+                    <select id="fan-diameter">
+                        <option value="1.12">1.12 متر</option>
+                        <option value="1.4">1.4 متر</option>
+                        <option value="1.6" selected>1.6 متر</option>
+                    </select>
+                </div>
+                <div class="control-row">
+                    <div class="control-label">سرعت فن‌ها:</div>
+                    <input type="range" id="fan-speed" min="500" max="3000" step="100" value="1500">
+                    <div class="control-value" id="fan-speed-value">1500 RPM</div>
+                </div>
+                <div class="control-row">
+                    <div class="control-label">سرعت فیلترها:</div>
+                    <input type="range" id="filter-speed" min="0" max="30" step="1" value="10">
+                    <div class="control-value" id="filter-speed-value">10 RPM</div>
+                </div>
+                <div class="control-row">
+                    <button class="btn btn-toggle" id="toggle-sweeper1">
+                        <span class="status-indicator status-off"></span>
+                        <span>جاروب فیلتر ۱: خاموش</span>
+                    </button>
+                </div>
+                <div class="control-row">
+                    <button class="btn btn-toggle" id="toggle-sweeper2">
+                        <span class="status-indicator status-off"></span>
+                        <span>جاروب فیلتر ۲: خاموش</span>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="control-group">
+                <div class="section-title">سیستم ایرواشر و مه‌پاش</div>
+                <div class="control-row">
+                    <button class="btn btn-toggle" id="toggle-fogger1">
+                        <span class="status-indicator status-off"></span>
+                        <span>مه‌پاش ۱: خاموش</span>
+                    </button>
+                </div>
+                <div class="control-row">
+                    <div class="control-label">شدت مه‌پاش ۱:</div>
+                    <input type="range" id="fogger1-intensity" min="0" max="100" step="5" value="50">
+                    <div class="control-value" id="fogger1-value">50%</div>
+                </div>
+                <div class="control-row">
+                    <button class="btn btn-toggle" id="toggle-fogger2">
+                        <span class="status-indicator status-off"></span>
+                        <span>مه‌پاش ۲: خاموش</span>
+                    </button>
+                </div>
+                <div class="control-row">
+                    <div class="control-label">شدت مه‌پاش ۲:</div>
+                    <input type="range" id="fogger2-intensity" min="0" max="100" step="5" value="50">
+                    <div class="control-value" id="fogger2-value">50%</div>
+                </div>
+                <div class="control-row">
+                    <button class="btn btn-toggle" id="toggle-pump">
+                        <span class="status-indicator status-off"></span>
+                        <span>پمپ آب: خاموش</span>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="control-group">
+                <div class="section-title">کنترل دمپرها</div>
+                <div class="control-row">
+                    <button class="btn btn-toggle" id="toggle-center-damper1">
+                        <span class="status-indicator status-off"></span>
+                        <span>دمپر مرکزی ۱: بسته</span>
+                    </button>
+                </div>
+                <div class="control-row">
+                    <button class="btn btn-toggle" id="toggle-center-damper2">
+                        <span class="status-indicator status-off"></span>
+                        <span>دمپر مرکزی ۲: بسته</span>
+                    </button>
+                </div>
+                <div class="control-row">
+                    <button class="btn btn-toggle" id="toggle-fresh-damper1">
+                        <span class="status-indicator status-off"></span>
+                        <span>دمپر هوای تازه ۱: بسته</span>
+                    </button>
+                </div>
+                <div class="control-row">
+                    <button class="btn btn-toggle" id="toggle-fresh-damper2">
+                        <span class="status-indicator status-off"></span>
+                        <span>دمپر هوای تازه ۲: بسته</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <div class="section-title">لیست اجزا</div>
+                <div class="component-list" id="components-list">
+                    <!-- Components will be populated by JavaScript -->
+                </div>
+            </div>
+            
+            <button class="btn" id="toggle-all-controls">
+                <span class="btn-icon">👁️</span> پنهان کردن کنترل‌ها
+            </button>
+            
+            <div class="toggle-controls-btn" id="toggle-controls">
+                <span>☰</span>
+            </div>
+        </div>
+        
+        <div id="object-controls">
+            <div class="panel-header">
+                <div class="panel-title">کنترل شیء انتخابی</div>
+                <button class="close-btn" id="close-object-controls">×</button>
+            </div>
+            <div id="selected-object-name" style="margin-bottom: 15px; font-weight: 600; color: #90caf9;"></div>
+            <button class="btn" id="toggle-object-visibility">
+                <span class="btn-icon">👁️</span> پنهان کردن شیء
+            </button>
+            <button class="btn" id="highlight-object">
+                <span class="btn-icon">🔍</span> برجسته‌سازی
+            </button>
+            <button class="btn" id="isolate-object">
+                <span class="btn-icon">🎯</span> ایزوله کردن
+            </button>
+        </div>
+        
+        <div id="info-panel">
+            <div class="panel-header">
+                <div class="panel-title">اطلاعات فنی</div>
+                <button class="close-btn" id="close-info">×</button>
+            </div>
+            <div id="info-content">
+                <h3 id="info-title">نام جزء</h3>
+                <div id="info-details">جزئیات فنی اینجا نمایش داده می‌شود...</div>
+                <div id="info-status" style="margin-top: 10px; padding: 10px; background: rgba(100, 150, 200, 0.1); border-radius: 8px;"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // سیستم شبیه‌سازی کامل ایستگاه تهویه مطبوع
+        let scene, camera, renderer, controls, objects = {};
+        let fanSpeed = 1500, filterSpeed = 10, fanDiameter = 1.6;
+        let wallOpacity = 0.7;
+        let selectedObject = null;
+        let foggers = {
+            fogger1: { active: false, intensity: 0.5 },
+            fogger2: { active: false, intensity: 0.5 }
+        };
+        let pumpActive = false;
+        let sweepers = {
+            sweeper1: { active: false, position: 0, direction: 1 },
+            sweeper2: { active: false, position: 0, direction: 1 }
+        };
+        let dampers = {
+            center1: { open: false },
+            center2: { open: false },
+            fresh1: { open: false },
+            fresh2: { open: false }
+        };
+        
+        // مقیاس واقعی (1 واحد = 1 متر)
+        const SCALE = 1;
+        
+        // ابعاد اصلی
+        const ROOM_WIDTH = 8;
+        const ROOM_LENGTH = 25;
+        const ROOM_HEIGHT = 5;
+        const TOWER_WIDTH = 6;
+        const TOWER_DEPTH = 4;
+        const TOWER_HEIGHT = 4;
+        const FILTER_ROOM_WIDTH = 6;
+        const FILTER_ROOM_LENGTH = 8;
+        
+        // آغاز برنامه
+        init();
+        animate();
+        
+        function init() {
+            // ایجاد صحنه
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0d1b2a);
+            scene.fog = new THREE.Fog(0x0d1b2a, 20, 50);
+            
+            // ایجاد دوربین
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(20, 15, 20);
+            
+            // ایجاد رندرر
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            document.getElementById('container').appendChild(renderer.domElement);
+            
+            // کنترل‌های دوربین
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.minDistance = 5;
+            controls.maxDistance = 50;
+            
+            // نورپردازی
+            setupLighting();
+            
+            // ایجاد سیستم تهویه
+            createVentilationSystem();
+            
+            // ایجاد سیستم جاروب فیلتر
+            createFilterCleaningSystem();
+            
+            // ایجاد شبکه و محورها
+            createHelpers();
+            
+            // راه‌اندازی رویدادها
+            setupEventListeners();
+            
+            // پر کردن لیست اجزا
+            populateComponentsList();
+            
+            // مدیریت تغییر اندازه پنجره
+            window.addEventListener('resize', onWindowResize);
+        }
+        
+        function setupLighting() {
+            // نور محیطی
+            const ambientLight = new THREE.AmbientLight(0x404040, 0.4);
+            scene.add(ambientLight);
+            
+            // نور جهت‌دار اصلی
+            const mainLight = new THREE.DirectionalLight(0xffffff, 1);
+            mainLight.position.set(10, 15, 10);
+            mainLight.castShadow = true;
+            mainLight.shadow.mapSize.width = 2048;
+            mainLight.shadow.mapSize.height = 2048;
+            mainLight.shadow.camera.near = 0.5;
+            mainLight.shadow.camera.far = 50;
+            mainLight.shadow.camera.left = -20;
+            mainLight.shadow.camera.right = 20;
+            mainLight.shadow.camera.top = 20;
+            mainLight.shadow.camera.bottom = -20;
+            scene.add(mainLight);
+            objects.mainLight = mainLight;
+            
+            // نور نقطه‌ای برای تأکید بر جزئیات
+            const accentLight = new THREE.PointLight(0x64b5f6, 0.5, 30);
+            accentLight.position.set(0, 10, 0);
+            scene.add(accentLight);
+        }
+        
+        function createVentilationSystem() {
+            const system = new THREE.Group();
+            system.name = "VentilationSystem";
+            
+            // ایجاد اتاق تهویه اصلی
+            createVentilationRoom(system);
+            
+            // ایجاد برجک روی سقف
+            createTower(system);
+            
+            // ایجاد اتاق فیلترها
+            createFilterRoom(system);
+            
+            // ایجاد پارتیشن مرکزی با دمپرها و کویل‌ها
+            createCentralPartition(system);
+            
+            // ایجاد سیستم فیلترهای دوار و حفره‌ها
+            createFiltrationSystem(system);
+            
+            // ایجاد سیستم فن‌ها
+            createFanSystem(system);
+            
+            // ایجاد سیستم ایرواشر و مه‌پاش
+            createAirWashSystem(system);
+            
+            // ایجاد سیستم کانال‌ها
+            createDuctSystem(system);
+            
+            scene.add(system);
+        }
+        
+        function createFilterCleaningSystem() {
+            const cleaningSystem = new THREE.Group();
+            cleaningSystem.name = "FilterCleaningSystem";
+            
+            // ایجاد مکانیزم جاروب برای هر فیلتر
+            for (let i = 1; i <= 2; i++) {
+                createFilterSweeper(cleaningSystem, i);
+            }
+            
+            // ایجاد اتاق جمع‌آوری غبار
+            createDustCollectionRoom(cleaningSystem);
+            
+            scene.add(cleaningSystem);
+        }
+        
+        function createFilterSweeper(parent, filterNum) {
+            const sweeper = new THREE.Group();
+            sweeper.name = `FilterSweeper${filterNum}`;
+            
+            const xPos = filterNum === 1 ? -3 : 3;
+            
+            // ریل جاروب
+            const rail = new THREE.Mesh(
+                new THREE.BoxGeometry(5.5, 0.1, 0.1),
+                new THREE.MeshPhongMaterial({ color: 0x78909c })
+            );
+            rail.position.set(xPos, 2.5, 5);
+            rail.rotation.y = Math.PI / 2;
+            sweeper.add(rail);
+            
+            // کالسکه جاروب
+            const carriage = new THREE.Mesh(
+                new THREE.BoxGeometry(0.3, 0.3, 0.3),
+                new THREE.MeshPhongMaterial({ color: 0xf57c00 })
+            );
+            carriage.position.set(xPos, 2.5, 5);
+            carriage.userData = { baseX: xPos, baseZ: 5, filterNum: filterNum };
+            sweeper.add(carriage);
+            objects[`sweeperCarriage${filterNum}`] = carriage;
+            
+            // برس جاروب
+            const brush = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.15, 0.15, 0.4, 16),
+                new THREE.MeshPhongMaterial({ color: 0x795548 })
+            );
+            brush.rotation.x = Math.PI / 2;
+            brush.position.set(0, 0, 0.25);
+            carriage.add(brush);
+            
+            // لوله خرطومی
+            const hose = createHose(
+                [xPos, 2.5, 5],
+                [xPos + (filterNum === 1 ? -2 : 2), 2, 8],
+                0.05,
+                32,
+                0x8d6e63
+            );
+            sweeper.add(hose);
+            objects[`sweeperHose${filterNum}`] = hose;
+            
+            parent.add(sweeper);
+            objects[`filterSweeper${filterNum}`] = sweeper;
+        }
+        
+        function createHose(startPoint, endPoint, radius, segments, color) {
+            const hose = new THREE.Group();
+            
+            // محاسبه نقاط میانی برای انحنای طبیعی
+            const midPoint = [
+                (startPoint[0] + endPoint[0]) / 2,
+                (startPoint[1] + endPoint[1]) / 2 + 0.5,
+                (startPoint[2] + endPoint[2]) / 2
+            ];
+            
+            const curve = new THREE.QuadraticBezierCurve3(
+                new THREE.Vector3(...startPoint),
+                new THREE.Vector3(...midPoint),
+                new THREE.Vector3(...endPoint)
+            );
+            
+            const tubeGeometry = new THREE.TubeGeometry(curve, segments, radius, 16, false);
+            const tubeMaterial = new THREE.MeshPhongMaterial({ color: color });
+            const tube = new THREE.Mesh(tubeGeometry, tubeMaterial);
+            hose.add(tube);
+            
+            return hose;
+        }
+        
+        function createDustCollectionRoom(parent) {
+            const dustRoom = new THREE.Group();
+            dustRoom.name = "DustCollectionRoom";
+            
+            // اتاق جمع‌آوری غبار (در کنار اتاق فیلترها)
+            const roomWidth = 4;
+            const roomLength = 8;
+            const roomHeight = 4;
+            
+            // دیوارهای اتاق
+            const wallMaterial = new THREE.MeshPhongMaterial({ 
+                color: 0x5d4037,
+                transparent: true,
+                opacity: wallOpacity
+            });
+            
+            // کف
+            const floor = new THREE.Mesh(
+                new THREE.BoxGeometry(roomWidth, 0.2, roomLength),
+                new THREE.MeshPhongMaterial({ color: 0x4e342e })
+            );
+            floor.position.set(6, 0.1, 0);
+            dustRoom.add(floor);
+            
+            // سقف
+            const ceiling = new THREE.Mesh(
+                new THREE.BoxGeometry(roomWidth, 0.3, roomLength),
+                new THREE.MeshPhongMaterial({ color: 0x6d4c41 })
+            );
+            ceiling.position.set(6, roomHeight - 0.15, 0);
+            dustRoom.add(ceiling);
+            
+            // دیوارها
+            const walls = [
+                { pos: [6, roomHeight/2, -roomLength/2 + 0.2], size: [roomWidth, roomHeight, 0.4] }, // عقب
+                { pos: [6, roomHeight/2, roomLength/2 - 0.2], size: [roomWidth, roomHeight, 0.4] }, // جلو
+                { pos: [6 + roomWidth/2 - 0.2, roomHeight/2, 0], size: [0.4, roomHeight, roomLength] }, // راست
+                { pos: [6 - roomWidth/2 + 0.2, roomHeight/2, 0], size: [0.4, roomHeight, roomLength] } // چپ
+            ];
+            
+            walls.forEach(wallConfig => {
+                const wall = new THREE.Mesh(
+                    new THREE.BoxGeometry(...wallConfig.size),
+                    wallMaterial
+                );
+                wall.position.set(...wallConfig.pos);
+                wall.castShadow = true;
+                wall.receiveShadow = true;
+                dustRoom.add(wall);
+            });
+            
+            // فن‌های حلزونی سری
+            createScrollFans(dustRoom);
+            
+            // کیسه‌های غبار
+            createDustBags(dustRoom);
+            
+            parent.add(dustRoom);
+        }
+        
+        function createScrollFans(parent) {
+            const fans = new THREE.Group();
+            fans.name = "ScrollFans";
+            
+            // دو فن حلزونی سری
+            for (let i = 0; i < 2; i++) {
+                const fan = new THREE.Mesh(
+                    new THREE.CylinderGeometry(0.4, 0.4, 0.6, 32),
+                    new THREE.MeshPhongMaterial({ color: 0x37474f })
+                );
+                fan.position.set(6, 1.5, -2 + i * 1.5);
+                fan.rotation.x = Math.PI / 2;
+                fans.add(fan);
+                objects[`scrollFan${i+1}`] = fan;
+                
+                // پره‌های فن
+                const bladeMaterial = new THREE.MeshPhongMaterial({ color: 0x78909c });
+                for (let j = 0; j < 8; j++) {
+                    const blade = new THREE.Mesh(
+                        new THREE.BoxGeometry(0.3, 0.05, 0.15),
+                        bladeMaterial
+                    );
+                    blade.rotation.y = j * (Math.PI / 4);
+                    blade.position.z = 0.2;
+                    fan.add(blade);
+                }
+                
+                // لوله اتصال بین فن‌ها
+                if (i < 1) {
+                    const connector = new THREE.Mesh(
+                        new THREE.CylinderGeometry(0.15, 0.15, 1.2, 16),
+                        new THREE.MeshPhongMaterial({ color: 0x546e7a })
+                    );
+                    connector.position.set(6, 1.5, -1.25 + i * 1.5);
+                    connector.rotation.y = Math.PI / 2;
+                    fans.add(connector);
+                }
+            }
+            
+            parent.add(fans);
+        }
+        
+        function createDustBags(parent) {
+            const bags = new THREE.Group();
+            bags.name = "DustBags";
+            
+            // کیسه‌های غبار
+            for (let i = 0; i < 3; i++) {
+                const bag = new THREE.Mesh(
+                    new THREE.BoxGeometry(0.8, 1.5, 0.8),
+                    new THREE.MeshPhongMaterial({ color: 0xffffff })
+                );
+                bag.position.set(5, 0.9, 1 + i * 1.2);
+                bags.add(bag);
+                objects[`dustBag${i+1}`] = bag;
+                
+                // قاب کیسه
+                const frame = new THREE.Mesh(
+                    new THREE.BoxGeometry(0.85, 0.1, 0.85),
+                    new THREE.MeshPhongMaterial({ color: 0x37474f })
+                );
+                frame.position.set(5, 1.7, 1 + i * 1.2);
+                bags.add(frame);
+            }
+            
+            parent.add(bags);
+        }
+        
+        function createFilterRoom(parent) {
+            const filterRoom = new THREE.Group();
+            filterRoom.name = "FilterRoom";
+            
+            // دیوارهای اتاق فیلترها
+            const wallMaterial = new THREE.MeshPhongMaterial({ 
+                color: 0x546e7a,
+                transparent: true,
+                opacity: wallOpacity
+            });
+            
+            // کف
+            const floor = new THREE.Mesh(
+                new THREE.BoxGeometry(FILTER_ROOM_WIDTH, 0.2, FILTER_ROOM_LENGTH),
+                new THREE.MeshPhongMaterial({ color: 0x37474f })
+            );
+            floor.position.set(0, 0.1, 4);
+            filterRoom.add(floor);
+            
+            // سقف
+            const ceiling = new THREE.Mesh(
+                new THREE.BoxGeometry(FILTER_ROOM_WIDTH, 0.3, FILTER_ROOM_LENGTH),
+                new THREE.MeshPhongMaterial({ color: 0x607d8b })
+            );
+            ceiling.position.set(0, ROOM_HEIGHT - 0.15, 4);
+            filterRoom.add(ceiling);
+            
+            parent.add(filterRoom);
+        }
+        
+        function createVentilationRoom(parent) {
+            const room = new THREE.Group();
+            room.name = "VentilationRoom";
+            
+            // مواد اولیه
+            const wallMaterial = new THREE.MeshPhongMaterial({ 
+                color: 0x4a6572,
+                transparent: true,
+                opacity: wallOpacity
+            });
+            
+            const floorMaterial = new THREE.MeshPhongMaterial({ 
+                color: 0x37474f
+            });
+            
+            const ceilingMaterial = new THREE.MeshPhongMaterial({ 
+                color: 0x546e7a
+            });
+            
+            // کف (25m x 8m x 0.2m)
+            const floor = new THREE.Mesh(
+                new THREE.BoxGeometry(ROOM_LENGTH, 0.2, ROOM_WIDTH),
+                floorMaterial
+            );
+            floor.position.set(0, 0.1, 0);
+            floor.receiveShadow = true;
+            room.add(floor);
+            objects.floor = floor;
+            
+            // سقف (25m x 8m x 0.3m)
+            const ceiling = new THREE.Mesh(
+                new THREE.BoxGeometry(ROOM_LENGTH, 0.3, ROOM_WIDTH),
+                ceilingMaterial
+            );
+            ceiling.position.set(0, ROOM_HEIGHT - 0.15, 0);
+            ceiling.receiveShadow = true;
+            room.add(ceiling);
+            objects.ceiling = ceiling;
+            
+            // دیوارها (ضخامت 0.4m)
+            // دیوار چپ
+            const leftWall = new THREE.Mesh(
+                new THREE.BoxGeometry(0.4, ROOM_HEIGHT, ROOM_LENGTH),
+                wallMaterial
+            );
+            leftWall.position.set(-ROOM_WIDTH/2 + 0.2, ROOM_HEIGHT/2, 0);
+            leftWall.castShadow = true;
+            leftWall.receiveShadow = true;
+            room.add(leftWall);
+            objects.leftWall = leftWall;
+            
+            // دیوار راست
+            const rightWall = new THREE.Mesh(
+                new THREE.BoxGeometry(0.4, ROOM_HEIGHT, ROOM_LENGTH),
+                wallMaterial
+            );
+            rightWall.position.set(ROOM_WIDTH/2 - 0.2, ROOM_HEIGHT/2, 0);
+            rightWall.castShadow = true;
+            rightWall.receiveShadow = true;
+            room.add(rightWall);
+            objects.rightWall = rightWall;
+            
+            // دیوار عقب
+            const backWall = new THREE.Mesh(
+                new THREE.BoxGeometry(ROOM_WIDTH, ROOM_HEIGHT, 0.4),
+                wallMaterial
+            );
+            backWall.position.set(0, ROOM_HEIGHT/2, -ROOM_LENGTH/2 + 0.2);
+            backWall.castShadow = true;
+            backWall.receiveShadow = true;
+            room.add(backWall);
+            objects.backWall = backWall;
+            
+            // دیوار جلو
+            const frontWall = new THREE.Mesh(
+                new THREE.BoxGeometry(ROOM_WIDTH, ROOM_HEIGHT, 0.4),
+                wallMaterial
+            );
+            frontWall.position.set(0, ROOM_HEIGHT/2, ROOM_LENGTH/2 - 0.2);
+            frontWall.castShadow = true;
+            frontWall.receiveShadow = true;
+            room.add(frontWall);
+            objects.frontWall = frontWall;
+            
+            parent.add(room);
+        }
+        
+        function createTower(parent) {
+            const tower = new THREE.Group();
+            tower.name = "Tower";
+            
+            const wallMaterial = new THREE.MeshPhongMaterial({ 
+                color: 0x5d8aa8,
+                transparent: true,
+                opacity: wallOpacity
+            });
+            
+            // کف برجک
+            const floor = new THREE.Mesh(
+                new THREE.BoxGeometry(TOWER_WIDTH, 0.3, TOWER_DEPTH),
+                new THREE.MeshPhongMaterial({ color: 0x546e7a })
+            );
+            floor.position.set(0, ROOM_HEIGHT + 0.15, 0);
+            floor.receiveShadow = true;
+            tower.add(floor);
+            
+            // سقف برجک
+            const ceiling = new THREE.Mesh(
+                new THREE.BoxGeometry(TOWER_WIDTH, 0.3, TOWER_DEPTH),
+                new THREE.MeshPhongMaterial({ color: 0x78909c })
+            );
+            ceiling.position.set(0, ROOM_HEIGHT + TOWER_HEIGHT - 0.15, 0);
+            ceiling.receiveShadow = true;
+            tower.add(ceiling);
+            
+            // دیوارهای برجک
+            const leftWall = new THREE.Mesh(
+                new THREE.BoxGeometry(0.4, TOWER_HEIGHT, TOWER_DEPTH),
+                wallMaterial
+            );
+            leftWall.position.set(-TOWER_WIDTH/2 + 0.2, ROOM_HEIGHT + TOWER_HEIGHT/2, 0);
+            leftWall.castShadow = true;
+            leftWall.receiveShadow = true;
+            tower.add(leftWall);
+            
+            const rightWall = new THREE.Mesh(
+                new THREE.BoxGeometry(0.4, TOWER_HEIGHT, TOWER_DEPTH),
+                wallMaterial
+            );
+            rightWall.position.set(TOWER_WIDTH/2 - 0.2, ROOM_HEIGHT + TOWER_HEIGHT/2, 0);
+            rightWall.castShadow = true;
+            rightWall.receiveShadow = true;
+            tower.add(rightWall);
+            
+            const backWall = new THREE.Mesh(
+                new THREE.BoxGeometry(TOWER_WIDTH, TOWER_HEIGHT, 0.4),
+                wallMaterial
+            );
+            backWall.position.set(0, ROOM_HEIGHT + TOWER_HEIGHT/2, -TOWER_DEPTH/2 + 0.2);
+            backWall.castShadow = true;
+            backWall.receiveShadow = true;
+            tower.add(backWall);
+            
+            const frontWall = new THREE.Mesh(
+                new THREE.BoxGeometry(TOWER_WIDTH, TOWER_HEIGHT, 0.4),
+                wallMaterial
+            );
+            frontWall.position.set(0, ROOM_HEIGHT + TOWER_HEIGHT/2, TOWER_DEPTH/2 - 0.2);
+            frontWall.castShadow = true;
+            frontWall.receiveShadow = true;
+            tower.add(frontWall);
+            
+            // دمپرهای هوای تازه
+            createTowerDampers(tower);
+            
+            parent.add(tower);
+        }
+        
+        function createTowerDampers(parent) {
+            // دمپرهای هوای تازه در برجک
+            const damperMaterial = new THREE.MeshPhongMaterial({ color: 0x37474f });
+            
+            for (let i = 0; i < 2; i++) {
+                const damper = new THREE.Mesh(
+                    new THREE.BoxGeometry(1.2, 1.2, 0.3),
+                    damperMaterial
+                );
+                damper.position.set(
+                    (i === 0 ? -1.5 : 1.5),
+                    ROOM_HEIGHT + TOWER_HEIGHT/2,
+                    -TOWER_DEPTH/2 + 0.15
+                );
+                damper.castShadow = true;
+                damper.receiveShadow = true;
+                parent.add(damper);
+                objects[`freshDamper${i+1}`] = damper;
+            }
+        }
+        
+        function createCentralPartition(parent) {
+            const partition = new THREE.Group();
+            partition.name = "CentralPartition";
+            
+            const partitionMaterial = new THREE.MeshPhongMaterial({ 
+                color: 0x607d8b,
+                transparent: true,
+                opacity: wallOpacity
+            });
+            
+            // پارتیشن مرکزی (از کف تا سقف)
+            const partitionWall = new THREE.Mesh(
+                new THREE.BoxGeometry(0.4, ROOM_HEIGHT, 10),
+                partitionMaterial
+            );
+            partitionWall.position.set(0, ROOM_HEIGHT/2, 0);
+            partitionWall.castShadow = true;
+            partitionWall.receiveShadow = true;
+            partition.add(partitionWall);
+            
+            // دو دمپر در پارتیشن
+            createPartitionDampers(partition);
+            
+            // دو کویل در مقابل دمپرها
+            createHeatingCoils(partition);
+            
+            parent.add(partition);
+        }
+        
+        function createPartitionDampers(parent) {
+            const damperMaterial = new THREE.MeshPhongMaterial({ color: 0x455a64 });
+            
+            for (let i = 0; i < 2; i++) {
+                const damper = new THREE.Mesh(
+                    new THREE.BoxGeometry(2, 2, 0.3),
+                    damperMaterial
+                );
+                damper.position.set(
+                    0,
+                    2.5,
+                    (i === 0 ? -1.5 : 1.5)
+                );
+                damper.castShadow = true;
+                damper.receiveShadow = true;
+                parent.add(damper);
+                objects[`centerDamper${i+1}`] = damper;
+            }
+        }
+        
+        function createHeatingCoils(parent) {
+            const coilMaterial = new THREE.MeshPhongMaterial({ color: 0xd32f2f });
+            
+            for (let i = 0; i < 2; i++) {
+                const coil = new THREE.Mesh(
+                    new THREE.BoxGeometry(2, 2, 0.5),
+                    coilMaterial
+                );
+                coil.position.set(
+                    0,
+                    2.5,
+                    (i === 0 ? -2.5 : 2.5)
+                );
+                coil.castShadow = true;
+                coil.receiveShadow = true;
+                parent.add(coil);
+                objects[`heatingCoil${i+1}`] = coil;
+            }
+        }
+        
+        function createFiltrationSystem(parent) {
+            const filtration = new THREE.Group();
+            filtration.name = "FiltrationSystem";
+            
+            // حفره‌های زیر فیلترها (2m عمق)
+            for (let i = 0; i < 2; i++) {
+                const pit = new THREE.Mesh(
+                    new THREE.BoxGeometry(3, 2, 6),
+                    new THREE.MeshPhongMaterial({ color: 0x263238 })
+                );
+                pit.position.set(
+                    (i === 0 ? -3 : 3),
+                    -1,
+                    5
+                );
+                pit.receiveShadow = true;
+                filtration.add(pit);
+                objects[`pit${i+1}`] = pit;
+            }
+            
+            // فیلترهای دوار (2.5m قطر, 5.1m طول)
+            for (let i = 0; i < 2; i++) {
+                const filter = new THREE.Mesh(
+                    new THREE.CylinderGeometry(1.25, 1.25, 5.1, 32),
+                    new THREE.MeshPhongMaterial({ 
+                        color: 0xffeb3b,
+                        transparent: true,
+                        opacity: 0.7
+                    })
+                );
+                filter.rotation.x = Math.PI / 2;
+                filter.position.set(
+                    (i === 0 ? -3 : 3),
+                    2.5,
+                    5
+                );
+                filter.castShadow = true;
+                filter.receiveShadow = true;
+                filtration.add(filter);
+                objects[`filter${i+1}`] = filter;
+                
+                // قاب فیلتر
+                const filterFrame = new THREE.Mesh(
+                    new THREE.CylinderGeometry(1.3, 1.3, 5.1, 32),
+                    new THREE.MeshPhongMaterial({ 
+                        color: 0x37474f,
+                        wireframe: true
+                    })
+                );
+                filterFrame.rotation.x = Math.PI / 2;
+                filterFrame.position.set(
+                    (i === 0 ? -3 : 3),
+                    2.5,
+                    5
+                );
+                filtration.add(filterFrame);
+            }
+            
+            parent.add(filtration);
+        }
+        
+        function createFanSystem(parent) {
+            const fanSystem = new THREE.Group();
+            fanSystem.name = "FanSystem";
+            
+            // فن‌های رفت
+            for (let i = 0; i < 2; i++) {
+                const fan = createFan(fanDiameter, 0x1976d2);
+                fan.position.set(
+                    (i === 0 ? -1.5 : 1.5),
+                    3,
+                    -10
+                );
+                fanSystem.add(fan);
+                objects[`supplyFan${i+1}`] = fan;
+            }
+            
+            // فن‌های برگشت
+            for (let i = 0; i < 2; i++) {
+                const fan = createFan(fanDiameter, 0xd32f2f);
+                fan.position.set(
+                    (i === 0 ? -3 : 3),
+                    2.5,
+                    7
+                );
+                fanSystem.add(fan);
+                objects[`returnFan${i+1}`] = fan;
+            }
+            
+            parent.add(fanSystem);
+        }
+        
+        function createFan(diameter, color) {
+            const fan = new THREE.Group();
+            fan.name = "Fan";
+            
+            // پوسته فن
+            const housing = new THREE.Mesh(
+                new THREE.CylinderGeometry(diameter/2, diameter/2, 0.3, 32),
+                new THREE.MeshPhongMaterial({ color: 0x37474f })
+            );
+            housing.rotation.x = Math.PI / 2;
+            fan.add(housing);
+            
+            // پره‌های فن
+            const bladeMaterial = new THREE.MeshPhongMaterial({ color: color });
+            for (let i = 0; i < 5; i++) {
+                const blade = new THREE.Mesh(
+                    new THREE.BoxGeometry(diameter/2 - 0.2, 0.05, 0.2),
+                    bladeMaterial
+                );
+                blade.rotation.y = i * (Math.PI * 2 / 5);
+                fan.add(blade);
+            }
+            
+            // هاب مرکزی
+            const hub = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.2, 0.2, 0.4, 16),
+                new THREE.MeshPhongMaterial({ color: 0x78909c })
+            );
+            hub.rotation.x = Math.PI / 2;
+            hub.position.z = -0.05;
+            fan.add(hub);
+            
+            return fan;
+        }
+        
+        function createAirWashSystem(parent) {
+            const airWash = new THREE.Group();
+            airWash.name = "AirWashSystem";
+            
+            // ایجاد ایرواشر
+            createAirWasher(airWash);
+            
+            // ایجاد سیستم مه‌پاش
+            createFoggingSystem(airWash);
+            
+            // ایجاد پمپ آب
+            createWaterPump(airWash);
+            
+            // ایجاد الیمیناتور
+            createEliminator(airWash);
+            
+            parent.add(airWash);
+        }
+        
+        function createAirWasher(parent) {
+            const washer = new THREE.Group();
+            washer.name = "AirWasher";
+            
+            // بدنه ایرواشر
+            const body = new THREE.Mesh(
+                new THREE.BoxGeometry(6, 4, 2),
+                new THREE.MeshPhongMaterial({ color: 0x0288d1 })
+            );
+            body.position.set(0, 2, -5);
+            body.castShadow = true;
+            body.receiveShadow = true;
+            washer.add(body);
+            
+            parent.add(washer);
+        }
+        
+        function createFoggingSystem(parent) {
+            const fogging = new THREE.Group();
+            fogging.name = "FoggingSystem";
+            
+            // دو مه‌پاش
+            for (let i = 0; i < 2; i++) {
+                const fogger = new THREE.Mesh(
+                    new THREE.BoxGeometry(0.8, 0.8, 0.8),
+                    new THREE.MeshPhongMaterial({ color: 0x00796b })
+                );
+                fogger.position.set(
+                    (i === 0 ? -1.5 : 1.5),
+                    0.5,
+                    -3
+                );
+                fogger.castShadow = true;
+                fogger.receiveShadow = true;
+                fogging.add(fogger);
+                objects[`fogger${i+1}`] = fogger;
+                
+                // کلکتور
+                const collector = new THREE.Mesh(
+                    new THREE.BoxGeometry(2, 0.3, 0.5),
+                    new THREE.MeshPhongMaterial({ color: 0x455a64 })
+                );
+                collector.position.set(
+                    (i === 0 ? -1.5 : 1.5),
+                    0.15,
+                    -3
+                );
+                collector.castShadow = true;
+                collector.receiveShadow = true;
+                fogging.add(collector);
+                
+                // رایزرها و نازل‌ها (لوله‌های 1 اینچی هر 30 سانتیمتر)
+                for (let j = 0; j < 5; j++) {
+                    const riser = new THREE.Mesh(
+                        new THREE.CylinderGeometry(0.0127, 0.0127, 3.5, 16),
+                        new THREE.MeshPhongMaterial({ color: 0x78909c })
+                    );
+                    riser.position.set(
+                        (i === 0 ? -1.5 : 1.5) - 1 + j * 0.5,
+                        2,
+                        -3
+                    );
+                    fogging.add(riser);
+                    
+                    // نازل
+                    const nozzle = new THREE.Mesh(
+                        new THREE.ConeGeometry(0.03, 0.1, 8),
+                        new THREE.MeshPhongMaterial({ color: 0xffffff })
+                    );
+                    nozzle.rotation.x = Math.PI;
+                    nozzle.position.set(
+                        (i === 0 ? -1.5 : 1.5) - 1 + j * 0.5,
+                        3.8,
+                        -3
+                    );
+                    fogging.add(nozzle);
+                }
+                
+                // ذرات مه (هنگام فعال شدن نمایش داده می‌شوند)
+                const fogParticles = createFogParticles((i === 0 ? -1.5 : 1.5), -3);
+                fogParticles.visible = false;
+                fogging.add(fogParticles);
+                objects[`fogParticles${i+1}`] = fogParticles;
+            }
+            
+            parent.add(fogging);
+        }
+        
+        function createFogParticles(x, z) {
+            const particles = new THREE.Group();
+            
+            const particleCount = 100;
+            const geometry = new THREE.BufferGeometry();
+            const positions = new Float32Array(particleCount * 3);
+            const colors = new Float32Array(particleCount * 3);
+            
+            for (let i = 0; i < particleCount; i++) {
+                positions[i * 3] = x + (Math.random() - 0.5) * 2;
+                positions[i * 3 + 1] = Math.random() * 3;
+                positions[i * 3 + 2] = z + (Math.random() - 0.5) * 0.5;
+                
+                colors[i * 3] = 0.9;
+                colors[i * 3 + 1] = 0.95;
+                colors[i * 3 + 2] = 1.0;
+            }
+            
+            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+            
+            const material = new THREE.PointsMaterial({
+                size: 0.1,
+                vertexColors: true,
+                transparent: true,
+                opacity: 0.6
+            });
+            
+            const particleSystem = new THREE.Points(geometry, material);
+            particles.add(particleSystem);
+            
+            return particles;
+        }
+        
+        function createWaterPump(parent) {
+            const pump = new THREE.Group();
+            pump.name = "WaterPump";
+            
+            // بدنه پمپ
+            const body = new THREE.Mesh(
+                new THREE.CylinderGeometry(0.4, 0.4, 0.6, 32),
+                new THREE.MeshPhongMaterial({ color: 0xf57c00 })
+            );
+            body.position.set(2, 0.5, -1);
+            body.castShadow = true;
+            body.receiveShadow = true;
+            pump.add(body);
+            
+            // موتور
+            const motor = new THREE.Mesh(
+                new THREE.BoxGeometry(0.5, 0.7, 0.5),
+                new THREE.MeshPhongMaterial({ color: 0x455a64 })
+            );
+            motor.position.set(2, 1, -1);
+            motor.castShadow = true;
+            motor.receiveShadow = true;
+            pump.add(motor);
+            
+            parent.add(pump);
+            objects.waterPump = pump;
+        }
+        
+        function createEliminator(parent) {
+            const eliminator = new THREE.Group();
+            eliminator.name = "Eliminator";
+            
+            // قاب الیمیناتور
+            const frame = new THREE.Mesh(
+                new THREE.BoxGeometry(6, 4, 0.5),
+                new THREE.MeshPhongMaterial({ color: 0x78909c })
+            );
+            frame.position.set(0, 2, -7);
+            frame.castShadow = true;
+            frame.receiveShadow = true;
+            eliminator.add(frame);
+            
+            // پره‌های الیمیناتور (35cm)
+            const bladeMaterial = new THREE.MeshPhongMaterial({ color: 0xb0bec5 });
+            for (let i = 0; i < 8; i++) {
+                const blade = new THREE.Mesh(
+                    new THREE.BoxGeometry(6, 0.35, 0.02),
+                    bladeMaterial
+                );
+                blade.position.set(0, -1.5 + i * 0.5, -7);
+                blade.rotation.x = Math.PI / 4;
+                blade.castShadow = true;
+                blade.receiveShadow = true;
+                eliminator.add(blade);
+            }
+            
+            // حوضچه جمع‌آوری
+            const basin = new THREE.Mesh(
+                new THREE.BoxGeometry(6.2, 0.3, 1),
+                new THREE.MeshPhongMaterial({ color: 0x0277bd })
+            );
+            basin.position.set(0, -1.9, -7);
+            basin.receiveShadow = true;
+            eliminator.add(basin);
+            
+            parent.add(eliminator);
+            objects.eliminator = eliminator;
+        }
+        
+        function createDuctSystem(parent) {
+            const ducts = new THREE.Group();
+            ducts.name = "DuctSystem";
+            
+            // کانال‌های رفت
+            for (let i = 0; i < 2; i++) {
+                const duct = new THREE.Mesh(
+                    new THREE.BoxGeometry(1.2, 0.8, 1),
+                    new THREE.MeshPhongMaterial({ color: 0x1565c0 })
+                );
+                duct.position.set(
+                    (i === 0 ? -1.5 : 1.5),
+                    3,
+                    -11
+                );
+                duct.castShadow = true;
+                duct.receiveShadow = true;
+                ducts.add(duct);
+                objects[`supplyDuct${i+1}`] = duct;
+            }
+            
+            // کانال‌های برگشت
+            for (let i = 0; i < 2; i++) {
+                const duct = new THREE.Mesh(
+                    new THREE.BoxGeometry(1.2, 0.8, 1),
+                    new THREE.MeshPhongMaterial({ color: 0xc62828 })
+                );
+                duct.position.set(
+                    (i === 0 ? -3 : 3),
+                    1.5,
+                    9
+                );
+                duct.castShadow = true;
+                duct.receiveShadow = true;
+                ducts.add(duct);
+                objects[`returnDuct${i+1}`] = duct;
+            }
+            
+            parent.add(ducts);
+        }
+        
+        function createHelpers() {
+            // شبکه
+            const gridHelper = new THREE.GridHelper(30, 30, 0x444444, 0x222222);
+            scene.add(gridHelper);
+            
+            // محورها
+            const axesHelper = new THREE.AxesHelper(5);
+            scene.add(axesHelper);
+        }
+        
+        function setupEventListeners() {
+            // کنترل‌های رابط کاربری
+            document.getElementById('toggle-controls').addEventListener('click', function() {
+                document.getElementById('controls-panel').classList.toggle('collapsed');
+            });
+            
+            document.getElementById('hide-controls').addEventListener('click', function() {
+                document.getElementById('controls-panel').style.display = 'none';
+            });
+            
+            document.getElementById('toggle-all-controls').addEventListener('click', function() {
+                const controlsPanel = document.getElementById('controls-panel');
+                controlsPanel.style.display = controlsPanel.style.display === 'none' ? 'block' : 'none';
+            });
+            
+            document.getElementById('close-object-controls').addEventListener('click', function() {
+                document.getElementById('object-controls').style.display = 'none';
+            });
+            
+            document.getElementById('close-info').addEventListener('click', function() {
+                document.getElementById('info-panel').style.display = 'none';
+            });
+            
+            // کنترل‌های سیستم
+            document.getElementById('bg-color').addEventListener('change', function() {
+                scene.background = new THREE.Color(this.value);
+            });
+            
+            document.getElementById('light-intensity').addEventListener('input', function() {
+                objects.mainLight.intensity = parseFloat(this.value);
+                document.getElementById('light-value').textContent = this.value;
+            });
+            
+            document.getElementById('wall-opacity').addEventListener('input', function() {
+                wallOpacity = parseInt(this.value) / 100;
+                document.getElementById('opacity-value').textContent = this.value + '%';
+                updateWallOpacity();
+            });
+            
+            document.getElementById('fan-diameter').addEventListener('change', function() {
+                fanDiameter = parseFloat(this.value);
+                updateFans();
+            });
+            
+            document.getElementById('fan-speed').addEventListener('input', function() {
+                fanSpeed = parseInt(this.value);
+                document.getElementById('fan-speed-value').textContent = fanSpeed + ' RPM';
+            });
+            
+            document.getElementById('filter-speed').addEventListener('input', function() {
+                filterSpeed = parseInt(this.value);
+                document.getElementById('filter-speed-value').textContent = filterSpeed + ' RPM';
+            });
+            
+            // کنترل جاروب فیلترها
+            document.getElementById('toggle-sweeper1').addEventListener('click', function() {
+                sweepers.sweeper1.active = !sweepers.sweeper1.active;
+                updateSweeperUI(1, sweepers.sweeper1.active);
+            });
+            
+            document.getElementById('toggle-sweeper2').addEventListener('click', function() {
+                sweepers.sweeper2.active = !sweepers.sweeper2.active;
+                updateSweeperUI(2, sweepers.sweeper2.active);
+            });
+            
+            // کنترل مه‌پاش‌ها
+            document.getElementById('toggle-fogger1').addEventListener('click', function() {
+                foggers.fogger1.active = !foggers.fogger1.active;
+                updateFoggerUI(1, foggers.fogger1.active);
+                objects.fogParticles1.visible = foggers.fogger1.active;
+            });
+            
+            document.getElementById('toggle-fogger2').addEventListener('click', function() {
+                foggers.fogger2.active = !foggers.fogger2.active;
+                updateFoggerUI(2, foggers.fogger2.active);
+                objects.fogParticles2.visible = foggers.fogger2.active;
+            });
+            
+            document.getElementById('fogger1-intensity').addEventListener('input', function() {
+                foggers.fogger1.intensity = parseInt(this.value) / 100;
+                document.getElementById('fogger1-value').textContent = this.value + '%';
+                updateFogParticlesIntensity(1, foggers.fogger1.intensity);
+            });
+            
+            document.getElementById('fogger2-intensity').addEventListener('input', function() {
+                foggers.fogger2.intensity = parseInt(this.value) / 100;
+                document.getElementById('fogger2-value').textContent = this.value + '%';
+                updateFogParticlesIntensity(2, foggers.fogger2.intensity);
+            });
+            
+            // کنترل پمپ
+            document.getElementById('toggle-pump').addEventListener('click', function() {
+                pumpActive = !pumpActive;
+                this.classList.toggle('off', !pumpActive);
+                this.querySelector('span:last-child').textContent = 'پمپ آب: ' + (pumpActive ? 'روشن' : 'خاموش');
+                this.querySelector('.status-indicator').className = 
+                    'status-indicator ' + (pumpActive ? 'status-on' : 'status-off');
+            });
+            
+            // کنترل دمپرها
+            setupDamperControls();
+            
+            // کنترل اشیا
+            document.getElementById('toggle-object-visibility').addEventListener('click', function() {
+                if (selectedObject) {
+                    selectedObject.visible = !selectedObject.visible;
+                    this.querySelector('span:last-child').textContent = 
+                        selectedObject.visible ? 'پنهان کردن شیء' : 'نمایش شیء';
+                }
+            });
+            
+            document.getElementById('highlight-object').addEventListener('click', function() {
+                if (selectedObject) {
+                    // برجسته‌سازی موقت شیء انتخاب شده
+                    const originalMaterial = selectedObject.material.clone();
+                    selectedObject.material.emissive = new THREE.Color(0x4444ff);
+                    selectedObject.material.needsUpdate = true;
+                    
+                    setTimeout(() => {
+                        selectedObject.material.emissive = originalMaterial.emissive;
+                        selectedObject.material.needsUpdate = true;
+                    }, 1000);
+                }
+            });
+            
+            document.getElementById('isolate-object').addEventListener('click', function() {
+                if (selectedObject) {
+                    // ایزوله کردن شیء انتخاب شده
+                    scene.traverse(function(child) {
+                        if (child.isMesh && child !== selectedObject) {
+                            child.visible = false;
+                        }
+                    });
+                }
+            });
+            
+            // رویدادهای کلیک روی صحنه
+            renderer.domElement.addEventListener('click', onSceneClick, false);
+            renderer.domElement.addEventListener('touchstart', onSceneClick, false);
+            
+            // دابل کلیک برای بازنشانی
+            renderer.domElement.addEventListener('dblclick', resetView, false);
+        }
+        
+        function setupDamperControls() {
+            // کنترل دمپرهای مرکزی
+            document.getElementById('toggle-center-damper1').addEventListener('click', function() {
+                dampers.center1.open = !dampers.center1.open;
+                updateDamperUI('center', 1, dampers.center1.open);
+                updateDamperRotation(objects.centerDamper1, dampers.center1.open);
+            });
+            
+            document.getElementById('toggle-center-damper2').addEventListener('click', function() {
+                dampers.center2.open = !dampers.center2.open;
+                updateDamperUI('center', 2, dampers.center2.open);
+                updateDamperRotation(objects.centerDamper2, dampers.center2.open);
+            });
+            
+            // کنترل دمپرهای هوای تازه
+            document.getElementById('toggle-fresh-damper1').addEventListener('click', function() {
+                dampers.fresh1.open = !dampers.fresh1.open;
+                updateDamperUI('fresh', 1, dampers.fresh1.open);
+                updateDamperRotation(objects.freshDamper1, dampers.fresh1.open);
+            });
+            
+            document.getElementById('toggle-fresh-damper2').addEventListener('click', function() {
+                dampers.fresh2.open = !dampers.fresh2.open;
+                updateDamperUI('fresh', 2, dampers.fresh2.open);
+                updateDamperRotation(objects.freshDamper2, dampers.fresh2.open);
+            });
+        }
+        
+        function updateDamperRotation(damper, open) {
+            if (damper) {
+                damper.rotation.y = open ? Math.PI / 4 : 0;
+            }
+        }
+        
+        function updateSweeperUI(sweeperNum, active) {
+            const button = document.getElementById(`toggle-sweeper${sweeperNum}`);
+            button.classList.toggle('off', !active);
+            button.querySelector('span:last-child').textContent = 
+                `جاروب فیلتر ${sweeperNum}: ${active ? 'فعال' : 'خاموش'}`;
+            button.querySelector('.status-indicator').className = 
+                'status-indicator ' + (active ? 'status-on' : 'status-off');
+        }
+        
+        function updateFoggerUI(foggerNum, active) {
+            const button = document.getElementById(`toggle-fogger${foggerNum}`);
+            button.classList.toggle('off', !active);
+            button.querySelector('span:last-child').textContent = 
+                `مه‌پاش ${foggerNum}: ${active ? 'روشن' : 'خاموش'}`;
+            button.querySelector('.status-indicator').className = 
+                'status-indicator ' + (active ? 'status-on' : 'status-off');
+        }
+        
+        function updateDamperUI(type, num, open) {
+            const button = document.getElementById(`toggle-${type}-damper${num}`);
+            button.classList.toggle('off', !open);
+            button.querySelector('span:last-child').textContent = 
+                `دمپر ${type === 'center' ? 'مرکزی' : 'هوای تازه'} ${num}: ${open ? 'باز' : 'بسته'}`;
+            button.querySelector('.status-indicator').className = 
+                'status-indicator ' + (open ? 'status-on' : 'status-off');
+        }
+        
+        function updateFogParticlesIntensity(foggerNum, intensity) {
+            const particles = objects[`fogParticles${foggerNum}`];
+            if (particles && particles.children[0]) {
+                particles.children[0].material.opacity = 0.3 + intensity * 0.7;
+                particles.children[0].material.size = 0.05 + intensity * 0.1;
+            }
+        }
+        
+        function updateWallOpacity() {
+            // به روزرسانی شفافیت تمام دیوارها
+            const walls = [
+                objects.leftWall, objects.rightWall, objects.backWall, objects.frontWall
+            ];
+            
+            walls.forEach(wall => {
+                if (wall && wall.material) {
+                    wall.material.opacity = wallOpacity;
+                }
+            });
+        }
+        
+        function updateFans() {
+            // به روزرسانی اندازه فن‌ها بر اساس قطر انتخاب شده
+            const fans = [
+                objects.supplyFan1, objects.supplyFan2, 
+                objects.returnFan1, objects.returnFan2
+            ];
+            
+            fans.forEach(fan => {
+                if (fan) {
+                    // به روزرسانی اندازه پوسته
+                    const housing = fan.children[0];
+                    housing.geometry = new THREE.CylinderGeometry(
+                        fanDiameter/2, fanDiameter/2, 0.3, 32
+                    );
+                    
+                    // به روزرسانی اندازه پره‌ها
+                    for (let i = 1; i <= 5; i++) {
+                        const blade = fan.children[i];
+                        blade.geometry = new THREE.BoxGeometry(
+                            fanDiameter/2 - 0.2, 0.05, 0.2
+                        );
+                    }
+                }
+            });
+        }
+        
+        function updateSweepers() {
+            // به روزرسانی موقعیت جاروب‌کننده‌ها
+            for (let i = 1; i <= 2; i++) {
+                const sweeper = sweepers[`sweeper${i}`];
+                if (sweeper.active) {
+                    // حرکت جاروب‌کننده در طول فیلتر
+                    sweeper.position += sweeper.direction * 0.01;
+                    
+                    // تغییر جهت در انتهای مسیر
+                    if (sweeper.position >= 2.5 || sweeper.position <= -2.5) {
+                        sweeper.direction *= -1;
+                    }
+                    
+                    // به روزرسانی موقعیت کالسکه جاروب
+                    const carriage = objects[`sweeperCarriage${i}`];
+                    if (carriage) {
+                        const baseX = carriage.userData.baseX;
+                        const baseZ = carriage.userData.baseZ;
+                        carriage.position.z = baseZ + sweeper.position;
+                    }
+                }
+            }
+        }
+        
+        function onSceneClick(event) {
+            event.preventDefault();
+            
+            // بررسی کلیک روی عناصر UI
+            const uiElements = [
+                document.getElementById('controls-panel'),
+                document.getElementById('object-controls'),
+                document.getElementById('info-panel')
+            ];
+            
+            const clickX = event.clientX || (event.touches && event.touches[0].clientX);
+            const clickY = event.clientY || (event.touches && event.touches[0].clientY);
+            
+            for (const element of uiElements) {
+                if (element) {
+                    const rect = element.getBoundingClientRect();
+                    if (clickX >= rect.left && clickX <= rect.right && 
+                        clickY >= rect.top && clickY <= rect.bottom) {
+                        return;
+                    }
+                }
+            }
+            
+            // تبدیل مختصات صفحه به مختصات نرمال‌شده دستگاه
+            const mouse = new THREE.Vector2();
+            mouse.x = (clickX / window.innerWidth) * 2 - 1;
+            mouse.y = -(clickY / window.innerHeight) * 2 + 1;
+            
+            // پرتو برای تشخیص برخورد
+            const raycaster = new THREE.Raycaster();
+            raycaster.setFromCamera(mouse, camera);
+            
+            // بررسی برخورد با اشیا
+            const intersects = raycaster.intersectObjects(scene.children, true);
+            
+            if (intersects.length > 0) {
+                const object = intersects[0].object;
+                
+                // پیدا کردن والد اصلی شیء
+                let parentObject = object;
+                while (parentObject.parent && parentObject.parent !== scene) {
+                    parentObject = parentObject.parent;
+                }
+                
+                // بررسی اینکه آیا این شیء یکی از اشیای اصلی ماست
+                let objectKey = null;
+                for (const key in objects) {
+                    if (objects[key] === parentObject || objects[key] === object) {
+                        objectKey = key;
+                        break;
+                    }
+                }
+                
+                if (objectKey) {
+                    selectedObject = objects[objectKey];
+                    showObjectControls(selectedObject, objectKey);
+                    showObjectInfo(selectedObject, objectKey);
+                } else {
+                    // بررسی فرزندان اشیای اصلی
+                    for (const key in objects) {
+                        if (objects[key] && objects[key].children) {
+                            for (const child of objects[key].children) {
+                                if (child === object || child === parentObject) {
+                                    selectedObject = objects[key];
+                                    showObjectControls(selectedObject, key);
+                                    showObjectInfo(selectedObject, key);
+                                    return;
+                                }
+                            }
+                        }
+                    }
+                    
+                    // اگر شیء شناخته شده نیست
+                    hideObjectControls();
+                    hideInfo();
+                }
+            } else {
+                // کلیک روی فضای خالی
+                hideObjectControls();
+                hideInfo();
+            }
+        }
+        
+        function showObjectControls(object, objectKey) {
+            const objectControls = document.getElementById('object-controls');
+            const objectName = document.getElementById('selected-object-name');
+            
+            objectName.textContent = getObjectName(objectKey);
+            objectControls.style.display = 'block';
+            
+            // به روزرسانی دکم نمایش/پنهان
+            const toggleBtn = document.getElementById('toggle-object-visibility');
+            toggleBtn.querySelector('span:last-child').textContent = 
+                object.visible ? 'پنهان کردن شیء' : 'نمایش شیء';
+        }
+        
+        function hideObjectControls() {
+            document.getElementById('object-controls').style.display = 'none';
+            selectedObject = null;
+        }
+        
+        function showObjectInfo(object, objectKey) {
+            const infoPanel = document.getElementById('info-panel');
+            const infoTitle = document.getElementById('info-title');
+            const infoDetails = document.getElementById('info-details');
+            const infoStatus = document.getElementById('info-status');
+            
+            infoTitle.textContent = getObjectName(objectKey);
+            infoDetails.innerHTML = getObjectDetails(objectKey);
+            infoStatus.innerHTML = getObjectStatus(objectKey);
+            
+            infoPanel.style.display = 'block';
+        }
+        
+        function hideInfo() {
+            document.getElementById('info-panel').style.display = 'none';
+        }
+        
+        function populateComponentsList() {
+            const componentsList = document.getElementById('components-list');
+            componentsList.innerHTML = '';
+            
+            const componentCategories = {
+                'اتاق‌ها و ساختار': ['floor', 'ceiling', 'leftWall', 'rightWall', 'backWall', 'frontWall'],
+                'سیستم فیلتراسیون': ['filter1', 'filter2', 'pit1', 'pit2'],
+                'سیستم جاروب': ['filterSweeper1', 'filterSweeper2', 'sweeperCarriage1', 'sweeperCarriage2'],
+                'فن‌ها': ['supplyFan1', 'supplyFan2', 'returnFan1', 'returnFan2'],
+                'دمپرها': ['centerDamper1', 'centerDamper2', 'freshDamper1', 'freshDamper2'],
+                'کویل‌ها': ['heatingCoil1', 'heatingCoil2'],
+                'سیستم ایرواشر': ['fogger1', 'fogger2', 'waterPump', 'eliminator'],
+                'کانال‌ها': ['supplyDuct1', 'supplyDuct2', 'returnDuct1', 'returnDuct2'],
+                'سیستم جمع‌آوری غبار': ['scrollFan1', 'scrollFan2', 'dustBag1', 'dustBag2', 'dustBag3']
+            };
+            
+            for (const [category, components] of Object.entries(componentCategories)) {
+                const categoryItem = document.createElement('div');
+                categoryItem.className = 'component-item';
+                categoryItem.style.background = 'rgba(100, 150, 200, 0.2)';
+                categoryItem.style.fontWeight = 'bold';
+                categoryItem.textContent = category;
+                componentsList.appendChild(categoryItem);
+                
+                components.forEach(compKey => {
+                    if (objects[compKey]) {
+                        const item = document.createElement('div');
+                        item.className = 'component-item';
+                        item.textContent = getObjectName(compKey);
+                        item.addEventListener('click', () => {
+                            selectedObject = objects[compKey];
+                            showObjectControls(selectedObject, compKey);
+                            showObjectInfo(selectedObject, compKey);
+                        });
+                        componentsList.appendChild(item);
+                    }
+                });
+            }
+        }
+        
+        function getObjectName(key) {
+            const names = {
+                floor: 'کف اتاق تهویه',
+                ceiling: 'سقف اتاق تهویه',
+                leftWall: 'دیوار چپ',
+                rightWall: 'دیوار راست',
+                backWall: 'دیوار عقب',
+                frontWall: 'دیوار جلو',
+                supplyFan1: 'فن رفت ۱',
+                supplyFan2: 'فن رفت ۲',
+                returnFan1: 'فن برگشت ۱',
+                returnFan2: 'فن برگشت ۲',
+                filter1: 'فیلتر دوار ۱',
+                filter2: 'فیلتر دوار ۲',
+                pit1: 'حفره زیر فیلتر ۱',
+                pit2: 'حفره زیر فیلتر ۲',
+                filterSweeper1: 'سیستم جاروب فیلتر ۱',
+                filterSweeper2: 'سیستم جاروب فیلتر ۲',
+                sweeperCarriage1: 'کالسکه جاروب ۱',
+                sweeperCarriage2: 'کالسکه جاروب ۲',
+                centerDamper1: 'دمپر مرکزی ۱',
+                centerDamper2: 'دمپر مرکزی ۲',
+                heatingCoil1: 'کویل گرمایشی ۱',
+                heatingCoil2: 'کویل گرمایشی ۲',
+                freshDamper1: 'دمپر هوای تازه ۱',
+                freshDamper2: 'دمپر هوای تازه ۲',
+                fogger1: 'مه‌پاش ۱',
+                fogger2: 'مه‌پاش ۲',
+                waterPump: 'پمپ آب',
+                eliminator: 'الیمیناتور',
+                supplyDuct1: 'کانال رفت ۱',
+                supplyDuct2: 'کانال رفت ۲',
+                returnDuct1: 'کانال برگشت ۱',
+                returnDuct2: 'کانال برگشت ۲',
+                scrollFan1: 'فن حلزونی ۱',
+                scrollFan2: 'فن حلزونی ۲',
+                dustBag1: 'کیسه غبار ۱',
+                dustBag2: 'کیسه غبار ۲',
+                dustBag3: 'کیسه غبار ۳'
+            };
+            
+            return names[key] || 'جزء ناشناخته';
+        }
+        
+        function getObjectDetails(key) {
+            const details = {
+                floor: `
+                    <p><strong>ابعاد:</strong> ۲۵ × ۸ متر</p>
+                    <p><strong>ضخامت:</strong> ۰.۲ متر</p>
+                    <p><strong>جنس:</strong> بتن مسلح با پوشش اپوکسی</p>
+                `,
+                ceiling: `
+                    <p><strong>ابعاد:</strong> ۲۵ × ۸ متر</p>
+                    <p><strong>ضخامت:</strong> ۰.۳ متر</p>
+                    <p><strong>جنس:</strong> پانل ساندویچی عایق</p>
+                `,
+                supplyFan1: `
+                    <p><strong>نوع:</strong> فن سانتریفیوژ</p>
+                    <p><strong>قطر:</strong> ${fanDiameter} متر</p>
+                    <p><strong>سرعت:</strong> ${fanSpeed} دور بر دقیقه</p>
+                    <p><strong>دبی:</strong> ۱۵۰۰۰ مترمکعب بر ساعت</p>
+                `,
+                returnFan1: `
+                    <p><strong>نوع:</strong> فن سانتریفیوژ</p>
+                    <p><strong>قطر:</strong> ${fanDiameter} متر</p>
+                    <p><strong>سرعت:</strong> ${fanSpeed} دور بر دقیقه</p>
+                    <p><strong>دبی:</strong> ۱۲۰۰۰ مترمکعب بر ساعت</p>
+                `,
+                filter1: `
+                    <p><strong>نوع:</strong> فیلتر دوار</p>
+                    <p><strong>قطر:</strong> ۲.۵ متر</p>
+                    <p><strong>طول:</strong> ۵.۱ متر</p>
+                    <p><strong>سرعت چرخش:</strong> ${filterSpeed} دور بر دقیقه</p>
+                    <p><strong>راندمان:</strong> ۹۵٪ برای ذرات ۵ میکرون</p>
+                `,
+                filterSweeper1: `
+                    <p><strong>نوع:</strong> سیستم جاروب مکانیکی</p>
+                    <p><strong>طول مسیر:</strong> ۵.۱ متر</p>
+                    <p><strong>سرعت حرکت:</strong> ۰.۵ متر بر دقیقه</p>
+                    <p><strong>وظیفه:</strong> جمع‌آوری غبار از سطح فیلتر</p>
+                `,
+                centerDamper1: `
+                    <p><strong>نوع:</strong> دمپر چند پره</p>
+                    <p><strong>ابعاد:</strong> ۲ × ۲ متر</p>
+                    <p><strong>ضخامت:</strong> ۰.۳ متر</p>
+                    <p><strong>وضعیت:</strong> ${dampers.center1.open ? 'باز' : 'بسته'}</p>
+                `,
+                heatingCoil1: `
+                    <p><strong>نوع:</strong> کویل آب گرم</p>
+                    <p><strong>ابعاد:</strong> ۲ × ۲ متر</p>
+                    <p><strong>ضخامت:</strong> ۰.۵ متر</p>
+                    <p><strong>ظرفیت:</strong> ۵۰ کیلووات</p>
+                `,
+                fogger1: `
+                    <p><strong>نوع:</strong> مه‌پاش فشار بالا</p>
+                    <p><strong>فشار کار:</strong> ۷۰ بار</p>
+                    <p><strong>دبی آب:</strong> ۱۰ لیتر بر ساعت</p>
+                    <p><strong>وضعیت:</strong> ${foggers.fogger1.active ? 'روشن' : 'خاموش'}</p>
+                    <p><strong>شدت:</strong> ${Math.round(foggers.fogger1.intensity * 100)}٪</p>
+                `,
+                waterPump: `
+                    <p><strong>نوع:</strong> پمپ پلانجر</p>
+                    <p><strong>فشار خروجی:</strong> ۷۰ بار</p>
+                    <p><strong>دبی:</strong> ۲۰ لیتر بر دقیقه</p>
+                    <p><strong>وضعیت:</strong> ${pumpActive ? 'روشن' : 'خاموش'}</p>
+                `,
+                eliminator: `
+                    <p><strong>نوع:</strong> الیمیناتور پره‌ای</p>
+                    <p><strong>ابعاد:</strong> ۶ × ۴ متر</p>
+                    <p><strong>طول پره‌ها:</strong> ۰.۳۵ متر</p>
+                    <p><strong>راندمان:</strong> ۹۸٪ در حذف قطرات آب</p>
+                `,
+                scrollFan1: `
+                    <p><strong>نوع:</strong> فن حلزونی</p>
+                    <p><strong>قطر:</strong> ۰.۸ متر</p>
+                    <p><strong>دبی:</strong> ۲۰۰۰ مترمکعب بر ساعت</p>
+                    <p><strong>وظیفه:</strong> انتقال غبار به کیسه‌ها</p>
+                `,
+                dustBag1: `
+                    <p><strong>نوع:</strong> کیسه فیلتر غبار</p>
+                    <p><strong>ابعاد:</strong> ۰.۸ × ۱.۵ متر</p>
+                    <p><strong>جنس:</strong> پارچه فیلتر پلی‌استر</p>
+                    <p><strong>ظرفیت:</strong> ۵۰ کیلوگرم غبار</p>
+                `
+            };
+            
+            return details[key] || '<p>اطلاعات فنی برای این جزء در دسترس نیست.</p>';
+        }
+        
+        function getObjectStatus(key) {
+            let status = '';
+            
+            if (key.includes('sweeper')) {
+                const sweeperNum = key.includes('1') ? 1 : 2;
+                status = `<p><strong>وضعیت:</strong> ${sweepers[`sweeper${sweeperNum}`].active ? 'فعال' : 'غیرفعال'}</p>`;
+            }
+            else if (key.includes('fogger')) {
+                const foggerNum = key.includes('1') ? 1 : 2;
+                status = `<p><strong>وضعیت:</strong> ${foggers[`fogger${foggerNum}`].active ? 'روشن' : 'خاموش'}</p>`;
+            }
+            else if (key.includes('damper')) {
+                let damperStatus = 'بسته';
+                if (key.includes('center1')) damperStatus = dampers.center1.open ? 'باز' : 'بسته';
+                if (key.includes('center2')) damperStatus = dampers.center2.open ? 'باز' : 'بسته';
+                if (key.includes('fresh1')) damperStatus = dampers.fresh1.open ? 'باز' : 'بسته';
+                if (key.includes('fresh2')) damperStatus = dampers.fresh2.open ? 'باز' : 'بسته';
+                status = `<p><strong>وضعیت:</strong> ${damperStatus}</p>`;
+            }
+            else if (key === 'waterPump') {
+                status = `<p><strong>وضعیت:</strong> ${pumpActive ? 'روشن' : 'خاموش'}</p>`;
+            }
+            
+            return status;
+        }
+        
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+        
+        function resetView() {
+            camera.position.set(20, 15, 20);
+            controls.reset();
+            
+            // نمایش مجدد تمام اشیا
+            scene.traverse(function(child) {
+                if (child.isMesh) {
+                    child.visible = true;
+                }
+            });
+        }
+        
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            // چرخش فن‌ها
+            const fanRotationSpeed = (fanSpeed / 60) * Math.PI * 2 / 60;
+            for (let i = 1; i <= 2; i++) {
+                const supplyFan = objects[`supplyFan${i}`];
+                const returnFan = objects[`returnFan${i}`];
+                
+                if (supplyFan) {
+                    for (let j = 1; j <= 5; j++) {
+                        supplyFan.children[j].rotation.z += fanRotationSpeed;
+                    }
+                }
+                
+                if (returnFan) {
+                    for (let j = 1; j <= 5; j++) {
+                        returnFan.children[j].rotation.z += fanRotationSpeed;
+                    }
+                }
+            }
+            
+            // چرخش فیلترها
+            const filterRotationSpeed = (filterSpeed / 60) * Math.PI * 2 / 60;
+            for (let i = 1; i <= 2; i++) {
+                const filter = objects[`filter${i}`];
+                if (filter) {
+                    filter.rotation.z += filterRotationSpeed;
+                }
+            }
+            
+            // چرخش فن‌های حلزونی
+            const scrollFanSpeed = (fanSpeed / 60) * Math.PI * 2 / 120;
+            for (let i = 1; i <= 2; i++) {
+                const scrollFan = objects[`scrollFan${i}`];
+                if (scrollFan) {
+                    for (let j = 0; j < 8; j++) {
+                        scrollFan.children[j].rotation.z += scrollFanSpeed;
+                    }
+                }
+            }
+            
+            // حرکت جاروب‌کننده‌ها
+            updateSweepers();
+            
+            controls.update();
+            renderer.render(scene, camera);
+        }
+    </script>
+</body>
+</html>

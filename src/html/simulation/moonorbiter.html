@@ -1,0 +1,1776 @@
+<!DOCTYPE html>
+<html lang="en" x-data="mobileOrbitalSimulator()" x-cloak>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Mobile Orbital Mechanics Simulator</title>
+    <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <style>
+        [x-cloak] { display: none !important; }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+        
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: #000000;
+            color: #ffffff;
+            touch-action: none;
+        }
+        
+        body {
+            position: fixed;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .header {
+            background: linear-gradient(180deg, #0a1a2a 0%, #001220 100%);
+            padding: 12px 15px;
+            border-bottom: 1px solid #1a3a5a;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+        
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        h1 {
+            font-size: 1.3rem;
+            background: linear-gradient(90deg, #40c9ff, #4cc9f0);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            margin: 0;
+        }
+        
+        .connection-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #4ade80;
+            animation: pulse 2s infinite;
+        }
+        
+        .main-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .simulation-area {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+            background: #000814;
+        }
+        
+        #orbitCanvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            touch-action: none;
+        }
+        
+        .mobile-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            pointer-events: none;
+            z-index: 50;
+        }
+        
+        .mobile-overlay > * {
+            pointer-events: auto;
+        }
+        
+        .joystick-container {
+            position: absolute;
+            bottom: 120px;
+            left: 30px;
+            width: 140px;
+            height: 140px;
+            z-index: 60;
+        }
+        
+        .joystick-base {
+            width: 100%;
+            height: 100%;
+            background: rgba(20, 30, 48, 0.8);
+            backdrop-filter: blur(10px);
+            border-radius: 50%;
+            border: 2px solid #3a5a80;
+            box-shadow: 0 0 20px rgba(64, 156, 255, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .joystick-handle {
+            width: 60px;
+            height: 60px;
+            background: radial-gradient(circle at 30% 30%, #4cc9f0, #2a8faf);
+            border-radius: 50%;
+            border: 3px solid #ffffff;
+            box-shadow: 0 0 15px rgba(76, 201, 240, 0.7);
+            position: absolute;
+            transform: translate(-50%, -50%);
+            transition: transform 0.1s;
+            touch-action: none;
+        }
+        
+        .throttle-control {
+            position: absolute;
+            bottom: 120px;
+            right: 30px;
+            width: 60px;
+            height: 200px;
+            background: rgba(20, 30, 48, 0.8);
+            backdrop-filter: blur(10px);
+            border-radius: 30px;
+            border: 2px solid #3a5a80;
+            box-shadow: 0 0 20px rgba(255, 100, 0, 0.3);
+            overflow: hidden;
+        }
+        
+        .throttle-track {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            right: 10px;
+            bottom: 10px;
+            background: #1a2a3a;
+            border-radius: 20px;
+            overflow: hidden;
+        }
+        
+        .throttle-fill {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(0deg, #ff6b00, #ff9500);
+            transition: height 0.1s;
+        }
+        
+        .throttle-handle {
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80px;
+            height: 40px;
+            background: radial-gradient(circle at 30% 30%, #ff9500, #ff6b00);
+            border-radius: 20px;
+            border: 2px solid #ffffff;
+            box-shadow: 0 0 15px rgba(255, 149, 0, 0.7);
+            touch-action: none;
+        }
+        
+        .mobile-controls-bottom {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 120px;
+            background: linear-gradient(180deg, transparent 0%, rgba(10, 20, 40, 0.95) 30%);
+            backdrop-filter: blur(10px);
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 70;
+        }
+        
+        .control-row {
+            display: flex;
+            justify-content: space-around;
+            gap: 10px;
+        }
+        
+        .mobile-btn {
+            flex: 1;
+            padding: 12px 5px;
+            background: linear-gradient(135deg, #2a4a7f 0%, #1a3a6f 100%);
+            border: 2px solid #3a6a9f;
+            border-radius: 10px;
+            color: white;
+            font-size: 0.9rem;
+            font-weight: 600;
+            text-align: center;
+            transition: all 0.2s;
+            touch-action: manipulation;
+        }
+        
+        .mobile-btn:active {
+            transform: scale(0.95);
+            background: linear-gradient(135deg, #3a5a9f 0%, #2a4a8f 100%);
+        }
+        
+        .primary-btn {
+            background: linear-gradient(135deg, #ff2d75 0%, #e81cff 100%);
+            border-color: #ff4d9e;
+        }
+        
+        .danger-btn {
+            background: linear-gradient(135deg, #ff416c 0%, #ff4b2b 100%);
+            border-color: #ff6b8b;
+        }
+        
+        .info-panel {
+            position: absolute;
+            top: 80px;
+            right: 15px;
+            width: 180px;
+            background: rgba(10, 20, 40, 0.9);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            border: 1px solid #3a5a80;
+            padding: 15px;
+            z-index: 60;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+        }
+        
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 0.8rem;
+        }
+        
+        .info-label {
+            color: #88ccff;
+        }
+        
+        .info-value {
+            color: #ffffff;
+            font-weight: 600;
+            text-align: right;
+        }
+        
+        .sensor-indicator {
+            position: absolute;
+            top: 80px;
+            left: 15px;
+            width: 180px;
+            background: rgba(10, 20, 40, 0.9);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            border: 1px solid #3a5a80;
+            padding: 15px;
+            z-index: 60;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+        }
+        
+        .sensor-data {
+            font-size: 0.8rem;
+            line-height: 1.4;
+        }
+        
+        .sensor-value {
+            color: #72efdd;
+            font-weight: 600;
+        }
+        
+        .notification {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(20px);
+            border-radius: 15px;
+            padding: 20px;
+            border: 2px solid #3a5a80;
+            z-index: 100;
+            max-width: 300px;
+            text-align: center;
+            display: none;
+        }
+        
+        .notification.active {
+            display: block;
+            animation: fadeIn 0.3s;
+        }
+        
+        .notification h3 {
+            color: #4cc9f0;
+            margin-bottom: 10px;
+        }
+        
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(10px);
+            z-index: 200;
+            display: none;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .modal-overlay.active {
+            display: flex;
+        }
+        
+        .modal {
+            background: linear-gradient(135deg, #1a2a3a 0%, #0a1a2a 100%);
+            border-radius: 20px;
+            border: 2px solid #3a5a80;
+            padding: 25px;
+            max-width: 90%;
+            max-height: 90%;
+            overflow-y: auto;
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .close-modal {
+            background: none;
+            border: none;
+            color: #ffffff;
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+        
+        .control-presets {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        .preset-btn {
+            padding: 15px;
+            background: rgba(30, 40, 60, 0.7);
+            border: 1px solid #3a5a80;
+            border-radius: 10px;
+            color: white;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .preset-btn:active {
+            background: rgba(40, 50, 70, 0.9);
+            transform: scale(0.98);
+        }
+        
+        .haptic-feedback {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1000;
+        }
+        
+        .gesture-hint {
+            position: absolute;
+            bottom: 250px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px 20px;
+            border-radius: 20px;
+            border: 1px solid #3a5a80;
+            font-size: 0.9rem;
+            color: #88ccff;
+            text-align: center;
+            animation: pulse 2s infinite;
+            white-space: nowrap;
+        }
+        
+        .performance-warning {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 100, 0, 0.2);
+            border: 1px solid #ff6b00;
+            border-radius: 10px;
+            padding: 8px 15px;
+            font-size: 0.8rem;
+            color: #ffcc00;
+            z-index: 80;
+            display: none;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translate(-50%, -60%); }
+            to { opacity: 1; transform: translate(-50%, -50%); }
+        }
+        
+        @keyframes vibrate {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-2px); }
+            75% { transform: translateX(2px); }
+        }
+        
+        .vibrate {
+            animation: vibrate 0.1s linear;
+        }
+        
+        .shake {
+            animation: shake 0.5s;
+        }
+        
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+        
+        /* Landscape optimization */
+        @media (orientation: landscape) {
+            .header {
+                padding: 8px 15px;
+            }
+            
+            h1 {
+                font-size: 1.1rem;
+            }
+            
+            .joystick-container {
+                bottom: 100px;
+                left: 20px;
+                width: 120px;
+                height: 120px;
+            }
+            
+            .throttle-control {
+                bottom: 100px;
+                right: 20px;
+                width: 50px;
+                height: 180px;
+            }
+            
+            .mobile-controls-bottom {
+                height: 100px;
+                padding: 10px;
+            }
+            
+            .mobile-btn {
+                padding: 8px 5px;
+                font-size: 0.8rem;
+            }
+            
+            .info-panel, .sensor-indicator {
+                top: 60px;
+                width: 160px;
+                padding: 12px;
+            }
+            
+            .gesture-hint {
+                bottom: 200px;
+                font-size: 0.8rem;
+            }
+        }
+        
+        /* Tablet optimization */
+        @media (min-width: 768px) and (max-width: 1024px) {
+            .joystick-container {
+                width: 160px;
+                height: 160px;
+                bottom: 150px;
+                left: 40px;
+            }
+            
+            .throttle-control {
+                width: 70px;
+                height: 250px;
+                bottom: 150px;
+                right: 40px;
+            }
+            
+            .mobile-controls-bottom {
+                height: 150px;
+                padding: 20px;
+            }
+            
+            .mobile-btn {
+                padding: 15px 5px;
+                font-size: 1rem;
+            }
+        }
+        
+        /* Small phones */
+        @media (max-width: 360px) {
+            .joystick-container {
+                width: 120px;
+                height: 120px;
+                bottom: 100px;
+                left: 20px;
+            }
+            
+            .throttle-control {
+                width: 50px;
+                height: 180px;
+                bottom: 100px;
+                right: 20px;
+            }
+            
+            .mobile-controls-bottom {
+                height: 100px;
+                padding: 10px;
+            }
+            
+            .mobile-btn {
+                padding: 10px 5px;
+                font-size: 0.8rem;
+            }
+            
+            .info-panel, .sensor-indicator {
+                width: 150px;
+                padding: 12px;
+            }
+        }
+        
+        /* Dark mode optimization */
+        @media (prefers-color-scheme: dark) {
+            .mobile-btn {
+                border-color: #4a6a9f;
+            }
+        }
+        
+        /* High contrast mode */
+        @media (prefers-contrast: high) {
+            .mobile-btn {
+                border-width: 3px;
+            }
+            
+            .joystick-base, .throttle-control {
+                border-width: 3px;
+            }
+        }
+        
+        /* Reduced motion */
+        @media (prefers-reduced-motion: reduce) {
+            * {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+        }
+    </style>
+</head>
+<body x-data="mobileOrbitalSimulator()" x-init="init()"
+      @touchmove.prevent @gesturestart.prevent @gesturechange.prevent @gestureend.prevent>
+    
+    <!-- Haptic Feedback Layer -->
+    <div class="haptic-feedback" x-ref="hapticLayer"></div>
+    
+    <!-- Header -->
+    <div class="header">
+        <div class="header-content">
+            <h1>🚀 ORBITAL SIM</h1>
+            <div class="connection-status">
+                <div class="status-dot"></div>
+                <span style="font-size: 0.9rem;">ONLINE</span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Main Container -->
+    <div class="main-container">
+        <!-- Performance Warning -->
+        <div class="performance-warning" x-show="performanceWarning" x-transition>
+            ⚡ PERFORMANCE MODE: Graphics reduced
+        </div>
+        
+        <!-- Simulation Area -->
+        <div class="simulation-area">
+            <canvas id="orbitCanvas"></canvas>
+            
+            <!-- Mobile Overlay Controls -->
+            <div class="mobile-overlay">
+                <!-- Joystick for Attitude Control -->
+                <div class="joystick-container" x-show="controlMode === 'touch'">
+                    <div class="joystick-base">
+                        <div class="joystick-handle" 
+                             x-ref="joystickHandle"
+                             @touchstart="joystickStart($event)"
+                             @touchmove="joystickMove($event)"
+                             @touchend="joystickEnd($event)"
+                             @touchcancel="joystickEnd($event)"
+                             :style="`left: ${joystickPosition.x}%; top: ${joystickPosition.y}%`">
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Throttle Control -->
+                <div class="throttle-control" x-show="controlMode === 'touch'">
+                    <div class="throttle-track">
+                        <div class="throttle-fill" :style="`height: ${throttle}%`"></div>
+                    </div>
+                    <div class="throttle-handle"
+                         x-ref="throttleHandle"
+                         @touchstart="throttleStart($event)"
+                         @touchmove="throttleMove($event)"
+                         @touchend="throttleEnd($event)"
+                         @touchcancel="throttleEnd($event)"
+                         :style="`bottom: ${throttle}%`">
+                    </div>
+                </div>
+                
+                <!-- Gesture Hint -->
+                <div class="gesture-hint" x-show="showGestureHint && !paused" x-transition>
+                    👆 Pinch to zoom • ✊ Hold for RCS • 📱 Tilt to steer
+                </div>
+                
+                <!-- Info Panel -->
+                <div class="info-panel" @touchstart="togglePanel('info')">
+                    <div class="info-item">
+                        <span class="info-label">ALT</span>
+                        <span class="info-value" x-text="Math.round(craftAltitude) + ' km'"></span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">VEL</span>
+                        <span class="info-value" x-text="Math.round(craftVelocity) + ' m/s'"></span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">FUEL</span>
+                        <span class="info-value" x-text="Math.round(fuel) + ' kg'"></span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">ΔV</span>
+                        <span class="info-value" x-text="deltaV.toFixed(1) + ' m/s'"></span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">DIST</span>
+                        <span class="info-value" x-text="Math.round(distance) + ' m'"></span>
+                    </div>
+                </div>
+                
+                <!-- Sensor Indicator -->
+                <div class="sensor-indicator" 
+                     @touchstart="togglePanel('sensor')"
+                     :class="sensorAvailable ? 'sensor-active' : 'sensor-inactive'">
+                    <div class="sensor-data">
+                        <div>SENSOR: <span class="sensor-value" x-text="sensorAvailable ? 'ACTIVE' : 'OFFLINE'"></span></div>
+                        <div x-show="sensorAvailable">MODE: <span class="sensor-value" x-text="controlMode === 'sensor' ? 'TILT' : 'TOUCH'"></span></div>
+                        <div x-show="sensorAvailable && controlMode === 'sensor'">
+                            PITCH: <span class="sensor-value" x-text="sensorPitch.toFixed(1) + '°'"></span>
+                        </div>
+                        <div x-show="sensorAvailable && controlMode === 'sensor'">
+                            ROLL: <span class="sensor-value" x-text="sensorRoll.toFixed(1) + '°'"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Bottom Controls -->
+        <div class="mobile-controls-bottom">
+            <div class="control-row">
+                <button class="mobile-btn primary-btn" 
+                        @touchstart="engineActive = true" 
+                        @touchend="engineActive = false"
+                        @touchcancel="engineActive = false">
+                    🚀 ENGINE
+                </button>
+                <button class="mobile-btn" 
+                        @touchstart="activateRCS('pitch_up')"
+                        @touchend="deactivateRCS('pitch_up')"
+                        @touchcancel="deactivateRCS('pitch_up')">
+                    PITCH ↑
+                </button>
+                <button class="mobile-btn" 
+                        @touchstart="activateRCS('yaw_left')"
+                        @touchend="deactivateRCS('yaw_left')"
+                        @touchcancel="deactivateRCS('yaw_left')">
+                    YAW ←
+                </button>
+                <button class="mobile-btn" 
+                        @touchstart="activateRCS('roll_left')"
+                        @touchend="deactivateRCS('roll_left')"
+                        @touchcancel="deactivateRCS('roll_left')">
+                    ROLL ↶
+                </button>
+            </div>
+            
+            <div class="control-row">
+                <button class="mobile-btn" @click="togglePause()">
+                    <span x-text="paused ? '▶ PLAY' : '⏸ PAUSE'"></span>
+                </button>
+                <button class="mobile-btn" 
+                        @touchstart="activateRCS('pitch_down')"
+                        @touchend="deactivateRCS('pitch_down')"
+                        @touchcancel="deactivateRCS('pitch_down')">
+                    PITCH
+                </button>
+                <button class="mobile-btn" 
+                        @touchstart="activateRCS('yaw_right')"
+                        @touchend="deactivateRCS('yaw_right')"
+                        @touchcancel="deactivateRCS('yaw_right')">
+                    YAW
+                </button>
+                <button class="mobile-btn" 
+                        @touchstart="activateRCS('roll_right')"
+                        @touchend="deactivateRCS('roll_right')"
+                        @touchcancel="deactivateRCS('roll_right')">
+                    ROLL
+                </button>
+            </div>
+            
+            <div class="control-row">
+                <button class="mobile-btn" @click="openControlModal()">
+                    CONTROLS
+                </button>
+                <button class="mobile-btn" @click="toggleTimeWarp()">
+                    <span x-text="`TIME x${timeWarp}`"></span>
+                </button>
+                <button class="mobile-btn danger-btn" @click="emergencyStop()">
+                     STOP
+                </button>
+                <button class="mobile-btn" @click="resetSimulation()">
+                     RESET
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Notification -->
+    <div class="notification" :class="{ 'active': notification.show }" x-transition>
+        <h3 x-text="notification.title"></h3>
+        <p x-text="notification.message"></p>
+        <div style="margin-top: 15px;">
+            <button class="mobile-btn" @click="notification.show = false">OK</button>
+        </div>
+    </div>
+    
+    <!-- Control Modal -->
+    <div class="modal-overlay" :class="{ 'active': showControlModal }" @click.self="showControlModal = false">
+        <div class="modal">
+            <div class="modal-header">
+                <h2 style="color: #4cc9f0;">Control Settings</h2>
+                <button class="close-modal" @click="showControlModal = false">×</button>
+            </div>
+            
+            <div style="margin-bottom: 20px;">
+                <h3 style="color: #72efdd; margin-bottom: 10px;">Control Mode</h3>
+                <div class="control-presets">
+                    <div class="preset-btn" 
+                         :class="{ 'active': controlMode === 'touch' }"
+                         @click="setControlMode('touch')">
+                        <div style="font-size: 2rem;">👆</div>
+                        <div>Touch Controls</div>
+                    </div>
+                    
+                    <div class="preset-btn"
+                         :class="{ 'active': controlMode === 'sensor' }"
+                         @click="setControlMode('sensor')">
+                        <div style="font-size: 2rem;">📱</div>
+                        <div>Device Tilt</div>
+                    </div>
+                    
+                    <div class="preset-btn"
+                         :class="{ 'active': controlMode === 'hybrid' }"
+                         @click="setControlMode('hybrid')">
+                        <div style="font-size: 2rem;">🔗</div>
+                        <div>Hybrid Mode</div>
+                    </div>
+                    
+                    <div class="preset-btn"
+                         :class="{ 'active': controlMode === 'auto' }"
+                         @click="setControlMode('auto')">
+                        <div style="font-size: 2rem;">🤖</div>
+                        <div>Auto-pilot</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div style="margin-bottom: 20px;">
+                <h3 style="color: #72efdd; margin-bottom: 10px;">Sensitivity</h3>
+                <input type="range" min="1" max="10" step="1" x-model="sensitivity"
+                       style="width: 100%; margin: 10px 0;">
+                <div style="display: flex; justify-content: space-between; font-size: 0.9rem;">
+                    <span>Low</span>
+                    <span x-text="sensitivity"></span>
+                    <span>High</span>
+                </div>
+            </div>
+            
+            <div style="margin-bottom: 20px;">
+                <h3 style="color: #72efdd; margin-bottom: 10px;">Haptic Feedback</h3>
+                <div style="display: flex; justify-content: space-between;">
+                    <span>Vibration:</span>
+                    <label style="display: flex; align-items: center;">
+                        <input type="checkbox" x-model="hapticEnabled" style="margin-right: 8px;">
+                        <span x-text="hapticEnabled ? 'ON' : 'OFF'"></span>
+                    </label>
+                </div>
+            </div>
+            
+            <div style="margin-bottom: 20px;">
+                <h3 style="color: #72efdd; margin-bottom: 10px;">Graphics Quality</h3>
+                <div style="display: flex; gap: 10px;">
+                    <button class="mobile-btn" 
+                            :class="{ 'primary-btn': graphicsQuality === 'low' }"
+                            @click="setGraphicsQuality('low')">
+                        Low
+                    </button>
+                    <button class="mobile-btn"
+                            :class="{ 'primary-btn': graphicsQuality === 'medium' }"
+                            @click="setGraphicsQuality('medium')">
+                        Medium
+                    </button>
+                    <button class="mobile-btn"
+                            :class="{ 'primary-btn': graphicsQuality === 'high' }"
+                            @click="setGraphicsQuality('high')">
+                        High
+                    </button>
+                </div>
+            </div>
+            
+            <button class="mobile-btn" style="width: 100%;" @click="calibrateSensors()">
+                Calibrate Sensors
+            </button>
+        </div>
+    </div>
+
+    <script>
+        function mobileOrbitalSimulator() {
+            return {
+                // Mobile-specific state
+                controlMode: 'touch', // 'touch', 'sensor', 'hybrid', 'auto'
+                sensitivity: 5,
+                hapticEnabled: true,
+                graphicsQuality: 'medium',
+                performanceWarning: false,
+                
+                // Sensor state
+                sensorAvailable: false,
+                sensorCalibrated: false,
+                sensorPitch: 0,
+                sensorRoll: 0,
+                calibrationOffset: { pitch: 0, roll: 0 },
+                
+                // Touch state
+                joystickActive: false,
+                joystickPosition: { x: 50, y: 50 },
+                joystickBase: { x: 0, y: 0, width: 0, height: 0 },
+                throttleDragging: false,
+                
+                // Gesture state
+                gestureStartDistance: 0,
+                gestureStartScale: 1,
+                currentScale: 1,
+                longPressTimeout: null,
+                showGestureHint: true,
+                
+                // UI state
+                showControlModal: false,
+                notification: {
+                    show: false,
+                    title: '' ,
+                    message: '' 
+                },
+                
+                // Inherited simulation state
+                paused: false,
+                engineActive: false,
+                throttle: 50,
+                fuel: 5000,
+                distance: 0,
+                deltaV: 0,
+                craftVelocity: 0,
+                craftAltitude: 0,
+                timeWarp: 1,
+                
+                // Simulation objects (simplified for mobile)
+                moon: {
+                    radius: 1737400,
+                    mu: 4.9048695e12,
+                    color: '#888888'
+                },
+                
+                satellite: {
+                    x: 0,
+                    y: 2000000,
+                    vx: 1500,
+                    vy: 0,
+                    radius: 10,
+                    color: '#4cc9f0'
+                },
+                
+                craft: {
+                    x: 0,
+                    y: 1800000,
+                    vx: 1600,
+                    vy: 0,
+                    rotation: 0,
+                    angularVelocity: 0,
+                    mass: 10000,
+                    fuel: 5000,
+                    color: '#f72585'
+                },
+                
+                // Physics
+                lastTime: 0,
+                physicsTime: 0,
+                
+                // Canvas
+                ctx: null,
+                canvas: null,
+                
+                // RCS state
+                rcsState: {
+                    pitch_up: false,
+                    pitch_down: false,
+                    yaw_left: false,
+                    yaw_right: false,
+                    roll_left: false,
+                    roll_right: false
+                },
+                
+                init() {
+                    this.setupCanvas();
+                    this.setupTouchEvents();
+                    this.setupSensorEvents();
+                    this.setupGestureEvents();
+                    this.checkPerformance();
+                    
+                    // Hide gesture hint after 5 seconds
+                    setTimeout(() => {
+                        this.showGestureHint = false;
+                    }, 1000);
+                    
+                    // Start animation loop
+                    this.lastTime = performance.now();
+                    requestAnimationFrame(this.animate.bind(this));
+                },
+                
+                setupCanvas() {
+                    this.canvas = document.getElementById('orbitCanvas');
+                    this.ctx = this.canvas.getContext('2d');
+                    this.resizeCanvas();
+                    
+                    window.addEventListener('resize', () => {
+                        this.resizeCanvas();
+                    });
+                    
+                    // Prevent context menu on long press
+                    this.canvas.addEventListener('contextmenu', (e) => {
+                        e.preventDefault();
+                        return false;
+                    });
+                },
+                
+                resizeCanvas() {
+                    const dpr = window.devicePixelRatio || 1;
+                    const rect = this.canvas.parentElement.getBoundingClientRect();
+                    
+                    this.canvas.width = rect.width * dpr;
+                    this.canvas.height = rect.height * dpr;
+                    this.canvas.style.width = rect.width + 'px';
+                    this.canvas.style.height = rect.height + 'px';
+                    
+                    this.ctx.scale(dpr, dpr);
+                },
+                
+                setupTouchEvents() {
+                    // Multi-touch gesture support
+                    this.canvas.addEventListener('touchstart', (e) => {
+                        if (e.touches.length === 2) {
+                            this.handlePinchStart(e);
+                        } else if (e.touches.length === 1 && !this.joystickActive && !this.throttleDragging) {
+                            // Single touch for camera pan
+                            this.handlePanStart(e);
+                        }
+                    });
+                    
+                    this.canvas.addEventListener('touchmove', (e) => {
+                        e.preventDefault();
+                        
+                        if (e.touches.length === 2) {
+                            this.handlePinchMove(e);
+                        } else if (e.touches.length === 1 && !this.joystickActive && !this.throttleDragging) {
+                            this.handlePanMove(e);
+                        }
+                    });
+                    
+                    this.canvas.addEventListener('touchend', (e) => {
+                        if (e.touches.length < 2) {
+                            this.handlePinchEnd(e);
+                        }
+                        this.handlePanEnd(e);
+                    });
+                    
+                    // Long press for RCS activation
+                    this.canvas.addEventListener('touchstart', (e) => {
+                        if (e.touches.length === 1) {
+                            this.longPressTimeout = setTimeout(() => {
+                                this.activateLongPressRCS(e);
+                            }, 100);
+                        }
+                    });
+                    
+                    this.canvas.addEventListener('touchend', (e) => {
+                        clearTimeout(this.longPressTimeout);
+                        this.deactivateLongPressRCS();
+                    });
+                    
+                    this.canvas.addEventListener('touchcancel', (e) => {
+                        clearTimeout(this.longPressTimeout);
+                        this.deactivateLongPressRCS();
+                    });
+                },
+                
+                setupSensorEvents() {
+                    // Check for device orientation support
+                    if (typeof DeviceOrientationEvent !== 'undefined' && 
+                        typeof DeviceOrientationEvent.requestPermission === 'function') {
+                        
+                        // iOS 13+ requires permission
+                        this.sensorAvailable = false;
+                        this.showNotification(
+                            'Sensors Locked',
+                            'Tap to enable device motion controls'
+                        );
+                        
+                        // Add click listener to request permission
+                        document.addEventListener('click', () => {
+                            this.requestSensorPermission();
+                        }, { once: true });
+                        
+                    } else if ('ondeviceorientation' in window) {
+                        // Android and other browsers
+                        this.sensorAvailable = true;
+                        window.addEventListener('deviceorientation', this.handleDeviceOrientation.bind(this));
+                    }
+                    
+                    // Also check for device motion
+                    if ('ondevicemotion' in window) {
+                        window.addEventListener('devicemotion', this.handleDeviceMotion.bind(this));
+                    }
+                },
+                
+                setupGestureEvents() {
+                    // Prevent zoom gestures
+                    document.addEventListener('gesturestart', (e) => e.preventDefault());
+                    document.addEventListener('gesturechange', (e) => e.preventDefault());
+                    document.addEventListener('gestureend', (e) => e.preventDefault());
+                },
+                
+                requestSensorPermission() {
+                    if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+                        DeviceOrientationEvent.requestPermission()
+                            .then(permissionState => {
+                                if (permissionState === 'granted') {
+                                    this.sensorAvailable = true;
+                                    window.addEventListener('deviceorientation', this.handleDeviceOrientation.bind(this));
+                                    this.showNotification('Sensors Active', 'Tilt controls enabled!');
+                                    this.vibrate([50]);
+                                }
+                            })
+                            .catch(console.error);
+                    }
+                },
+                
+                handleDeviceOrientation(event) {
+                    if (!this.sensorAvailable || this.controlMode === 'touch') return;
+                    
+                    // Get tilt data (beta = front-to-back, gamma = left-to-right)
+                    let pitch = event.beta; // -180 to 180
+                    let roll = event.gamma; // -90 to 90
+                    
+                    // Handle null values
+                    if (pitch === null || roll === null) return;
+                    
+                    // Apply calibration offset
+                    pitch -= this.calibrationOffset.pitch;
+                    roll -= this.calibrationOffset.roll;
+                    
+                    // Dead zone
+                    const deadZone = 5;
+                    
+                    // Map tilt to RCS controls with sensitivity
+                    const sensitivity = this.sensitivity / 5;
+                    
+                    if (pitch < -deadZone) {
+                        this.rcsState.pitch_up = true;
+                        this.rcsState.pitch_down = false;
+                        this.craft.angularVelocity = (pitch / 90) * sensitivity * 0.1;
+                    } else if (pitch > deadZone) {
+                        this.rcsState.pitch_up = false;
+                        this.rcsState.pitch_down = true;
+                        this.craft.angularVelocity = (pitch / 90) * sensitivity * 0.1;
+                    } else {
+                        this.rcsState.pitch_up = false;
+                        this.rcsState.pitch_down = false;
+                    }
+                    
+                    if (roll < -deadZone) {
+                        this.rcsState.roll_left = true;
+                        this.rcsState.roll_right = false;
+                    } else if (roll > deadZone) {
+                        this.rcsState.roll_left = false;
+                        this.rcsState.roll_right = true;
+                    } else {
+                        this.rcsState.roll_left = false;
+                        this.rcsState.roll_right = false;
+                    }
+                    
+                    this.sensorPitch = pitch;
+                    this.sensorRoll = roll;
+                },
+                
+                handleDeviceMotion(event) {
+                    // Use accelerometer for additional input if needed
+                    if (event.accelerationIncludingGravity && this.controlMode === 'sensor') {
+                        // Can be used for translation controls
+                    }
+                },
+                
+                calibrateSensors() {
+                    if (!this.sensorAvailable) {
+                        this.showNotification('No Sensors', 'Device sensors not available');
+                        return;
+                    }
+                    
+                    // For now, just reset calibration
+                    this.calibrationOffset.pitch = this.sensorPitch;
+                    this.calibrationOffset.roll = this.sensorRoll;
+                    this.sensorCalibrated = true;
+                    
+                    this.showNotification('Calibrated', 'Sensors calibrated to current position');
+                    this.vibrate([100, 50, 100]);
+                },
+                
+                handlePinchStart(e) {
+                    e.preventDefault();
+                    const touches = e.touches;
+                    this.gestureStartDistance = Math.hypot(
+                        touches[0].clientX - touches[1].clientX,
+                        touches[0].clientY - touches[1].clientY
+                    );
+                    this.gestureStartScale = this.currentScale;
+                },
+                
+                handlePinchMove(e) {
+                    e.preventDefault();
+                    if (e.touches.length !== 2) return;
+                    
+                    const touches = e.touches;
+                    const currentDistance = Math.hypot(
+                        touches[0].clientX - touches[1].clientX,
+                        touches[0].clientY - touches[1].clientY
+                    );
+                    
+                    if (this.gestureStartDistance > 0) {
+                        this.currentScale = this.gestureStartScale * (currentDistance / this.gestureStartDistance);
+                        this.currentScale = Math.max(0.1, Math.min(5, this.currentScale));
+                    }
+                },
+                
+                handlePinchEnd(e) {
+                    this.gestureStartDistance = 0;
+                    this.vibrate([30]);
+                },
+                
+                handlePanStart(e) {
+                    // Could be implemented for camera movement
+                },
+                
+                handlePanMove(e) {
+                    // Could be implemented for camera movement
+                },
+                
+                handlePanEnd(e) {
+                    // Reset pan state
+                },
+                
+                activateLongPressRCS(e) {
+                    // Activate all RCS for translation
+                    Object.keys(this.rcsState).forEach(key => {
+                        this.rcsState[key] = true;
+                    });
+                    this.showNotification('RCS ACTIVE', 'All thrusters firing');
+                    this.vibrate([200]);
+                },
+                
+                deactivateLongPressRCS() {
+                    // Deactivate all RCS
+                    Object.keys(this.rcsState).forEach(key => {
+                        this.rcsState[key] = false;
+                    });
+                },
+                
+                // Touch control handlers
+                joystickStart(e) {
+                    e.preventDefault();
+                    this.joystickActive = true;
+                    const rect = e.target.getBoundingClientRect();
+                    this.joystickBase = {
+                        x: rect.left + rect.width / 2,
+                        y: rect.top + rect.height / 2,
+                        width: rect.width,
+                        height: rect.height
+                    };
+                    this.joystickMove(e);
+                },
+                
+                joystickMove(e) {
+                    if (!this.joystickActive) return;
+                    e.preventDefault();
+                    
+                    const touch = e.touches[0];
+                    const deltaX = touch.clientX - this.joystickBase.x;
+                    const deltaY = touch.clientY - this.joystickBase.y;
+                    
+                    // Limit joystick movement to base radius
+                    const maxRadius = this.joystickBase.width / 2;
+                    const distance = Math.min(Math.hypot(deltaX, deltaY), maxRadius);
+                    const angle = Math.atan2(deltaY, deltaX);
+                    
+                    const x = (distance * Math.cos(angle) / maxRadius) * 50 + 50;
+                    const y = (distance * Math.sin(angle) / maxRadius) * 50 + 50;
+                    
+                    this.joystickPosition = { x, y };
+                    
+                    // Map joystick to RCS controls
+                    const sensitivity = this.sensitivity / 10;
+                    
+                    // Pitch control (vertical)
+                    if (deltaY < -20) {
+                        this.rcsState.pitch_up = true;
+                        this.rcsState.pitch_down = false;
+                        this.craft.angularVelocity = (deltaY / maxRadius) * sensitivity * 0.2;
+                    } else if (deltaY > 20) {
+                        this.rcsState.pitch_up = false;
+                        this.rcsState.pitch_down = true;
+                        this.craft.angularVelocity = (deltaY / maxRadius) * sensitivity * 0.2;
+                    } else {
+                        this.rcsState.pitch_up = false;
+                        this.rcsState.pitch_down = false;
+                    }
+                    
+                    // Yaw control (horizontal)
+                    if (deltaX < -20) {
+                        this.rcsState.yaw_left = true;
+                        this.rcsState.yaw_right = false;
+                    } else if (deltaX > 20) {
+                        this.rcsState.yaw_left = false;
+                        this.rcsState.yaw_right = true;
+                    } else {
+                        this.rcsState.yaw_left = false;
+                        this.rcsState.yaw_right = false;
+                    }
+                    
+                    // Provide haptic feedback based on position
+                    if (distance > maxRadius * 0.8 && this.hapticEnabled) {
+                        this.vibrate([20]);
+                    }
+                },
+                
+                joystickEnd(e) {
+                    this.joystickActive = false;
+                    this.joystickPosition = { x: 50, y: 50 };
+                    
+                    // Reset RCS states
+                    this.rcsState.pitch_up = false;
+                    this.rcsState.pitch_down = false;
+                    this.rcsState.yaw_left = false;
+                    this.rcsState.yaw_right = false;
+                    this.craft.angularVelocity *= 0.5; // Damping
+                    
+                    if (this.hapticEnabled) {
+                        this.vibrate([10]);
+                    }
+                },
+                
+                throttleStart(e) {
+                    e.preventDefault();
+                    this.throttleDragging = true;
+                    this.throttleMove(e);
+                },
+                
+                throttleMove(e) {
+                    if (!this.throttleDragging) return;
+                    e.preventDefault();
+                    
+                    const touch = e.touches[0];
+                    const rect = e.target.getBoundingClientRect();
+                    const relativeY = rect.bottom - touch.clientY;
+                    const height = rect.height - 40; // Account for handle height
+                    
+                    let throttle = (relativeY / height) * 100;
+                    throttle = Math.max(0, Math.min(100, throttle));
+                    
+                    this.throttle = Math.round(throttle);
+                    
+                    // Haptic feedback at certain intervals
+                    if (this.hapticEnabled && this.throttle % 25 === 0) {
+                        this.vibrate([15]);
+                    }
+                },
+                
+                throttleEnd(e) {
+                    this.throttleDragging = false;
+                    if (this.hapticEnabled) {
+                        this.vibrate([30]);
+                    }
+                },
+                
+                // RCS control methods
+                activateRCS(direction) {
+                    this.rcsState[direction] = true;
+                    if (this.hapticEnabled) {
+                        this.vibrate([20]);
+                    }
+                },
+                
+                deactivateRCS(direction) {
+                    this.rcsState[direction] = false;
+                },
+                
+                // Control mode management
+                setControlMode(mode) {
+                    this.controlMode = mode;
+                    
+                    // Reset controls when changing modes
+                    Object.keys(this.rcsState).forEach(key => {
+                        this.rcsState[key] = false;
+                    });
+                    
+                    this.showControlModal = false;
+                    
+                    switch(mode) {
+                        case 'sensor':
+                            if (!this.sensorAvailable) {
+                                this.showNotification('Sensors Required', 'Device sensors not available');
+                                this.controlMode = 'touch';
+                                return;
+                            }
+                            this.showNotification('Tilt Controls', 'Tilt device to steer');
+                            break;
+                        case 'auto':
+                            this.showNotification('Auto-pilot', 'Automatic rendezvous engaged');
+                            break;
+                        default:
+                            this.showNotification('Touch Controls', 'Use joystick and buttons');
+                    }
+                    
+                    this.vibrate([100]);
+                },
+                
+                setGraphicsQuality(quality) {
+                    this.graphicsQuality = quality;
+                    this.checkPerformance();
+                },
+                
+                checkPerformance() {
+                    // Simple performance check based on device
+                    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+                    const isLowEnd = navigator.hardwareConcurrency <= 4 || 
+                                    (navigator.deviceMemory && navigator.deviceMemory <= 4);
+                    
+                    if (isMobile && isLowEnd && this.graphicsQuality !== 'low') {
+                        this.performanceWarning = true;
+                        setTimeout(() => {
+                            this.performanceWarning = false;
+                        }, 1000);
+                    }
+                },
+                
+                // Physics simulation (simplified for mobile)
+                animate(currentTime) {
+                    if (!this.paused) {
+                        const deltaTime = (currentTime - this.lastTime) / 1000;
+                        this.physicsTime += deltaTime * this.timeWarp;
+                        
+                        this.updatePhysics(deltaTime * this.timeWarp);
+                        this.updateDerivedValues();
+                    }
+                    
+                    this.drawScene();
+                    
+                    this.lastTime = currentTime;
+                    requestAnimationFrame(this.animate.bind(this));
+                },
+                
+                updatePhysics(deltaTime) {
+                    // Simplified orbital mechanics for mobile
+                    const G = 6.67430e-11;
+                    const moonMass = 7.342e22;
+                    
+                    // Distance from Moon center
+                    const r = Math.sqrt(this.craft.x**2 + this.craft.y**2);
+                    
+                    // Gravity force
+                    const gForce = (G * moonMass) / (r**2);
+                    const gx = (-this.craft.x / r) * gForce;
+                    const gy = (this.craft.y / r) * gForce;
+                    
+                    // Engine thrust
+                    if (this.engineActive && this.fuel > 0) {
+                        const thrust = (this.throttle / 100) * 50000*9.81;
+                        const fuelConsumption = thrust * deltaTime / (300*9.81 );
+                        
+                        if (fuelConsumption <= this.fuel) {
+                            this.fuel -= fuelConsumption;
+                            this.craft.mass = 5000 + this.fuel;
+                            
+                            const thrustAngle = -this.craft.rotation * Math.PI / 180;
+                            const thrustX = Math.cos(thrustAngle) * thrust / this.craft.mass;
+                            const thrustY = Math.sin(thrustAngle) * thrust / this.craft.mass;
+                            
+                            this.craft.vx += (gx + thrustX) * deltaTime;
+                            this.craft.vy += (gy  + thrustY) * deltaTime;
+                        } else {
+                            this.engineActive = false;
+                        }
+                    } else {
+                        this.craft.vx += gx * deltaTime;
+                        this.craft.vy += gy * deltaTime;
+                    }
+                    
+                    // RCS forces
+                    const rcsForce = 100;
+                    if (this.rcsState.pitch_up) {
+                        this.craft.angularVelocity -= 0.05 * deltaTime;
+                    }
+                    if (this.rcsState.pitch_down) {
+                        this.craft.angularVelocity += 0.05 * deltaTime;
+                    }
+                    if (this.rcsState.yaw_left) {
+                        // Simplified yaw effect
+                        this.craft.rotation -= 1 * deltaTime;
+                    }
+                    if (this.rcsState.yaw_right) {
+                        this.craft.rotation += 1 * deltaTime;
+                    }
+                    
+                    // Apply rotation
+                    this.craft.rotation += this.craft.angularVelocity * (180/ Math.PI) * deltaTime;
+                    this.craft.rotation %= 360;
+                    
+                    // Damping
+                    this.craft.angularVelocity *= 0.95;
+                    
+                    // Update position
+                    this.craft.x += this.craft.vx * deltaTime;
+                    this.craft.y += this.craft.vy * deltaTime;
+                    
+                    // Update satellite (simple circular orbit)
+                    const satAngle = this.physicsTime * 0.0001;
+                    this.satellite.x = 2000000 * Math.cos(satAngle);
+                    this.satellite.y = 2000000 * Math.sin(satAngle);
+                    this.satellite.vx = -1500 * Math.sin(satAngle);
+                    this.satellite.vy = 1500 * Math.cos(satAngle);
+                },
+                
+                updateDerivedValues() {
+                    // Distance to target
+                    const dx = this.craft.x - this.satellite.x;
+                    const dy = this.craft.y - this.satellite.y;
+                    this.distance = Math.sqrt(dx**2 + dy**2);
+                    
+                    // Relative velocity
+                    const dvx = this.craft.vx - this.satellite.vx;
+                    const dvy = this.craft.vy - this.satellite.vy;
+                    this.deltaV = Math.sqrt(dvx**2 + dvy**2);
+                    
+                    // Craft velocity
+                    this.craftVelocity = Math.sqrt(this.craft.vx**2 + this.craft.vy**2);
+                    
+                    // Craft altitude
+                    const craftRadius = Math.sqrt(this.craft.x**2 + this.craft.y**2);
+                    this.craftAltitude = (craftRadius - this.moon.radius) / 1000;
+                    
+                    // Success condition
+                    if (this.distance < 50 && this.deltaV < 0.5) {
+                        this.showNotification('SUCCESS!', 'Rendezvous achieved!');
+                        this.vibrate([100, 50, 100, 50, 100]);
+                    }
+                },
+                
+                drawScene() {
+                    const ctx = this.ctx;
+                    const width = this.canvas.width / window.devicePixelRatio;
+                    const height = this.canvas.height / window.devicePixelRatio;
+                    
+                    // Clear with space background
+                    ctx.fillStyle = '#000814';
+                    ctx.fillRect(0, 0, width, height);
+                    
+                    // Draw stars based on graphics quality
+                    this.drawStars(ctx, width, height);
+                    
+                    // Calculate scale and center
+                    const centerX = width / 2;
+                    const centerY = height / 2;
+                    const scale = this.calculateScale(width, height);
+                    
+                    // Draw Moon
+                    this.drawMoon(ctx, centerX, centerY, scale);
+                    
+                    // Draw orbits
+                    this.drawOrbit(ctx, centerX, centerY, scale);
+                    
+                    // Draw satellite
+                    this.drawSatellite(ctx, centerX, centerY, scale);
+                    
+                    // Draw spacecraft
+                    this.drawSpacecraft(ctx, centerX, centerY, scale);
+                    
+                    // Draw thrust effects
+                    if (this.engineActive && this.fuel > 0) {
+                        this.drawThrust(ctx, centerX, centerY, scale);
+                    }
+                    
+                    // Draw RCS effects
+                    this.drawRCSEffects(ctx, centerX, centerY, scale);
+                    
+                    // Draw trajectory line
+                    this.drawTrajectory(ctx, centerX, centerY, scale);
+                },
+                
+                drawStars(ctx, width, height) {
+                    const starCount = this.graphicsQuality === 'high' ? 200 : 
+                                     this.graphicsQuality === 'medium' ? 100 : 50;
+                    
+                    for (let i = 0; i < starCount; i++) {
+                        const x = Math.random() * width;
+                        const y = Math.random() * height;
+                        const size = Math.random() * 1.5;
+                        const alpha = 0.3 + Math.random() * 0.7;
+                        
+                        ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+                        ctx.beginPath();
+                        ctx.arc(x, y, size, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                },
+                
+                calculateScale(width, height) {
+                    const maxDistance = Math.max(
+                        Math.abs(this.craft.x),
+                        Math.abs(this.craft.y),
+                        Math.abs(this.satellite.x),
+                        Math.abs(this.satellite.y),
+                        2000000
+                    );
+                    
+                    const baseScale = Math.min(width, height) / (maxDistance * 2.5);
+                    return baseScale * this.currentScale;
+                },
+                
+                drawMoon(ctx, centerX, centerY, scale) {
+                    const moonRadius = this.moon.radius * scale;
+                    
+                    // Moon gradient
+                    const gradient = ctx.createRadialGradient(
+                        centerX, centerY, 0,
+                        centerX, centerY, moonRadius
+                    );
+                    gradient.addColorStop(0, '#aaaaaa');
+                    gradient.addColorStop(1, '#666666');
+                    
+                    ctx.fillStyle = gradient;
+                    ctx.beginPath();
+                    ctx.arc(centerX, centerY, moonRadius, 0, Math.PI * 2);
+                    ctx.fill();
+                },
+                
+                drawOrbit(ctx, centerX, centerY, scale) {
+                    // Satellite orbit
+                    ctx.strokeStyle = 'rgba(76, 201, 240, 0.3)';
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.arc(centerX, centerY, 2000000 * scale, 0, Math.PI * 2);
+                    ctx.stroke();
+                },
+                
+                drawSatellite(ctx, centerX, centerY, scale) {
+                    const x = centerX + this.satellite.x * scale;
+                    const y = centerY + this.satellite.y * scale;
+                    
+                    ctx.fillStyle = this.satellite.color;
+                    ctx.beginPath();
+                    ctx.arc(x, y, 8, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    // Solar panels
+                    ctx.fillStyle = '#2a8faf';
+                    ctx.fillRect(x - 12, y - 4, 6, 8);
+                    ctx.fillRect(x + 6, y - 4, 6, 8);
+                },
+                
+                drawSpacecraft(ctx, centerX, centerY, scale) {
+                    const x = centerX + this.craft.x * scale;
+                    const y = centerY + this.craft.y * scale;
+                    
+                    ctx.save();
+                    ctx.translate(x, y);
+                    ctx.rotate(this.craft.rotation * Math.PI / 180);
+                    
+                    // Main body
+                    ctx.fillStyle = this.craft.color;
+                    ctx.beginPath();
+                    ctx.moveTo(0, -10);
+                    ctx.lineTo(-8, 10);
+                    ctx.lineTo(0, 6);
+                    ctx.lineTo(8, 10);
+                    ctx.closePath();
+                    ctx.fill();
+                    
+                    // Cockpit
+                    ctx.fillStyle = '#a0e7ff';
+                    ctx.beginPath();
+                    ctx.arc(0, -3, 4, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    ctx.restore();
+                },
+                
+                drawThrust(ctx, centerX, centerY, scale) {
+                    const x = centerX + this.craft.x * scale;
+                    const y = centerY + this.craft.y * scale;
+                    const angle = this.craft.rotation * Math.PI / 180;
+                    const thrustLength = 20 + (this.throttle / 100) * 30;
+                    
+                    ctx.save();
+                    ctx.translate(x, y);
+                    ctx.rotate(angle);
+                    
+                    // Thrust plume
+                    const gradient = ctx.createLinearGradient(0, 0, 0, thrustLength);
+                    gradient.addColorStop(0, '#ffff00');
+                    gradient.addColorStop(0.5, '#ff7700');
+                    gradient.addColorStop(1, 'rgba(255, 0, 0, 0)');
+                    
+                    ctx.fillStyle = gradient;
+                    ctx.beginPath();
+                    ctx.moveTo(-6, 10);
+                    ctx.lineTo(6, 10);
+                    ctx.lineTo(0, 10 + thrustLength);
+                    ctx.closePath();
+                    ctx.fill();
+                    
+                    ctx.restore();
+                },
+                
+                drawRCSEffects(ctx, centerX, centerY, scale) {
+                    // Draw RCS thrusters if active
+                    //drawThrust(ctx, centerX, centerY, scale);
+                    // Implementation would be similar to desktop version but simplified
+                },
+                
+                drawTrajectory(ctx, centerX, centerY, scale) {
+                    // Simple trajectory line
+                    ctx.strokeStyle = 'rgba(247, 37, 133, 0.5)';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.moveTo(centerX, centerY);
+                    ctx.lineTo(
+                        centerX + this.craft.x * scale,
+                        centerY + this.craft.y * scale
+                    );
+                    ctx.stroke();
+                },
+                
+                // Utility methods
+                vibrate(pattern) {
+                    if (!this.hapticEnabled || !navigator.vibrate) return;
+                    try {
+                        navigator.vibrate(pattern);
+                    } catch (e) {
+                        // Vibration not supported
+                    }
+                },
+                
+                showNotification(title, message) {
+                    this.notification.title = title;
+                    this.notification.message = message;
+                    this.notification.show = true;
+                    
+                    setTimeout(() => {
+                        this.notification.show = false;
+                    }, 3000);
+                },
+                
+                togglePanel(panel) {
+                    // Simple panel toggle for mobile
+                    this.vibrate([30]);
+                },
+                
+                openControlModal() {
+                    this.showControlModal = true;
+                    this.vibrate([30]);
+                },
+                
+                togglePause() {
+                    this.paused = !this.paused;
+                    this.vibrate([50]);
+                },
+                
+                toggleTimeWarp() {
+                    const warps = [0.5, 1, 2, 5, 10];
+                    const currentIndex = warps.indexOf(this.timeWarp);
+                    this.timeWarp = warps[(currentIndex + 1) % warps.length];
+                    this.vibrate([30]);
+                },
+                
+                emergencyStop() {
+                    this.engineActive = false;
+                    this.craft.angularVelocity = 0;
+                    this.vibrate([200, 100, 200]);
+                    this.showNotification('EMERGENCY STOP', 'All systems halted');
+                },
+                
+                resetSimulation() {
+                    this.engineActive = false;
+                    this.fuel = 5000;
+                    this.throttle = 50;
+                    this.craft.x = 0;
+                    this.craft.y = 1800000;
+                    this.craft.vx = 1600;
+                    this.craft.vy = 0;
+                    this.craft.rotation = 0;
+                    this.craft.angularVelocity = 0;
+                    this.physicsTime = 0;
+                    this.vibrate([100, 50, 100]);
+                    this.showNotification('RESET', 'Simulation reset to initial conditions');
+                }
+            };
+        }
+    </script>
+</body>
+</html>

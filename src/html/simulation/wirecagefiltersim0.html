@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Industrial Wire Cage Visualization</title>
+    <style>
+        body { 
+            margin: 0; 
+            overflow: hidden; 
+            font-family: Arial, sans-serif;
+        }
+        canvas { 
+            display: block; 
+        }
+        #gui-container { 
+            position: absolute; 
+            top: 10px; 
+            right: 10px; 
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        .toggle-button {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 1000;
+            background: #2c3e50;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 14px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            transition: all 0.3s ease;
+        }
+        .toggle-button:hover {
+            background: #34495e;
+        }
+        .dg .c .slider { 
+            width: 60% !important; 
+        }
+        .dg .cr.number input[type=text] { 
+            width: 30% !important; 
+        }
+        .dg .cr.function .property-name {
+            font-weight: bold;
+        }
+        @media (max-width: 768px) {
+            #gui-container {
+                width: 280px;
+            }
+            .dg.ac {
+                width: 100% !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <button class="toggle-button" id="toggle-gui">☰ Toggle Controls</button>
+    <div id="gui-container"></div>
+
+    <!-- Three.js Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.7.7/dat.gui.min.js"></script>
+
+    <script>
+    // =============== MAIN APPLICATION ===============
+    const App = {
+        // Scene elements
+        scene: null,
+        camera: null,
+        renderer: null,
+        controls: null,
+        
+        // 3D Objects
+        verticalWires: [],
+        spiralWire: null,
+        shellMesh: null,
+        
+        // Animation state
+        animationState: {
+            verticalPlaced: 0,
+            spiralProgress: 0,
+            weldingPoints: [],
+            shellPhase: 0,
+            paused: false
+        },
+        
+        // Parameters (all customizable)
+        params: {
+            // Cage Parameters
+            cylinderDiameter: 1.17,   // 117mm
+            verticalCount: 22,
+            verticalDiameter: 0.014,  // 1.4mm
+            verticalLength: 15,       // 1500mm
+            spiralDiameter: 0.006,    // 0.6mm
+            spiralSpace: 0.045,       // 4.5mm
+            materialType: 'inconel',
+            
+            // Shell Parameters
+            shellLength: 15,          // 1500mm
+            shellID: 1.2,            // 120mm
+            shellOD: 1.3,             // 130mm
+            shellSeparation: 15,      // 1500mm
+            shellMaterial: 'powder',
+            
+            // Appearance
+            background: '#808000',    // Olive
+            wireColor: '#554422',
+            spiralColor: '#aaaaaa',
+            shellColor: '#777777',
+            weldColor: '#ffff00',
+            
+            // Animation
+            animationSpeed: 1,
+            verticalPlaceTime: 0.66,  // 660ms per wire
+            spiralWindingTime: 6.6,   // 6.6 seconds total
+            shellRiseTime: 3,
+            shellCoverTime: 3,
+            
+            // Lighting
+            ambientLight: 0x404040,
+            ambientIntensity: 0.4,
+            directionalLight: 0xffffff,
+            directionalIntensity: 0.8,
+            lightPositionX: 1,
+            lightPositionY: 1,
+            lightPositionZ: 1,
+            
+            // Controls
+            resetAnimation: () => App.resetAnimation(),
+            pauseAnimation: () => App.togglePause(),
+            showHelpers: false
+        },
+        
+        // GUI and helpers
+        gui: null,
+        helpers: {
+            grid: null,
+            axes: null,
+            lights: null
+        },
+        
+        // Initialization
+        init() {
+            this.setupScene();
+            this.setupCamera();
+            this.setupRenderer();
+            this.setupLights();
+            this.setupControls();
+            this.createHelpers();
+            this.setupGUI();
+            this.resetAnimation();
+            this.setupEventListeners();
+        },
+        
+        // Scene setup
+        setupScene() {
+            this.scene = new THREE.Scene();
+            this.scene.background = new THREE.Color(this.params.background);
+        },
+        
+        // Camera setup
+        setupCamera() {
+            this.camera = new THREE.PerspectiveCamera(
+                75, 
+                window.innerWidth / window.innerHeight, 
+                0.1, 
+                1000
+            );
+            this.camera.position.set(0, 7.5, 30);
+        },
+        
+        // Renderer setup
+        setupRenderer() {
+            this.renderer = new THREE.WebGLRenderer({ 
+                antialias: true,
+                alpha: true
+            });
+            this.renderer.setSize(window.innerWidth, window.innerHeight);
+            this.renderer.shadowMap.enabled = true;
+            document.body.appendChild(this.renderer.domElement);
+        },
+        
+        // Lighting setup
+        setupLights() {
+            // Ambient light
+            const ambientLight = new THREE.AmbientLight(
+                this.params.ambientLight, 
+                this.params.ambientIntensity
+            );
+            this.scene.add(ambientLight);
+            
+            // Directional light
+            const directionalLight = new THREE.DirectionalLight(
+                this.params.directionalLight, 
+                this.params.directionalIntensity
+            );
+            directionalLight.position.set(
+                this.params.lightPositionX,
+                this.params.lightPositionY,
+                this.params.lightPositionZ
+            );
+            directionalLight.castShadow = true;
+            directionalLight.shadow.mapSize.width = 2048;
+            directionalLight.shadow.mapSize.height = 2048;
+            this.scene.add(directionalLight);
+            
+            // Light helper
+            if (this.helpers.lights) {
+                this.helpers.lights.clear();
+                if (this.params.showHelpers) {
+                    const lightHelper = new THREE.DirectionalLightHelper(directionalLight, 1);
+                    this.helpers.lights.add(lightHelper);
+                }
+            }
+        },
+        
+        // Controls setup
+        setupControls() {
+            this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
+            this.controls.target.set(0, 7.5, 0);
+            this.controls.enableDamping = true;
+            this.controls.dampingFactor = 0.05;
+        },
+        
+        // Helpers setup
+        createHelpers() {
+            // Grid helper
+            this.helpers.grid = new THREE.GridHelper(50, 50, 0x555555, 0x333333);
+            this.helpers.grid.visible = this.params.showHelpers;
+            this.scene.add(this.helpers.grid);
+            
+            // Axes helper
+            this.helpers.axes = new THREE.AxesHelper(5);
+            this.helpers.axes.visible = this.params.showHelpers;
+            this.scene.add(this.helpers.axes);
+            
+            // Light helpers container
+            this.helpers.lights = new THREE.Group();
+            this.helpers.lights.visible = this.params.showHelpers;
+            this.scene.add(this.helpers.lights);
+        },
+        
+        // GUI setup
+        setupGUI() {
+            this.gui = new dat.GUI({ 
+                autoPlace: false, 
+                width: 300,
+                scrollable: true,
+                hideable: true
+            });
+            
+            document.getElementById('gui-container').appendChild(this.gui.domElement);
+            
+            // Cage parameters
+            const cageFolder = this.gui.addFolder('Wire Cage Parameters');
+            cageFolder.add(this.params, 'cylinderDiameter', 0.5, 3).name('Diameter (m)').onChange(() => this.resetAnimation());
+            cageFolder.add(this.params, 'verticalCount', 4, 36).step(1).name('Vertical Wires').onChange(() => this.resetAnimation());
+            cageFolder.add(this.params, 'verticalDiameter', 0.005, 0.05).name('Vert. Diameter (m)').onChange(() => this.resetAnimation());
+            cageFolder.add(this.params, 'verticalLength', 5, 30).name('Length (m)').onChange(() => this.resetAnimation());
+            cageFolder.add(this.params, 'spiralDiameter', 0.002, 0.02).name('Spiral Diameter (m)').onChange(() => this.resetAnimation());
+            cageFolder.add(this.params, 'spiralSpace', 0.01, 0.1).name('Spiral Spacing (m)').onChange(() => this.resetAnimation());
+            cageFolder.add(this.params, 'materialType', ['steel', 'carbon', 'ss', 'inconel']).name('Wire Material').onChange(() => this.updateMaterials());
+            
+            // Shell parameters
+            const shellFolder = this.gui.addFolder('Shell Parameters');
+            shellFolder.add(this.params, 'shellLength', 5, 30).name('Length (m)').onChange(() => this.resetAnimation());
+            shellFolder.add(this.params, 'shellID', 0.5, 3).name('Inner Diameter (m)').onChange(() => this.resetAnimation());
+            shellFolder.add(this.params, 'shellOD', 0.6, 3.5).name('Outer Diameter (m)').onChange(() => this.resetAnimation());
+            shellFolder.add(this.params, 'shellSeparation', 5, 30).name('Separation (m)').onChange(() => this.resetAnimation());
+            shellFolder.add(this.params, 'shellMaterial', ['powder', 'steel', 'aluminum']).name('Shell Material').onChange(() => this.updateMaterials());
+            
+            // Appearance
+            const appearanceFolder = this.gui.addFolder('Appearance');
+            appearanceFolder.addColor(this.params, 'background').name('Background').onChange(val => {
+                this.scene.background = new THREE.Color(val);
+            });
+            appearanceFolder.addColor(this.params, 'wireColor').name('Wire Color').onChange(() => this.updateMaterials());
+            appearanceFolder.addColor(this.params, 'spiralColor').name('Spiral Color').onChange(() => {
+                if (this.spiralWire) {
+                    this.spiralWire.material.color.set(this.params.spiralColor);
+                }
+            });
+            appearanceFolder.addColor(this.params, 'shellColor').name('Shell Color').onChange(() => this.updateMaterials());
+            appearanceFolder.addColor(this.params, 'weldColor').name('Weld Color');
+            
+            // Animation
+            const animFolder = this.gui.addFolder('Animation Controls');
+            animFolder.add(this.params, 'animationSpeed', 0.1, 3).name('Global Speed');
+            animFolder.add(this.params, 'verticalPlaceTime', 0.1, 2).name('Wire Place Time (s)');
+            animFolder.add(this.params, 'spiralWindingTime', 1, 15).name('Spiral Time (s)');
+            animFolder.add(this.params, 'shellRiseTime', 1, 10).name('Shell Rise Time (s)');
+            animFolder.add(this.params, 'shellCoverTime', 1, 10).name('Shell Cover Time (s)');
+            animFolder.add(this.params, 'pauseAnimation').name('Pause/Resume');
+            animFolder.add(this.params, 'resetAnimation').name('Reset Animation');
+            
+            // Lighting
+            const lightFolder = this.gui.addFolder('Lighting');
+            lightFolder.addColor(this.params, 'ambientLight').name('Ambient Color').onChange(() => this.setupLights());
+            lightFolder.add(this.params, 'ambientIntensity', 0, 1).name('Ambient Intensity').onChange(() => this.setupLights());
+            lightFolder.addColor(this.params, 'directionalLight').name('Main Light Color').onChange(() => this.setupLights());
+            lightFolder.add(this.params, 'directionalIntensity', 0, 2).name('Main Intensity').onChange(() => this.setupLights());
+            lightFolder.add(this.params, 'lightPositionX', -10, 10).name('Light X Pos').onChange(() => this.setupLights());
+            lightFolder.add(this.params, 'lightPositionY', -10, 10).name('Light Y Pos').onChange(() => this.setupLights());
+            lightFolder.add(this.params, 'lightPositionZ', -10, 10).name('Light Z Pos').onChange(() => this.setupLights());
+            
+            // Debug
+            const debugFolder = this.gui.addFolder('Debug');
+            debugFolder.add(this.params, 'showHelpers').name('Show Helpers').onChange(val => {
+                this.helpers.grid.visible = val;
+                this.helpers.axes.visible = val;
+                this.helpers.lights.visible = val;
+            });
+            
+            // Collapse all folders by default
+            cageFolder.close();
+            shellFolder.close();
+            appearanceFolder.close();
+            animFolder.close();
+            lightFolder.close();
+            debugFolder.close();
+        },
+        
+        // Event listeners
+        setupEventListeners() {
+            window.addEventListener('resize', () => this.onWindowResize());
+            document.getElementById('toggle-gui').addEventListener('click', () => this.toggleGUI());
+        },
+        
+        // Create vertical wires
+        createVerticalWires() {
+            this.verticalWires.forEach(wire => this.scene.remove(wire));
+            this.verticalWires = [];
+
+            const radius = this.params.cylinderDiameter / 2;
+            const angleStep = (Math.PI * 2) / this.params.verticalCount;
+
+            for(let i = 0; i < this.params.verticalCount; i++) {
+                const angle = angleStep * i;
+                const x = Math.cos(angle) * radius;
+                const z = Math.sin(angle) * radius;
+
+                const geometry = new THREE.CylinderGeometry(
+                    this.params.verticalDiameter/2, 
+                    this.params.verticalDiameter/2, 
+                    0.1
+                );
+                const material = this.getWireMaterial();
+                const wire = new THREE.Mesh(geometry, material);
+                wire.position.set(x, 0.05, z);
+                wire.userData = {
+                    targetHeight: this.params.verticalLength,
+                    targetY: this.params.verticalLength/2
+                };
+                wire.visible = false;
+                this.verticalWires.push(wire);
+                this.scene.add(wire);
+            }
+        },
+        
+        // Create spiral wire
+        createSpiral() {
+            if(this.spiralWire) this.scene.remove(this.spiralWire);
+            
+            const geometry = new THREE.BufferGeometry();
+            const material = new THREE.LineBasicMaterial({ 
+                color: new THREE.Color(this.params.spiralColor),
+                linewidth: 2
+            });
+            this.spiralWire = new THREE.Line(geometry, material);
+            this.spiralWire.visible = false;
+            this.scene.add(this.spiralWire);
+        },
+        
+        // Create shell
+        createShell() {
+            if(this.shellMesh) this.scene.remove(this.shellMesh);
+            
+            // Create hollow cylinder geometry
+            const outerRadius = this.params.shellOD / 2;
+            const innerRadius = this.params.shellID / 2;
+            const shape = new THREE.Shape();
+            shape.absarc(0, 0, outerRadius, 0, Math.PI * 2, false);
+            const hole = new THREE.Path();
+            hole.absarc(0, 0, innerRadius, 0, Math.PI * 2, true);
+            shape.holes.push(hole);
+
+            const extrudeSettings = {
+                depth: this.params.shellLength,
+                bevelEnabled: false
+            };
+
+            const geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings);
+            geometry.rotateX(Math.PI / 2);
+            geometry.translate(0, this.params.shellLength/2, 0);
+
+            this.shellMesh = new THREE.Mesh(geometry, this.getShellMaterial());
+            this.shellMesh.position.set(0, -this.params.shellSeparation, 0);
+            this.shellMesh.visible = false;
+            this.scene.add(this.shellMesh);
+        },
+        
+        // Get wire material based on selected type
+        getWireMaterial() {
+            const materialProps = {
+                steel: { metalness: 0.7, roughness: 0.3 },
+                carbon: { metalness: 0.5, roughness: 0.6 },
+                ss: { metalness: 0.9, roughness: 0.1 },
+                inconel: { metalness: 0.8, roughness: 0.4 }
+            };
+            
+            return new THREE.MeshStandardMaterial({
+                color: new THREE.Color(this.params.wireColor),
+                ...materialProps[this.params.materialType]
+            });
+        },
+        
+        // Get shell material based on selected type
+        getShellMaterial() {
+            const materialProps = {
+                powder: { metalness: 0.3, roughness: 0.8 },
+                steel: { metalness: 0.7, roughness: 0.4 },
+                aluminum: { metalness: 0.9, roughness: 0.2 }
+            };
+            
+            return new THREE.MeshStandardMaterial({
+                color: new THREE.Color(this.params.shellColor),
+                ...materialProps[this.params.shellMaterial]
+            });
+        },
+        
+        // Update all materials when changed
+        updateMaterials() {
+            const wireMaterial = this.getWireMaterial();
+            this.verticalWires.forEach(wire => {
+                wire.material = wireMaterial;
+            });
+            
+            if (this.spiralWire) {
+                this.spiralWire.material.color.set(this.params.spiralColor);
+            }
+            
+            if (this.shellMesh) {
+                this.shellMesh.material = this.getShellMaterial();
+            }
+        },
+        
+        // Create welding flash effect
+        createWeldingFlash(position) {
+            const flashGeometry = new THREE.SphereGeometry(0.1, 16, 16);
+            const flashMaterial = new THREE.MeshBasicMaterial({
+                color: new THREE.Color(this.params.weldColor),
+                transparent: true,
+                opacity: 1
+            });
+            const flash = new THREE.Mesh(flashGeometry, flashMaterial);
+            flash.position.copy(position);
+            flash.userData = { lifetime: 0.3 };
+            this.scene.add(flash);
+            this.animationState.weldingPoints.push(flash);
+        },
+        
+        // Reset animation to initial state
+        resetAnimation() {
+            this.animationState = { 
+                verticalPlaced: 0,
+                spiralProgress: 0,
+                weldingPoints: [],
+                shellPhase: 0,
+                paused: false
+            };
+            
+            this.createVerticalWires();
+            this.createSpiral();
+            this.createShell();
+            this.updateMaterials();
+            
+            this.camera.position.set(0, 7.5, 30);
+            this.controls.target.set(0, 7.5, 0);
+            this.controls.update();
+        },
+        
+        // Toggle animation pause state
+        togglePause() {
+            this.animationState.paused = !this.animationState.paused;
+        },
+        
+        // Toggle GUI visibility
+        toggleGUI() {
+            this.gui.closed = !this.gui.closed;
+            document.getElementById('toggle-gui').textContent = 
+                this.gui.closed ? '☰ Show Controls' : '☰ Hide Controls';
+        },
+        
+        // Handle window resize
+        onWindowResize() {
+            this.camera.aspect = window.innerWidth / window.innerHeight;
+            this.camera.updateProjectionMatrix();
+            this.renderer.setSize(window.innerWidth, window.innerHeight);
+        },
+        
+        // Main animation loop
+        animate() {
+            requestAnimationFrame(() => this.animate());
+            
+            if (!this.animationState.paused) {
+                const delta = 0.016 * this.params.animationSpeed;
+
+                // Animate vertical wires
+                if (this.animationState.verticalPlaced < this.params.verticalCount) {
+                    const wire = this.verticalWires[this.animationState.verticalPlaced];
+                    
+                    if (!wire.visible) {
+                        wire.visible = true;
+                    } else {
+                        const currentHeight = wire.geometry.parameters.height;
+                        const newHeight = Math.min(
+                            currentHeight + (this.params.verticalLength / (this.params.verticalPlaceTime * 60)), 
+                            wire.userData.targetHeight
+                        );
+                        
+                        wire.geometry.dispose();
+                        wire.geometry = new THREE.CylinderGeometry(
+                            this.params.verticalDiameter/2, 
+                            this.params.verticalDiameter/2, 
+                            newHeight
+                        );
+                        wire.position.y = newHeight/2;
+                        
+                        if (newHeight >= wire.userData.targetHeight) {
+                            this.createWeldingFlash(new THREE.Vector3(wire.position.x, 0, wire.position.z));
+                            this.createWeldingFlash(new THREE.Vector3(wire.position.x, this.params.verticalLength, wire.position.z));
+                            this.animationState.verticalPlaced++;
+                        }
+                    }
+                } 
+                // Animate spiral
+                else if (this.animationState.spiralProgress < 1) {
+                    if (!this.spiralWire.visible) this.spiralWire.visible = true;
+                    
+                    const radius = this.params.cylinderDiameter / 2 + this.params.verticalDiameter/2;
+                    const segments = Math.floor(this.params.verticalLength / this.params.spiralSpace * 100);
+                    const points = [];
+                    
+                    this.animationState.spiralProgress = Math.min(
+                        this.animationState.spiralProgress + delta/this.params.spiralWindingTime, 
+                        1
+                    );
+                    
+                    for(let i = 0; i < segments; i++) {
+                        const progress = Math.min(i/segments, this.animationState.spiralProgress);
+                        const angle = (i/10) * Math.PI;
+                        const y = progress * this.params.verticalLength;
+                        const x = Math.cos(angle) * radius;
+                        const z = Math.sin(angle) * radius;
+                        points.push(new THREE.Vector3(x, y, z));
+                        
+                        if (i % 15 === 0 && progress === this.animationState.spiralProgress) {
+                            this.createWeldingFlash(new THREE.Vector3(x, y, z));
+                        }
+                    }
+                    
+                    this.spiralWire.geometry.dispose();
+                    this.spiralWire.geometry = new THREE.BufferGeometry().setFromPoints(points);
+                    
+                    // Initial camera movement
+                    if (this.animationState.spiralProgress < 0.2) {
+                        this.camera.position.z = 30 + 20 * (this.animationState.spiralProgress/0.2);
+                        this.controls.target.y = 7.5 - 5 * (this.animationState.spiralProgress/0.2);
+                    }
+                }
+                // Animate shell
+                else if (this.animationState.shellPhase === 0) {
+                    this.shellMesh.visible = true;
+                    this.animationState.shellPhase = 1;
+                    this.animationState.shellProgress = 0;
+                } else if (this.animationState.shellPhase === 1) {
+                    // Rise above
+                    this.animationState.shellProgress += delta;
+                    const progress = Math.min(this.animationState.shellProgress / this.params.shellRiseTime, 1);
+                    this.shellMesh.position.y = -this.params.shellSeparation + (this.params.shellSeparation * 3) * progress;
+                    
+                    if (progress >= 1) {
+                        this.animationState.shellPhase = 2;
+                        this.animationState.shellProgress = 0;
+                    }
+                } else if (this.animationState.shellPhase === 2) {
+                    // Cover cage
+                    this.animationState.shellProgress += delta;
+                    const progress = Math.min(this.animationState.shellProgress / this.params.shellCoverTime, 1);
+                    this.shellMesh.position.y = this.params.shellSeparation * 2 - (this.params.shellSeparation * 1.5) * progress;
+                    
+                    // Final welding flashes
+                    if (progress >= 1) {
+                        for(let i = 0; i < 20; i++) {
+                            this.createWeldingFlash(new THREE.Vector3(
+                                Math.cos(Math.PI*2*i/20) * this.params.shellOD/2,
+                                this.params.verticalLength/2,
+                                Math.sin(Math.PI*2*i/20) * this.params.shellOD/2
+                            ));
+                        }
+                        this.animationState.shellPhase = 3;
+                    }
+                }
+            }
+
+            // Animate welding flashes
+            for (let i = this.animationState.weldingPoints.length - 1; i >= 0; i--) {
+                const flash = this.animationState.weldingPoints[i];
+                flash.userData.lifetime -= 0.016 * this.params.animationSpeed;
+                
+                if (flash.userData.lifetime <= 0) {
+                    this.scene.remove(flash);
+                    this.animationState.weldingPoints.splice(i, 1);
+                } else {
+                    flash.scale.setScalar(1 + (1 - flash.userData.lifetime) * 3);
+                    flash.material.opacity = flash.userData.lifetime / 0.3;
+                }
+            }
+
+            this.controls.update();
+            this.renderer.render(this.scene, this.camera);
+        }
+    };
+
+    // Initialize and start the application
+    App.init();
+    App.animate();
+    </script>
+</body>
+</html>

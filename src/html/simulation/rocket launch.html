@@ -1,0 +1,3510 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Advanced 3D Rocket Simulator - Complete Staging System</title>
+    <style>
+        /* Reset and Base */
+        * { 
+            margin: 0; padding: 0; box-sizing: border-box; 
+            -webkit-tap-highlight-color: transparent;
+            -webkit-user-select: none; user-select: none;
+        }
+        body { 
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: #000;
+            color: #fff;
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+        }
+        
+        /* Main Container */
+        #container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        /* Canvas */
+        #gameCanvas {
+            display: block;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+        }
+        
+        /* UI Overlay */
+        .ui-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 100;
+        }
+        
+        /* Control Panels */
+        .control-panel {
+            position: absolute;
+            background: rgba(5, 10, 20, 0.9);
+            backdrop-filter: blur(15px);
+            border: 2px solid;
+            border-radius: 12px;
+            padding: 20px;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.6);
+            pointer-events: auto;
+            max-width: 95vw;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        
+        .control-panel.collapsed {
+            opacity: 0.2;
+            transform: scale(0.8);
+            pointer-events: none;
+        }
+        
+        /* Panel Toggles */
+        .panel-toggle {
+            position: absolute;
+            background: rgba(0, 30, 60, 0.9);
+            border: 2px solid #00aaff;
+            color: white;
+            padding: 12px 20px;
+            border-radius: 50px;
+            cursor: pointer;
+            z-index: 101;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: all 0.3s;
+            pointer-events: auto;
+            box-shadow: 0 5px 15px rgba(0, 100, 200, 0.3);
+        }
+        
+        .panel-toggle:hover {
+            background: rgba(0, 50, 100, 0.95);
+            transform: scale(1.05);
+        }
+        
+        /* Specific Panels */
+        #flightPanel { top: 80px; left: 20px; border-color: #00ffaa; width: 380px; }
+        #systemsPanel { top: 80px; right: 20px; border-color: #aa00ff; width: 360px; }
+        #telemetryPanel { bottom: 20px; left: 20px; border-color: #ffaa00; width: 420px; }
+        #stagePanel { bottom: 20px; right: 20px; border-color: #ff5500; width: 380px; }
+        
+        /* Stage Visualization */
+        .stage-visual {
+            width: 100%;
+            height: 200px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            margin: 15px 0;
+            position: relative;
+            overflow: hidden;
+            border: 2px solid #333;
+        }
+        
+        .rocket-model {
+            position: absolute;
+            width: 60px;
+            height: 180px;
+            left: 50%;
+            top: 10px;
+            transform: translateX(-50%);
+            transition: all 0.5s;
+        }
+        
+        .stage-component {
+            position: absolute;
+            left: 0;
+            width: 100%;
+            background: linear-gradient(90deg, #444, #666);
+            border: 1px solid #888;
+            transition: all 0.3s;
+        }
+        
+        .stage-component.separated {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        
+        /* Progress Bars */
+        .progress-container {
+            background: rgba(0, 30, 60, 0.5);
+            border-radius: 10px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        
+        .progress-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 0.9em;
+            color: #aaa;
+        }
+        
+        .progress-bar {
+            height: 20px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #0066cc, #00aaff);
+            border-radius: 10px;
+            transition: width 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .progress-fill::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(90deg, 
+                transparent, 
+                rgba(255, 255, 255, 0.2), 
+                transparent);
+            animation: shimmer 2s infinite;
+        }
+        
+        /* Data Displays */
+        .data-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin: 20px 0;
+        }
+        
+        .data-item {
+            background: rgba(20, 40, 60, 0.5);
+            border-radius: 8px;
+            padding: 15px;
+            border: 1px solid rgba(100, 150, 255, 0.2);
+        }
+        
+        .data-label {
+            font-size: 0.85em;
+            color: #88aaff;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .data-value {
+            font-size: 1.4em;
+            font-weight: bold;
+            color: #fff;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .data-unit {
+            font-size: 0.8em;
+            color: #aaa;
+            margin-left: 3px;
+        }
+        
+        /* Buttons */
+        .control-button {
+            background: linear-gradient(145deg, #0055cc, #0088ff);
+            border: none;
+            color: white;
+            padding: 14px 24px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 1em;
+            transition: all 0.3s;
+            margin: 5px;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            box-shadow: 0 5px 15px rgba(0, 100, 255, 0.3);
+        }
+        
+        .control-button:hover {
+            background: linear-gradient(145deg, #0066ee, #0099ff);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0, 100, 255, 0.4);
+        }
+        
+        .control-button:active {
+            transform: translateY(0);
+        }
+        
+        .control-button.critical {
+            background: linear-gradient(145deg, #cc3300, #ff5500);
+        }
+        
+        .control-button.critical:hover {
+            background: linear-gradient(145deg, #dd4400, #ff6600);
+        }
+        
+        /* Mobile Controls */
+        .mobile-controls {
+            position: absolute;
+            bottom: 20px;
+            width: 100%;
+            display: none;
+            justify-content: center;
+            gap: 20px;
+            padding: 0 20px;
+            z-index: 99;
+            pointer-events: auto;
+        }
+        
+        .mobile-button {
+            width: 75px;
+            height: 75px;
+            background: radial-gradient(circle, rgba(0,100,200,0.9) 0%, rgba(0,50,100,0.9) 100%);
+            border: 3px solid #00aaff;
+            border-radius: 50%;
+            color: white;
+            font-size: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.1s;
+            box-shadow: 0 8px 25px rgba(0, 100, 200, 0.4);
+        }
+        
+        .mobile-button:active {
+            background: radial-gradient(circle, rgba(0,150,255,0.9) 0%, rgba(0,100,200,0.9) 100%);
+            transform: scale(0.9);
+        }
+        
+        /* Launch Site */
+        #launchSite {
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            transition: all 2s ease-out;
+        }
+        
+        /* Camera Views */
+        .camera-controls {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 10px;
+            z-index: 102;
+        }
+        
+        .camera-button {
+            background: rgba(0, 30, 60, 0.9);
+            border: 2px solid #00aaff;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-size: 0.9em;
+        }
+        
+        .camera-button:hover {
+            background: rgba(0, 50, 100, 0.9);
+        }
+        
+        /* Animations */
+        @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        
+        @keyframes vibration {
+            0%, 100% { transform: translate(0, 0) rotate(0); }
+            25% { transform: translate(-1px, 1px) rotate(-0.5deg); }
+            75% { transform: translate(1px, -1px) rotate(0.5deg); }
+        }
+        
+        .pulse { animation: pulse 1.5s infinite; }
+        .vibrate { animation: vibration 0.1s infinite; }
+        
+        /* Status Indicators */
+        .status-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            font-weight: bold;
+        }
+        
+        .status-green {
+            background: rgba(0, 255, 0, 0.1);
+            color: #00ff00;
+            border: 1px solid #00ff00;
+        }
+        
+        .status-red {
+            background: rgba(255, 0, 0, 0.1);
+            color: #ff0000;
+            border: 1px solid #ff0000;
+        }
+        
+        .status-yellow {
+            background: rgba(255, 255, 0, 0.1);
+            color: #ffff00;
+            border: 1px solid #ffff00;
+        }
+        
+        .status-blue {
+            background: rgba(0, 150, 255, 0.1);
+            color: #00aaff;
+            border: 1px solid #00aaff;
+        }
+        
+        /* Responsive Design */
+        @media (max-width: 1024px) {
+            .control-panel {
+                width: 95vw;
+                max-height: 80vh;
+                left: 2.5vw;
+                right: 2.5vw;
+            }
+            
+            #flightPanel, #systemsPanel { top: 60px; }
+            #telemetryPanel, #stagePanel { bottom: 60px; }
+            
+            .data-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .mobile-controls {
+                display: flex;
+            }
+            
+            .control-panel {
+                transform: scale(0.95);
+                padding: 15px;
+            }
+            
+            .panel-toggle {
+                padding: 10px 15px;
+                font-size: 0.9em;
+            }
+            
+            .camera-controls {
+                flex-direction: column;
+                top: auto;
+                bottom: 180px;
+                left: 20px;
+                transform: none;
+            }
+        }
+        
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 30, 60, 0.3);
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: #00aaff;
+            border-radius: 4px;
+        }
+        
+        /* Headers */
+        h3 {
+            color: inherit;
+            margin-bottom: 20px;
+            border-bottom: 2px solid;
+            padding-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 1.3em;
+        }
+        
+        /* Sliders */
+        .slider-container {
+            margin: 20px 0;
+        }
+        
+        input[type="range"] {
+            width: 100%;
+            height: 8px;
+            -webkit-appearance: none;
+            background: linear-gradient(to right, #003366, #00aaff);
+            border-radius: 4px;
+            outline: none;
+            margin: 10px 0;
+        }
+        
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 22px;
+            height: 22px;
+            background: #00ffff;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 0 15px #00ffff;
+            transition: all 0.3s;
+        }
+        
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+            box-shadow: 0 0 20px #00ffff;
+        }
+        
+        /* Select Elements */
+        select {
+            width: 100%;
+            padding: 12px;
+            background: rgba(0, 30, 60, 0.8);
+            border: 2px solid #00aaff;
+            border-radius: 8px;
+            color: white;
+            margin: 10px 0;
+            font-size: 1em;
+            cursor: pointer;
+        }
+        
+        /* Fuel Type Selector */
+        .fuel-selector {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 10px;
+            margin: 15px 0;
+        }
+        
+        .fuel-option {
+            background: rgba(20, 40, 80, 0.7);
+            border: 2px solid #4444ff;
+            border-radius: 8px;
+            padding: 12px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: center;
+        }
+        
+        .fuel-option:hover {
+            background: rgba(30, 60, 120, 0.8);
+            transform: translateY(-2px);
+        }
+        
+        .fuel-option.selected {
+            background: rgba(0, 50, 100, 0.9);
+            border-color: #00ffff;
+            box-shadow: 0 0 20px #00aaff;
+        }
+        
+        /* Connection Lines */
+        .connection-line {
+            position: absolute;
+            background: #00aaff;
+            height: 2px;
+            transform-origin: 0 0;
+        }
+        
+        /* Stage Separation Animation */
+        @keyframes stageSeparation {
+            0% { 
+                opacity: 1;
+                transform: scale(1) translateY(0);
+            }
+            30% {
+                opacity: 1;
+                transform: scale(1.05) translateY(-10px);
+            }
+            100% {
+                opacity: 0;
+                transform: scale(0.8) translateY(-50px);
+            }
+        }
+        
+        .separating {
+            animation: stageSeparation 1s forwards;
+        }
+        
+        /* Exhaust Effect */
+        .exhaust-glow {
+            position: absolute;
+            background: radial-gradient(circle, rgba(255,100,0,0.8) 0%, transparent 70%);
+            filter: blur(10px);
+        }
+        
+        /* Performance Monitor */
+        #performanceMonitor {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px 15px;
+            border-radius: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            color: #00ff00;
+            z-index: 103;
+        }
+        
+        /* Warning Messages */
+        .warning-message {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(255, 0, 0, 0.9);
+            padding: 30px 50px;
+            border-radius: 15px;
+            border: 3px solid #ff0000;
+            font-size: 1.5em;
+            font-weight: bold;
+            text-align: center;
+            z-index: 1000;
+            animation: pulse 0.5s infinite;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <canvas id="gameCanvas"></canvas>
+        
+        <!-- UI Overlay -->
+        <div class="ui-overlay">
+            <!-- Panel Toggles -->
+            <div class="panel-toggle" style="top: 20px; left: 20px;" id="toggleFlightPanel">
+                🚀 FLIGHT
+            </div>
+            <div class="panel-toggle" style="top: 20px; right: 20px;" id="toggleSystemsPanel">
+                ⚙️ SYSTEMS
+            </div>
+            <div class="panel-toggle" style="bottom: 20px; left: 20px;" id="toggleTelemetryPanel">
+                📡 TELEMETRY
+            </div>
+            <div class="panel-toggle" style="bottom: 20px; right: 20px;" id="toggleStagePanel">
+                🛰️ STAGES
+            </div>
+            
+            <!-- Flight Control Panel -->
+            <div class="control-panel" id="flightPanel">
+                <h3 style="color: #00ffaa;">🚀 FLIGHT CONTROLS</h3>
+                
+                <div class="slider-container">
+                    <div class="progress-label">
+                        <span>THROTTLE</span>
+                        <span id="throttleValue">100%</span>
+                    </div>
+                    <input type="range" id="throttleSlider" min="0" max="100" value="100">
+                </div>
+                
+                <div class="slider-container">
+                    <div class="progress-label">
+                        <span>MIXTURE RATIO</span>
+                        <span id="mixtureValue">2.56</span>
+                    </div>
+                    <input type="range" id="mixtureSlider" min="1" max="8" step="0.1" value="2.56">
+                </div>
+                
+                <div class="progress-container">
+                    <div class="progress-label">
+                        <span>DELTA-V REMAINING</span>
+                        <span id="deltaVValue">9,500 m/s</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: 75%"></div>
+                    </div>
+                </div>
+                
+                <button class="control-button" id="launchButton">
+                    🚀 LAUNCH SEQUENCE
+                </button>
+                <button class="control-button critical" id="stageSeparationButton">
+                    🛰️ STAGE SEPARATION
+                </button>
+                
+                <select id="controlMode">
+                    <option value="keyboard">Keyboard Control</option>
+                    <option value="gyro">Gyroscope Control</option>
+                    <option value="auto">Autopilot</option>
+                </select>
+            </div>
+            
+            <!-- Systems Panel -->
+            <div class="control-panel" id="systemsPanel">
+                <h3 style="color: #aa00ff;">⚙️ SYSTEMS STATUS</h3>
+                
+                <div class="data-grid">
+                    <div class="data-item">
+                        <div class="data-label">MAIN ENGINE</div>
+                        <div class="data-value status-green">NOMINAL</div>
+                    </div>
+                    <div class="data-item">
+                        <div class="data-label">RCS SYSTEM</div>
+                        <div class="data-value status-green">ACTIVE</div>
+                    </div>
+                    <div class="data-item">
+                        <div class="data-label">GUIDANCE</div>
+                        <div class="data-value status-green">LOCKED</div>
+                    </div>
+                    <div class="data-item">
+                        <div class="data-label">COMMUNICATION</div>
+                        <div class="data-value status-green">STABLE</div>
+                    </div>
+                </div>
+                
+                <div class="progress-container">
+                    <div class="progress-label">
+                        <span>POWER GENERATION</span>
+                        <span id="powerValue">98%</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: 98%"></div>
+                    </div>
+                </div>
+                
+                <div class="progress-container">
+                    <div class="progress-label">
+                        <span>COOLING SYSTEM</span>
+                        <span id="coolingValue">92%</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: 92%"></div>
+                    </div>
+                </div>
+                
+                <div class="fuel-selector">
+                    <div class="fuel-option" data-fuel="kerosene">
+                        <div>RP-1/LOX</div>
+                        <div style="font-size: 0.8em; color: #aaa">ISP: 350s</div>
+                    </div>
+                    <div class="fuel-option selected" data-fuel="hydrogen">
+                        <div>LH₂/LOX</div>
+                        <div style="font-size: 0.8em; color: #aaa">ISP: 450s</div>
+                    </div>
+                    <div class="fuel-option" data-fuel="methane">
+                        <div>CH₄/LOX</div>
+                        <div style="font-size: 0.8em; color: #aaa">ISP: 380s</div>
+                    </div>
+                </div>
+                
+                <button class="control-button" id="toggleRCS">
+                    🔄 RCS CONTROL
+                </button>
+            </div>
+            
+            <!-- Telemetry Panel -->
+            <div class="control-panel" id="telemetryPanel">
+                <h3 style="color: #ffaa00;">📡 FLIGHT TELEMETRY</h3>
+                
+                <div class="data-grid">
+                    <div class="data-item">
+                        <div class="data-label">ALTITUDE</div>
+                        <div class="data-value">0<span class="data-unit">km</span></div>
+                    </div>
+                    <div class="data-item">
+                        <div class="data-label">VELOCITY</div>
+                        <div class="data-value">0<span class="data-unit">m/s</span></div>
+                    </div>
+                    <div class="data-item">
+                        <div class="data-label">ACCELERATION</div>
+                        <div class="data-value">0<span class="data-unit">g</span></div>
+                    </div>
+                    <div class="data-item">
+                        <div class="data-label">APOGEE</div>
+                        <div class="data-value">0<span class="data-unit">km</span></div>
+                    </div>
+                    <div class="data-item">
+                        <div class="data-label">INCLINATION</div>
+                        <div class="data-value">0.0<span class="data-unit">°</span></div>
+                    </div>
+                    <div class="data-item">
+                        <div class="data-label">ORBIT PERIOD</div>
+                        <div class="data-value">-<span class="data-unit">min</span></div>
+                    </div>
+                </div>
+                
+                <div class="progress-container">
+                    <div class="progress-label">
+                        <span>ATMOSPHERIC PRESSURE</span>
+                        <span id="pressureValue">101.3 kPa</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: 100%"></div>
+                    </div>
+                </div>
+                
+                <div class="progress-container">
+                    <div class="progress-label">
+                        <span>DYNAMIC PRESSURE (MAX-Q)</span>
+                        <span id="maxQValue">0 kPa</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: 0%"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Stage Panel -->
+            <div class="control-panel" id="stagePanel">
+                <h3 style="color: #ff5500;">🛰️ STAGE MANAGEMENT</h3>
+                
+                <div class="stage-visual">
+                    <div class="rocket-model" id="rocketVisualization">
+                        <!-- Dynamic rocket visualization -->
+                    </div>
+                </div>
+                
+                <div class="progress-container">
+                    <div class="progress-label">
+                        <span>STAGE 1 - BOOSTER</span>
+                        <span id="stage1Fuel">100%</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: 100%; background: linear-gradient(90deg, #ff5500, #ff8800);"></div>
+                    </div>
+                    <div style="margin-top: 5px; font-size: 0.8em; color: #aaa">
+                        9 × Merlin 1D | Thrust: 7,607 kN
+                    </div>
+                </div>
+                
+                <div class="progress-container">
+                    <div class="progress-label">
+                        <span>STAGE 2 - SUSTAINER</span>
+                        <span id="stage2Fuel">100%</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: 100%; background: linear-gradient(90deg, #00aaff, #00ddff);"></div>
+                    </div>
+                    <div style="margin-top: 5px; font-size: 0.8em; color: #aaa">
+                        1 × Merlin Vacuum | Thrust: 934 kN
+                    </div>
+                </div>
+                
+                <div class="progress-container">
+                    <div class="progress-label">
+                        <span>STAGE 3 - ORBITAL</span>
+                        <span id="stage3Fuel">100%</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: 100%; background: linear-gradient(90deg, #aa00ff, #cc44ff);"></div>
+                    </div>
+                    <div style="margin-top: 5px; font-size: 0.8em; color: #aaa">
+                        1 × RL-10 | Thrust: 110 kN
+                    </div>
+                </div>
+                
+                <div class="data-item" style="margin-top: 15px;">
+                    <div class="data-label">TOTAL MASS</div>
+                    <div class="data-value">102,000<span class="data-unit">kg</span></div>
+                </div>
+            </div>
+            
+            <!-- Camera Controls -->
+            <div class="camera-controls">
+                <div class="camera-button" data-view="follow">📷 FOLLOW</div>
+                <div class="camera-button" data-view="cockpit">👁️ COCKPIT</div>
+                <div class="camera-button" data-view="launch">🏁 LAUNCH</div>
+                <div class="camera-button" data-view="orbital">🛰️ ORBITAL</div>
+            </div>
+            
+            <!-- Mobile Controls -->
+            <div class="mobile-controls">
+                <div class="mobile-button" id="mobileThrust">🔥</div>
+                <div class="mobile-button" id="mobileStage">🛰️</div>
+                <div class="mobile-button" id="mobileRCS">🔄</div>
+                <div class="mobile-button" id="mobileCamera">📷</div>
+            </div>
+            
+            <!-- Performance Monitor -->
+            <div id="performanceMonitor">
+                FPS: 60 | TRI: 0 | OBJ: 0
+            </div>
+        </div>
+    </div>
+
+    <!-- Three.js Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/libs/stats.min.js"></script>
+
+    <script>
+        // ============================================================================
+        // ADVANCED 3D ROCKET SIMULATOR WITH DETAILED STAGING SYSTEM
+        // ============================================================================
+        
+        class AdvancedRocketSimulator {
+            constructor() {
+                // Core Three.js Setup
+                this.scene = new THREE.Scene();
+                this.scene.background = new THREE.Color(0x000010);
+                
+                this.camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 1, 1000000);
+                this.camera.position.set(0, 50, 200);
+                
+                this.renderer = new THREE.WebGLRenderer({
+                    canvas: document.getElementById('gameCanvas'),
+                    antialias: true,
+                    alpha: false,
+                    powerPreference: "high-performance"
+                });
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
+                this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+                this.renderer.shadowMap.enabled = true;
+                this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+                this.renderer.outputEncoding = THREE.sRGBEncoding;
+                
+                // Enhanced Lighting System
+                this.setupLighting();
+                
+                // Physics Constants
+                this.EARTH_RADIUS = 6371000; // meters
+                this.EARTH_MASS = 5.972e24; // kg
+                this.GRAVITY_CONSTANT = 6.67430e-11;
+                this.STANDARD_GRAVITY = 9.80665;
+                
+                // Time Management
+                this.clock = new THREE.Clock();
+                this.deltaTime = 0;
+                this.simulationTime = 0;
+                this.launchTime = 0;
+                this.isLaunched = false;
+                
+                // Rocket State
+                this.position = new THREE.Vector3(0, this.EARTH_RADIUS, 0);
+                this.velocity = new THREE.Vector3(0, 0, 0);
+                this.acceleration = new THREE.Vector3(0, 0, 0);
+                this.rotation = new THREE.Euler(0, 0, 0, 'YXZ');
+                this.angularVelocity = new THREE.Vector3(0, 0, 0);
+                
+                // Control State
+                this.throttle = 1.0;
+                this.mixtureRatio = 2.56;
+                this.controlMode = 'keyboard';
+                this.rcsActive = true;
+                
+                // Detailed Stage System
+                this.stages = this.createStageSystem();
+                this.currentStage = 0;
+                this.separatedStages = [];
+                this.fairingAttached = true;
+                
+                // Visual Objects
+                this.rocket = null;
+                this.launchSite = null;
+                this.earth = null;
+                this.stars = null;
+                this.exhaustSystems = [];
+                this.rcsSystems = [];
+                this.gridFins = [];
+                this.fairing = null;
+                
+                // Camera System
+                this.cameraViews = ['follow', 'cockpit', 'launch', 'orbital'];
+                this.currentCameraView = 'follow';
+                this.cameraTarget = new THREE.Vector3();
+                
+                // Performance Monitoring
+                this.stats = null;
+                this.fps = 60;
+                this.triCount = 0;
+                this.objCount = 0;
+                
+                // UI References
+                this.ui = {};
+                this.panelStates = {
+                    flight: true,
+                    systems: true,
+                    telemetry: true,
+                    stage: true
+                };
+                
+                // Initialize Systems
+                this.initUI();
+                this.initScene();
+                this.initPhysics();
+                this.initControls();
+                this.initEventListeners();
+                
+                // Start Simulation
+                this.animate();
+            }
+            
+            createStageSystem() {
+                // Detailed stage configuration with realistic parameters
+                return [
+                    {
+                        id: 1,
+                        name: "Booster Stage",
+                        active: true,
+                        separated: false,
+                        fuel: 100,
+                        dryMass: 25600,
+                        fuelMass: 395700,
+                        engines: 9,
+                        engineType: "Merlin 1D",
+                        thrustVac: 854 * 1000 * 9, // Newtons
+                        thrustSL: 7607 * 1000,
+                        ispVac: 282,
+                        ispSL: 267,
+                        burnTime: 162,
+                        fuelConsumption: 395700 / 162,
+                        fuelType: "kerosene",
+                        dimensions: {
+                            height: 42.6,
+                            diameter: 3.66,
+                            interstageHeight: 3.0
+                        },
+                        components: {
+                            engines: true,
+                            gridFins: true,
+                            landingLegs: true,
+                            interstage: true
+                        },
+                        visual: null,
+                        exhaust: null,
+                        separationSystem: "pyrotechnic",
+                        separationForce: 50000
+                    },
+                    {
+                        id: 2,
+                        name: "Sustainer Stage",
+                        active: false,
+                        separated: false,
+                        fuel: 100,
+                        dryMass: 3900,
+                        fuelMass: 92670,
+                        engines: 1,
+                        engineType: "Merlin Vacuum",
+                        thrustVac: 981 * 1000,
+                        ispVac: 348,
+                        burnTime: 397,
+                        fuelConsumption: 92670 / 397,
+                        fuelType: "kerosene",
+                        dimensions: {
+                            height: 12.6,
+                            diameter: 3.66,
+                            interstageHeight: 2.5
+                        },
+                        components: {
+                            engine: true,
+                            rcs: true,
+                            interstage: true
+                        },
+                        visual: null,
+                        exhaust: null,
+                        separationSystem: "cold gas",
+                        separationForce: 20000
+                    },
+                    {
+                        id: 3,
+                        name: "Orbital Stage",
+                        active: false,
+                        separated: false,
+                        fuel: 100,
+                        dryMass: 1200,
+                        fuelMass: 20830,
+                        engines: 1,
+                        engineType: "RL-10",
+                        thrustVac: 110 * 1000,
+                        ispVac: 465,
+                        burnTime: 842,
+                        fuelConsumption: 20830 / 842,
+                        fuelType: "hydrogen",
+                        dimensions: {
+                            height: 8.5,
+                            diameter: 3.05
+                        },
+                        components: {
+                            engine: true,
+                            rcs: true,
+                            payloadAdapter: true
+                        },
+                        visual: null,
+                        exhaust: null,
+                        separationSystem: "spring",
+                        separationForce: 5000
+                    }
+                ];
+            }
+            
+            setupLighting() {
+                // Ambient Light
+                const ambientLight = new THREE.AmbientLight(0x222244, 0.4);
+                this.scene.add(ambientLight);
+                
+                // Main Directional Light (Sun)
+                this.sunLight = new THREE.DirectionalLight(0xffffff, 1.2);
+                this.sunLight.position.set(1000, 1000, 500);
+                this.sunLight.castShadow = true;
+                this.sunLight.shadow.mapSize.width = 2048;
+                this.sunLight.shadow.mapSize.height = 2048;
+                this.sunLight.shadow.camera.far = 100000;
+                this.sunLight.shadow.bias = -0.0001;
+                this.scene.add(this.sunLight);
+                
+                // Fill Light
+                const fillLight = new THREE.DirectionalLight(0x4488ff, 0.3);
+                fillLight.position.set(-500, 200, -500);
+                this.scene.add(fillLight);
+                
+                // Rim Light
+                const rimLight = new THREE.DirectionalLight(0xff8844, 0.2);
+                rimLight.position.set(0, -200, 500);
+                this.scene.add(rimLight);
+            }
+            
+            initScene() {
+                // Create Earth with enhanced details
+                this.createDetailedEarth();
+                
+                // Create detailed star field
+                this.createDetailedStars();
+                
+                // Create launch site with detailed structures
+                this.createLaunchSite();
+                
+                // Create detailed rocket model
+                this.createDetailedRocket();
+                
+                // Add atmospheric scattering effect
+                this.createAtmosphere();
+                
+                // Add distant space objects
+                this.createSpaceObjects();
+            }
+            
+            createDetailedEarth() {
+                // Earth Group
+                this.earth = new THREE.Group();
+                
+                // Earth Core
+                const earthGeometry = new THREE.SphereGeometry(this.EARTH_RADIUS / 1000, 128, 128);
+                
+                // Create detailed Earth material with simulated textures
+                const earthMaterial = new THREE.MeshPhongMaterial({
+                    color: 0x1a3c8c,
+                    shininess: 30,
+                    specular: 0x111111,
+                    emissive: 0x001122,
+                    transparent: true,
+                    opacity: 0.95
+                });
+                
+                const earthMesh = new THREE.Mesh(earthGeometry, earthMaterial);
+                earthMesh.receiveShadow = true;
+                this.earth.add(earthMesh);
+                
+                // Cloud Layer
+                const cloudGeometry = new THREE.SphereGeometry(this.EARTH_RADIUS / 1000 + 1, 96, 96);
+                const cloudMaterial = new THREE.MeshPhongMaterial({
+                    color: 0xffffff,
+                    transparent: true,
+                    opacity: 0.15,
+                    side: THREE.DoubleSide,
+                    blending: THREE.AdditiveBlending
+                });
+                const clouds = new THREE.Mesh(cloudGeometry, cloudMaterial);
+                this.earth.add(clouds);
+                
+                // Atmospheric Scattering Effect
+                const atmosphereGeometry = new THREE.SphereGeometry(this.EARTH_RADIUS / 1000 + 10, 64, 64);
+                const atmosphereMaterial = new THREE.ShaderMaterial({
+                    uniforms: {
+                        "c": { value: 0.1 },
+                        "p": { value: 5.0 },
+                        glowColor: { value: new THREE.Color(0x00aaff) },
+                        viewVector: { value: this.camera.position }
+                    },
+                    vertexShader: `
+                        uniform vec3 viewVector;
+                        varying float intensity;
+                        void main() {
+                            vec3 vNormal = normalize(normalMatrix * normal);
+                            vec3 vNormel = normalize(normalMatrix * viewVector);
+                            intensity = pow(0.6 - dot(vNormal, vNormel), 2.0);
+                            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                        }
+                    `,
+                    fragmentShader: `
+                        uniform vec3 glowColor;
+                        varying float intensity;
+                        void main() {
+                            vec3 glow = glowColor * intensity;
+                            gl_FragColor = vec4(glow, intensity * 0.3);
+                        }
+                    `,
+                    side: THREE.BackSide,
+                    blending: THREE.AdditiveBlending,
+                    transparent: true
+                });
+                const atmosphere = new THREE.Mesh(atmosphereGeometry, atmosphereMaterial);
+                this.earth.add(atmosphere);
+                
+                // City lights on night side
+                const lightsGeometry = new THREE.SphereGeometry(this.EARTH_RADIUS / 1000 + 0.1, 64, 64);
+                const lightsMaterial = new THREE.MeshBasicMaterial({
+                    color: 0xffffff,
+                    transparent: true,
+                    opacity: 0.1,
+                    blending: THREE.AdditiveBlending
+                });
+                const cityLights = new THREE.Mesh(lightsGeometry, lightsMaterial);
+                this.earth.add(cityLights);
+                
+                // Position Earth at origin
+                this.earth.position.set(0, -this.EARTH_RADIUS / 1000, 0);
+                this.scene.add(this.earth);
+            }
+            
+            createDetailedStars() {
+                // Create multiple layers of stars for depth
+                const createStarLayer = (count, size, distance, color) => {
+                    const geometry = new THREE.BufferGeometry();
+                    const positions = new Float32Array(count * 3);
+                    const colors = new Float32Array(count * 3);
+                    const sizes = new Float32Array(count);
+                    
+                    for (let i = 0; i < count; i++) {
+                        // Spherical distribution
+                        const theta = Math.random() * Math.PI * 2;
+                        const phi = Math.acos((Math.random() * 2) - 1);
+                        const radius = distance + (Math.random() - 0.5) * distance * 0.1;
+                        
+                        positions[i * 3] = radius * Math.sin(phi) * Math.cos(theta);
+                        positions[i * 3 + 1] = radius * Math.sin(phi) * Math.sin(theta);
+                        positions[i * 3 + 2] = radius * Math.cos(phi);
+                        
+                        // Color variation
+                        const starColor = new THREE.Color(color);
+                        const hueShift = (Math.random() - 0.5) * 0.1;
+                        starColor.offsetHSL(hueShift, 0, Math.random() * 0.2 - 0.1);
+                        
+                        colors[i * 3] = starColor.r;
+                        colors[i * 3 + 1] = starColor.g;
+                        colors[i * 3 + 2] = starColor.b;
+                        
+                        // Size variation
+                        sizes[i] = size * (0.5 + Math.random() * 1.5);
+                    }
+                    
+                    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+                    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+                    geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+                    
+                    const material = new THREE.PointsMaterial({
+                        size: size,
+                        vertexColors: true,
+                        transparent: true,
+                        sizeAttenuation: true,
+                        blending: THREE.AdditiveBlending
+                    });
+                    
+                    return new THREE.Points(geometry, material);
+                };
+                
+                // Create multiple star layers
+                const starLayers = [
+                    createStarLayer(20000, 0.8, 50000, 0xffffff), // Distant blue stars
+                    createStarLayer(15000, 1.2, 30000, 0xffffdd), // Medium yellow stars
+                    createStarLayer(10000, 1.8, 15000, 0xffddbb), // Close orange stars
+                    createStarLayer(500, 3.0, 5000, 0xff8888)    // Very close red giants
+                ];
+                
+                this.stars = new THREE.Group();
+                starLayers.forEach(layer => this.stars.add(layer));
+                this.scene.add(this.stars);
+            }
+            
+            createLaunchSite() {
+                // Launch Complex Group
+                this.launchSite = new THREE.Group();
+                
+                // Launch Pad Base
+                const padGeometry = new THREE.CylinderGeometry(30, 35, 5, 32);
+                const padMaterial = new THREE.MeshPhongMaterial({
+                    color: 0x333333,
+                    shininess: 30
+                });
+                const launchPad = new THREE.Mesh(padGeometry, padMaterial);
+                launchPad.position.y = 2.5;
+                launchPad.receiveShadow = true;
+                this.launchSite.add(launchPad);
+                
+                // Flame Trench
+                const trenchGeometry = new THREE.BoxGeometry(40, 10, 15);
+                const trenchMaterial = new THREE.MeshPhongMaterial({
+                    color: 0x222222,
+                    emissive: 0x111111
+                });
+                const flameTrench = new THREE.Mesh(trenchGeometry, trenchMaterial);
+                flameTrench.position.y = -5;
+                flameTrench.position.z = -10;
+                this.launchSite.add(flameTrench);
+                
+                // Launch Umbilical Tower
+                this.createUmbilicalTower();
+                
+                // Service Arms
+                this.createServiceArms();
+                
+                // Water Deluge System
+                this.createWaterDelugeSystem();
+                
+                // Position launch site
+                this.launchSite.position.set(0, 0, 0);
+                this.scene.add(this.launchSite);
+            }
+            
+            createUmbilicalTower() {
+                // Main tower structure
+                const towerGroup = new THREE.Group();
+                
+                // Main vertical beams
+                for (let i = 0; i < 4; i++) {
+                    const angle = (i / 4) * Math.PI * 2;
+                    const beamGeometry = new THREE.BoxGeometry(1, 80, 1);
+                    const beamMaterial = new THREE.MeshPhongMaterial({ color: 0x666666 });
+                    const beam = new THREE.Mesh(beamGeometry, beamMaterial);
+                    beam.position.x = Math.cos(angle) * 10;
+                    beam.position.z = Math.sin(angle) * 10;
+                    beam.position.y = 40;
+                    beam.castShadow = true;
+                    towerGroup.add(beam);
+                }
+                
+                // Horizontal cross beams
+                for (let i = 0; i < 20; i++) {
+                    const level = i * 4;
+                    const beamGeometry = new THREE.BoxGeometry(22, 0.5, 0.5);
+                    const beamMaterial = new THREE.MeshPhongMaterial({ color: 0x777777 });
+                    
+                    for (let j = 0; j < 4; j++) {
+                        const beam = new THREE.Mesh(beamGeometry, beamMaterial);
+                        beam.rotation.y = (j / 4) * Math.PI * 2;
+                        beam.position.y = level;
+                        beam.castShadow = true;
+                        towerGroup.add(beam);
+                    }
+                }
+                
+                // Service platforms
+                for (let i = 0; i < 4; i++) {
+                    const platformGeometry = new THREE.CylinderGeometry(12, 12, 1, 8);
+                    const platformMaterial = new THREE.MeshPhongMaterial({ color: 0x555555 });
+                    const platform = new THREE.Mesh(platformGeometry, platformMaterial);
+                    platform.position.y = 15 + i * 15;
+                    platform.castShadow = true;
+                    towerGroup.add(platform);
+                }
+                
+                // Umbilical arms
+                const armGroup = new THREE.Group();
+                const armGeometry = new THREE.BoxGeometry(15, 1, 2);
+                const armMaterial = new THREE.MeshPhongMaterial({ color: 0x888888 });
+                const arm = new THREE.Mesh(armGeometry, armMaterial);
+                arm.position.set(7.5, 25, 0);
+                arm.rotation.z = -Math.PI / 6;
+                arm.castShadow = true;
+                armGroup.add(arm);
+                
+                // Hydraulic cylinders
+                const cylinderGeometry = new THREE.CylinderGeometry(0.3, 0.3, 8, 8);
+                const cylinderMaterial = new THREE.MeshPhongMaterial({ color: 0x444444 });
+                const cylinder = new THREE.Mesh(cylinderGeometry, cylinderMaterial);
+                cylinder.position.set(0, 20, 0);
+                cylinder.rotation.z = Math.PI / 2;
+                armGroup.add(cylinder);
+                
+                towerGroup.add(armGroup);
+                this.launchSite.add(towerGroup);
+                this.umbilicalTower = towerGroup;
+            }
+            
+            createServiceArms() {
+                // Create rotating service arms
+                this.serviceArms = new THREE.Group();
+                
+                // Main arm structure
+                const armGeometry = new THREE.BoxGeometry(25, 0.5, 5);
+                const armMaterial = new THREE.MeshPhongMaterial({ color: 0x777777 });
+                const arm = new THREE.Mesh(armGeometry, armMaterial);
+                arm.position.set(12.5, 20, 0);
+                arm.castShadow = true;
+                
+                // Pivot mechanism
+                const pivotGeometry = new THREE.CylinderGeometry(2, 2, 3, 16);
+                const pivotMaterial = new THREE.MeshPhongMaterial({ color: 0x888888 });
+                const pivot = new THREE.Mesh(pivotGeometry, pivotMaterial);
+                pivot.position.set(0, 20, 0);
+                pivot.castShadow = true;
+                
+                // Service platform at end of arm
+                const platformGeometry = new THREE.BoxGeometry(8, 2, 8);
+                const platformMaterial = new THREE.MeshPhongMaterial({ color: 0x666666 });
+                const platform = new THREE.Mesh(platformGeometry, platformMaterial);
+                platform.position.set(25, 20, 0);
+                platform.castShadow = true;
+                
+                this.serviceArms.add(arm, pivot, platform);
+                this.launchSite.add(this.serviceArms);
+            }
+            
+            createWaterDelugeSystem() {
+                // Water deluge pipes and nozzles
+                const delugeGroup = new THREE.Group();
+                
+                // Main pipe around pad
+                const pipeGeometry = new THREE.TorusGeometry(25, 0.5, 16, 100);
+                const pipeMaterial = new THREE.MeshPhongMaterial({ color: 0x3366cc });
+                const pipe = new THREE.Mesh(pipeGeometry, pipeMaterial);
+                pipe.rotation.x = Math.PI / 2;
+                pipe.position.y = 1;
+                delugeGroup.add(pipe);
+                
+                // Nozzles
+                const nozzleGeometry = new THREE.ConeGeometry(0.3, 1, 8);
+                const nozzleMaterial = new THREE.MeshPhongMaterial({ color: 0x4444ff });
+                
+                for (let i = 0; i < 12; i++) {
+                    const angle = (i / 12) * Math.PI * 2;
+                    const nozzle = new THREE.Mesh(nozzleGeometry, nozzleMaterial);
+                    nozzle.position.x = Math.cos(angle) * 25;
+                    nozzle.position.z = Math.sin(angle) * 25;
+                    nozzle.position.y = 1.5;
+                    nozzle.rotation.x = Math.PI;
+                    nozzle.rotation.y = -angle;
+                    delugeGroup.add(nozzle);
+                }
+                
+                this.launchSite.add(delugeGroup);
+                this.waterDeluge = delugeGroup;
+            }
+            
+            createDetailedRocket() {
+                // Main rocket group
+                this.rocket = new THREE.Group();
+                
+                // Create each stage with detailed components
+                this.stages.forEach((stage, index) => {
+                    const stageGroup = this.createDetailedStage(stage, index);
+                    this.rocket.add(stageGroup);
+                    stage.visual = stageGroup;
+                    
+                    // Create exhaust system for this stage
+                    const exhaustSystem = this.createExhaustSystem(stage);
+                    stage.exhaust = exhaustSystem;
+                    stageGroup.add(exhaustSystem);
+                });
+                
+                // Create payload fairing
+                this.createPayloadFairing();
+                
+                // Create grid fins for first stage
+                this.createGridFins();
+                
+                // Create RCS thrusters
+                this.createRCSThrusters();
+                
+                // Create separation systems
+                this.createSeparationSystems();
+                
+                // Position rocket on launch pad
+                this.rocket.position.set(0, 10, 0);
+                this.scene.add(this.rocket);
+            }
+            
+            createDetailedStage(stage, stageIndex) {
+                const stageGroup = new THREE.Group();
+                const stageColor = this.getStageColor(stageIndex);
+                
+                // Main stage body
+                const bodyGroup = this.createStageBody(stage, stageColor);
+                stageGroup.add(bodyGroup);
+                
+                // Engine cluster
+                const engineGroup = this.createEngineCluster(stage, stageIndex);
+                stageGroup.add(engineGroup);
+                
+                // Stage-specific components
+                if (stageIndex === 0) {
+                    // First stage components
+                    const interstage = this.createInterstage(stage);
+                    stageGroup.add(interstage);
+                    
+                    const thrustStructure = this.createThrustStructure(stage);
+                    stageGroup.add(thrustStructure);
+                } else if (stageIndex === 1) {
+                    // Second stage components
+                    const vacuumSkirt = this.createVacuumSkirt(stage);
+                    stageGroup.add(vacuumSkirt);
+                }
+                
+                // Fuel tank visualization
+                const fuelTank = this.createFuelTank(stage, stageColor);
+                stageGroup.add(fuelTank);
+                
+                // Plumbing and wiring
+                const plumbing = this.createPlumbingSystem(stage);
+                stageGroup.add(plumbing);
+                
+                return stageGroup;
+            }
+            
+            createStageBody(stage, color) {
+                const bodyGroup = new THREE.Group();
+                
+                // Main cylinder
+                const height = stage.dimensions.height;
+                const radius = stage.dimensions.diameter / 2;
+                
+                const cylinderGeometry = new THREE.CylinderGeometry(radius, radius, height, 32);
+                const cylinderMaterial = new THREE.MeshPhongMaterial({
+                    color: 0xffffff,
+                    shininess: 80,
+                    specular: 0x222222
+                });
+                const cylinder = new THREE.Mesh(cylinderGeometry, cylinderMaterial);
+                cylinder.castShadow = true;
+                bodyGroup.add(cylinder);
+                
+                // Structural stringers
+                const stringerGeometry = new THREE.BoxGeometry(height, 0.1, 0.1);
+                const stringerMaterial = new THREE.MeshPhongMaterial({ color: 0x888888 });
+                
+                for (let i = 0; i < 8; i++) {
+                    const angle = (i / 8) * Math.PI * 2;
+                    const stringer = new THREE.Mesh(stringerGeometry, stringerMaterial);
+                    stringer.position.x = Math.cos(angle) * radius;
+                    stringer.position.z = Math.sin(angle) * radius;
+                    stringer.rotation.z = Math.PI / 2;
+                    stringer.rotation.y = angle;
+                    stringer.castShadow = true;
+                    bodyGroup.add(stringer);
+                }
+                
+                // Stage identification markings
+                const markingGeometry = new THREE.PlaneGeometry(radius * 1.5, 2);
+                const markingMaterial = new THREE.MeshBasicMaterial({
+                    color: color,
+                    side: THREE.DoubleSide,
+                    transparent: true,
+                    opacity: 0.7
+                });
+                const marking = new THREE.Mesh(markingGeometry, markingMaterial);
+                marking.position.y = height / 4;
+                marking.rotation.y = Math.PI / 2;
+                bodyGroup.add(marking);
+                
+                return bodyGroup;
+            }
+            
+            createEngineCluster(stage, stageIndex) {
+                const engineGroup = new THREE.Group();
+                const engineCount = stage.engines;
+                
+                // Base engine geometry
+                const nozzleGeometry = this.createEngineNozzleGeometry(stage.engineType);
+                const nozzleMaterial = new THREE.MeshPhongMaterial({
+                    color: 0x333333,
+                    shininess: 10
+                });
+                
+                if (stageIndex === 0) {
+                    // First stage - 9 engines in octoweb pattern
+                    const positions = this.getOctowebEnginePositions(engineCount);
+                    
+                    positions.forEach((pos, i) => {
+                        const nozzle = new THREE.Mesh(nozzleGeometry, nozzleMaterial);
+                        nozzle.position.set(pos.x, -stage.dimensions.height / 2 - 2, pos.z);
+                        nozzle.rotation.x = Math.PI;
+                        nozzle.castShadow = true;
+                        
+                        // Add engine bell details
+                        const bellDetail = this.createEngineBellDetails();
+                        nozzle.add(bellDetail);
+                        
+                        engineGroup.add(nozzle);
+                    });
+                } else {
+                    // Upper stages - single center engine
+                    const nozzle = new THREE.Mesh(nozzleGeometry, nozzleMaterial);
+                    nozzle.position.y = -stage.dimensions.height / 2 - 1.5;
+                    nozzle.rotation.x = Math.PI;
+                    nozzle.castShadow = true;
+                    
+                    // Add vacuum nozzle extension for upper stages
+                    if (stageIndex > 0) {
+                        const extension = this.createVacuumNozzleExtension();
+                        nozzle.add(extension);
+                    }
+                    
+                    engineGroup.add(nozzle);
+                }
+                
+                return engineGroup;
+            }
+            
+            createEngineNozzleGeometry(engineType) {
+                // Different nozzle geometries for different engine types
+                switch(engineType) {
+                    case "Merlin 1D":
+                        return new THREE.ConeGeometry(1.2, 3, 16);
+                    case "Merlin Vacuum":
+                        return new THREE.ConeGeometry(0.8, 4, 16);
+                    case "RL-10":
+                        return new THREE.ConeGeometry(0.6, 5, 16);
+                    default:
+                        return new THREE.ConeGeometry(1, 3, 16);
+                }
+            }
+            
+            getOctowebEnginePositions(count) {
+                // Positions for Falcon 9 style octoweb arrangement
+                const positions = [];
+                const centerDistance = 1.5;
+                
+                // Center engine
+                positions.push({ x: 0, z: 0 });
+                
+                // Outer ring
+                for (let i = 0; i < 8; i++) {
+                    const angle = (i / 8) * Math.PI * 2;
+                    positions.push({
+                        x: Math.cos(angle) * centerDistance,
+                        z: Math.sin(angle) * centerDistance
+                    });
+                }
+                
+                return positions.slice(0, count);
+            }
+            
+            createEngineBellDetails() {
+                const detailGroup = new THREE.Group();
+                
+                // Cooling channels
+                const channelGeometry = new THREE.TorusGeometry(0.9, 0.05, 8, 16);
+                const channelMaterial = new THREE.MeshPhongMaterial({ color: 0x666666 });
+                
+                for (let i = 0; i < 4; i++) {
+                    const channel = new THREE.Mesh(channelGeometry, channelMaterial);
+                    channel.position.y = -0.5 - i * 0.5;
+                    channel.rotation.x = Math.PI / 2;
+                    detailGroup.add(channel);
+                }
+                
+                return detailGroup;
+            }
+            
+            createVacuumNozzleExtension() {
+                const extensionGroup = new THREE.Group();
+                
+                // Extension bell
+                const extensionGeometry = new THREE.ConeGeometry(0.6, 6, 16);
+                const extensionMaterial = new THREE.MeshPhongMaterial({
+                    color: 0x444444,
+                    transparent: true,
+                    opacity: 0.8
+                });
+                const extension = new THREE.Mesh(extensionGeometry, extensionMaterial);
+                extension.position.y = -2.5;
+                extensionGroup.add(extension);
+                
+                return extensionGroup;
+            }
+            
+            createInterstage(stage) {
+                const interstageGroup = new THREE.Group();
+                const height = stage.dimensions.interstageHeight;
+                const radius = stage.dimensions.diameter / 2;
+                
+                // Interstage cylinder
+                const geometry = new THREE.CylinderGeometry(radius, radius * 0.95, height, 32);
+                const material = new THREE.MeshPhongMaterial({ color: 0x999999 });
+                const interstage = new THREE.Mesh(geometry, material);
+                interstage.position.y = stage.dimensions.height / 2 + height / 2;
+                interstage.castShadow = true;
+                interstageGroup.add(interstage);
+                
+                // Separation plane indicator
+                const separationGeometry = new THREE.RingGeometry(radius * 0.9, radius, 32);
+                const separationMaterial = new THREE.MeshBasicMaterial({
+                    color: 0xff0000,
+                    side: THREE.DoubleSide,
+                    transparent: true,
+                    opacity: 0.3
+                });
+                const separationPlane = new THREE.Mesh(separationGeometry, separationMaterial);
+                separationPlane.position.y = stage.dimensions.height / 2;
+                separationPlane.rotation.x = Math.PI / 2;
+                interstageGroup.add(separationPlane);
+                
+                // Separation bolts
+                const boltGeometry = new THREE.CylinderGeometry(0.1, 0.1, 0.3, 8);
+                const boltMaterial = new THREE.MeshPhongMaterial({ color: 0xffaa00 });
+                
+                for (let i = 0; i < 8; i++) {
+                    const angle = (i / 8) * Math.PI * 2;
+                    const bolt = new THREE.Mesh(boltGeometry, boltMaterial);
+                    bolt.position.x = Math.cos(angle) * radius * 0.85;
+                    bolt.position.z = Math.sin(angle) * radius * 0.85;
+                    bolt.position.y = stage.dimensions.height / 2;
+                    bolt.castShadow = true;
+                    interstageGroup.add(bolt);
+                }
+                
+                return interstageGroup;
+            }
+            
+            createThrustStructure(stage) {
+                const thrustGroup = new THREE.Group();
+                
+                // Thrust puck structure
+                const puckGeometry = new THREE.CylinderGeometry(stage.dimensions.diameter / 2 * 0.8, 
+                                                              stage.dimensions.diameter / 2 * 0.9, 
+                                                              1, 32);
+                const puckMaterial = new THREE.MeshPhongMaterial({ color: 0x777777 });
+                const thrustPuck = new THREE.Mesh(puckGeometry, puckMaterial);
+                thrustPuck.position.y = -stage.dimensions.height / 2 + 0.5;
+                thrustPuck.castShadow = true;
+                thrustGroup.add(thrustPuck);
+                
+                // Engine mounting points
+                const mountGeometry = new THREE.CylinderGeometry(0.2, 0.3, 0.5, 8);
+                const mountMaterial = new THREE.MeshPhongMaterial({ color: 0x555555 });
+                
+                const positions = this.getOctowebEnginePositions(stage.engines);
+                positions.forEach(pos => {
+                    const mount = new THREE.Mesh(mountGeometry, mountMaterial);
+                    mount.position.set(pos.x, -stage.dimensions.height / 2 + 0.25, pos.z);
+                    mount.castShadow = true;
+                    thrustGroup.add(mount);
+                });
+                
+                return thrustGroup;
+            }
+            
+            createVacuumSkirt(stage) {
+                const skirtGroup = new THREE.Group();
+                
+                // Skirt geometry
+                const geometry = new THREE.ConeGeometry(stage.dimensions.diameter / 2 * 1.2, 
+                                                     2, 32);
+                const material = new THREE.MeshPhongMaterial({
+                    color: 0x888888,
+                    transparent: true,
+                    opacity: 0.9
+                });
+                const skirt = new THREE.Mesh(geometry, material);
+                skirt.position.y = -stage.dimensions.height / 2 - 1;
+                skirt.rotation.x = Math.PI;
+                skirt.castShadow = true;
+                skirtGroup.add(skirt);
+                
+                return skirtGroup;
+            }
+            
+            createFuelTank(stage, color) {
+                const tankGroup = new THREE.Group();
+                
+                // Tank geometry (slightly smaller than stage body)
+                const height = stage.dimensions.height * 0.85;
+                const radius = stage.dimensions.diameter / 2 * 0.9;
+                
+                const geometry = new THREE.CylinderGeometry(radius, radius, height, 32);
+                const material = new THREE.MeshPhongMaterial({
+                    color: color,
+                    transparent: true,
+                    opacity: 0.6,
+                    side: THREE.DoubleSide
+                });
+                const tank = new THREE.Mesh(geometry, material);
+                tank.position.y = -stage.dimensions.height * 0.075;
+                tankGroup.add(tank);
+                
+                // Tank domes
+                const domeGeometry = new THREE.SphereGeometry(radius, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2);
+                
+                // Top dome
+                const topDome = new THREE.Mesh(domeGeometry, material);
+                topDome.position.y = height / 2;
+                tankGroup.add(topDome);
+                
+                // Bottom dome
+                const bottomDome = new THREE.Mesh(domeGeometry, material);
+                bottomDome.position.y = -height / 2;
+                bottomDome.rotation.x = Math.PI;
+                tankGroup.add(bottomDome);
+                
+                // Tank level indicator (shows fuel level)
+                const levelIndicator = new THREE.Mesh(
+                    new THREE.PlaneGeometry(radius * 2, 0.1),
+                    new THREE.MeshBasicMaterial({ color: 0x00ff00 })
+                );
+                levelIndicator.position.y = height / 2 - 0.1;
+                levelIndicator.rotation.y = Math.PI / 2;
+                tankGroup.add(levelIndicator);
+                
+                return tankGroup;
+            }
+            
+            createPlumbingSystem(stage) {
+                const plumbingGroup = new THREE.Group();
+                
+                // Fuel lines
+                const lineGeometry = new THREE.CylinderGeometry(0.05, 0.05, stage.dimensions.height * 0.8, 8);
+                const lineMaterial = new THREE.MeshPhongMaterial({ color: 0xffaa00 });
+                
+                for (let i = 0; i < 4; i++) {
+                    const angle = (i / 4) * Math.PI * 2;
+                    const line = new THREE.Mesh(lineGeometry, lineMaterial);
+                    line.position.x = Math.cos(angle) * (stage.dimensions.diameter / 2 * 0.85);
+                    line.position.z = Math.sin(angle) * (stage.dimensions.diameter / 2 * 0.85);
+                    line.rotation.z = Math.PI / 2;
+                    line.castShadow = true;
+                    plumbingGroup.add(line);
+                }
+                
+                // Valves
+                const valveGeometry = new THREE.SphereGeometry(0.1, 16, 16);
+                const valveMaterial = new THREE.MeshPhongMaterial({ color: 0xff0000 });
+                
+                for (let i = 0; i < 4; i++) {
+                    const valve = new THREE.Mesh(valveGeometry, valveMaterial);
+                    valve.position.y = -stage.dimensions.height / 4 + i * (stage.dimensions.height / 2);
+                    valve.position.x = stage.dimensions.diameter / 2 * 0.85;
+                    valve.castShadow = true;
+                    plumbingGroup.add(valve);
+                }
+                
+                return plumbingGroup;
+            }
+            
+            createPayloadFairing() {
+                const fairingGroup = new THREE.Group();
+                
+                // Fairing halves
+                const fairingGeometry = new THREE.ConeGeometry(2, 20, 16);
+                const fairingMaterial = new THREE.MeshPhongMaterial({
+                    color: 0xffffff,
+                    shininess: 100,
+                    transparent: true,
+                    opacity: 0.9
+                });
+                
+                const fairingHalf1 = new THREE.Mesh(fairingGeometry, fairingMaterial);
+                fairingHalf1.castShadow = true;
+                
+                const fairingHalf2 = fairingHalf1.clone();
+                fairingHalf2.rotation.y = Math.PI;
+                
+                fairingGroup.add(fairingHalf1, fairingHalf2);
+                
+                // Satellite payload
+                const satelliteGroup = this.createSatellite();
+                satelliteGroup.position.y = 10;
+                fairingGroup.add(satelliteGroup);
+                
+                // Fairing separation mechanism
+                const separationGroup = this.createFairingSeparationSystem();
+                fairingGroup.add(separationGroup);
+                
+                // Position at top of rocket
+                const totalHeight = this.stages.reduce((sum, stage) => sum + stage.dimensions.height, 0);
+                fairingGroup.position.y = totalHeight / 2 + 10;
+                
+                this.rocket.add(fairingGroup);
+                this.fairing = fairingGroup;
+            }
+            
+            createSatellite() {
+                const satelliteGroup = new THREE.Group();
+                
+                // Main bus
+                const busGeometry = new THREE.BoxGeometry(1.5, 2, 1.5);
+                const busMaterial = new THREE.MeshPhongMaterial({
+                    color: 0xffff00,
+                    emissive: 0x444400,
+                    emissiveIntensity: 0.5
+                });
+                const bus = new THREE.Mesh(busGeometry, busMaterial);
+                bus.castShadow = true;
+                satelliteGroup.add(bus);
+                
+                // Solar panels
+                const panelGeometry = new THREE.BoxGeometry(3, 0.1, 1);
+                const panelMaterial = new THREE.MeshPhongMaterial({
+                    color: 0x00aaff,
+                    emissive: 0x002244
+                });
+                
+                const leftPanel = new THREE.Mesh(panelGeometry, panelMaterial);
+                leftPanel.position.x = -2.25;
+                satelliteGroup.add(leftPanel);
+                
+                const rightPanel = new THREE.Mesh(panelGeometry, panelMaterial);
+                rightPanel.position.x = 2.25;
+                satelliteGroup.add(rightPanel);
+                
+                // Antenna
+                const antennaGeometry = new THREE.CylinderGeometry(0.05, 0.1, 1, 8);
+                const antennaMaterial = new THREE.MeshPhongMaterial({ color: 0x888888 });
+                const antenna = new THREE.Mesh(antennaGeometry, antennaMaterial);
+                antenna.position.y = 1.5;
+                satelliteGroup.add(antenna);
+                
+                // Reaction wheels
+                const wheelGeometry = new THREE.SphereGeometry(0.2, 16, 16);
+                const wheelMaterial = new THREE.MeshPhongMaterial({ color: 0xff0000 });
+                
+                for (let i = 0; i < 3; i++) {
+                    const wheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
+                    wheel.position.set(
+                        (i - 1) * 0.5,
+                        -0.8,
+                        0
+                    );
+                    satelliteGroup.add(wheel);
+                }
+                
+                return satelliteGroup;
+            }
+            
+            createFairingSeparationSystem() {
+                const separationGroup = new THREE.Group();
+                
+                // Separation bolts
+                const boltGeometry = new THREE.CylinderGeometry(0.08, 0.08, 0.3, 8);
+                const boltMaterial = new THREE.MeshPhongMaterial({ color: 0xff5500 });
+                
+                for (let i = 0; i < 12; i++) {
+                    const angle = (i / 12) * Math.PI * 2;
+                    const bolt = new THREE.Mesh(boltGeometry, boltMaterial);
+                    bolt.position.x = Math.cos(angle) * 1.8;
+                    bolt.position.z = Math.sin(angle) * 1.8;
+                    bolt.position.y = -10;
+                    bolt.rotation.y = angle + Math.PI / 2;
+                    bolt.castShadow = true;
+                    separationGroup.add(bolt);
+                }
+                
+                // Separation springs
+                const springGeometry = new THREE.CylinderGeometry(0.05, 0.05, 0.5, 8);
+                const springMaterial = new THREE.MeshPhongMaterial({ color: 0x888888 });
+                
+                for (let i = 0; i < 8; i++) {
+                    const angle = (i / 8) * Math.PI * 2;
+                    const spring = new THREE.Mesh(springGeometry, springMaterial);
+                    spring.position.x = Math.cos(angle) * 1.5;
+                    spring.position.z = Math.sin(angle) * 1.5;
+                    spring.position.y = -9.75;
+                    spring.rotation.y = angle;
+                    separationGroup.add(spring);
+                }
+                
+                return separationGroup;
+            }
+            
+            createGridFins() {
+                this.gridFins = new THREE.Group();
+                
+                // Grid fin geometry (detailed lattice structure)
+                const createGridFin = (size) => {
+                    const finGroup = new THREE.Group();
+                    
+                    // Outer frame
+                    const frameGeometry = new THREE.BoxGeometry(0.1, size, 0.1);
+                    const frameMaterial = new THREE.MeshPhongMaterial({ color: 0x666666 });
+                    
+                    // Vertical frame members
+                    for (let i = -1; i <= 1; i += 2) {
+                        const frame = new THREE.Mesh(frameGeometry, frameMaterial);
+                        frame.position.x = i * (size / 2 - 0.05);
+                        frame.castShadow = true;
+                        finGroup.add(frame);
+                    }
+                    
+                    // Horizontal frame members
+                    const horizontalFrameGeometry = new THREE.BoxGeometry(size, 0.1, 0.1);
+                    for (let i = -2; i <= 2; i++) {
+                        const frame = new THREE.Mesh(horizontalFrameGeometry, frameMaterial);
+                        frame.position.y = i * (size / 4);
+                        frame.castShadow = true;
+                        finGroup.add(frame);
+                    }
+                    
+                    // Grid lattice
+                    const latticeGeometry = new THREE.BoxGeometry(0.05, size * 0.9, 0.05);
+                    for (let i = -3; i <= 3; i++) {
+                        const lattice = new THREE.Mesh(latticeGeometry, frameMaterial);
+                        lattice.position.x = i * (size / 6);
+                        lattice.position.y = i % 2 === 0 ? size / 8 : -size / 8;
+                        lattice.rotation.z = Math.PI / 4;
+                        lattice.castShadow = true;
+                        finGroup.add(lattice);
+                    }
+                    
+                    // Actuator housing
+                    const actuatorGeometry = new THREE.CylinderGeometry(0.2, 0.2, 0.5, 8);
+                    const actuatorMaterial = new THREE.MeshPhongMaterial({ color: 0x333333 });
+                    const actuator = new THREE.Mesh(actuatorGeometry, actuatorMaterial);
+                    actuator.position.y = -size / 2 - 0.25;
+                    actuator.castShadow = true;
+                    finGroup.add(actuator);
+                    
+                    return finGroup;
+                };
+                
+                // Create 4 grid fins around first stage
+                for (let i = 0; i < 4; i++) {
+                    const angle = (i / 4) * Math.PI * 2;
+                    const fin = createGridFin(3);
+                    fin.position.x = Math.cos(angle) * 3.5;
+                    fin.position.z = Math.sin(angle) * 3.5;
+                    fin.position.y = -this.stages[0].dimensions.height / 2 + 2;
+                    fin.rotation.y = angle + Math.PI / 2;
+                    
+                    this.gridFins.add(fin);
+                }
+                
+                this.rocket.add(this.gridFins);
+            }
+            
+            createRCSThrusters() {
+                this.rcsSystems = new THREE.Group();
+                
+                // RCS block geometry
+                const createRCSBlock = (position, rotation) => {
+                    const blockGroup = new THREE.Group();
+                    
+                    // Main housing
+                    const housingGeometry = new THREE.BoxGeometry(0.3, 0.3, 0.3);
+                    const housingMaterial = new THREE.MeshPhongMaterial({ color: 0xffaa00 });
+                    const housing = new THREE.Mesh(housingGeometry, housingMaterial);
+                    housing.castShadow = true;
+                    blockGroup.add(housing);
+                    
+                    // Nozzles (4 per block)
+                    const nozzleGeometry = new THREE.ConeGeometry(0.05, 0.2, 8);
+                    const nozzleMaterial = new THREE.MeshPhongMaterial({ color: 0x333333 });
+                    
+                    const nozzlePositions = [
+                        { x: 0.2, y: 0, z: 0, rot: [0, 0, -Math.PI/2] },
+                        { x: -0.2, y: 0, z: 0, rot: [0, 0, Math.PI/2] },
+                        { x: 0, y: 0.2, z: 0, rot: [Math.PI/2, 0, 0] },
+                        { x: 0, y: -0.2, z: 0, rot: [-Math.PI/2, 0, 0] }
+                    ];
+                    
+                    nozzlePositions.forEach(pos => {
+                        const nozzle = new THREE.Mesh(nozzleGeometry, nozzleMaterial);
+                        nozzle.position.set(pos.x, pos.y, pos.z);
+                        nozzle.rotation.set(...pos.rot);
+                        blockGroup.add(nozzle);
+                    });
+                    
+                    blockGroup.position.copy(position);
+                    blockGroup.rotation.set(...rotation);
+                    
+                    return blockGroup;
+                };
+                
+                // RCS positions on rocket
+                const rcsPositions = [
+                    // Upper section
+                    { pos: [3, 20, 0], rot: [0, 0, 0] },
+                    { pos: [-3, 20, 0], rot: [0, Math.PI, 0] },
+                    { pos: [0, 20, 3], rot: [0, Math.PI/2, 0] },
+                    { pos: [0, 20, -3], rot: [0, -Math.PI/2, 0] },
+                    
+                    // Lower section
+                    { pos: [3, -10, 0], rot: [0, 0, 0] },
+                    { pos: [-3, -10, 0], rot: [0, Math.PI, 0] },
+                    { pos: [0, -10, 3], rot: [0, Math.PI/2, 0] },
+                    { pos: [0, -10, -3], rot: [0, -Math.PI/2, 0] }
+                ];
+                
+                rcsPositions.forEach(posConfig => {
+                    const rcsBlock = createRCSBlock(
+                        new THREE.Vector3(...posConfig.pos),
+                        posConfig.rot
+                    );
+                    this.rcsSystems.add(rcsBlock);
+                });
+                
+                this.rocket.add(this.rcsSystems);
+            }
+            
+            createSeparationSystems() {
+                // This creates visual representations of separation systems
+                const separationGroup = new THREE.Group();
+                
+                // Stage 1-2 separation plane
+                const sepPlane1 = this.createSeparationPlane(
+                    this.stages[0].dimensions.height / 2,
+                    this.stages[0].dimensions.diameter / 2
+                );
+                separationGroup.add(sepPlane1);
+                
+                // Stage 2-3 separation plane
+                const sepPlane2 = this.createSeparationPlane(
+                    this.stages[0].dimensions.height + this.stages[1].dimensions.height / 2,
+                    this.stages[1].dimensions.diameter / 2
+                );
+                separationGroup.add(sepPlane2);
+                
+                this.rocket.add(separationGroup);
+            }
+            
+            createSeparationPlane(yPosition, radius) {
+                const planeGroup = new THREE.Group();
+                
+                // Separation ring
+                const ringGeometry = new THREE.RingGeometry(radius * 0.9, radius, 32);
+                const ringMaterial = new THREE.MeshBasicMaterial({
+                    color: 0xff0000,
+                    side: THREE.DoubleSide,
+                    transparent: true,
+                    opacity: 0.1
+                });
+                const ring = new THREE.Mesh(ringGeometry, ringMaterial);
+                ring.position.y = yPosition;
+                ring.rotation.x = Math.PI / 2;
+                planeGroup.add(ring);
+                
+                // Explosive bolts
+                const boltGeometry = new THREE.CylinderGeometry(0.08, 0.1, 0.2, 8);
+                const boltMaterial = new THREE.MeshPhongMaterial({ color: 0xff5500 });
+                
+                for (let i = 0; i < 8; i++) {
+                    const angle = (i / 8) * Math.PI * 2;
+                    const bolt = new THREE.Mesh(boltGeometry, boltMaterial);
+                    bolt.position.x = Math.cos(angle) * radius * 0.85;
+                    bolt.position.z = Math.sin(angle) * radius * 0.85;
+                    bolt.position.y = yPosition;
+                    bolt.castShadow = true;
+                    planeGroup.add(bolt);
+                }
+                
+                return planeGroup;
+            }
+            
+            createExhaustSystem(stage) {
+                const exhaustGroup = new THREE.Group();
+                
+                // Create particle system for each engine
+                for (let i = 0; i < stage.engines; i++) {
+                    const particleSystem = this.createEngineParticleSystem(stage);
+                    exhaustGroup.add(particleSystem);
+                }
+                
+                // Add engine glow effect
+                const glowGeometry = new THREE.SphereGeometry(2, 16, 16);
+                const glowMaterial = new THREE.MeshBasicMaterial({
+                    color: 0xff5500,
+                    transparent: true,
+                    opacity: 0.3,
+                    blending: THREE.AdditiveBlending
+                });
+                const glow = new THREE.Mesh(glowGeometry, glowMaterial);
+                glow.position.y = -stage.dimensions.height / 2 - 3;
+                exhaustGroup.add(glow);
+                
+                return exhaustGroup;
+            }
+            
+            createEngineParticleSystem(stage) {
+                const particleCount = 1000;
+                const geometry = new THREE.BufferGeometry();
+                
+                // Positions
+                const positions = new Float32Array(particleCount * 3);
+                const velocities = new Float32Array(particleCount * 3);
+                const lifetimes = new Float32Array(particleCount);
+                const sizes = new Float32Array(particleCount);
+                
+                for (let i = 0; i < particleCount; i++) {
+                    // Start all particles at origin
+                    positions[i * 3] = (Math.random() - 0.5) * 0.5;
+                    positions[i * 3 + 1] = 0;
+                    positions[i * 3 + 2] = (Math.random() - 0.5) * 0.5;
+                    
+                    // Initial velocities
+                    velocities[i * 3] = (Math.random() - 0.5) * 0.2;
+                    velocities[i * 3 + 1] = -5 - Math.random() * 5;
+                    velocities[i * 3 + 2] = (Math.random() - 0.5) * 0.2;
+                    
+                    // Random lifetimes
+                    lifetimes[i] = 0;
+                    
+                    // Size variation
+                    sizes[i] = 0.5 + Math.random() * 1.5;
+                }
+                
+                geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+                geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
+                
+                // Create shader material for realistic exhaust
+                const material = new THREE.ShaderMaterial({
+                    uniforms: {
+                        time: { value: 0 },
+                        throttle: { value: 0 },
+                        altitude: { value: 0 }
+                    },
+                    vertexShader: `
+                        attribute float size;
+                        varying float vLifetime;
+                        uniform float time;
+                        uniform float throttle;
+                        uniform float altitude;
+                        
+                        void main() {
+                            vLifetime = (mod(time + position.y * 0.1, 2.0) - 1.0) * throttle;
+                            
+                            vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+                            gl_PointSize = size * (300.0 / -mvPosition.z) * throttle;
+                            gl_Position = projectionMatrix * mvPosition;
+                        }
+                    `,
+                    fragmentShader: `
+                        varying float vLifetime;
+                        
+                        void main() {
+                            float intensity = clamp(1.0 - abs(vLifetime), 0.0, 1.0);
+                            
+                            // Core (white hot)
+                            vec3 coreColor = vec3(1.0, 0.9, 0.8);
+                            // Middle (orange)
+                            vec3 midColor = vec3(1.0, 0.5, 0.2);
+                            // Outer (red)
+                            vec3 outerColor = vec3(0.8, 0.2, 0.1);
+                            
+                            vec3 color = mix(outerColor, midColor, intensity * 2.0);
+                            color = mix(color, coreColor, intensity * 3.0);
+                            
+                            gl_FragColor = vec4(color, intensity * 0.8);
+                        }
+                    `,
+                    transparent: true,
+                    blending: THREE.AdditiveBlending,
+                    depthWrite: false
+                });
+                
+                const particleSystem = new THREE.Points(geometry, material);
+                particleSystem.userData = {
+                    velocities: velocities,
+                    lifetimes: lifetimes,
+                    active: false
+                };
+                
+                return particleSystem;
+            }
+            
+            createAtmosphere() {
+                // Atmospheric scattering effect
+                const atmosphereGroup = new THREE.Group();
+                
+                // Create multiple layers of atmospheric scattering
+                const layers = [
+                    { radius: this.EARTH_RADIUS / 1000 + 15, color: 0x4488ff, opacity: 0.05 },
+                    { radius: this.EARTH_RADIUS / 1000 + 30, color: 0x88aaff, opacity: 0.03 },
+                    { radius: this.EARTH_RADIUS / 1000 + 50, color: 0xaaccff, opacity: 0.01 }
+                ];
+                
+                layers.forEach(layer => {
+                    const geometry = new THREE.SphereGeometry(layer.radius, 64, 64);
+                    const material = new THREE.MeshBasicMaterial({
+                        color: layer.color,
+                        transparent: true,
+                        opacity: layer.opacity,
+                        side: THREE.BackSide,
+                        blending: THREE.AdditiveBlending
+                    });
+                    const layerMesh = new THREE.Mesh(geometry, material);
+                    atmosphereGroup.add(layerMesh);
+                });
+                
+                this.scene.add(atmosphereGroup);
+                this.atmosphere = atmosphereGroup;
+            }
+            
+            createSpaceObjects() {
+                // Add some space objects for visual interest
+                const spaceObjects = new THREE.Group();
+                
+                // Create some distant satellites
+                for (let i = 0; i < 5; i++) {
+                    const satellite = this.createDistantSatellite();
+                    const distance = 200 + Math.random() * 100;
+                    const angle = Math.random() * Math.PI * 2;
+                    
+                    satellite.position.set(
+                        Math.cos(angle) * distance,
+                        100 + Math.random() * 50,
+                        Math.sin(angle) * distance
+                    );
+                    
+                    spaceObjects.add(satellite);
+                }
+                
+                // Add some orbital debris
+                for (let i = 0; i < 20; i++) {
+                    const debris = this.createSpaceDebris();
+                    const distance = 150 + Math.random() * 200;
+                    const angle = Math.random() * Math.PI * 2;
+                    
+                    debris.position.set(
+                        Math.cos(angle) * distance,
+                        Math.random() * 200,
+                        Math.sin(angle) * distance
+                    );
+                    
+                    spaceObjects.add(debris);
+                }
+                
+                this.scene.add(spaceObjects);
+                this.spaceObjects = spaceObjects;
+            }
+            
+            createDistantSatellite() {
+                const satellite = new THREE.Group();
+                
+                // Simple box with solar panels
+                const bodyGeometry = new THREE.BoxGeometry(0.5, 0.5, 1);
+                const bodyMaterial = new THREE.MeshBasicMaterial({ color: 0x888888 });
+                const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+                satellite.add(body);
+                
+                const panelGeometry = new THREE.BoxGeometry(2, 0.05, 1);
+                const panelMaterial = new THREE.MeshBasicMaterial({ color: 0x00aaff });
+                const panel = new THREE.Mesh(panelGeometry, panelMaterial);
+                panel.position.x = 1.25;
+                satellite.add(panel);
+                
+                return satellite;
+            }
+            
+            createSpaceDebris() {
+                // Random shaped debris
+                const shapes = [
+                    () => new THREE.BoxGeometry(0.2, 0.2, 0.5),
+                    () => new THREE.SphereGeometry(0.15, 8, 8),
+                    () => new THREE.CylinderGeometry(0.1, 0.1, 0.3, 6),
+                    () => new THREE.ConeGeometry(0.1, 0.3, 4)
+                ];
+                
+                const shape = shapes[Math.floor(Math.random() * shapes.length)]();
+                const material = new THREE.MeshBasicMaterial({ color: 0x666666 });
+                const debris = new THREE.Mesh(shape, material);
+                
+                // Random rotation
+                debris.rotation.set(
+                    Math.random() * Math.PI,
+                    Math.random() * Math.PI,
+                    Math.random() * Math.PI
+                );
+                
+                return debris;
+            }
+            
+            getStageColor(stageIndex) {
+                const colors = [
+                    0xff5500, // Stage 1 - Orange
+                    0x00aaff, // Stage 2 - Blue
+                    0xaa00ff  // Stage 3 - Purple
+                ];
+                return colors[stageIndex] || 0x888888;
+            }
+            
+            initUI() {
+                // Initialize UI references and event listeners
+                this.ui = {
+                    // Panel toggles
+                    toggleFlightPanel: document.getElementById('toggleFlightPanel'),
+                    toggleSystemsPanel: document.getElementById('toggleSystemsPanel'),
+                    toggleTelemetryPanel: document.getElementById('toggleTelemetryPanel'),
+                    toggleStagePanel: document.getElementById('toggleStagePanel'),
+                    
+                    // Panels
+                    flightPanel: document.getElementById('flightPanel'),
+                    systemsPanel: document.getElementById('systemsPanel'),
+                    telemetryPanel: document.getElementById('telemetryPanel'),
+                    stagePanel: document.getElementById('stagePanel'),
+                    
+                    // Flight controls
+                    throttleSlider: document.getElementById('throttleSlider'),
+                    throttleValue: document.getElementById('throttleValue'),
+                    mixtureSlider: document.getElementById('mixtureSlider'),
+                    mixtureValue: document.getElementById('mixtureValue'),
+                    launchButton: document.getElementById('launchButton'),
+                    stageSeparationButton: document.getElementById('stageSeparationButton'),
+                    controlMode: document.getElementById('controlMode'),
+                    
+                    // Telemetry displays
+                    deltaVValue: document.getElementById('deltaVValue'),
+                    stage1Fuel: document.getElementById('stage1Fuel'),
+                    stage2Fuel: document.getElementById('stage2Fuel'),
+                    stage3Fuel: document.getElementById('stage3Fuel'),
+                    
+                    // Performance monitor
+                    performanceMonitor: document.getElementById('performanceMonitor'),
+                    
+                    // Mobile controls
+                    mobileThrust: document.getElementById('mobileThrust'),
+                    mobileStage: document.getElementById('mobileStage'),
+                    mobileRCS: document.getElementById('mobileRCS'),
+                    mobileCamera: document.getElementById('mobileCamera')
+                };
+                
+                // Initialize panel states
+                this.updatePanelStates();
+            }
+            
+            initPhysics() {
+                // Initialize physics simulation parameters
+                this.physics = {
+                    timeStep: 1/60,
+                    accumulatedTime: 0,
+                    
+                    // Atmospheric model
+                    atmosphereLayers: [
+                        { altitude: 0, pressure: 101.325, temperature: 288.15, density: 1.225 },
+                        { altitude: 11000, pressure: 22.632, temperature: 216.65, density: 0.3639 },
+                        { altitude: 20000, pressure: 5.4749, temperature: 216.65, density: 0.0880 },
+                        { altitude: 32000, pressure: 0.8680, temperature: 228.65, density: 0.0132 },
+                        { altitude: 47000, pressure: 0.1109, temperature: 270.65, density: 0.0014 },
+                        { altitude: 51000, pressure: 0.0669, temperature: 270.65, density: 0.00086 },
+                        { altitude: 71000, pressure: 0.00396, temperature: 214.65, density: 0.000064 },
+                        { altitude: 84852, pressure: 0.000373, temperature: 186.87, density: 0.00000697 }
+                    ],
+                    
+                    // Rocket properties
+                    dragCoefficient: 0.3,
+                    crossSectionalArea: 30, // m²
+                    momentOfInertia: 1000000 // kg·m²
+                };
+            }
+            
+            initControls() {
+                // Initialize control systems
+                this.controls = {
+                    throttle: 0,
+                    pitch: 0,
+                    yaw: 0,
+                    roll: 0,
+                    
+                    // RCS controls
+                    rcsPitch: 0,
+                    rcsYaw: 0,
+                    rcsRoll: 0,
+                    rcsTranslation: new THREE.Vector3(),
+                    
+                    // Autopilot
+                    autopilotActive: false,
+                    targetPitch: 90,
+                    targetHeading: 0,
+                    targetAltitude: 200000
+                };
+                
+                // Initialize keyboard controls
+                this.keys = {};
+                
+                // Initialize mobile controls
+                this.mobileControls = {
+                    touchStart: null,
+                    touchDelta: new THREE.Vector2(),
+                    gyroData: { alpha: 0, beta: 0, gamma: 0 },
+                    gyroAvailable: false
+                };
+            }
+            
+            initEventListeners() {
+                // Window resize
+                window.addEventListener('resize', this.onWindowResize.bind(this));
+                
+                // Keyboard controls
+                document.addEventListener('keydown', this.onKeyDown.bind(this));
+                document.addEventListener('keyup', this.onKeyUp.bind(this));
+                
+                // Panel toggles
+                this.ui.toggleFlightPanel.addEventListener('click', () => this.togglePanel('flight'));
+                this.ui.toggleSystemsPanel.addEventListener('click', () => this.togglePanel('systems'));
+                this.ui.toggleTelemetryPanel.addEventListener('click', () => this.togglePanel('telemetry'));
+                this.ui.toggleStagePanel.addEventListener('click', () => this.togglePanel('stage'));
+                
+                // Flight controls
+                this.ui.throttleSlider.addEventListener('input', (e) => {
+                    this.controls.throttle = parseFloat(e.target.value) / 100;
+                    this.ui.throttleValue.textContent = e.target.value + '%';
+                });
+                
+                this.ui.mixtureSlider.addEventListener('input', (e) => {
+                    this.mixtureRatio = parseFloat(e.target.value);
+                    this.ui.mixtureValue.textContent = this.mixtureRatio.toFixed(2);
+                });
+                
+                this.ui.launchButton.addEventListener('click', () => this.initiateLaunchSequence());
+                this.ui.stageSeparationButton.addEventListener('click', () => this.separateCurrentStage());
+                
+                // Camera controls
+                document.querySelectorAll('.camera-button').forEach(button => {
+                    button.addEventListener('click', (e) => {
+                        this.setCameraView(e.target.dataset.view);
+                    });
+                });
+                
+                // Mobile controls
+                this.ui.mobileThrust.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    this.controls.throttle = 1.0;
+                    this.ui.throttleSlider.value = 100;
+                    this.ui.throttleValue.textContent = '100%';
+                });
+                
+                this.ui.mobileThrust.addEventListener('touchend', (e) => {
+                    e.preventDefault();
+                    this.controls.throttle = 0;
+                    this.ui.throttleSlider.value = 0;
+                    this.ui.throttleValue.textContent = '0%';
+                });
+                
+                this.ui.mobileStage.addEventListener('click', () => this.separateCurrentStage());
+                
+                // Device orientation for mobile
+                if (window.DeviceOrientationEvent) {
+                    window.addEventListener('deviceorientation', this.onDeviceOrientation.bind(this), true);
+                    this.mobileControls.gyroAvailable = true;
+                }
+                
+                // Prevent default touch behaviors
+                document.addEventListener('touchmove', (e) => {
+                    if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+                    e.preventDefault();
+                }, { passive: false });
+                
+                // Prevent context menu
+                document.addEventListener('contextmenu', (e) => e.preventDefault());
+            }
+            
+            onWindowResize() {
+                this.camera.aspect = window.innerWidth / window.innerHeight;
+                this.camera.updateProjectionMatrix();
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
+            }
+            
+            onKeyDown(event) {
+                this.keys[event.key] = true;
+                
+                switch(event.key) {
+                    case ' ':
+                        this.controls.throttle = 1.0;
+                        this.ui.throttleSlider.value = 100;
+                        this.ui.throttleValue.textContent = '100%';
+                        break;
+                        
+                    case 's':
+                    case 'S':
+                        this.separateCurrentStage();
+                        break;
+                        
+                    case 'r':
+                    case 'R':
+                        this.rcsActive = !this.rcsActive;
+                        break;
+                        
+                    case 'ArrowUp':
+                        this.controls.pitch = 0.1;
+                        break;
+                        
+                    case 'ArrowDown':
+                        this.controls.pitch = -0.1;
+                        break;
+                        
+                    case 'ArrowLeft':
+                        this.controls.yaw = 0.1;
+                        break;
+                        
+                    case 'ArrowRight':
+                        this.controls.yaw = -0.1;
+                        break;
+                }
+            }
+            
+            onKeyUp(event) {
+                this.keys[event.key] = false;
+                
+                switch(event.key) {
+                    case ' ':
+                        this.controls.throttle = 0;
+                        this.ui.throttleSlider.value = 0;
+                        this.ui.throttleValue.textContent = '0%';
+                        break;
+                        
+                    case 'ArrowUp':
+                    case 'ArrowDown':
+                        this.controls.pitch = 0;
+                        break;
+                        
+                    case 'ArrowLeft':
+                    case 'ArrowRight':
+                        this.controls.yaw = 0;
+                        break;
+                }
+            }
+            
+            onDeviceOrientation(event) {
+                this.mobileControls.gyroData = {
+                    alpha: event.alpha || 0,
+                    beta: event.beta || 0,
+                    gamma: event.gamma || 0
+                };
+                
+                if (this.controlMode === 'gyro') {
+                    // Map gyro data to controls
+                    const sensitivity = 0.01;
+                    this.controls.pitch = event.beta * sensitivity;
+                    this.controls.yaw = -event.gamma * sensitivity;
+                }
+            }
+            
+            togglePanel(panelName) {
+                this.panelStates[panelName] = !this.panelStates[panelName];
+                const panel = this.ui[`${panelName}Panel`];
+                
+                if (panel) {
+                    panel.classList.toggle('collapsed', !this.panelStates[panelName]);
+                }
+            }
+            
+            updatePanelStates() {
+                Object.keys(this.panelStates).forEach(panelName => {
+                    const panel = this.ui[`${panelName}Panel`];
+                    if (panel) {
+                        panel.classList.toggle('collapsed', !this.panelStates[panelName]);
+                    }
+                });
+            }
+            
+            setCameraView(view) {
+                this.currentCameraView = view;
+                
+                switch(view) {
+                    case 'follow':
+                        this.camera.position.set(0, 50, 200);
+                        break;
+                        
+                    case 'cockpit':
+                        this.camera.position.set(0, 10, 5);
+                        this.camera.rotation.copy(this.rotation);
+                        break;
+                        
+                    case 'launch':
+                        this.camera.position.set(0, 100, 300);
+                        break;
+                        
+                    case 'orbital':
+                        this.camera.position.set(0, 1000, 0);
+                        break;
+                }
+            }
+            
+            initiateLaunchSequence() {
+                if (this.isLaunched) return;
+                
+                this.isLaunched = true;
+                this.launchTime = this.simulationTime;
+                
+                // Start engines
+                this.controls.throttle = 1.0;
+                this.ui.throttleSlider.value = 100;
+                this.ui.throttleValue.textContent = '100%';
+                
+                // Retract umbilical arms
+                this.retractServiceArms();
+                
+                // Start water deluge
+                this.activateWaterDeluge();
+                
+                // Launch animation
+                this.animateLaunch();
+            }
+            
+            retractServiceArms() {
+                if (this.serviceArms) {
+                    // Animate service arms retracting
+                    const targetRotation = new THREE.Euler(0, -Math.PI / 4, 0);
+                    
+                    const animate = () => {
+                        this.serviceArms.rotation.y += (targetRotation.y - this.serviceArms.rotation.y) * 0.1;
+                        
+                        if (Math.abs(this.serviceArms.rotation.y - targetRotation.y) > 0.01) {
+                            requestAnimationFrame(animate);
+                        }
+                    };
+                    
+                    animate();
+                }
+            }
+            
+            activateWaterDeluge() {
+                // Create water particle system for deluge
+                const waterGeometry = new THREE.BufferGeometry();
+                const particleCount = 1000;
+                const positions = new Float32Array(particleCount * 3);
+                
+                for (let i = 0; i < particleCount * 3; i += 3) {
+                    const angle = Math.random() * Math.PI * 2;
+                    const radius = 25 + Math.random() * 5;
+                    
+                    positions[i] = Math.cos(angle) * radius;
+                    positions[i + 1] = Math.random() * 10;
+                    positions[i + 2] = Math.sin(angle) * radius;
+                }
+                
+                waterGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+                
+                const waterMaterial = new THREE.PointsMaterial({
+                    color: 0x4488ff,
+                    size: 2,
+                    transparent: true,
+                    opacity: 0.6
+                });
+                
+                const waterParticles = new THREE.Points(waterGeometry, waterMaterial);
+                waterParticles.position.y = 1;
+                this.launchSite.add(waterParticles);
+                
+                // Animate water particles
+                waterParticles.userData = {
+                    velocities: new Float32Array(particleCount * 3),
+                    lifetime: 2.0
+                };
+                
+                // Store reference for animation
+                this.waterDelugeParticles = waterParticles;
+            }
+            
+            animateLaunch() {
+                // This will be called during the animation loop
+                // The actual launch physics is handled in updatePhysics()
+            }
+            
+            separateCurrentStage() {
+                if (this.currentStage >= this.stages.length - 1) return;
+                
+                const currentStage = this.stages[this.currentStage];
+                if (currentStage.separated || !currentStage.active) return;
+                
+                // Mark current stage as separated
+                currentStage.separated = true;
+                currentStage.active = false;
+                
+                // Activate next stage
+                this.currentStage++;
+                this.stages[this.currentStage].active = true;
+                
+                // Perform separation animation
+                this.performStageSeparation(currentStage);
+                
+                // Update UI
+                this.updateStageUI();
+                
+                // Play separation sound effect (visual feedback)
+                this.playSeparationEffect();
+            }
+            
+            performStageSeparation(stage) {
+                if (!stage.visual) return;
+                
+                // Create separation effect
+                const separationEffect = this.createSeparationEffect(stage);
+                
+                // Apply separation force to stage
+                const separationForce = new THREE.Vector3(
+                    (Math.random() - 0.5) * stage.separationForce,
+                    -stage.separationForce * 0.5,
+                    (Math.random() - 0.5) * stage.separationForce
+                );
+                
+                // Create separated stage object
+                const separatedStage = stage.visual.clone();
+                separatedStage.position.copy(this.position);
+                separatedStage.rotation.copy(this.rotation);
+                
+                // Add to scene
+                this.scene.add(separatedStage);
+                
+                // Store for physics updates
+                this.separatedStages.push({
+                    object: separatedStage,
+                    velocity: this.velocity.clone().add(separationForce),
+                    angularVelocity: new THREE.Vector3(
+                        (Math.random() - 0.5) * 0.5,
+                        (Math.random() - 0.5) * 0.5,
+                        (Math.random() - 0.5) * 0.5
+                    ),
+                    stageId: stage.id
+                });
+                
+                // Remove from rocket
+                this.rocket.remove(stage.visual);
+                
+                // Hide exhaust for separated stage
+                if (stage.exhaust) {
+                    stage.exhaust.visible = false;
+                }
+                
+                // Animate separation
+                separatedStage.userData.separating = true;
+                separatedStage.userData.separationTime = this.simulationTime;
+            }
+            
+            createSeparationEffect(stage) {
+                // Create explosion particle system at separation plane
+                const effectGroup = new THREE.Group();
+                
+                // Explosion particles
+                const particleCount = 500;
+                const geometry = new THREE.BufferGeometry();
+                const positions = new Float32Array(particleCount * 3);
+                const colors = new Float32Array(particleCount * 3);
+                
+                const separationY = this.getStageSeparationPosition(stage.id);
+                
+                for (let i = 0; i < particleCount; i++) {
+                    // Position at separation plane
+                    const angle = Math.random() * Math.PI * 2;
+                    const radius = stage.dimensions.diameter / 2 * Math.random();
+                    
+                    positions[i * 3] = Math.cos(angle) * radius;
+                    positions[i * 3 + 1] = separationY + (Math.random() - 0.5) * 0.5;
+                    positions[i * 3 + 2] = Math.sin(angle) * radius;
+                    
+                    // Orange explosion color
+                    colors[i * 3] = 1.0;
+                    colors[i * 3 + 1] = 0.5 + Math.random() * 0.5;
+                    colors[i * 3 + 2] = 0.0;
+                }
+                
+                geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+                geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+                
+                const material = new THREE.PointsMaterial({
+                    size: 3,
+                    vertexColors: true,
+                    transparent: true,
+                    opacity: 0.8,
+                    blending: THREE.AdditiveBlending
+                });
+                
+                const particles = new THREE.Points(geometry, material);
+                particles.userData = {
+                    velocities: new Float32Array(particleCount * 3),
+                    lifetime: 1.0
+                };
+                
+                effectGroup.add(particles);
+                this.scene.add(effectGroup);
+                
+                // Store for animation
+                this.separationEffects = this.separationEffects || [];
+                this.separationEffects.push({
+                    object: effectGroup,
+                    startTime: this.simulationTime,
+                    duration: 1.0
+                });
+                
+                return effectGroup;
+            }
+            
+            getStageSeparationPosition(stageId) {
+                // Calculate Y position of separation plane
+                let y = 0;
+                for (let i = 0; i < stageId; i++) {
+                    y += this.stages[i].dimensions.height;
+                }
+                return y;
+            }
+            
+            playSeparationEffect() {
+                // Visual feedback for stage separation
+                document.body.classList.add('vibrate');
+                setTimeout(() => {
+                    document.body.classList.remove('vibrate');
+                }, 300);
+            }
+            
+            updateStageUI() {
+                // Update fuel displays
+                this.stages.forEach((stage, index) => {
+                    const fuelElement = this.ui[`stage${index + 1}Fuel`];
+                    if (fuelElement) {
+                        fuelElement.textContent = `${stage.fuel.toFixed(1)}%`;
+                    }
+                });
+                
+                // Update stage status indicators
+                this.updateRocketVisualization();
+            }
+            
+            updateRocketVisualization() {
+                // Update the 2D rocket visualization in stage panel
+                const rocketVisual = document.getElementById('rocketVisualization');
+                if (!rocketVisual) return;
+                
+                // Clear existing visualization
+                rocketVisual.innerHTML = '';
+                
+                // Calculate total height
+                const totalHeight = 180;
+                const stageHeights = this.stages.map(stage => 
+                    (stage.dimensions.height / 50) * totalHeight
+                );
+                
+                // Create stage components
+                let currentY = 0;
+                
+                this.stages.forEach((stage, index) => {
+                    if (!stage.separated) {
+                        const stageHeight = stageHeights[index];
+                        const stageElement = document.createElement('div');
+                        stageElement.className = 'stage-component';
+                        stageElement.style.height = `${stageHeight}px`;
+                        stageElement.style.bottom = `${currentY}px`;
+                        stageElement.style.background = this.getStageGradient(index);
+                        
+                        if (stage.active) {
+                            stageElement.classList.add('active');
+                        }
+                        
+                        rocketVisual.appendChild(stageElement);
+                        currentY += stageHeight;
+                    }
+                });
+                
+                // Add payload fairing if attached
+                if (this.fairingAttached) {
+                    const fairingElement = document.createElement('div');
+                    fairingElement.className = 'stage-component';
+                    fairingElement.style.height = '40px';
+                    fairingElement.style.bottom = `${currentY}px`;
+                    fairingElement.style.background = 'linear-gradient(90deg, #fff, #ccc)';
+                    rocketVisual.appendChild(fairingElement);
+                }
+            }
+            
+            getStageGradient(stageIndex) {
+                const colors = [
+                    ['#ff5500', '#ff8800'],
+                    ['#00aaff', '#00ddff'],
+                    ['#aa00ff', '#cc44ff']
+                ];
+                
+                const [start, end] = colors[stageIndex] || ['#888', '#aaa'];
+                return `linear-gradient(90deg, ${start}, ${end})`;
+            }
+            
+            updatePhysics(deltaTime) {
+                // Update simulation time
+                this.simulationTime += deltaTime;
+                
+                // Calculate altitude
+                this.altitude = Math.max(0, this.position.length() - this.EARTH_RADIUS);
+                
+                // Calculate atmospheric conditions
+                this.updateAtmosphericConditions();
+                
+                // Calculate gravity
+                const gravityMagnitude = this.GRAVITY_CONSTANT * this.EARTH_MASS / 
+                    Math.pow(this.EARTH_RADIUS + this.altitude, 2);
+                const gravityVector = this.position.clone().normalize().multiplyScalar(-gravityMagnitude);
+                
+                // Calculate thrust
+                let thrustVector = new THREE.Vector3();
+                const currentStage = this.stages[this.currentStage];
+                
+                if (currentStage && currentStage.active && !currentStage.separated && currentStage.fuel > 0) {
+                    // Calculate thrust based on atmospheric pressure
+                    const thrust = this.calculateStageThrust(currentStage);
+                    thrustVector = new THREE.Vector3(0, 1, 0)
+                        .applyEuler(this.rotation)
+                        .multiplyScalar(thrust * this.controls.throttle);
+                    
+                    // Fuel consumption
+                    const fuelConsumed = currentStage.fuelConsumption * this.controls.throttle * deltaTime;
+                    currentStage.fuel = Math.max(0, currentStage.fuel - (fuelConsumed / currentStage.fuelMass * 100));
+                    
+                    // Auto-stage on fuel depletion
+                    if (currentStage.fuel <= 0.1 && this.currentStage < this.stages.length - 1) {
+                        this.separateCurrentStage();
+                    }
+                }
+                
+                // Calculate aerodynamic drag
+                const dragForce = this.calculateDragForce();
+                
+                // Calculate RCS forces
+                const rcsForce = this.calculateRCSForce();
+                
+                // Calculate total acceleration
+                const totalMass = this.calculateTotalMass();
+                const totalForce = thrustVector.add(gravityVector).add(dragForce).add(rcsForce);
+                this.acceleration = totalForce.divideScalar(totalMass);
+                
+                // Update velocity and position
+                this.velocity.add(this.acceleration.clone().multiplyScalar(deltaTime));
+                this.position.add(this.velocity.clone().multiplyScalar(deltaTime));
+                
+                // Update rotation from controls
+                if (this.controls.pitch !== 0 || this.controls.yaw !== 0 || this.controls.roll !== 0) {
+                    this.rotation.x += this.controls.pitch * deltaTime;
+                    this.rotation.y += this.controls.yaw * deltaTime;
+                    this.rotation.z += this.controls.roll * deltaTime;
+                }
+                
+                // Apply angular damping
+                this.angularVelocity.multiplyScalar(0.99);
+                
+                // Update separated stages
+                this.updateSeparatedStagesPhysics(deltaTime);
+                
+                // Update orbital parameters
+                this.updateOrbitalParameters();
+                
+                // Update UI
+                this.updateTelemetry();
+            }
+            
+            calculateStageThrust(stage) {
+                // Calculate thrust based on atmospheric pressure and engine performance
+                const ispVac = stage.ispVac;
+                const ispSL = stage.ispSL || (ispVac * 0.85);
+                const thrustVac = stage.thrustVac;
+                const thrustSL = stage.thrustSL || (thrustVac * 0.85);
+                
+                // Interpolate based on atmospheric pressure
+                const pressureRatio = this.atmosphericPressure / 101.325;
+                const thrust = thrustSL + (thrustVac - thrustSL) * (1 - pressureRatio);
+                
+                return thrust;
+            }
+            
+            calculateDragForce() {
+                if (this.altitude > 100000) return new THREE.Vector3();
+                
+                // Calculate air density
+                const airDensity = this.getAirDensity(this.altitude);
+                
+                // Calculate dynamic pressure (q)
+                const dynamicPressure = 0.5 * airDensity * Math.pow(this.velocity.length(), 2);
+                
+                // Calculate drag force
+                const dragMagnitude = dynamicPressure * this.physics.dragCoefficient * this.physics.crossSectionalArea;
+                
+                // Drag opposes velocity
+                return this.velocity.clone().normalize().multiplyScalar(-dragMagnitude);
+            }
+            
+            calculateRCSForce() {
+                const force = new THREE.Vector3();
+                
+                if (this.rcsActive) {
+                    // Simplified RCS force calculation
+                    const rcsStrength = 10000; // Newtons per thruster
+                    
+                    // Map controls to RCS forces
+                    if (this.controls.rcsPitch !== 0) {
+                        force.y += this.controls.rcsPitch * rcsStrength;
+                    }
+                    
+                    if (this.controls.rcsYaw !== 0) {
+                        force.x += this.controls.rcsYaw * rcsStrength;
+                    }
+                    
+                    // Apply RCS translation
+                    force.add(this.controls.rcsTranslation.multiplyScalar(rcsStrength));
+                }
+                
+                return force;
+            }
+            
+            calculateTotalMass() {
+                let mass = 0;
+                
+                // Add stage masses
+                this.stages.forEach(stage => {
+                    if (!stage.separated) {
+                        mass += stage.dryMass;
+                        if (stage.active) {
+                            mass += stage.fuelMass * (stage.fuel / 100);
+                        }
+                    }
+                });
+                
+                // Add payload mass
+                if (this.fairingAttached) {
+                    mass += 2000; // kg payload
+                }
+                
+                return mass;
+            }
+            
+            updateAtmosphericConditions() {
+                // Simplified exponential atmosphere model
+                if (this.altitude >= 100000) {
+                    this.atmosphericPressure = 0;
+                    return;
+                }
+                
+                const scaleHeight = 8500; // meters
+                this.atmosphericPressure = 101.325 * Math.exp(-this.altitude / scaleHeight);
+            }
+            
+            getAirDensity(altitude) {
+                // Simplified density model
+                if (altitude >= 100000) return 0;
+                
+                const scaleHeight = 8500;
+                return 1.225 * Math.exp(-altitude / scaleHeight);
+            }
+            
+            updateSeparatedStagesPhysics(deltaTime) {
+                for (let i = this.separatedStages.length - 1; i >= 0; i--) {
+                    const stage = this.separatedStages[i];
+                    
+                    // Apply gravity
+                    const distance = stage.object.position.length();
+                    const gravityMagnitude = this.GRAVITY_CONSTANT * this.EARTH_MASS / Math.pow(distance, 2);
+                    const gravityVector = stage.object.position.clone().normalize().multiplyScalar(-gravityMagnitude);
+                    
+                    // Update velocity and position
+                    stage.velocity.add(gravityVector.multiplyScalar(deltaTime));
+                    stage.object.position.add(stage.velocity.clone().multiplyScalar(deltaTime));
+                    
+                    // Apply rotation
+                    stage.object.rotation.x += stage.angularVelocity.x * deltaTime;
+                    stage.object.rotation.y += stage.angularVelocity.y * deltaTime;
+                    stage.object.rotation.z += stage.angularVelocity.z * deltaTime;
+                    
+                    // Apply damping
+                    stage.angularVelocity.multiplyScalar(0.99);
+                    
+                    // Remove if too far or below surface
+                    if (stage.object.position.length() < this.EARTH_RADIUS * 0.9 || 
+                        stage.object.position.length() > this.EARTH_RADIUS * 10) {
+                        this.scene.remove(stage.object);
+                        this.separatedStages.splice(i, 1);
+                    }
+                }
+            }
+            
+            updateOrbitalParameters() {
+                // Calculate orbital velocity for circular orbit at current altitude
+                const orbitalRadius = this.EARTH_RADIUS + this.altitude;
+                const circularOrbitVelocity = Math.sqrt(this.GRAVITY_CONSTANT * this.EARTH_MASS / orbitalRadius);
+                
+                // Calculate current orbital parameters
+                const velocityMagnitude = this.velocity.length();
+                
+                // Determine orbital status
+                if (velocityMagnitude > circularOrbitVelocity * 0.95) {
+                    this.orbitalStatus = 'orbital';
+                } else if (this.altitude > 100000) {
+                    this.orbitalStatus = 'suborbital';
+                } else {
+                    this.orbitalStatus = 'ascent';
+                }
+            }
+            
+            updateTelemetry() {
+                // Update telemetry displays
+                const altitudeKm = (this.altitude / 1000).toFixed(2);
+                const velocityMs = this.velocity.length().toFixed(1);
+                const accelerationG = (this.acceleration.length() / this.STANDARD_GRAVITY).toFixed(2);
+                
+                // Find telemetry items and update them
+                const telemetryItems = document.querySelectorAll('.telemetry-item .data-value');
+                if (telemetryItems.length >= 6) {
+                    telemetryItems[0].textContent = altitudeKm;
+                    telemetryItems[1].textContent = velocityMs;
+                    telemetryItems[2].textContent = accelerationG;
+                    
+                    // Update apogee if higher than current
+                    const apogeeElement = telemetryItems[3];
+                    const currentApogee = parseFloat(apogeeElement.textContent) || 0;
+                    if (parseFloat(altitudeKm) > currentApogee) {
+                        apogeeElement.textContent = altitudeKm;
+                    }
+                }
+                
+                // Update atmospheric pressure
+                const pressureElement = document.getElementById('pressureValue');
+                if (pressureElement) {
+                    pressureElement.textContent = `${this.atmosphericPressure.toFixed(1)} kPa`;
+                }
+                
+                // Update dynamic pressure (Max-Q)
+                const maxQElement = document.getElementById('maxQValue');
+                if (maxQElement) {
+                    const airDensity = this.getAirDensity(this.altitude);
+                    const dynamicPressure = 0.5 * airDensity * Math.pow(this.velocity.length(), 2);
+                    maxQElement.textContent = `${(dynamicPressure / 1000).toFixed(1)} kPa`;
+                    
+                    // Update progress bar
+                    const maxQBar = document.querySelector('#telemetryPanel .progress-fill');
+                    if (maxQBar) {
+                        const maxQPercent = Math.min(100, (dynamicPressure / 50000) * 100);
+                        maxQBar.style.width = `${maxQPercent}%`;
+                    }
+                }
+            }
+            
+            updateVisuals(deltaTime) {
+                // Update rocket position and rotation
+                if (this.rocket) {
+                    this.rocket.position.copy(this.position);
+                    this.rocket.rotation.copy(this.rotation);
+                    
+                    // Scale based on distance for perspective
+                    const cameraDistance = this.camera.position.distanceTo(this.position);
+                    const scale = Math.min(1, 1000 / cameraDistance);
+                    this.rocket.scale.setScalar(scale);
+                }
+                
+                // Update launch site visibility
+                if (this.launchSite) {
+                    const distanceFromLaunch = this.position.distanceTo(new THREE.Vector3(0, this.EARTH_RADIUS, 0));
+                    this.launchSite.visible = distanceFromLaunch < 50000;
+                }
+                
+                // Update exhaust effects
+                this.updateExhaustEffects(deltaTime);
+                
+                // Update RCS effects
+                this.updateRCSEffects(deltaTime);
+                
+                // Update separation effects
+                this.updateSeparationEffects(deltaTime);
+                
+                // Update water deluge
+                this.updateWaterDeluge(deltaTime);
+                
+                // Update camera
+                this.updateCameraPosition(deltaTime);
+                
+                // Rotate Earth
+                if (this.earth) {
+                    this.earth.rotation.y += 0.1 * deltaTime;
+                }
+                
+                // Rotate stars for parallax effect
+                if (this.stars) {
+                    this.stars.rotation.y += 0.01 * deltaTime;
+                }
+            }
+            
+            updateExhaustEffects(deltaTime) {
+                const currentStage = this.stages[this.currentStage];
+                if (!currentStage || !currentStage.exhaust) return;
+                
+                const exhaustGroup = currentStage.exhaust;
+                const isActive = currentStage.active && !currentStage.separated && this.controls.throttle > 0;
+                
+                // Update each engine's particle system
+                exhaustGroup.children.forEach((particleSystem, engineIndex) => {
+                    if (!particleSystem.isPoints) return;
+                    
+                    const positions = particleSystem.geometry.attributes.position.array;
+                    const userData = particleSystem.userData;
+                    
+                    if (isActive) {
+                        // Spawn new particles
+                        const spawnRate = this.controls.throttle * 20;
+                        
+                        for (let i = 0; i < positions.length / 3; i++) {
+                            if (Math.random() < spawnRate * deltaTime && userData.lifetimes[i] <= 0) {
+                                // Reset particle
+                                positions[i * 3] = (Math.random() - 0.5) * 0.3;
+                                positions[i * 3 + 1] = 0;
+                                positions[i * 3 + 2] = (Math.random() - 0.5) * 0.3;
+                                
+                                // Set velocity
+                                userData.velocities[i * 3] = (Math.random() - 0.5) * 0.2;
+                                userData.velocities[i * 3 + 1] = -10 - Math.random() * 10;
+                                userData.velocities[i * 3 + 2] = (Math.random() - 0.5) * 0.2;
+                                
+                                userData.lifetimes[i] = 1.0;
+                            }
+                            
+                            if (userData.lifetimes[i] > 0) {
+                                // Update particle position
+                                positions[i * 3] += userData.velocities[i * 3] * deltaTime;
+                                positions[i * 3 + 1] += userData.velocities[i * 3 + 1] * deltaTime;
+                                positions[i * 3 + 2] += userData.velocities[i * 3 + 2] * deltaTime;
+                                
+                                userData.lifetimes[i] -= deltaTime;
+                                
+                                // Atmospheric drag effect
+                                if (this.altitude < 50000) {
+                                    userData.velocities[i * 3 + 1] += 9.81 * deltaTime;
+                                }
+                            }
+                        }
+                        
+                        particleSystem.geometry.attributes.position.needsUpdate = true;
+                        particleSystem.material.uniforms.throttle.value = this.controls.throttle;
+                        particleSystem.material.uniforms.altitude.value = this.altitude;
+                        particleSystem.material.uniforms.time.value = this.simulationTime;
+                    } else {
+                        // Fade out particles
+                        for (let i = 0; i < userData.lifetimes.length; i++) {
+                            userData.lifetimes[i] = Math.max(0, userData.lifetimes[i] - deltaTime * 2);
+                        }
+                        particleSystem.material.uniforms.throttle.value = 0;
+                    }
+                });
+                
+                // Update engine glow
+                const glow = exhaustGroup.children.find(child => child.type === 'Mesh');
+                if (glow) {
+                    glow.material.opacity = isActive ? 0.3 * this.controls.throttle : 0;
+                    glow.scale.setScalar(1 + this.controls.throttle * 0.5);
+                }
+            }
+            
+            updateRCSEffects(deltaTime) {
+                if (!this.rcsSystems) return;
+                
+                // Update RCS thruster visual effects based on control inputs
+                this.rcsSystems.children.forEach((rcsBlock, index) => {
+                    // Determine if this thruster should be active based on controls
+                    let isActive = false;
+                    
+                    // This is simplified - in reality, each thruster would have specific control mapping
+                    if (this.rcsActive && (this.controls.rcsPitch !== 0 || 
+                                          this.controls.rcsYaw !== 0 || 
+                                          this.controls.rcsRoll !== 0)) {
+                        isActive = Math.random() > 0.5; // Simulate pulsing
+                    }
+                    
+                    // Update material emission
+                    rcsBlock.children.forEach(child => {
+                        if (child.type === 'Mesh') {
+                            if (child.material.emissive) {
+                                child.material.emissive.setHex(isActive ? 0xffaa00 : 0x000000);
+                            }
+                        }
+                    });
+                });
+            }
+            
+            updateSeparationEffects(deltaTime) {
+                if (!this.separationEffects) return;
+                
+                for (let i = this.separationEffects.length - 1; i >= 0; i--) {
+                    const effect = this.separationEffects[i];
+                    const age = this.simulationTime - effect.startTime;
+                    
+                    if (age >= effect.duration) {
+                        this.scene.remove(effect.object);
+                        this.separationEffects.splice(i, 1);
+                    } else {
+                        // Fade out particles
+                        const particles = effect.object.children[0];
+                        if (particles && particles.isPoints) {
+                            const opacity = 1 - (age / effect.duration);
+                            particles.material.opacity = opacity * 0.8;
+                            
+                            // Update particle positions
+                            const positions = particles.geometry.attributes.position.array;
+                            const velocities = particles.userData.velocities;
+                            
+                            for (let j = 0; j < positions.length / 3; j++) {
+                                positions[j * 3] += velocities[j * 3] * deltaTime;
+                                positions[j * 3 + 1] += velocities[j * 3 + 1] * deltaTime;
+                                positions[j * 3 + 2] += velocities[j * 3 + 2] * deltaTime;
+                            }
+                            
+                            particles.geometry.attributes.position.needsUpdate = true;
+                        }
+                    }
+                }
+            }
+            
+            updateWaterDeluge(deltaTime) {
+                if (!this.waterDelugeParticles) return;
+                
+                const positions = this.waterDelugeParticles.geometry.attributes.position.array;
+                const userData = this.waterDelugeParticles.userData;
+                
+                if (this.isLaunched && this.simulationTime - this.launchTime < 5) {
+                    // Active water deluge
+                    for (let i = 0; i < positions.length / 3; i++) {
+                        if (userData.velocities[i * 3 + 1] > -5) {
+                            // Reset particle
+                            const angle = Math.random() * Math.PI * 2;
+                            const radius = 25 + Math.random() * 5;
+                            
+                            positions[i * 3] = Math.cos(angle) * radius;
+                            positions[i * 3 + 1] = Math.random() * 2;
+                            positions[i * 3 + 2] = Math.sin(angle) * radius;
+                            
+                            userData.velocities[i * 3] = (Math.random() - 0.5) * 2;
+                            userData.velocities[i * 3 + 1] = -10 - Math.random() * 5;
+                            userData.velocities[i * 3 + 2] = (Math.random() - 0.5) * 2;
+                        } else {
+                            // Update particle
+                            positions[i * 3] += userData.velocities[i * 3] * deltaTime;
+                            positions[i * 3 + 1] += userData.velocities[i * 3 + 1] * deltaTime;
+                            positions[i * 3 + 2] += userData.velocities[i * 3 + 2] * deltaTime;
+                            
+                            // Gravity
+                            userData.velocities[i * 3 + 1] += 9.81 * deltaTime;
+                        }
+                    }
+                    
+                    this.waterDelugeParticles.geometry.attributes.position.needsUpdate = true;
+                } else {
+                    // Fade out water deluge
+                    this.waterDelugeParticles.material.opacity = Math.max(
+                        0, 
+                        this.waterDelugeParticles.material.opacity - deltaTime
+                    );
+                }
+            }
+            
+            updateCameraPosition(deltaTime) {
+                // Smooth camera following based on current view
+                let targetPosition = new THREE.Vector3();
+                let targetLookAt = new THREE.Vector3();
+                
+                switch(this.currentCameraView) {
+                    case 'follow':
+                        // Follow behind and above rocket
+                        targetPosition = this.position.clone().add(
+                            new THREE.Vector3(
+                                Math.sin(this.rotation.y) * 100,
+                                50,
+                                Math.cos(this.rotation.y) * 100
+                            )
+                        );
+                        targetLookAt = this.position.clone();
+                        break;
+                        
+                    case 'cockpit':
+                        // First-person from rocket nose
+                        targetPosition = this.position.clone().add(
+                            new THREE.Vector3(0, 2, 5).applyEuler(this.rotation)
+                        );
+                        targetLookAt = this.position.clone().add(
+                            new THREE.Vector3(0, 0, 100).applyEuler(this.rotation)
+                        );
+                        break;
+                        
+                    case 'launch':
+                        // Fixed launch view
+                        targetPosition.set(0, 100, 300);
+                        targetLookAt = this.position.clone();
+                        break;
+                        
+                    case 'orbital':
+                        // Top-down orbital view
+                        targetPosition.set(0, 1000, 0);
+                        targetLookAt.set(0, 0, 0);
+                        break;
+                }
+                
+                // Smooth interpolation
+                this.camera.position.lerp(targetPosition, 0.05);
+                
+                // Look at target
+                this.camera.lookAt(targetLookAt);
+                
+                // Dynamic FOV
+                const speedFactor = Math.min(1, this.velocity.length() / 1000);
+                const targetFOV = 60 + speedFactor * 30;
+                this.camera.fov += (targetFOV - this.camera.fov) * 0.1;
+                this.camera.updateProjectionMatrix();
+            }
+            
+            updatePerformanceMonitor() {
+                // Update FPS counter
+                this.fps = Math.round(1 / this.deltaTime);
+                
+                // Count triangles and objects
+                this.triCount = this.renderer.info.render.triangles;
+                this.objCount = this.scene.children.length;
+                
+                // Update display
+                if (this.ui.performanceMonitor) {
+                    this.ui.performanceMonitor.textContent = 
+                        `FPS: ${this.fps} | TRI: ${this.triCount.toLocaleString()} | OBJ: ${this.objCount}`;
+                    
+                    // Color code based on performance
+                    if (this.fps < 30) {
+                        this.ui.performanceMonitor.style.color = '#ff0000';
+                    } else if (this.fps < 50) {
+                        this.ui.performanceMonitor.style.color = '#ffff00';
+                    } else {
+                        this.ui.performanceMonitor.style.color = '#00ff00';
+                    }
+                }
+            }
+            
+            animate() {
+                requestAnimationFrame(() => this.animate());
+                
+                // Calculate delta time
+                this.deltaTime = this.clock.getDelta();
+                
+                // Cap delta time to prevent large jumps
+                if (this.deltaTime > 0.1) this.deltaTime = 0.1;
+                
+                // Update physics
+                this.updatePhysics(this.deltaTime);
+                
+                // Update visuals
+                this.updateVisuals(this.deltaTime);
+                
+                // Update performance monitor
+                this.updatePerformanceMonitor();
+                
+                // Render scene
+                this.renderer.render(this.scene, this.camera);
+            }
+        }
+        
+        // Initialize simulator when page loads
+        window.addEventListener('load', () => {
+            const simulator = new AdvancedRocketSimulator();
+            window.simulator = simulator; // Make accessible for debugging
+        });
+    </script>
+</body>
+</html>

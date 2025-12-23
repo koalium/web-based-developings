@@ -1,0 +1,2109 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>سیستم طراحی PLC - محاسبات و BOM</title>
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <style>
+        :root {
+            --primary: #1a237e;
+            --secondary: #283593;
+            --accent: #e53935;
+            --success: #43a047;
+            --warning: #ffb300;
+            --info: #29b6f6;
+            --dark: #0d47a1;
+            --light: #e8eaf6;
+            
+            /* Component Colors */
+            --motor-color: #1565c0;
+            --actuator-color: #e53935;
+            --sensor-color: #43a047;
+            --optional-color: #ffb300;
+            --power-color: #6a1b9a;
+            --control-color: #00897b;
+            --protection-color: #ef6c00;
+            --softstarter-color: #8e24aa;
+            --inverter-color: #5e35b1;
+            --relay-color: #7e57c2;
+            --terminal-color: #78909c;
+            --wire-power: #d32f2f;
+            --wire-control: #1976d2;
+            --wire-signal: #388e3c;
+            
+            /* Canvas Colors */
+            --canvas-bg: #f5f5f5;
+            --grid-color: #e0e0e0;
+            --block-bg: #ffffff;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%);
+            color: #1a237e;
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 2000px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        header {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white;
+            padding: 2rem 0;
+            border-radius: 15px;
+            margin-bottom: 2rem;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" opacity="0.1"><defs><pattern id="grid" width="10" height="10" patternUnits="userSpaceOnUse"><path d="M 10 0 L 0 0 0 10" fill="none" stroke="white" stroke-width="0.5"/></pattern></defs><rect width="100" height="100" fill="url(%23grid)"/></svg>');
+        }
+        
+        header h1 {
+            text-align: center;
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        header p {
+            text-align: center;
+            opacity: 0.9;
+            max-width: 800px;
+            margin: 0 auto;
+            font-size: 1.1rem;
+        }
+        
+        .main-layout {
+            display: grid;
+            grid-template-columns: 400px 1fr;
+            gap: 25px;
+            margin-bottom: 2rem;
+            min-height: 800px;
+        }
+        
+        .config-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 25px;
+        }
+        
+        .visualization-panel {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+            height: 850px;
+        }
+        
+        /* Enhanced Card Styles */
+        .card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+            padding: 1.5rem;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            border-left: 5px solid var(--secondary);
+        }
+        
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+        }
+        
+        .card h2 {
+            color: var(--primary);
+            border-bottom: 2px solid var(--light);
+            padding-bottom: 0.75rem;
+            margin-bottom: 1.25rem;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 1.3rem;
+        }
+        
+        /* Enhanced Item Styles */
+        .item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1.25rem;
+            border-bottom: 1px solid #eee;
+            transition: all 0.3s ease;
+            border-radius: 8px;
+            margin-bottom: 8px;
+        }
+        
+        .item:hover {
+            background: linear-gradient(135deg, #f5f7ff 0%, #f0f4ff 100%);
+            transform: translateX(-5px);
+        }
+        
+        .item-info {
+            flex: 1;
+        }
+        
+        .item-name {
+            font-weight: 700;
+            margin-bottom: 0.4rem;
+            color: var(--primary);
+            font-size: 1rem;
+        }
+        
+        .item-spec {
+            color: #546e7a;
+            font-size: 0.85rem;
+            line-height: 1.4;
+        }
+        
+        .item-controls {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .spinner {
+            display: flex;
+            align-items: center;
+            border: 2px solid #e1f5fe;
+            border-radius: 8px;
+            overflow: hidden;
+            background: white;
+        }
+        
+        .spinner button {
+            background: var(--info);
+            color: white;
+            border: none;
+            width: 35px;
+            height: 35px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            font-weight: bold;
+        }
+        
+        .spinner button:hover {
+            background: var(--secondary);
+        }
+        
+        .spinner button:disabled {
+            background: #b0bec5;
+            cursor: not-allowed;
+        }
+        
+        .spinner input {
+            width: 60px;
+            height: 35px;
+            border: none;
+            text-align: center;
+            background: white;
+            font-weight: bold;
+            color: var(--primary);
+        }
+        
+        /* Enhanced Tab Styles */
+        .tab-container {
+            margin-bottom: 1.5rem;
+            background: white;
+            border-radius: 12px;
+            padding: 1rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+        }
+        
+        .tabs {
+            display: flex;
+            border-bottom: 2px solid #e3f2fd;
+            flex-wrap: wrap;
+            gap: 5px;
+        }
+        
+        .tab {
+            padding: 12px 24px;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+            font-weight: 600;
+            color: #546e7a;
+            border-radius: 8px 8px 0 0;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .tab::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(33, 150, 243, 0.1), transparent);
+            transition: left 0.5s;
+        }
+        
+        .tab:hover::before {
+            left: 100%;
+        }
+        
+        .tab.active {
+            border-bottom: 3px solid var(--info);
+            color: var(--info);
+            background: linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%);
+        }
+        
+        .tab-content {
+            display: none;
+            padding: 1.5rem 0;
+            height: 650px;
+            overflow: hidden;
+        }
+        
+        .tab-content.active {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        /* BOM Table Styles */
+        .bom-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .bom-table th {
+            background: var(--primary);
+            color: white;
+            padding: 12px 15px;
+            text-align: right;
+            font-weight: 600;
+        }
+        
+        .bom-table td {
+            padding: 10px 15px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .bom-table tr:hover {
+            background: #f5f7fa;
+        }
+        
+        .bom-table .category-header {
+            background: var(--secondary);
+            color: white;
+            font-weight: bold;
+        }
+        
+        .bom-table .subtotal {
+            background: #f8f9fa;
+            font-weight: bold;
+        }
+        
+        /* Calculation Styles */
+        .calculation-results {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        
+        .calc-item {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            border-right: 4px solid var(--secondary);
+        }
+        
+        .calc-item h4 {
+            color: var(--primary);
+            margin-bottom: 5px;
+        }
+        
+        .calc-value {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: var(--secondary);
+        }
+        
+        .motor-details {
+            background: white;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 15px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .motor-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        
+        .motor-table th {
+            background: var(--primary);
+            color: white;
+            padding: 10px;
+            text-align: right;
+        }
+        
+        .motor-table td {
+            padding: 8px 10px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        /* Enhanced Summary */
+        .summary {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white;
+            padding: 2rem;
+            border-radius: 15px;
+            margin-top: 2rem;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+        }
+        
+        .summary h2 {
+            text-align: center;
+            margin-bottom: 1.5rem;
+            border-bottom: 2px solid rgba(255, 255, 255, 0.3);
+            padding-bottom: 1rem;
+            font-size: 1.5rem;
+        }
+        
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 20px;
+        }
+        
+        .summary-item {
+            background: rgba(255, 255, 255, 0.15);
+            padding: 1.5rem;
+            border-radius: 10px;
+            text-align: center;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            transition: all 0.3s ease;
+        }
+        
+        .summary-item:hover {
+            background: rgba(255, 255, 255, 0.25);
+            transform: translateY(-3px);
+        }
+        
+        .summary-value {
+            font-size: 2rem;
+            font-weight: bold;
+            margin-top: 10px;
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.3);
+        }
+        
+        /* Enhanced Action Buttons */
+        .actions {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-top: 2.5rem;
+            flex-wrap: wrap;
+        }
+        
+        button {
+            padding: 1rem 2rem;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 700;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 1rem;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+        
+        button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, var(--info), var(--secondary));
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: linear-gradient(135deg, var(--secondary), var(--primary));
+        }
+        
+        .btn-success {
+            background: linear-gradient(135deg, var(--success), #2e7d32);
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background: linear-gradient(135deg, #2e7d32, #1b5e20);
+        }
+        
+        .btn-warning {
+            background: linear-gradient(135deg, var(--warning), #f57c00);
+            color: white;
+        }
+        
+        .btn-warning:hover {
+            background: linear-gradient(135deg, #f57c00, #e65100);
+        }
+        
+        .btn-danger {
+            background: linear-gradient(135deg, var(--accent), #c62828);
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background: linear-gradient(135deg, #c62828, #b71c1c);
+        }
+        
+        /* Report Styles */
+        .report-section {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .report-section h3 {
+            color: var(--primary);
+            border-bottom: 2px solid var(--light);
+            padding-bottom: 10px;
+            margin-bottom: 15px;
+        }
+        
+        /* Motor Power Selection */
+        .motor-power-select {
+            width: 120px;
+            padding: 8px 12px;
+            border: 2px solid #e1f5fe;
+            border-radius: 6px;
+            background: white;
+            color: var(--primary);
+            font-weight: 600;
+            margin-right: 10px;
+        }
+        
+        .positioner-option {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-top: 8px;
+            padding: 8px 12px;
+            background: #f3e5f5;
+            border-radius: 6px;
+            border: 1px solid #e1bee7;
+        }
+        
+        /* Responsive Design */
+        @media (max-width: 1400px) {
+            .main-layout {
+                grid-template-columns: 1fr;
+            }
+            
+            .config-panel {
+                order: 2;
+            }
+            
+            .visualization-panel {
+                order: 1;
+                height: 700px;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+            
+            header h1 {
+                font-size: 2rem;
+            }
+            
+            .tab {
+                padding: 10px 15px;
+                font-size: 0.9rem;
+            }
+            
+            .actions {
+                flex-direction: column;
+            }
+            
+            button {
+                width: 100%;
+                justify-content: center;
+            }
+            
+            .calculation-results {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div x-data="advancedPlcDesigner()" x-init="init()">
+        <header>
+            <div class="container">
+                <h1>🛠️ سیستم طراحی PLC پیشرفته - محاسبات و BOM</h1>
+                <p>طراحی جامع سیستم‌های کنترل صنعتی با محاسبات دقیق و BOM کامل</p>
+            </div>
+        </header>
+        
+        <div class="container">
+            <div class="main-layout">
+                <div class="config-panel">
+                    <!-- Motors Section with Power Selection -->
+                    <div class="card">
+                        <h2>⚙️ موتورهای سه فاز</h2>
+                        <template x-for="(motor, index) in motors" :key="motor.id">
+                            <div class="item">
+                                <div class="item-info">
+                                    <div class="item-name" x-text="motor.name"></div>
+                                    <div class="item-spec">
+                                        <div>توان: 
+                                            <select class="motor-power-select" x-model="motor.power" @change="updateMotorSpecs(motor)">
+                                                <template x-for="size in motorSizes" :key="size">
+                                                    <option :value="size" x-text="size + ' kW'"></option>
+                                                </template>
+                                            </select>
+                                        </div>
+                                        <div>جریان: <span x-text="motor.current + ' A'"></span></div>
+                                        <div>راه‌انداز: <span x-text="getStarterType(motor)"></span></div>
+                                    </div>
+                                </div>
+                                <div class="item-controls">
+                                    <div class="spinner">
+                                        <button @click="decrement(motor)" :disabled="motor.quantity <= 0">-</button>
+                                        <input type="text" x-model="motor.quantity" readonly>
+                                        <button @click="increment(motor)">+</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                    
+                    <!-- Actuators with Positioner Option -->
+                    <div class="card">
+                        <h2>🔌 عمل‌گرها</h2>
+                        <template x-for="(actuator, index) in actuators" :key="actuator.id">
+                            <div class="item">
+                                <div class="item-info">
+                                    <div class="item-name" x-text="actuator.name"></div>
+                                    <div class="item-spec">ولتاژ: <span x-text="actuator.voltage"></span></div>
+                                    <div class="positioner-option">
+                                        <input type="checkbox" :id="'pos-' + actuator.id" x-model="actuator.hasPositioner">
+                                        <label :for="'pos-' + actuator.id">پوزیشنر دار</label>
+                                    </div>
+                                </div>
+                                <div class="item-controls">
+                                    <div class="spinner">
+                                        <button @click="decrement(actuator)" :disabled="actuator.quantity <= 0">-</button>
+                                        <input type="text" x-model="actuator.quantity" readonly>
+                                        <button @click="increment(actuator)">+</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                    
+                    <!-- Sensors Section -->
+                    <div class="card">
+                        <h2>📡 سنسورها</h2>
+                        <template x-for="(sensor, index) in sensors" :key="sensor.id">
+                            <div class="item">
+                                <div class="item-info">
+                                    <div class="item-name" x-text="sensor.name"></div>
+                                    <div class="item-spec">
+                                        <div>نوع: <span x-text="sensor.type"></span></div>
+                                        <div>سیگنال: <span x-text="sensor.signal"></span></div>
+                                    </div>
+                                </div>
+                                <div class="item-controls">
+                                    <div class="spinner">
+                                        <button @click="decrement(sensor)" :disabled="sensor.quantity <= 0">-</button>
+                                        <input type="text" x-model="sensor.quantity" readonly>
+                                        <button @click="increment(sensor)">+</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                    
+                    <!-- Optional Equipment -->
+                    <div class="card">
+                        <h2>🔧 تجهیزات اختیاری</h2>
+                        <template x-for="(optional, index) in optionalItems" :key="optional.id">
+                            <div class="item">
+                                <div class="item-info">
+                                    <div class="item-name" x-text="optional.name"></div>
+                                    <div class="item-spec" x-text="optional.spec"></div>
+                                </div>
+                                <div class="item-controls">
+                                    <div class="spinner">
+                                        <button @click="decrement(optional)" :disabled="optional.quantity <= 0">-</button>
+                                        <input type="text" x-model="optional.quantity" readonly>
+                                        <button @click="increment(optional)">+</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+                
+                <div class="visualization-panel">
+                    <div class="tab-container">
+                        <div class="tabs">
+                            <div class="tab" @click="switchTab('calculations')">🧮 محاسبات فنی</div>
+                            <div class="tab" @click="switchTab('bom')">📋 لیست قطعات</div>
+                            <div class="tab active" @click="switchTab('report')">📊 گزارش فنی</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Calculations Tab -->
+                    <div class="tab-content" id="calculations-tab">
+                        <div style="padding: 20px; overflow-y: auto;">
+                            <h3 style="text-align: center; margin-bottom: 20px; color: var(--primary);">🧮 محاسبات فنی سیستم</h3>
+                            
+                            <div class="report-section">
+                                <h3>📊 محاسبات توان و جریان</h3>
+                                <div class="calculation-results">
+                                    <div class="calc-item">
+                                        <h4>توان کل مصرفی</h4>
+                                        <div class="calc-value" x-text="totalPower + ' kW'"></div>
+                                        <div x-text="'بر اساس ' + totalMotors + ' موتور'"></div>
+                                    </div>
+                                    <div class="calc-item">
+                                        <h4>جریان کل محاسبه شده</h4>
+                                        <div class="calc-value" x-text="totalCurrent + ' A'"></div>
+                                        <div>در ولتاژ 380V</div>
+                                    </div>
+                                    <div class="calc-item">
+                                        <h4>کلید اصلی پیشنهادی</h4>
+                                        <div class="calc-value" x-text="mainBreaker.rating + ' A'"></div>
+                                        <div x-text="'نوع: ' + mainBreaker.type"></div>
+                                    </div>
+                                    <div class="calc-item">
+                                        <h4>کنترل فاز مورد نیاز</h4>
+                                        <div class="calc-value" x-text="phaseMonitor ? 'بله' : 'خیر'"></div>
+                                        <div>برای حفاظت سیستم</div>
+                                    </div>
+                                </div>
+                                
+                                <div class="motor-details">
+                                    <h4>جزئیات محاسبات موتورها</h4>
+                                    <table class="motor-table">
+                                        <thead>
+                                            <tr>
+                                                <th>نام موتور</th>
+                                                <th>توان (kW)</th>
+                                                <th>جریان (A)</th>
+                                                <th>کنتاکتور (A)</th>
+                                                <th>رله حرارتی (A)</th>
+                                                <th>بریکر (A)</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <template x-for="motor in motors" :key="motor.id">
+                                                <template x-if="motor.quantity > 0">
+                                                    <tr>
+                                                        <td x-text="motor.name"></td>
+                                                        <td x-text="motor.power"></td>
+                                                        <td x-text="motor.current"></td>
+                                                        <td x-text="motor.contactorRating"></td>
+                                                        <td x-text="motor.overloadRating"></td>
+                                                        <td x-text="motor.breakerRating"></td>
+                                                    </tr>
+                                                </template>
+                                            </template>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                            
+                            <div class="report-section">
+                                <h3>🔌 محاسبات سیستم کنترل</h3>
+                                <div class="calculation-results">
+                                    <div class="calc-item">
+                                        <h4>PLC پیشنهادی</h4>
+                                        <div class="calc-value" x-text="selectedPLC.model"></div>
+                                        <div x-text="selectedPLC.manufacturer"></div>
+                                    </div>
+                                    <div class="calc-item">
+                                        <h4>ورودی‌های دیجیتال</h4>
+                                        <div class="calc-value" x-text="totalDigitalInputs"></div>
+                                        <div>مورد نیاز</div>
+                                    </div>
+                                    <div class="calc-item">
+                                        <h4>خروجی‌های دیجیتال</h4>
+                                        <div class="calc-value" x-text="totalDigitalOutputs"></div>
+                                        <div>مورد نیاز</div>
+                                    </div>
+                                    <div class="calc-item">
+                                        <h4>ورودی‌های آنالوگ</h4>
+                                        <div class="calc-value" x-text="totalAnalogInputs"></div>
+                                        <div>مورد نیاز</div>
+                                    </div>
+                                    <div class="calc-item">
+                                        <h4>خروجی‌های آنالوگ</h4>
+                                        <div class="calc-value" x-text="totalAnalogOutputs"></div>
+                                        <div>مورد نیاز</div>
+                                    </div>
+                                    <div class="calc-item">
+                                        <h4>ماژول‌های توسعه</h4>
+                                        <div class="calc-value" x-text="expansionModules.length"></div>
+                                        <div>مورد نیاز</div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="report-section">
+                                <h3>⚡ محاسبات حفاظتی</h3>
+                                <div class="calculation-results">
+                                    <template x-for="protection in protectionCalculations" :key="protection.id">
+                                        <div class="calc-item">
+                                            <h4 x-text="protection.name"></h4>
+                                            <div class="calc-value" x-text="protection.rating"></div>
+                                            <div x-text="protection.type"></div>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- BOM Tab -->
+                    <div class="tab-content" id="bom-tab">
+                        <div style="padding: 20px; overflow-y: auto;">
+                            <h3 style="text-align: center; margin-bottom: 20px; color: var(--primary);">📋 لیست قطعات (Bill of Materials)</h3>
+                            
+                            <table class="bom-table">
+                                <thead>
+                                    <tr>
+                                        <th>ردیف</th>
+                                        <th>شرح کالا</th>
+                                        <th>مشخصات فنی</th>
+                                        <th>تعداد</th>
+                                        <th>واحد</th>
+                                        <th>توضیحات</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- Power Distribution -->
+                                    <tr class="category-header">
+                                        <td colspan="6">تجهیزات توزیع قدرت</td>
+                                    </tr>
+                                    <template x-for="(item, index) in bom.power" :key="item.id">
+                                        <tr>
+                                            <td x-text="index + 1"></td>
+                                            <td x-text="item.name"></td>
+                                            <td x-text="item.spec"></td>
+                                            <td x-text="item.quantity"></td>
+                                            <td x-text="item.unit"></td>
+                                            <td x-text="item.notes"></td>
+                                        </tr>
+                                    </template>
+                                    
+                                    <!-- Control System -->
+                                    <tr class="category-header">
+                                        <td colspan="6">سیستم کنترل و PLC</td>
+                                    </tr>
+                                    <template x-for="(item, index) in bom.control" :key="item.id">
+                                        <tr>
+                                            <td x-text="bom.power.length + index + 1"></td>
+                                            <td x-text="item.name"></td>
+                                            <td x-text="item.spec"></td>
+                                            <td x-text="item.quantity"></td>
+                                            <td x-text="item.unit"></td>
+                                            <td x-text="item.notes"></td>
+                                        </tr>
+                                    </template>
+                                    
+                                    <!-- Protection -->
+                                    <tr class="category-header">
+                                        <td colspan="6">تجهیزات حفاظتی</td>
+                                    </tr>
+                                    <template x-for="(item, index) in bom.protection" :key="item.id">
+                                        <tr>
+                                            <td x-text="bom.power.length + bom.control.length + index + 1"></td>
+                                            <td x-text="item.name"></td>
+                                            <td x-text="item.spec"></td>
+                                            <td x-text="item.quantity"></td>
+                                            <td x-text="item.unit"></td>
+                                            <td x-text="item.notes"></td>
+                                        </tr>
+                                    </template>
+
+                                    <!-- Soft Starters -->
+                                    <tr class="category-header">
+                                        <td colspan="6">سافت استارترها</td>
+                                    </tr>
+                                    <template x-for="(item, index) in bom.softstarters" :key="item.id">
+                                        <tr>
+                                            <td x-text="bom.power.length + bom.control.length + bom.protection.length + index + 1"></td>
+                                            <td x-text="item.name"></td>
+                                            <td x-text="item.spec"></td>
+                                            <td x-text="item.quantity"></td>
+                                            <td x-text="item.unit"></td>
+                                            <td x-text="item.notes"></td>
+                                        </tr>
+                                    </template>
+
+                                    <!-- Inverters -->
+                                    <tr class="category-header">
+                                        <td colspan="6">اینورترها</td>
+                                    </tr>
+                                    <template x-for="(item, index) in bom.inverters" :key="item.id">
+                                        <tr>
+                                            <td x-text="bom.power.length + bom.control.length + bom.protection.length + bom.softstarters.length + index + 1"></td>
+                                            <td x-text="item.name"></td>
+                                            <td x-text="item.spec"></td>
+                                            <td x-text="item.quantity"></td>
+                                            <td x-text="item.unit"></td>
+                                            <td x-text="item.notes"></td>
+                                        </tr>
+                                    </template>
+                                    
+                                    <!-- Field Devices -->
+                                    <tr class="category-header">
+                                        <td colspan="6">تجهیزات فیلد</td>
+                                    </tr>
+                                    <template x-for="(item, index) in bom.field" :key="item.id">
+                                        <tr>
+                                            <td x-text="bom.power.length + bom.control.length + bom.protection.length + bom.softstarters.length + bom.inverters.length + index + 1"></td>
+                                            <td x-text="item.name"></td>
+                                            <td x-text="item.spec"></td>
+                                            <td x-text="item.quantity"></td>
+                                            <td x-text="item.unit"></td>
+                                            <td x-text="item.notes"></td>
+                                        </tr>
+                                    </template>
+                                    
+                                    <!-- Accessories -->
+                                    <tr class="category-header">
+                                        <td colspan="6">لوازم جانبی</td>
+                                    </tr>
+                                    <template x-for="(item, index) in bom.accessories" :key="item.id">
+                                        <tr>
+                                            <td x-text="bom.power.length + bom.control.length + bom.protection.length + bom.softstarters.length + bom.inverters.length + bom.field.length + index + 1"></td>
+                                            <td x-text="item.name"></td>
+                                            <td x-text="item.spec"></td>
+                                            <td x-text="item.quantity"></td>
+                                            <td x-text="item.unit"></td>
+                                            <td x-text="item.notes"></td>
+                                        </tr>
+                                    </template>
+                                    
+                                    <!-- Total -->
+                                    <tr class="subtotal">
+                                        <td colspan="3">جمع کل اقلام</td>
+                                        <td x-text="totalBomItems"></td>
+                                        <td colspan="2">قلم</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                            
+                            <div style="margin-top: 20px; display: flex; gap: 10px;">
+                                <button class="btn-success" @click="exportBOM">
+                                    <i>📄</i>
+                                    خروجی Excel
+                                </button>
+                                <button class="btn-primary" @click="printBOM">
+                                    <i>🖨️</i>
+                                    چاپ BOM
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Report Tab -->
+                    <div class="tab-content active" id="report-tab">
+                        <div style="padding: 20px; overflow-y: auto;">
+                            <h3 style="text-align: center; margin-bottom: 20px; color: var(--primary);">📊 گزارش فنی کامل سیستم</h3>
+                            
+                            <div class="report-section">
+                                <h3>📋 خلاصه پروژه</h3>
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                                    <div>
+                                        <h4>مشخصات کلی</h4>
+                                        <ul style="list-style-type: none; padding: 0;">
+                                            <li style="margin-bottom: 8px;">✅ تعداد موتورها: <span x-text="totalMotors"></span></li>
+                                            <li style="margin-bottom: 8px;">✅ تعداد عملگرها: <span x-text="totalActuators"></span></li>
+                                            <li style="margin-bottom: 8px;">✅ تعداد سنسورها: <span x-text="totalSensors"></span></li>
+                                            <li style="margin-bottom: 8px;">✅ توان مصرفی کل: <span x-text="totalPower + ' kW'"></span></li>
+                                        </ul>
+                                    </div>
+                                    <div>
+                                        <h4>سیستم کنترل</h4>
+                                        <ul style="list-style-type: none; padding: 0;">
+                                            <li style="margin-bottom: 8px;">🔧 PLC: <span x-text="selectedPLC.model"></span></li>
+                                            <li style="margin-bottom: 8px;">🔌 ورودی دیجیتال: <span x-text="totalDigitalInputs"></span></li>
+                                            <li style="margin-bottom: 8px;">🔌 خروجی دیجیتال: <span x-text="totalDigitalOutputs"></span></li>
+                                            <li style="margin-bottom: 8px;">📊 ورودی آنالوگ: <span x-text="totalAnalogInputs"></span></li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="report-section">
+                                <h3>⚡ سیستم قدرت</h3>
+                                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 15px;">
+                                    <div style="background: #f8f9fa; padding: 15px; border-radius: 5px;">
+                                        <h4>کلید اصلی</h4>
+                                        <div style="font-weight: bold; color: var(--secondary);" x-text="mainBreaker.rating + ' A - ' + mainBreaker.type"></div>
+                                        <div>برای حفاظت کل مدار</div>
+                                    </div>
+                                    <div style="background: #f8f9fa; padding: 15px; border-radius: 5px;">
+                                        <h4>کنترل فاز</h4>
+                                        <div style="font-weight: bold; color: var(--secondary);" x-text="phaseMonitor ? 'دارد' : 'ندارد'"></div>
+                                        <div>حفاظت در برابر عدم تعادل فاز</div>
+                                    </div>
+                                    <div style="background: #f8f9fa; padding: 15px; border-radius: 5px;">
+                                        <h4>کنتاکتورها</h4>
+                                        <div style="font-weight: bold; color: var(--secondary);" x-text="contactors.length + ' عدد'"></div>
+                                        <div>برای کنترل موتورها</div>
+                                    </div>
+                                    <div style="background: #f8f9fa; padding: 15px; border-radius: 5px;">
+                                        <h4>سافت استارترها</h4>
+                                        <div style="font-weight: bold; color: var(--secondary);" x-text="softStarters.length + ' عدد'"></div>
+                                        <div>برای راه‌اندازی نرم موتورها</div>
+                                    </div>
+                                    <div style="background: #f8f9fa; padding: 15px; border-radius: 5px;">
+                                        <h4>اینورترها</h4>
+                                        <div style="font-weight: bold; color: var(--secondary);" x-text="inverters.length + ' عدد'"></div>
+                                        <div>برای کنترل سرعت موتورها</div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="report-section">
+                                <h3>🔧 توصیه‌های فنی</h3>
+                                <div style="background: #fff3cd; border-right: 4px solid #ffc107; padding: 15px; border-radius: 5px;">
+                                    <h4 style="color: #856404;">ملاحظات نصب و راه‌اندازی</h4>
+                                    <ul>
+                                        <li x-text="technicalRecommendations[0]"></li>
+                                        <li x-text="technicalRecommendations[1]"></li>
+                                        <li x-text="technicalRecommendations[2]"></li>
+                                        <li x-text="technicalRecommendations[3]"></li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Summary Section -->
+            <div class="summary">
+                <h2>📊 خلاصه پیکربندی سیستم</h2>
+                <div class="summary-grid">
+                    <div class="summary-item">
+                        <div>موتورهای سه فاز</div>
+                        <div class="summary-value" x-text="totalMotors"></div>
+                    </div>
+                    <div class="summary-item">
+                        <div>عمل‌گرها</div>
+                        <div class="summary-value" x-text="totalActuators"></div>
+                    </div>
+                    <div class="summary-item">
+                        <div>سنسورها</div>
+                        <div class="summary-value" x-text="totalSensors"></div>
+                    </div>
+                    <div class="summary-item">
+                        <div>مصرف توان کل</div>
+                        <div class="summary-value" x-text="totalPower + ' kW'"></div>
+                    </div>
+                    <div class="summary-item">
+                        <div>جریان کل</div>
+                        <div class="summary-value" x-text="totalCurrent + ' A'"></div>
+                    </div>
+                    <div class="summary-item">
+                        <div>تعداد I/Oهای PLC</div>
+                        <div class="summary-value" x-text="totalIO"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Action Buttons -->
+            <div class="actions">
+                <button class="btn-primary" @click="calculateSystem">
+                    <i>🧮</i>
+                    محاسبه سیستم
+                </button>
+                <button class="btn-success" @click="saveConfiguration">
+                    <i>💾</i>
+                    ذخیره پیکربندی
+                </button>
+                <button class="btn-warning" @click="generateReport">
+                    <i>📊</i>
+                    تولید گزارش
+                </button>
+                <button class="btn-danger" @click="resetConfiguration">
+                    <i>🔄</i>
+                    بازنشانی
+                </button>
+            </div>
+        </div>
+        
+        <footer>
+            <div class="container">
+                <p>سیستم طراحی PLC پیشرفته با قابلیت‌های جامع مهندسی - نسخه حرفه‌ای © 2024</p>
+            </div>
+        </footer>
+    </div>
+
+    <script>
+        function advancedPlcDesigner() {
+            return {
+                // Motor sizes available for selection
+                motorSizes: [0.75, 1.1, 1.5, 2.2, 3, 4, 5.5, 7.5, 11, 15, 18.5, 22, 30, 37, 45, 55, 60],
+                
+                // Enhanced Motors Data
+                motors: [
+                    { 
+                        id: 1, 
+                        name: '1-1- Fan feed', 
+                        defaultQuantity: 2, 
+                        quantity: 2, 
+                        power: 22,
+                        current: 40,
+                        powerFactor: 0.85,
+                        efficiency: 0.92,
+                        starterType: 'direct',
+                        calculatedCurrent: 0,
+                        contactorRating: 0,
+                        overloadRating: 0,
+                        breakerRating: 0,
+                        requiresTwoContactors: false
+                    },
+                    { 
+                        id: 2, 
+                        name: '1-2 Fan return', 
+                        defaultQuantity: 2, 
+                        quantity: 2, 
+                        power: 30,
+                        current: 55,
+                        powerFactor: 0.86,
+                        efficiency: 0.93,
+                        starterType: 'direct',
+                        calculatedCurrent: 0,
+                        contactorRating: 0,
+                        overloadRating: 0,
+                        breakerRating: 0,
+                        requiresTwoContactors: false
+                    },
+                    { 
+                        id: 3, 
+                        name: '1-3 dust Fan', 
+                        defaultQuantity: 4, 
+                        quantity: 4, 
+                        power: 3.3,
+                        current: 6.5,
+                        powerFactor: 0.82,
+                        efficiency: 0.88,
+                        starterType: 'direct',
+                        calculatedCurrent: 0,
+                        contactorRating: 0,
+                        overloadRating: 0,
+                        breakerRating: 0,
+                        requiresTwoContactors: false
+                    },
+                    { 
+                        id: 4, 
+                        name: '1-4 rotary motor', 
+                        defaultQuantity: 2, 
+                        quantity: 2, 
+                        power: 1,
+                        current: 2.2,
+                        powerFactor: 0.78,
+                        efficiency: 0.85,
+                        starterType: 'direct',
+                        calculatedCurrent: 0,
+                        contactorRating: 0,
+                        overloadRating: 0,
+                        breakerRating: 0,
+                        requiresTwoContactors: false
+                    },
+                    { 
+                        id: 5, 
+                        name: '1-5 mechanism motor', 
+                        defaultQuantity: 2, 
+                        quantity: 2, 
+                        power: 0.1,
+                        current: 0.5,
+                        powerFactor: 0.75,
+                        efficiency: 0.8,
+                        starterType: 'direct',
+                        calculatedCurrent: 0,
+                        contactorRating: 0,
+                        overloadRating: 0,
+                        breakerRating: 0,
+                        requiresTwoContactors: false
+                    },
+                    { 
+                        id: 6, 
+                        name: '1-6 pump water motor', 
+                        defaultQuantity: 1, 
+                        quantity: 1, 
+                        power: 30,
+                        current: 55,
+                        powerFactor: 0.86,
+                        efficiency: 0.93,
+                        starterType: 'direct',
+                        calculatedCurrent: 0,
+                        contactorRating: 0,
+                        overloadRating: 0,
+                        breakerRating: 0,
+                        requiresTwoContactors: false
+                    }
+                ],
+                
+                // Enhanced Actuators with Positioner Option
+                actuators: [
+                    { 
+                        id: 1, 
+                        name: '2-1 damper fresh', 
+                        defaultQuantity: 2, 
+                        quantity: 2, 
+                        voltage: '24V DC',
+                        type: 'digital',
+                        power: 20,
+                        hasPositioner: false
+                    },
+                    { 
+                        id: 2, 
+                        name: '2-2 damper exhaust', 
+                        defaultQuantity: 2, 
+                        quantity: 2, 
+                        voltage: '24V DC',
+                        type: 'digital',
+                        power: 20,
+                        hasPositioner: false
+                    },
+                    { 
+                        id: 3, 
+                        name: '2-3 damper return', 
+                        defaultQuantity: 2, 
+                        quantity: 2, 
+                        voltage: '24V DC',
+                        type: 'digital',
+                        power: 20,
+                        hasPositioner: true
+                    },
+                    { 
+                        id: 4, 
+                        name: '2-4 steam valve', 
+                        defaultQuantity: 1, 
+                        quantity: 1, 
+                        voltage: '24V DC',
+                        type: 'digital',
+                        power: 15,
+                        hasPositioner: false
+                    }
+                ],
+                
+                // Enhanced Sensors
+                sensors: [
+                    { 
+                        id: 1, 
+                        name: '3-1 temperature', 
+                        defaultQuantity: 2, 
+                        quantity: 2, 
+                        type: 'analog',
+                        signal: '4-20mA',
+                        range: '-20°C to 80°C'
+                    },
+                    { 
+                        id: 2, 
+                        name: '3-2 damper positions', 
+                        defaultQuantity: 6, 
+                        quantity: 6, 
+                        type: 'analog',
+                        signal: '0-10V DC',
+                        range: '0-100%'
+                    },
+                    { 
+                        id: 3, 
+                        name: '3-3 micro switch', 
+                        defaultQuantity: 7, 
+                        quantity: 7, 
+                        type: 'digital',
+                        signal: 'NO/NC',
+                        range: 'Limit Switch'
+                    },
+                    { 
+                        id: 4, 
+                        name: '3-4 humidity sensor', 
+                        defaultQuantity: 2, 
+                        quantity: 2, 
+                        type: 'analog',
+                        signal: '4-20mA',
+                        range: '0-100% RH'
+                    }
+                ],
+                
+                // Optional Equipment with zero default
+                optionalItems: [
+                    { 
+                        id: 1, 
+                        name: '4-1 اینورتر VFD', 
+                        defaultQuantity: 0, 
+                        quantity: 0, 
+                        spec: '30kW - 3 Phase',
+                        type: 'inverter'
+                    },
+                    { 
+                        id: 2, 
+                        name: '4-2 سافت استارتر', 
+                        defaultQuantity: 0, 
+                        quantity: 0, 
+                        spec: '30kW - Soft Starter',
+                        type: 'softstarter'
+                    },
+                    { 
+                        id: 3, 
+                        name: '4-3 HMI', 
+                        defaultQuantity: 1, 
+                        quantity: 1, 
+                        spec: '7 inch Touch Screen',
+                        type: 'interface'
+                    }
+                ],
+                
+                // System Calculations
+                totalPower: 0,
+                totalCurrent: 0,
+                totalDigitalInputs: 0,
+                totalDigitalOutputs: 0,
+                totalAnalogInputs: 0,
+                totalAnalogOutputs: 0,
+                totalIO: 0,
+                
+                // Protection Components
+                mainBreaker: { rating: 0, type: '' },
+                phaseMonitor: false,
+                contactors: [],
+                motorProtections: [],
+                softStarters: [],
+                inverters: [],
+                controlRelays: [],
+                
+                // PLC Selection
+                selectedPLC: { model: '', manufacturer: '', di: 0, do: 0, ai: 0, ao: 0 },
+                expansionModules: [],
+                
+                // BOM
+                bom: {
+                    power: [],
+                    control: [],
+                    protection: [],
+                    softstarters: [],
+                    inverters: [],
+                    field: [],
+                    accessories: []
+                },
+                
+                // Technical Recommendations
+                technicalRecommendations: [
+                    'کابل‌کشی قدرت و کنترل باید به صورت جداگانه انجام شود',
+                    'سیستم ارت‌ینگ با مقاومت کمتر از 2 اهم اجرا شود',
+                    'از فیوزهای حفاظتی با کلاس gG/gL استفاده شود',
+                    'تابلو کنترل در محیط خشک و خنک نصب شود'
+                ],
+                
+                // Computed properties
+                get totalMotors() {
+                    return this.motors.reduce((sum, motor) => sum + parseInt(motor.quantity), 0);
+                },
+                get totalActuators() {
+                    return this.actuators.reduce((sum, actuator) => sum + parseInt(actuator.quantity), 0);
+                },
+                get totalSensors() {
+                    return this.sensors.reduce((sum, sensor) => sum + parseInt(sensor.quantity), 0);
+                },
+                get totalOptional() {
+                    return this.optionalItems.reduce((sum, item) => sum + parseInt(item.quantity), 0);
+                },
+                get totalBomItems() {
+                    return this.bom.power.length + this.bom.control.length + 
+                           this.bom.protection.length + this.bom.softstarters.length + 
+                           this.bom.inverters.length + this.bom.field.length + 
+                           this.bom.accessories.length;
+                },
+                get protectionCalculations() {
+                    return [
+                        { id: 1, name: 'کلید اصلی', rating: this.mainBreaker.rating + ' A', type: this.mainBreaker.type },
+                        { id: 2, name: 'کنتاکتور موتورها', rating: this.contactors.length + ' عدد', type: 'AC3' },
+                        { id: 3, name: 'رله حرارتی', rating: this.motorProtections.length + ' عدد', type: 'حفاظت اضافه بار' },
+                        { id: 4, name: 'رله های کنترل', rating: this.controlRelays.length + ' عدد', type: '24VDC' },
+                        { id: 5, name: 'فیوزهای کنترل', rating: '6A', type: 'gG' }
+                    ];
+                },
+                
+                // Methods
+                init() {
+                    this.calculateSystem();
+                },
+                
+                increment(item) {
+                    item.quantity++;
+                    this.calculateSystem();
+                },
+                
+                decrement(item) {
+                    if (item.quantity > 0) {
+                        item.quantity--;
+                        this.calculateSystem();
+                    }
+                },
+                
+                updateMotorSpecs(motor) {
+                    // Update motor specifications based on selected power
+                    const power = parseFloat(motor.power);
+                    motor.current = this.calculateMotorCurrent(power);
+                    this.calculateSystem();
+                },
+                
+                calculateMotorCurrent(power) {
+                    // P = √3 × V × I × cosφ × η
+                    // I = P / (√3 × V × cosφ × η)
+                    const voltage = 380; // V
+                    const sqrt3 = 1.732;
+                    const powerFactor = 0.85;
+                    const efficiency = 0.9;
+                    return (power * 1000) / (sqrt3 * voltage * powerFactor * efficiency);
+                },
+                
+                getStarterType(motor) {
+                    if (motor.power > 5 && this.optionalItems[0].quantity > 0) {
+                        return 'اینورتر';
+                    } else if (motor.power > 5 && this.optionalItems[1].quantity > 0) {
+                        return 'سافت استارتر';
+                    } else {
+                        return 'مستقیم';
+                    }
+                },
+                
+                calculateSystem() {
+                    // Calculate motor protection ratings first
+                    this.calculateMotorProtections();
+                    
+                    // Calculate total power and current
+                    this.calculateTotalPowerAndCurrent();
+                    
+                    // Calculate main breaker
+                    this.mainBreaker.rating = this.calculateMainBreaker();
+                    this.mainBreaker.type = 'MCCB 3P';
+                    
+                    // Calculate I/O requirements
+                    this.calculateIORequirements();
+                    
+                    // Select PLC
+                    this.selectPLC();
+                    
+                    // Calculate protection devices
+                    this.calculateProtectionDevices();
+                    
+                    // Generate BOM
+                    this.generateBOM();
+                },
+                
+                calculateMotorProtections() {
+                    this.motors.forEach(motor => {
+                        // Calculate actual current with efficiency and power factor
+                        motor.calculatedCurrent = this.calculateMotorCurrent(motor.power);
+                        
+                        // Calculate contactor rating (25% safety margin)
+                        motor.contactorRating = Math.ceil(motor.calculatedCurrent * 1.25);
+                        
+                        // Calculate overload relay rating
+                        motor.overloadRating = Math.ceil(motor.calculatedCurrent * 1.15);
+                        
+                        // Calculate individual breaker rating
+                        motor.breakerRating = this.calculateMotorBreaker(motor.calculatedCurrent);
+                        
+                        // Check if motor requires two contactors (above 5kW with inverter/soft starter)
+                        motor.requiresTwoContactors = motor.power > 5 && 
+                            (this.optionalItems[0].quantity > 0 || this.optionalItems[1].quantity > 0);
+                    });
+                },
+                
+                calculateMotorBreaker(current) {
+                    const standardBreakers = [6, 10, 16, 20, 25, 32, 40, 50, 63, 80, 100, 125, 160];
+                    const ratedCurrent = current * 1.25; // 25% safety margin
+                    for (let breaker of standardBreakers) {
+                        if (breaker >= ratedCurrent) {
+                            return breaker;
+                        }
+                    }
+                    return 160;
+                },
+                
+                calculateTotalPowerAndCurrent() {
+                    this.totalPower = 0;
+                    this.totalCurrent = 0;
+                    
+                    this.motors.forEach(motor => {
+                        if (motor.quantity > 0) {
+                            this.totalPower += motor.power * motor.quantity;
+                            this.totalCurrent += motor.calculatedCurrent * motor.quantity;
+                        }
+                    });
+                    
+                    this.totalPower = this.totalPower.toFixed(1);
+                    this.totalCurrent = Math.ceil(this.totalCurrent * 1.2); // Add 20% diversity factor
+                },
+                
+                calculateMainBreaker() {
+                    const standardBreakers = [63, 80, 100, 125, 160, 200, 250, 315, 400, 500, 630];
+                    for (let breaker of standardBreakers) {
+                        if (breaker >= this.totalCurrent) {
+                            return breaker;
+                        }
+                    }
+                    return 630;
+                },
+                
+                calculateIORequirements() {
+                    // Digital Inputs
+                    this.totalDigitalInputs = this.sensors
+                        .filter(sensor => sensor.type === 'digital')
+                        .reduce((sum, sensor) => sum + sensor.quantity, 0);
+                    
+                    // Add motor feedback signals (1 per motor)
+                    this.totalDigitalInputs += this.totalMotors;
+                    
+                    // Add positioner feedback if any actuator has positioner
+                    const positionerCount = this.actuators
+                        .filter(actuator => actuator.hasPositioner)
+                        .reduce((sum, actuator) => sum + actuator.quantity, 0);
+                    this.totalDigitalInputs += positionerCount;
+                    
+                    // Digital Outputs
+                    this.totalDigitalOutputs = this.actuators
+                        .filter(actuator => actuator.type === 'digital')
+                        .reduce((sum, actuator) => sum + actuator.quantity, 0);
+                    
+                    // Add motor control outputs (1 per motor, 2 if requires two contactors)
+                    this.motors.forEach(motor => {
+                        if (motor.quantity > 0) {
+                            this.totalDigitalOutputs += motor.requiresTwoContactors ? 
+                                motor.quantity * 2 : motor.quantity;
+                        }
+                    });
+                    
+                    // Add control relay outputs
+                    this.totalDigitalOutputs += this.controlRelays.length;
+                    
+                    // Analog Inputs
+                    this.totalAnalogInputs = this.sensors
+                        .filter(sensor => sensor.type === 'analog')
+                        .reduce((sum, sensor) => sum + sensor.quantity, 0);
+                    
+                    // Add positioner analog inputs
+                    this.totalAnalogInputs += positionerCount;
+                    
+                    // Analog Outputs
+                    this.totalAnalogOutputs = Math.ceil(this.totalAnalogInputs * 0.5);
+                    
+                    this.totalIO = this.totalDigitalInputs + this.totalDigitalOutputs + 
+                                  this.totalAnalogInputs + this.totalAnalogOutputs;
+                },
+                
+                selectPLC() {
+                    const plcOptions = [
+                        { model: 'S7-1212C', manufacturer: 'Siemens', di: 8, do: 6, ai: 2, ao: 2 },
+                        { model: 'S7-1214C', manufacturer: 'Siemens', di: 14, do: 10, ai: 2, ao: 2 },
+                        { model: 'S7-1215C', manufacturer: 'Siemens', di: 14, do: 10, ai: 2, ao: 2 },
+                        { model: 'S7-1217C', manufacturer: 'Siemens', di: 14, do: 10, ai: 4, ao: 2 }
+                    ];
+                    
+                    for (let plc of plcOptions) {
+                        if (plc.di >= this.totalDigitalInputs && 
+                            plc.do >= this.totalDigitalOutputs && 
+                            plc.ai >= this.totalAnalogInputs && 
+                            plc.ao >= this.totalAnalogOutputs) {
+                            this.selectedPLC = { ...plc };
+                            break;
+                        }
+                    }
+                    
+                    // Calculate expansion modules if needed
+                    this.expansionModules = [];
+                    const diNeeded = Math.max(0, this.totalDigitalInputs - this.selectedPLC.di);
+                    const doNeeded = Math.max(0, this.totalDigitalOutputs - this.selectedPLC.do);
+                    const aiNeeded = Math.max(0, this.totalAnalogInputs - this.selectedPLC.ai);
+                    const aoNeeded = Math.max(0, this.totalAnalogOutputs - this.selectedPLC.ao);
+                    
+                    if (diNeeded > 0 || doNeeded > 0) {
+                        this.expansionModules.push({
+                            type: 'Digital',
+                            spec: `DI${diNeeded}/DO${doNeeded}`,
+                            quantity: 1
+                        });
+                    }
+                    
+                    if (aiNeeded > 0 || aoNeeded > 0) {
+                        this.expansionModules.push({
+                            type: 'Analog',
+                            spec: `AI${aiNeeded}/AO${aoNeeded}`,
+                            quantity: 1
+                        });
+                    }
+                },
+                
+                calculateProtectionDevices() {
+                    this.contactors = [];
+                    this.motorProtections = [];
+                    this.softStarters = [];
+                    this.inverters = [];
+                    this.controlRelays = [];
+                    
+                    this.motors.forEach(motor => {
+                        for (let i = 0; i < motor.quantity; i++) {
+                            // Add contactors - two if required
+                            const contactorCount = motor.requiresTwoContactors ? 2 : 1;
+                            for (let j = 0; j < contactorCount; j++) {
+                                this.contactors.push({
+                                    rating: `${motor.contactorRating}A`,
+                                    type: 'AC3',
+                                    forMotor: motor.name,
+                                    model: `LC1D${this.getContactorModel(motor.contactorRating)}`,
+                                    purpose: j === 0 ? 'برق اصلی' : 'اینورتر'
+                                });
+                                
+                                // Add control relay for each contactor
+                                this.controlRelays.push({
+                                    type: 'رله کنترل',
+                                    voltage: '24VDC',
+                                    contacts: '2NO+2NC',
+                                    forComponent: `${motor.name} - کنتاکتور ${j + 1}`
+                                });
+                            }
+                            
+                            // Add overload protection
+                            this.motorProtections.push({
+                                rating: `${motor.overloadRating}A`,
+                                type: 'رله حرارتی',
+                                forMotor: motor.name,
+                                model: `LRD${this.getOverloadModel(motor.overloadRating)}`
+                            });
+                            
+                            // Add soft starter if needed and selected
+                            if (motor.power > 5 && this.optionalItems[1].quantity > 0) {
+                                this.softStarters.push({
+                                    rating: `${motor.power}kW`,
+                                    type: 'سافت استارتر',
+                                    forMotor: motor.name,
+                                    model: `ATS${motor.power}`
+                                });
+                            }
+                            
+                            // Add inverter if needed and selected
+                            if (motor.power > 5 && this.optionalItems[0].quantity > 0) {
+                                this.inverters.push({
+                                    rating: `${motor.power}kW`,
+                                    type: 'اینورتر VFD',
+                                    forMotor: motor.name,
+                                    model: `VFD${motor.power}`
+                                });
+                            }
+                        }
+                    });
+                    
+                    // Determine if phase monitor is needed
+                    this.phaseMonitor = this.totalPower > 30;
+                },
+                
+                getContactorModel(current) {
+                    const models = {
+                        10: '09',
+                        16: '12',
+                        25: '18',
+                        32: '25',
+                        40: '32',
+                        50: '38',
+                        63: '40',
+                        80: '50',
+                        95: '65',
+                        110: '80'
+                    };
+                    
+                    for (let [maxCurrent, model] of Object.entries(models)) {
+                        if (current <= parseInt(maxCurrent)) {
+                            return model;
+                        }
+                    }
+                    return '80';
+                },
+                
+                getOverloadModel(current) {
+                    const models = {
+                        6: '14',
+                        9: '14',
+                        12: '14',
+                        18: '22',
+                        25: '22',
+                        32: '35',
+                        40: '35',
+                        57: '35',
+                        63: '35',
+                        80: '35'
+                    };
+                    
+                    for (let [maxCurrent, model] of Object.entries(models)) {
+                        if (current <= parseInt(maxCurrent)) {
+                            return model;
+                        }
+                    }
+                    return '35';
+                },
+                
+                generateBOM() {
+                    // Power Distribution
+                    this.bom.power = [
+                        { 
+                            id: 1, 
+                            name: 'کلید اصلی اتوماتیک', 
+                            spec: `${this.mainBreaker.rating}A - 3P - 380V`, 
+                            quantity: 1, 
+                            unit: 'عدد', 
+                            notes: 'MCCB - حفاظت اصلی مدار' 
+                        },
+                        { 
+                            id: 2, 
+                            name: 'شینه مسی', 
+                            spec: '60x10 mm - Tin Plated', 
+                            quantity: 3, 
+                            unit: 'متر', 
+                            notes: 'برای توزیع قدرت اصلی' 
+                        },
+                        { 
+                            id: 3, 
+                            name: 'ترمینال قدرت', 
+                            spec: '100A - 3 Pole', 
+                            quantity: 12, 
+                            unit: 'عدد', 
+                            notes: 'اتصال کابل‌های قدرت' 
+                        },
+                        { 
+                            id: 4, 
+                            name: 'کابل قدرت اصلی', 
+                            spec: `4x${this.getCableSize(this.totalCurrent)}mm² - PVC`, 
+                            quantity: 10, 
+                            unit: 'متر', 
+                            notes: 'ورودی تابلو' 
+                        }
+                    ];
+                    
+                    // Control System
+                    this.bom.control = [
+                        { 
+                            id: 1, 
+                            name: 'PLC', 
+                            spec: `${this.selectedPLC.model} - ${this.selectedPLC.manufacturer}`, 
+                            quantity: 1, 
+                            unit: 'عدد', 
+                            notes: 'CPU با ماژول اصلی' 
+                        },
+                        { 
+                            id: 2, 
+                            name: 'منبع تغذیه', 
+                            spec: '24VDC - 5A - SMPS', 
+                            quantity: 1, 
+                            unit: 'عدد', 
+                            notes: 'برای مدار کنترل و سنسورها' 
+                        },
+                        { 
+                            id: 3, 
+                            name: 'HMI', 
+                            spec: '7 اینچ - TFT Touch Screen', 
+                            quantity: this.optionalItems[2].quantity, 
+                            unit: 'عدد', 
+                            notes: 'رابط اپراتور' 
+                        }
+                    ];
+                    
+                    // Add expansion modules to BOM
+                    this.expansionModules.forEach((module, index) => {
+                        this.bom.control.push({
+                            id: this.bom.control.length + 1,
+                            name: `ماژول توسعه ${module.type}`,
+                            spec: module.spec,
+                            quantity: module.quantity,
+                            unit: 'عدد',
+                            notes: 'برای افزایش I/Oهای PLC'
+                        });
+                    });
+                    
+                    // Protection Devices
+                    this.bom.protection = [];
+                    
+                    // Add contactors
+                    this.contactors.forEach((contactor, index) => {
+                        this.bom.protection.push({
+                            id: index + 1,
+                            name: 'کنتاکتور',
+                            spec: `${contactor.rating} - ${contactor.model} - 3P`,
+                            quantity: 1,
+                            unit: 'عدد',
+                            notes: `برای ${contactor.forMotor} - ${contactor.purpose}`
+                        });
+                    });
+                    
+                    // Add overload relays
+                    this.motorProtections.forEach((protection, index) => {
+                        this.bom.protection.push({
+                            id: this.bom.protection.length + 1,
+                            name: 'رله حرارتی',
+                            spec: `${protection.rating} - ${protection.model}`,
+                            quantity: 1,
+                            unit: 'عدد',
+                            notes: `حفاظت ${protection.forMotor}`
+                        });
+                    });
+                    
+                    // Add control relays
+                    this.controlRelays.forEach((relay, index) => {
+                        this.bom.protection.push({
+                            id: this.bom.protection.length + 1,
+                            name: 'رله کنترل',
+                            spec: `${relay.voltage} - ${relay.contacts}`,
+                            quantity: 1,
+                            unit: 'عدد',
+                            notes: `برای ${relay.forComponent}`
+                        });
+                    });
+                    
+                    // Add control fuses
+                    this.bom.protection.push({
+                        id: this.bom.protection.length + 1,
+                        name: 'فیوز کنترل',
+                        spec: '6A - gG - 5x20mm',
+                        quantity: 10,
+                        unit: 'عدد',
+                        notes: 'حفاظت مدار کنترل'
+                    });
+                    
+                    if (this.phaseMonitor) {
+                        this.bom.protection.push({
+                            id: this.bom.protection.length + 1,
+                            name: 'کنترل فاز',
+                            spec: '3P - 380V - Digital',
+                            quantity: 1,
+                            unit: 'عدد',
+                            notes: 'حفاظت در برابر عدم تعادل فاز'
+                        });
+                    }
+                    
+                    // Soft Starters
+                    this.bom.softstarters = [];
+                    this.softStarters.forEach((starter, index) => {
+                        this.bom.softstarters.push({
+                            id: index + 1,
+                            name: 'سافت استارتر',
+                            spec: `${starter.rating} - ${starter.model} - 3 Phase`,
+                            quantity: 1,
+                            unit: 'عدد',
+                            notes: `راه‌اندازی نرم ${starter.forMotor}`
+                        });
+                    });
+                    
+                    // Inverters
+                    this.bom.inverters = [];
+                    this.inverters.forEach((inverter, index) => {
+                        this.bom.inverters.push({
+                            id: index + 1,
+                            name: 'اینورتر VFD',
+                            spec: `${inverter.rating} - ${inverter.model} - 3 Phase`,
+                            quantity: 1,
+                            unit: 'عدد',
+                            notes: `کنترل سرعت ${inverter.forMotor}`
+                        });
+                    });
+                    
+                    // Field Devices
+                    this.bom.field = [
+                        { 
+                            id: 1, 
+                            name: 'سنسور دما', 
+                            spec: 'PT100 - 4-20mA - IP65', 
+                            quantity: this.sensors[0].quantity, 
+                            unit: 'عدد', 
+                            notes: 'اندازه‌گیری دمای هوا' 
+                        },
+                        { 
+                            id: 2, 
+                            name: 'سنسور موقعیت دمپر', 
+                            spec: 'Potentiometer - 0-10VDC', 
+                            quantity: this.sensors[1].quantity, 
+                            unit: 'عدد', 
+                            notes: 'موقعیت‌سنج دمپرها' 
+                        },
+                        { 
+                            id: 3, 
+                            name: 'میکروسویچ', 
+                            spec: 'NO/NC - IP67', 
+                            quantity: this.sensors[2].quantity, 
+                            unit: 'عدد', 
+                            notes: 'سوئیت‌های محدودیت' 
+                        },
+                        { 
+                            id: 4, 
+                            name: 'سنسور رطوبت', 
+                            spec: '0-100% RH - 4-20mA - IP65', 
+                            quantity: this.sensors[3].quantity, 
+                            unit: 'عدد', 
+                            notes: 'اندازه‌گیری رطوبت هوا' 
+                        },
+                        { 
+                            id: 5, 
+                            name: 'عملگر دمپر', 
+                            spec: '24VDC - Modulating', 
+                            quantity: this.actuators.slice(0, 3).reduce((sum, a) => sum + a.quantity, 0), 
+                            unit: 'عدد', 
+                            notes: 'کنترل موقعیت دمپرها' 
+                        },
+                        { 
+                            id: 6, 
+                            name: 'شیر برقی', 
+                            spec: '24VDC - 2/2 Way', 
+                            quantity: this.actuators[3].quantity, 
+                            unit: 'عدد', 
+                            notes: 'کنترل جریان بخار' 
+                        }
+                    ];
+                    
+                    // Add positioners if any actuator has positioner
+                    const positionerCount = this.actuators
+                        .filter(actuator => actuator.hasPositioner)
+                        .reduce((sum, actuator) => sum + actuator.quantity, 0);
+                    
+                    if (positionerCount > 0) {
+                        this.bom.field.push({
+                            id: this.bom.field.length + 1,
+                            name: 'پوزیشنر',
+                            spec: '4-20mA - Smart',
+                            quantity: positionerCount,
+                            unit: 'عدد',
+                            notes: 'کنترل موقعیت دقیق دمپرها'
+                        });
+                    }
+                    
+                    // Accessories
+                    this.bom.accessories = [
+                        { 
+                            id: 1, 
+                            name: 'ترمینال کنترل', 
+                            spec: '2.5mm² - Screw Type', 
+                            quantity: 100, 
+                            unit: 'عدد', 
+                            notes: 'اتصالات مدار کنترل' 
+                        },
+                        { 
+                            id: 2, 
+                            name: 'سیم کنترل', 
+                            spec: '1.5mm² - مشکی - 600V', 
+                            quantity: 150, 
+                            unit: 'متر', 
+                            notes: 'سیم‌کشی مدار کنترل' 
+                        },
+                        { 
+                            id: 3, 
+                            name: 'سیم کنترل', 
+                            spec: '1.5mm² - قرمز - 600V', 
+                            quantity: 150, 
+                            unit: 'متر', 
+                            notes: 'سیم‌کشی مدار کنترل' 
+                        },
+                        { 
+                            id: 4, 
+                            name: 'سیم کنترل', 
+                            spec: '1.5mm² - آبی - 600V', 
+                            quantity: 100, 
+                            unit: 'متر', 
+                            notes: 'سیم‌کشی مدار کنترل' 
+                        },
+                        { 
+                            id: 5, 
+                            name: 'کابل قدرت موتور', 
+                            spec: '4x4mm² - PVC', 
+                            quantity: 50, 
+                            unit: 'متر', 
+                            notes: 'اتصال موتورهای تا 5.5kW' 
+                        },
+                        { 
+                            id: 6, 
+                            name: 'کابل قدرت موتور', 
+                            spec: '4x6mm² - PVC', 
+                            quantity: 40, 
+                            unit: 'متر', 
+                            notes: 'اتصال موتورهای تا 11kW' 
+                        },
+                        { 
+                            id: 7, 
+                            name: 'کابل قدرت موتور', 
+                            spec: '4x10mm² - PVC', 
+                            quantity: 30, 
+                            unit: 'متر', 
+                            notes: 'اتصال موتورهای تا 22kW' 
+                        },
+                        { 
+                            id: 8, 
+                            name: 'کابل قدرت موتور', 
+                            spec: '4x16mm² - PVC', 
+                            quantity: 25, 
+                            unit: 'متر', 
+                            notes: 'اتصال موتورهای تا 30kW' 
+                        },
+                        { 
+                            id: 9, 
+                            name: 'علائم مشخصه', 
+                            spec: 'استاندارد IEC', 
+                            quantity: 1, 
+                            unit: 'ست', 
+                            notes: 'پلاک و نشانگرها' 
+                        },
+                        { 
+                            id: 10, 
+                            name: 'داکت و نگهدارنده', 
+                            spec: '40x40mm - PVC', 
+                            quantity: 20, 
+                            unit: 'متر', 
+                            notes: 'نگهداری سیم‌ها و کابل‌ها' 
+                        }
+                    ];
+                },
+                
+                getCableSize(current) {
+                    const cableSizes = {
+                        25: 4,
+                        35: 6,
+                        50: 10,
+                        70: 16,
+                        90: 25,
+                        120: 35,
+                        150: 50,
+                        185: 70,
+                        240: 95
+                    };
+                    
+                    for (let [maxCurrent, size] of Object.entries(cableSizes)) {
+                        if (current <= parseInt(maxCurrent)) {
+                            return size;
+                        }
+                    }
+                    return 95;
+                },
+                
+                switchTab(tabName) {
+                    // Hide all tabs
+                    document.querySelectorAll('.tab-content').forEach(tab => {
+                        tab.classList.remove('active');
+                    });
+                    
+                    // Deactivate all tab buttons
+                    document.querySelectorAll('.tab').forEach(tab => {
+                        tab.classList.remove('active');
+                    });
+                    
+                    // Activate selected tab
+                    document.getElementById(tabName + '-tab').classList.add('active');
+                    event.target.classList.add('active');
+                },
+                
+                generateReport() {
+                    this.switchTab('report');
+                },
+                
+                exportBOM() {
+                    // In a real implementation, this would generate an Excel file
+                    alert('فایل Excel با موفقیت تولید شد!');
+                },
+                
+                printBOM() {
+                    window.print();
+                },
+                
+                saveConfiguration() {
+                    const config = {
+                        motors: this.motors,
+                        actuators: this.actuators,
+                        sensors: this.sensors,
+                        optionalItems: this.optionalItems,
+                        calculations: {
+                            totalPower: this.totalPower,
+                            totalCurrent: this.totalCurrent,
+                            totalIO: this.totalIO,
+                            mainBreaker: this.mainBreaker
+                        },
+                        bom: this.bom
+                    };
+                    
+                    console.log('Configuration saved:', config);
+                    alert('پیکربندی با موفقیت ذخیره شد!');
+                },
+                
+                resetConfiguration() {
+                    if (confirm('آیا از بازنشانی پیکربندی اطمینان دارید؟')) {
+                        this.motors.forEach(motor => {
+                            motor.quantity = motor.defaultQuantity;
+                        });
+                        
+                        this.actuators.forEach(actuator => {
+                            actuator.quantity = actuator.defaultQuantity;
+                            actuator.hasPositioner = false;
+                        });
+                        
+                        this.sensors.forEach(sensor => {
+                            sensor.quantity = sensor.defaultQuantity;
+                        });
+                        
+                        this.optionalItems.forEach(item => {
+                            item.quantity = item.defaultQuantity;
+                        });
+                        
+                        this.calculateSystem();
+                    }
+                }
+            }
+        }
+        
+        // Initialize the application
+        document.addEventListener('alpine:init', () => {
+            Alpine.data('advancedPlcDesigner', advancedPlcDesigner);
+        });
+    </script>
+</body>
+</html>

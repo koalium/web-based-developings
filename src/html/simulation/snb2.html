@@ -1,0 +1,1277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced 3D Supernova with Particle Decay Physics</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            overflow: hidden;
+            background: radial-gradient(ellipse at center, #0a0e2a 0%, #000000 100%);
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        
+        #canvas-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+        
+        .ui-panel {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(5, 10, 30, 0.85);
+            padding: 20px;
+            border-radius: 15px;
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(100, 150, 255, 0.2);
+            width: 90%;
+            max-width: 900px;
+            z-index: 100;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7);
+        }
+        
+        .controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+        
+        button {
+            background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            flex: 1;
+            min-width: 140px;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        button:before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            transition: 0.5s;
+        }
+        
+        button:hover:before {
+            left: 100%;
+        }
+        
+        button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
+        }
+        
+        .slider-container {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .slider-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.9rem;
+        }
+        
+        input[type="range"] {
+            width: 100%;
+            height: 6px;
+            -webkit-appearance: none;
+            appearance: none;
+            background: rgba(100, 150, 255, 0.2);
+            border-radius: 10px;
+            outline: none;
+        }
+        
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #2575fc;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(37, 117, 252, 0.8);
+            border: 2px solid white;
+        }
+        
+        .title {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            text-align: center;
+            z-index: 100;
+            background: rgba(5, 10, 30, 0.7);
+            padding: 15px 40px;
+            border-radius: 50px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(100, 150, 255, 0.2);
+            width: 90%;
+            max-width: 700px;
+        }
+        
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 5px;
+            background: linear-gradient(to right, #6a11cb, #2575fc);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 20px rgba(106, 17, 203, 0.5);
+        }
+        
+        .subtitle {
+            font-size: 1rem;
+            opacity: 0.8;
+        }
+        
+        .instructions {
+            position: fixed;
+            top: 120px;
+            left: 50%;
+            transform: translateX(-50%);
+            text-align: center;
+            font-size: 1rem;
+            background: rgba(5, 10, 30, 0.7);
+            padding: 10px 20px;
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+            max-width: 80%;
+            border: 1px solid rgba(100, 150, 255, 0.2);
+        }
+        
+        .stats-panel {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: rgba(5, 10, 30, 0.7);
+            padding: 15px;
+            border-radius: 10px;
+            font-size: 0.9rem;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(100, 150, 255, 0.2);
+            min-width: 200px;
+        }
+        
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+        
+        .stat-value {
+            font-weight: bold;
+            color: #6a11cb;
+        }
+        
+        .zoom-controls {
+            position: fixed;
+            top: 50%;
+            right: 20px;
+            transform: translateY(-50%);
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 100;
+        }
+        
+        .zoom-btn {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: rgba(5, 10, 30, 0.7);
+            border: 1px solid rgba(100, 150, 255, 0.3);
+            color: white;
+            font-size: 1.5rem;
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            backdrop-filter: blur(5px);
+            transition: all 0.3s ease;
+        }
+        
+        .zoom-btn:hover {
+            background: rgba(100, 150, 255, 0.2);
+            transform: scale(1.1);
+        }
+        
+        .particle-controls {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: rgba(5, 10, 30, 0.7);
+            padding: 15px;
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(100, 150, 255, 0.2);
+            min-width: 250px;
+        }
+        
+        .particle-title {
+            font-size: 1.1rem;
+            margin-bottom: 10px;
+            color: #6a11cb;
+            text-align: center;
+        }
+        
+        .phase-indicator {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(5, 10, 30, 0.7);
+            padding: 15px;
+            border-radius: 10px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(100, 150, 255, 0.2);
+            min-width: 200px;
+        }
+        
+        .phase-title {
+            font-size: 1.1rem;
+            margin-bottom: 10px;
+            color: #6a11cb;
+            text-align: center;
+        }
+        
+        .phase-progress {
+            height: 10px;
+            background: rgba(100, 150, 255, 0.2);
+            border-radius: 5px;
+            overflow: hidden;
+            margin-bottom: 10px;
+        }
+        
+        .phase-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #6a11cb, #2575fc);
+            width: 0%;
+            transition: width 0.5s ease;
+        }
+        
+        .tooltip {
+            position: relative;
+            display: inline-block;
+            border-bottom: 1px dotted #6a11cb;
+            cursor: help;
+        }
+        
+        .tooltip .tooltiptext {
+            visibility: hidden;
+            width: 250px;
+            background-color: rgba(5, 10, 30, 0.9);
+            color: #fff;
+            text-align: center;
+            border-radius: 6px;
+            padding: 10px;
+            position: absolute;
+            z-index: 1;
+            bottom: 125%;
+            left: 50%;
+            transform: translateX(-50%);
+            opacity: 0;
+            transition: opacity 0.3s;
+            font-size: 0.9rem;
+            border: 1px solid rgba(100, 150, 255, 0.3);
+        }
+        
+        .tooltip:hover .tooltiptext {
+            visibility: visible;
+            opacity: 1;
+        }
+        
+        .color-picker {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 10px;
+            flex-wrap: wrap;
+        }
+        
+        .color-option {
+            width: 25px;
+            height: 25px;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 2px solid rgba(255, 255, 255, 0.5);
+            transition: transform 0.2s ease;
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.3);
+        }
+        
+        .color-option:hover {
+            transform: scale(1.2);
+        }
+        
+        @media (max-width: 768px) {
+            .controls {
+                grid-template-columns: 1fr;
+            }
+            
+            .particle-controls, .phase-indicator {
+                position: relative;
+                top: auto;
+                left: auto;
+                right: auto;
+                bottom: auto;
+                margin: 10px;
+            }
+            
+            .zoom-controls {
+                top: auto;
+                bottom: 100px;
+                transform: none;
+                flex-direction: row;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="title">
+        <h1>Advanced Particle Physics Supernova</h1>
+        <p class="subtitle">Multi-stage Decay & Enhanced Zoom</p>
+    </div>
+    
+    <div class="instructions">
+        <p>Drag to rotate • Scroll/Pinch to zoom • Multi-stage particle decay physics</p>
+    </div>
+    
+    <div class="stats-panel">
+        <div class="stat-item">
+            <span>Particles:</span>
+            <span class="stat-value" id="particle-count">0</span>
+        </div>
+        <div class="stat-item">
+            <span>Zoom:</span>
+            <span class="stat-value" id="zoom-level">30</span>
+        </div>
+        <div class="stat-item">
+            <span>Decay Stages:</span>
+            <span class="stat-value" id="decay-stages">0</span>
+        </div>
+        <div class="stat-item">
+            <span>Particle Shapes:</span>
+            <span class="stat-value" id="shape-count">0</span>
+        </div>
+        <div class="stat-item">
+            <span>Time:</span>
+            <span class="stat-value" id="sim-time">0.0s</span>
+        </div>
+    </div>
+    
+    <div class="particle-controls">
+        <div class="particle-title">Particle Physics</div>
+        <div class="slider-container">
+            <div class="slider-label">
+                <span>Zoom Sensitivity:</span>
+                <span id="zoom-sens-value">1.0</span>
+            </div>
+            <input type="range" id="zoom-sens-control" min="0.1" max="3.0" step="0.1" value="1.0">
+        </div>
+        <div class="slider-container">
+            <div class="slider-label">
+                <span>Decay Chance:</span>
+                <span id="decay-chance-value">30%</span>
+            </div>
+            <input type="range" id="decay-chance-control" min="5" max="80" step="5" value="30">
+        </div>
+        <div class="slider-container">
+            <div class="slider-label">
+                <span>Shape Variety:</span>
+                <span id="shape-variety-value">High</span>
+            </div>
+            <input type="range" id="shape-variety-control" min="1" max="5" step="1" value="4">
+        </div>
+    </div>
+    
+    <div class="phase-indicator">
+        <div class="phase-title">Particle Decay Phase</div>
+        <div class="phase-progress">
+            <div class="phase-bar" id="phase-bar"></div>
+        </div>
+        <div id="phase-text">Initial Particles</div>
+        <div id="decay-text" style="font-size:0.8rem; margin-top:5px;"></div>
+    </div>
+    
+    <div class="zoom-controls">
+        <div class="zoom-btn" id="zoom-in">+</div>
+        <div class="zoom-btn" id="zoom-out">-</div>
+        <div class="zoom-btn" id="zoom-reset">⟲</div>
+    </div>
+    
+    <div id="canvas-container"></div>
+    
+    <div class="ui-panel">
+        <div class="controls">
+            <div class="control-group">
+                <div class="button-group">
+                    <button id="explode-btn">Initiate Supernova</button>
+                    <button id="reset-btn">Reset Simulation</button>
+                </div>
+                
+                <div class="slider-container">
+                    <div class="slider-label">
+                        <span>Zoom Level:</span>
+                        <span id="zoom-value">30</span>
+                    </div>
+                    <input type="range" id="zoom-control" min="1" max="200" value="30">
+                </div>
+                
+                <div class="slider-container">
+                    <div class="slider-label">
+                        <span>Time Scale:</span>
+                        <span id="time-value">1.0x</span>
+                    </div>
+                    <input type="range" id="time-control" min="0.1" max="5.0" step="0.1" value="1.0">
+                </div>
+            </div>
+            
+            <div class="control-group">
+                <div class="button-group">
+                    <button id="auto-decay-btn">Auto Decay Cycle</button>
+                    <button id="add-particles-btn">Add Particles</button>
+                </div>
+                
+                <div class="slider-container">
+                    <div class="slider-label">
+                        <span>Particle Count:</span>
+                        <span id="particle-count-value">500</span>
+                    </div>
+                    <input type="range" id="particle-count-control" min="100" max="2000" step="50" value="500">
+                </div>
+                
+                <div class="color-picker">
+                    <div class="color-option" style="background: #000428;" data-color="0x000428"></div>
+                    <div class="color-option" style="background: #1a1a2e;" data-color="0x1a1a2e"></div>
+                    <div class="color-option" style="background: #16213e;" data-color="0x16213e"></div>
+                    <div class="color-option" style="background: #0f3460;" data-color="0x0f3460"></div>
+                    <div class="color-option" style="background: #000000;" data-color="0x000000"></div>
+                    <div class="color-option" style="background: #2c003e;" data-color="0x2c003e"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize Three.js scene with advanced particle physics
+        let scene, camera, renderer, star, particles, explosionParticles = [];
+        let remnant = null;
+        let particleCount = 0;
+        let decayStageCount = 0;
+        let shapeTypeCount = 0;
+        let mouseX = 0, mouseY = 0;
+        let windowHalfX = window.innerWidth / 2;
+        let windowHalfY = window.innerHeight / 2;
+        let autoDecayActive = false;
+        
+        // Advanced simulation parameters
+        let simulationParams = {
+            zoomSensitivity: 1.0,
+            decayChance: 0.3, // 30% chance for decay
+            shapeVariety: 4, // 1-5 scale
+            timeScale: 1.0,
+            particleCount: 500,
+            simulationTime: 0.0,
+            currentPhase: 'initial',
+            maxDecayStages: 3, // Maximum number of decay stages
+            decayStageProgress: 0
+        };
+        
+        // Available particle shapes
+        const PARTICLE_SHAPES = [
+            'sphere', 'cube', 'tetrahedron', 'octahedron', 'dodecahedron', 
+            'icosahedron', 'cone', 'cylinder', 'torus', 'star'
+        ];
+        
+        // Particle materials by element
+        const elementMaterials = {
+            hydrogen: { color: 0xff4444, emissive: 0x441111 },
+            helium: { color: 0x44ff44, emissive: 0x114411 },
+            carbon: { color: 0x4444ff, emissive: 0x111144 },
+            oxygen: { color: 0xffff44, emissive: 0x444411 },
+            iron: { color: 0xffaa44, emissive: 0x442211 },
+            silicon: { color: 0xaa44ff, emissive: 0x331155 },
+            magnesium: { color: 0xff44aa, emissive: 0x551133 }
+        };
+        
+        // Track active shape types
+        let activeShapes = new Set();
+        
+        function init() {
+            // Create scene
+            scene = new THREE.Scene();
+            
+            // Create camera with wider zoom range
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 2000);
+            camera.position.z = 30;
+            
+            // Create renderer
+            renderer = new THREE.WebGLRenderer({ 
+                antialias: true, 
+                alpha: true,
+                precision: 'highp'
+            });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setClearColor(0x000428);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            document.getElementById('canvas-container').appendChild(renderer.domElement);
+            
+            // Add enhanced stars background
+            addStarBackground();
+            
+            // Create the central star
+            createStar();
+            
+            // Add advanced lighting
+            const ambientLight = new THREE.AmbientLight(0x333333, 0.4);
+            scene.add(ambientLight);
+            
+            const pointLight = new THREE.PointLight(0xffddaa, 1.5, 200);
+            pointLight.position.set(0, 0, 0);
+            pointLight.castShadow = true;
+            scene.add(pointLight);
+            
+            // Add directional light for better illumination
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.3);
+            directionalLight.position.set(10, 10, 5);
+            scene.add(directionalLight);
+            
+            // Add event listeners
+            setupEventListeners();
+            
+            // Start animation
+            animate();
+            
+            // Update stats
+            updateStats();
+        }
+        
+        function addStarBackground() {
+            const starGeometry = new THREE.BufferGeometry();
+            const starCount = 10000;
+            const positionArray = new Float32Array(starCount * 3);
+            const colorArray = new Float32Array(starCount * 3);
+            const sizeArray = new Float32Array(starCount);
+            
+            for (let i = 0; i < starCount * 3; i += 3) {
+                positionArray[i] = (Math.random() - 0.5) * 3000;
+                positionArray[i+1] = (Math.random() - 0.5) * 3000;
+                positionArray[i+2] = (Math.random() - 0.5) * 3000;
+                
+                // Vary star colors
+                const color = new THREE.Color();
+                const hue = Math.random() * 0.2 + 0.5;
+                color.setHSL(hue, 0.5, Math.random() * 0.5 + 0.3);
+                colorArray[i] = color.r;
+                colorArray[i+1] = color.g;
+                colorArray[i+2] = color.b;
+                
+                // Vary star sizes
+                sizeArray[i/3] = Math.random() * 3 + 0.5;
+            }
+            
+            starGeometry.setAttribute('position', new THREE.BufferAttribute(positionArray, 3));
+            starGeometry.setAttribute('color', new THREE.BufferAttribute(colorArray, 3));
+            starGeometry.setAttribute('size', new THREE.BufferAttribute(sizeArray, 1));
+            
+            const starMaterial = new THREE.PointsMaterial({
+                size: 2,
+                vertexColors: true,
+                transparent: true,
+                sizeAttenuation: true
+            });
+            
+            particles = new THREE.Points(starGeometry, starMaterial);
+            scene.add(particles);
+        }
+        
+        function createStar() {
+            // Remove existing star
+            if (star) scene.remove(star);
+            
+            const geometry = new THREE.SphereGeometry(5, 64, 64);
+            const material = new THREE.MeshPhongMaterial({
+                color: 0xffddaa,
+                emissive: 0xff9500,
+                emissiveIntensity: 0.5,
+                specular: 0xffffff,
+                shininess: 100
+            });
+            
+            star = new THREE.Mesh(geometry, material);
+            scene.add(star);
+        }
+        
+        function getRandomShape() {
+            const variety = simulationParams.shapeVariety;
+            const availableShapes = PARTICLE_SHAPES.slice(0, Math.max(3, variety * 2));
+            return availableShapes[Math.floor(Math.random() * availableShapes.length)];
+        }
+        
+        function createParticleGeometry(shapeType, size) {
+            let geometry;
+            
+            switch(shapeType) {
+                case 'sphere':
+                    geometry = new THREE.SphereGeometry(size, 12, 12);
+                    break;
+                case 'cube':
+                    geometry = new THREE.BoxGeometry(size * 1.2, size * 1.2, size * 1.2);
+                    break;
+                case 'tetrahedron':
+                    geometry = new THREE.TetrahedronGeometry(size * 1.1);
+                    break;
+                case 'octahedron':
+                    geometry = new THREE.OctahedronGeometry(size * 1.1);
+                    break;
+                case 'dodecahedron':
+                    geometry = new THREE.DodecahedronGeometry(size * 0.9);
+                    break;
+                case 'icosahedron':
+                    geometry = new THREE.IcosahedronGeometry(size * 1.0);
+                    break;
+                case 'cone':
+                    geometry = new THREE.ConeGeometry(size * 0.8, size * 1.5, 8);
+                    break;
+                case 'cylinder':
+                    geometry = new THREE.CylinderGeometry(size * 0.7, size * 0.7, size * 1.5, 8);
+                    break;
+                case 'torus':
+                    geometry = new THREE.TorusGeometry(size * 0.8, size * 0.3, 8, 12);
+                    break;
+                case 'star':
+                    // Create a simple star shape
+                    const starShape = new THREE.Shape();
+                    const spikes = 5;
+                    const outerRadius = size;
+                    const innerRadius = size * 0.4;
+                    
+                    for (let i = 0; i < spikes * 2; i++) {
+                        const radius = i % 2 === 0 ? outerRadius : innerRadius;
+                        const angle = (i * Math.PI) / spikes;
+                        const x = Math.cos(angle) * radius;
+                        const y = Math.sin(angle) * radius;
+                        
+                        if (i === 0) {
+                            starShape.moveTo(x, y);
+                        } else {
+                            starShape.lineTo(x, y);
+                        }
+                    }
+                    starShape.closePath();
+                    
+                    const extrudeSettings = {
+                        depth: size * 0.3,
+                        bevelEnabled: false
+                    };
+                    
+                    geometry = new THREE.ExtrudeGeometry(starShape, extrudeSettings);
+                    geometry.rotateX(Math.PI / 2);
+                    break;
+                default:
+                    geometry = new THREE.SphereGeometry(size, 12, 12);
+            }
+            
+            return geometry;
+        }
+        
+        function createExplosionParticle(position, velocity, size, element, decayStage = 0, parentShape = null) {
+            // Determine shape
+            let shapeType;
+            if (parentShape && Math.random() < 0.7) {
+                // 70% chance to keep parent shape during decay
+                shapeType = parentShape;
+            } else {
+                shapeType = getRandomShape();
+            }
+            
+            // Track shape variety
+            if (!activeShapes.has(shapeType)) {
+                activeShapes.add(shapeType);
+                shapeTypeCount = activeShapes.size;
+            }
+            
+            const geometry = createParticleGeometry(shapeType, size);
+            
+            // Determine material based on element and decay stage
+            let materialProps;
+            if (element && elementMaterials[element]) {
+                materialProps = elementMaterials[element];
+            } else {
+                // Default material with decay-based color shift
+                const hue = 0.1 + Math.random() * 0.1 - (decayStage * 0.03);
+                materialProps = {
+                    color: new THREE.Color().setHSL(hue, 1.0, 0.5),
+                    emissive: new THREE.Color().setHSL(hue, 1.0, 0.3)
+                };
+            }
+            
+            // Make particles more transparent in later decay stages
+            const opacity = 1.0 - (decayStage * 0.2);
+            
+            const material = new THREE.MeshPhongMaterial({
+                color: materialProps.color,
+                emissive: materialProps.emissive,
+                emissiveIntensity: 0.3,
+                transparent: true,
+                opacity: opacity,
+                shininess: 30
+            });
+            
+            const particle = new THREE.Mesh(geometry, material);
+            particle.castShadow = true;
+            
+            // Set position
+            if (position) {
+                particle.position.copy(position);
+            } else {
+                const radius = 5;
+                const theta = Math.random() * Math.PI * 2;
+                const phi = Math.random() * Math.PI;
+                
+                particle.position.x = radius * Math.sin(phi) * Math.cos(theta);
+                particle.position.y = radius * Math.sin(phi) * Math.sin(theta);
+                particle.position.z = radius * Math.cos(phi);
+            }
+            
+            // Set velocity with random variation
+            particle.velocity = velocity || new THREE.Vector3(
+                (Math.random() - 0.5) * 4,
+                (Math.random() - 0.5) * 4,
+                (Math.random() - 0.5) * 4
+            );
+            
+            // Enhanced physics properties
+            particle.mass = size;
+            particle.decay = 0.95 + Math.random() * 0.03; // More variation in decay
+            particle.life = 1.0;
+            particle.decayStage = decayStage;
+            particle.shapeType = shapeType;
+            particle.element = element || 'hydrogen';
+            
+            // Random rotation
+            particle.rotation.set(
+                Math.random() * Math.PI * 2,
+                Math.random() * Math.PI * 2,
+                Math.random() * Math.PI * 2
+            );
+            
+            // Rotation speed
+            particle.rotationSpeed = new THREE.Vector3(
+                (Math.random() - 0.5) * 0.2,
+                (Math.random() - 0.5) * 0.2,
+                (Math.random() - 0.5) * 0.2
+            );
+            
+            // Add point light for brighter particles
+            if (size > 1.0 || Math.random() < 0.3) {
+                const lightIntensity = Math.min(1.0, size / 3);
+                const lightColor = new THREE.Color().setHSL(
+                    Math.random() * 0.1 + 0.05, 
+                    0.8, 
+                    0.7
+                );
+                const light = new THREE.PointLight(lightColor, lightIntensity, size * 8);
+                particle.add(light);
+            }
+            
+            scene.add(particle);
+            explosionParticles.push(particle);
+            particleCount++;
+            
+            return particle;
+        }
+        
+        function triggerParticleDecay(particle) {
+            if (particle.decayStage >= simulationParams.maxDecayStages) return;
+            
+            const decayChance = simulationParams.decayChance;
+            if (Math.random() > decayChance) return;
+            
+            // Determine number of child particles (1-3)
+            const childCount = 1 + Math.floor(Math.random() * 3);
+            
+            for (let i = 0; i < childCount; i++) {
+                // Smaller size for decayed particles
+                const childSize = particle.scale.x * (0.3 + Math.random() * 0.4);
+                
+                // Random velocity based on parent velocity
+                const childVelocity = particle.velocity.clone()
+                    .multiplyScalar(0.5 + Math.random() * 0.5)
+                    .add(new THREE.Vector3(
+                        (Math.random() - 0.5) * 2,
+                        (Math.random() - 0.5) * 2,
+                        (Math.random() - 0.5) * 2
+                    ));
+                
+                createExplosionParticle(
+                    particle.position.clone(),
+                    childVelocity,
+                    childSize,
+                    particle.element,
+                    particle.decayStage + 1,
+                    particle.shapeType
+                );
+                
+                decayStageCount = Math.max(decayStageCount, particle.decayStage + 1);
+            }
+            
+            // Remove the parent particle
+            scene.remove(particle);
+            const index = explosionParticles.indexOf(particle);
+            if (index > -1) {
+                explosionParticles.splice(index, 1);
+                particleCount--;
+            }
+        }
+        
+        function triggerSupernova() {
+            simulationParams.currentPhase = 'explosion';
+            updatePhaseIndicator();
+            
+            // Hide the original star
+            star.visible = false;
+            
+            // Reset counters
+            decayStageCount = 0;
+            activeShapes.clear();
+            shapeTypeCount = 0;
+            
+            // Create initial explosion particles
+            const initialCount = simulationParams.particleCount;
+            const elements = Object.keys(elementMaterials);
+            
+            for (let i = 0; i < initialCount; i++) {
+                const element = elements[Math.floor(Math.random() * elements.length)];
+                const size = 0.5 + Math.random() * 1.5;
+                createExplosionParticle(null, null, size, element, 0);
+            }
+            
+            // Create shockwave
+            createShockwave();
+            
+            // Update phase after explosion
+            setTimeout(() => {
+                simulationParams.currentPhase = 'decay-stage-1';
+                updatePhaseIndicator();
+            }, 1000);
+        }
+        
+        function createShockwave() {
+            const geometry = new THREE.SphereGeometry(1, 32, 32);
+            const material = new THREE.MeshBasicMaterial({
+                color: 0xffffff,
+                transparent: true,
+                opacity: 0.8,
+                side: THREE.BackSide
+            });
+            
+            const shockwave = new THREE.Mesh(geometry, material);
+            scene.add(shockwave);
+            
+            let scale = 1;
+            const growthRate = 2.0;
+            
+            function animateShockwave() {
+                scale += growthRate * simulationParams.timeScale;
+                shockwave.scale.set(scale, scale, scale);
+                material.opacity = 0.8 - (scale / 80);
+                
+                if (material.opacity > 0) {
+                    requestAnimationFrame(animateShockwave);
+                } else {
+                    scene.remove(shockwave);
+                }
+            }
+            
+            animateShockwave();
+        }
+        
+        function addMoreParticles() {
+            const count = Math.floor(simulationParams.particleCount / 4);
+            const elements = Object.keys(elementMaterials);
+            
+            for (let i = 0; i < count; i++) {
+                const element = elements[Math.floor(Math.random() * elements.length)];
+                const size = 0.3 + Math.random() * 1.0;
+                
+                // Random position in the visible area
+                const position = new THREE.Vector3(
+                    (Math.random() - 0.5) * 40,
+                    (Math.random() - 0.5) * 40,
+                    (Math.random() - 0.5) * 40
+                );
+                
+                createExplosionParticle(position, null, size, element, 0);
+            }
+        }
+        
+        function runAutoDecayCycle() {
+            if (autoDecayActive) return;
+            
+            autoDecayActive = true;
+            resetSimulation();
+            
+            setTimeout(() => {
+                triggerSupernova();
+                
+                // Schedule additional decay phases
+                setTimeout(() => {
+                    simulationParams.currentPhase = 'decay-stage-2';
+                    updatePhaseIndicator();
+                }, 3000);
+                
+                setTimeout(() => {
+                    simulationParams.currentPhase = 'decay-stage-3';
+                    updatePhaseIndicator();
+                }, 6000);
+                
+                setTimeout(() => {
+                    autoDecayActive = false;
+                    simulationParams.currentPhase = 'complete';
+                    updatePhaseIndicator();
+                }, 9000);
+            }, 1000);
+        }
+        
+        function resetSimulation() {
+            // Remove all particles
+            explosionParticles.forEach(particle => {
+                scene.remove(particle);
+            });
+            explosionParticles = [];
+            
+            // Remove remnant
+            if (remnant) {
+                scene.remove(remnant);
+                remnant = null;
+            }
+            
+            // Show the original star
+            star.visible = true;
+            
+            // Reset counters
+            particleCount = 0;
+            decayStageCount = 0;
+            shapeTypeCount = 0;
+            activeShapes.clear();
+            simulationParams.simulationTime = 0;
+            simulationParams.currentPhase = 'initial';
+            
+            updateStats();
+            updatePhaseIndicator();
+        }
+        
+        function updateStats() {
+            document.getElementById('particle-count').textContent = particleCount;
+            document.getElementById('zoom-level').textContent = Math.round(camera.position.z);
+            document.getElementById('decay-stages').textContent = decayStageCount;
+            document.getElementById('shape-count').textContent = shapeTypeCount;
+            document.getElementById('sim-time').textContent = simulationParams.simulationTime.toFixed(1) + 's';
+        }
+        
+        function updatePhaseIndicator() {
+            const phaseText = document.getElementById('phase-text');
+            const phaseBar = document.getElementById('phase-bar');
+            const decayText = document.getElementById('decay-text');
+            
+            switch(simulationParams.currentPhase) {
+                case 'initial':
+                    phaseText.textContent = 'Initial State';
+                    phaseBar.style.width = '0%';
+                    decayText.textContent = 'No particles';
+                    break;
+                case 'explosion':
+                    phaseText.textContent = 'Primary Explosion';
+                    phaseBar.style.width = '25%';
+                    decayText.textContent = 'Stage 0 particles';
+                    break;
+                case 'decay-stage-1':
+                    phaseText.textContent = 'First Decay Stage';
+                    phaseBar.style.width = '50%';
+                    decayText.textContent = '30% decay chance';
+                    break;
+                case 'decay-stage-2':
+                    phaseText.textContent = 'Second Decay Stage';
+                    phaseBar.style.width = '75%';
+                    decayText.textContent = 'Smaller particles';
+                    break;
+                case 'decay-stage-3':
+                    phaseText.textContent = 'Third Decay Stage';
+                    phaseBar.style.width = '90%';
+                    decayText.textContent = 'Tiny final particles';
+                    break;
+                case 'complete':
+                    phaseText.textContent = 'Decay Complete';
+                    phaseBar.style.width = '100%';
+                    decayText.textContent = 'All stages complete';
+                    break;
+            }
+        }
+        
+        function setupEventListeners() {
+            // Supernova button
+            document.getElementById('explode-btn').addEventListener('click', triggerSupernova);
+            
+            // Reset button
+            document.getElementById('reset-btn').addEventListener('click', resetSimulation);
+            
+            // Auto decay button
+            document.getElementById('auto-decay-btn').addEventListener('click', runAutoDecayCycle);
+            
+            // Add particles button
+            document.getElementById('add-particles-btn').addEventListener('click', addMoreParticles);
+            
+            // Zoom sensitivity control
+            const zoomSensControl = document.getElementById('zoom-sens-control');
+            zoomSensControl.addEventListener('input', function() {
+                simulationParams.zoomSensitivity = parseFloat(this.value);
+                document.getElementById('zoom-sens-value').textContent = this.value;
+            });
+            
+            // Decay chance control
+            const decayChanceControl = document.getElementById('decay-chance-control');
+            decayChanceControl.addEventListener('input', function() {
+                simulationParams.decayChance = parseInt(this.value) / 100;
+                document.getElementById('decay-chance-value').textContent = this.value + '%';
+            });
+            
+            // Shape variety control
+            const shapeVarietyControl = document.getElementById('shape-variety-control');
+            shapeVarietyControl.addEventListener('input', function() {
+                simulationParams.shapeVariety = parseInt(this.value);
+                const varietyText = ['Minimal', 'Low', 'Medium', 'High', 'Maximum'][this.value - 1];
+                document.getElementById('shape-variety-value').textContent = varietyText;
+            });
+            
+            // Particle count control
+            const particleCountControl = document.getElementById('particle-count-control');
+            particleCountControl.addEventListener('input', function() {
+                simulationParams.particleCount = parseInt(this.value);
+                document.getElementById('particle-count-value').textContent = this.value;
+            });
+            
+            // Zoom control
+            const zoomControl = document.getElementById('zoom-control');
+            zoomControl.addEventListener('input', function() {
+                camera.position.z = parseInt(this.value);
+                document.getElementById('zoom-value').textContent = this.value;
+                updateStats();
+            });
+            
+            // Time scale control
+            const timeControl = document.getElementById('time-control');
+            timeControl.addEventListener('input', function() {
+                simulationParams.timeScale = parseFloat(this.value);
+                document.getElementById('time-value').textContent = this.value + 'x';
+            });
+            
+            // Zoom buttons
+            document.getElementById('zoom-in').addEventListener('click', function() {
+                camera.position.z = Math.max(1, camera.position.z - (10 * simulationParams.zoomSensitivity));
+                zoomControl.value = camera.position.z;
+                document.getElementById('zoom-value').textContent = Math.round(camera.position.z);
+                updateStats();
+            });
+            
+            document.getElementById('zoom-out').addEventListener('click', function() {
+                camera.position.z = Math.min(200, camera.position.z + (10 * simulationParams.zoomSensitivity));
+                zoomControl.value = camera.position.z;
+                document.getElementById('zoom-value').textContent = Math.round(camera.position.z);
+                updateStats();
+            });
+            
+            document.getElementById('zoom-reset').addEventListener('click', function() {
+                camera.position.z = 30;
+                zoomControl.value = 30;
+                document.getElementById('zoom-value').textContent = '30';
+                updateStats();
+            });
+            
+            // Background color options
+            document.querySelectorAll('.color-option').forEach(option => {
+                option.addEventListener('click', function() {
+                    const color = this.getAttribute('data-color');
+                    renderer.setClearColor(parseInt(color, 16));
+                });
+            });
+            
+            // Enhanced mouse controls for rotation
+            let isMouseDown = false;
+            let previousMousePosition = { x: 0, y: 0 };
+            
+            renderer.domElement.addEventListener('mousedown', function(e) {
+                isMouseDown = true;
+            });
+            
+            renderer.domElement.addEventListener('mouseup', function() {
+                isMouseDown = false;
+            });
+            
+            renderer.domElement.addEventListener('mousemove', function(e) {
+                if (!isMouseDown) return;
+                
+                const deltaMove = {
+                    x: e.offsetX - previousMousePosition.x,
+                    y: e.offsetY - previousMousePosition.y
+                };
+                
+                if (star.visible) {
+                    star.rotation.y += deltaMove.x * 0.01;
+                    star.rotation.x += deltaMove.y * 0.01;
+                }
+                
+                // Rotate all particles as a group
+                explosionParticles.forEach(particle => {
+                    particle.rotation.y += deltaMove.x * 0.005;
+                    particle.rotation.x += deltaMove.y * 0.005;
+                });
+                
+                previousMousePosition = { x: e.offsetX, y: e.offsetY };
+            });
+            
+            // Enhanced zoom with mouse wheel
+            renderer.domElement.addEventListener('wheel', function(e) {
+                const zoomAmount = e.deltaY * 0.05 * simulationParams.zoomSensitivity;
+                camera.position.z = Math.max(1, Math.min(200, camera.position.z + zoomAmount));
+                zoomControl.value = camera.position.z;
+                document.getElementById('zoom-value').textContent = Math.round(camera.position.z);
+                updateStats();
+            });
+            
+            // Window resize handler
+            window.addEventListener('resize', function() {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+            
+            // Track mouse movement for auto-rotation
+            document.addEventListener('mousemove', function(e) {
+                mouseX = (e.clientX - windowHalfX) * 0.001;
+                mouseY = (e.clientY - windowHalfY) * 0.001;
+            });
+        }
+        
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            // Update simulation time
+            simulationParams.simulationTime += 0.016 * simulationParams.timeScale;
+            
+            // Rotate star slowly if visible
+            if (star.visible) {
+                star.rotation.y += 0.003 * simulationParams.timeScale;
+                
+                // Pulsate the star
+                const pulse = 1 + Math.sin(simulationParams.simulationTime * 2) * 0.05;
+                star.scale.set(pulse, pulse, pulse);
+            }
+            
+            // Update explosion particles with advanced physics
+            for (let i = explosionParticles.length - 1; i >= 0; i--) {
+                const particle = explosionParticles[i];
+                
+                // Apply velocity with time scale
+                particle.position.add(particle.velocity.clone().multiplyScalar(simulationParams.timeScale));
+                
+                // Apply rotation
+                particle.rotation.x += particle.rotationSpeed.x * simulationParams.timeScale;
+                particle.rotation.y += particle.rotationSpeed.y * simulationParams.timeScale;
+                particle.rotation.z += particle.rotationSpeed.z * simulationParams.timeScale;
+                
+                // Apply decay to velocity
+                particle.velocity.multiplyScalar(particle.decay);
+                
+                // Reduce life
+                particle.life -= 0.008 * simulationParams.timeScale;
+                
+                // Update opacity based on life
+                if (particle.material.opacity > 0) {
+                    particle.material.opacity = Math.min(particle.life, particle.material.opacity);
+                }
+                
+                // Trigger decay based on life and chance
+                if (particle.life < 0.5 && Math.random() < simulationParams.decayChance * 0.1) {
+                    triggerParticleDecay(particle);
+                }
+                
+                // Remove particle if life is over
+                if (particle.life <= 0) {
+                    scene.remove(particle);
+                    explosionParticles.splice(i, 1);
+                    particleCount--;
+                }
+            }
+            
+            // Rotate background stars
+            particles.rotation.x += 0.0001 * simulationParams.timeScale;
+            particles.rotation.y += 0.0001 * simulationParams.timeScale;
+            
+            // Auto-rotate based on mouse position
+            if (star.visible) {
+                star.rotation.y += mouseX * 0.05;
+                star.rotation.x += mouseY * 0.05;
+            }
+            
+            // Auto-rotate particle cloud
+            explosionParticles.forEach(particle => {
+                particle.rotation.y += mouseX * 0.02;
+                particle.rotation.x += mouseY * 0.02;
+            });
+            
+            renderer.render(scene, camera);
+            
+            // Update stats periodically
+            if (Math.random() < 0.1) {
+                updateStats();
+            }
+        }
+        
+        // Initialize the scene
+        init();
+    </script>
+</body>
+</html>

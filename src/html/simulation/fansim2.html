@@ -1,0 +1,1825 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced 3D Isometric Fan Simulation</title>
+    <!-- Bootstrap 5 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Three.js with OrbitControls -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/libs/stats.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            touch-action: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        body, html {
+            overflow: hidden;
+            width: 100%;
+            height: 100%;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+        }
+        
+        #canvas-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+        
+        .touch-zone {
+            position: absolute;
+            z-index: 100;
+            opacity: 0.2;
+            transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+            border: 2px solid rgba(255, 255, 255, 0.3);
+        }
+        
+        .touch-zone.active {
+            opacity: 0.35;
+            border-color: rgba(255, 255, 255, 0.6);
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+        }
+        
+        .touch-zone.up {
+            top: 0;
+            left: 25%;
+            width: 50%;
+            height: 25%;
+            background: linear-gradient(180deg, rgba(59, 130, 246, 0.8) 0%, rgba(37, 99, 235, 0.6) 100%);
+        }
+        
+        .touch-zone.down {
+            bottom: 0;
+            left: 25%;
+            width: 50%;
+            height: 25%;
+            background: linear-gradient(0deg, rgba(34, 197, 94, 0.8) 0%, rgba(21, 128, 61, 0.6) 100%);
+        }
+        
+        .touch-zone.left {
+            top: 25%;
+            left: 0;
+            width: 25%;
+            height: 50%;
+            background: linear-gradient(90deg, rgba(234, 179, 8, 0.8) 0%, rgba(202, 138, 4, 0.6) 100%);
+        }
+        
+        .touch-zone.right {
+            top: 25%;
+            right: 0;
+            width: 25%;
+            height: 50%;
+            background: linear-gradient(270deg, rgba(239, 68, 68, 0.8) 0%, rgba(220, 38, 38, 0.6) 100%);
+        }
+        
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+        
+        .glass-panel-dark {
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .btn-glass {
+            background: rgba(255, 255, 255, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            transition: all 0.3s ease;
+        }
+        
+        .btn-glass:hover {
+            background: rgba(255, 255, 255, 0.25);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            transform: translateY(-2px);
+        }
+        
+        .slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            height: 8px;
+            border-radius: 4px;
+            background: linear-gradient(90deg, #3b82f6 0%, #8b5cf6 100%);
+            outline: none;
+        }
+        
+        .slider-thumb::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #ffffff;
+            cursor: pointer;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+            border: 2px solid #3b82f6;
+        }
+        
+        .parameter-value {
+            min-width: 60px;
+            text-align: center;
+            font-weight: 600;
+            color: #60a5fa;
+        }
+        
+        .status-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+        }
+        
+        .status-online {
+            background: #10b981;
+            box-shadow: 0 0 10px #10b981;
+        }
+        
+        .status-offline {
+            background: #6b7280;
+        }
+        
+        .value-display {
+            font-family: 'Courier New', monospace;
+            background: rgba(0, 0, 0, 0.3);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.9em;
+        }
+        
+        @media (max-width: 768px) {
+            .control-panel {
+                max-width: 95vw !important;
+            }
+        }
+    </style>
+</head>
+<body class="bg-gray-900">
+    <!-- Canvas Container -->
+    <div id="canvas-container"></div>
+    
+    <!-- Touch Zones -->
+    <div class="touch-zone up" data-zone="up"></div>
+    <div class="touch-zone down" data-zone="down"></div>
+    <div class="touch-zone left" data-zone="left"></div>
+    <div class="touch-zone right" data-zone="right"></div>
+    
+    <!-- Main Control Panel -->
+    <div class="position-fixed top-0 start-50 translate-middle-x mt-3 control-panel" style="z-index: 2000; max-width: 1200px; width: 90%;">
+        <div class="glass-panel rounded-4 p-4">
+            <div class="row g-4">
+                <!-- Fan Controls -->
+                <div class="col-lg-6">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="text-white mb-0">
+                            <i class="bi-fan me-2"></i> Fan Controls
+                        </h5>
+                        <div class="d-flex align-items-center">
+                            <span class="status-indicator status-online"></span>
+                            <small class="text-white-50">Online</small>
+                        </div>
+                    </div>
+                    
+                    <!-- RPM Control -->
+                    <div class="mb-4">
+                        <div class="d-flex justify-content-between mb-2">
+                            <label class="form-label text-white mb-0">Rotation Speed</label>
+                            <span class="parameter-value" id="rpmValue">1000 RPM</span>
+                        </div>
+                        <input type="range" class="form-range slider-thumb w-100" id="rpmSlider" 
+                               min="0" max="1500" value="1000" step="10">
+                        <div class="d-flex justify-content-between text-white-50 small mt-1">
+                            <span>0 RPM</span>
+                            <span>1500 RPM</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Blade Controls -->
+                    <div class="row g-3">
+                        <div class="col-6">
+                            <label class="form-label text-white small">Blade Count</label>
+                            <div class="d-flex align-items-center">
+                                <button class="btn btn-glass btn-sm text-white" id="bladeDec">-</button>
+                                <input type="number" class="form-control form-control-sm text-center mx-2 bg-dark text-white border-dark" 
+                                       id="bladeCount" value="5" min="3" max="10" style="width: 60px;">
+                                <button class="btn btn-glass btn-sm text-white" id="bladeInc">+</button>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label text-white small">Angle of Attack</label>
+                            <div class="d-flex align-items-center">
+                                <button class="btn btn-glass btn-sm text-white" id="angleDec">-</button>
+                                <input type="number" class="form-control form-control-sm text-center mx-2 bg-dark text-white border-dark" 
+                                       id="angleAttack" value="15" min="5" max="35" style="width: 60px;">
+                                <button class="btn btn-glass btn-sm text-white" id="angleInc">+</button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Blade Length -->
+                    <div class="mt-4">
+                        <div class="d-flex justify-content-between mb-2">
+                            <label class="form-label text-white mb-0">Blade Length</label>
+                            <span class="parameter-value" id="lengthValue">60 cm</span>
+                        </div>
+                        <input type="range" class="form-range slider-thumb w-100" id="lengthSlider" 
+                               min="40" max="80" value="60" step="1">
+                    </div>
+                </div>
+                
+                <!-- Physics & Environment -->
+                <div class="col-lg-6">
+                    <h5 class="text-white mb-3">
+                        <i class="bi-speedometer2 me-2"></i> Physics & Environment
+                    </h5>
+                    
+                    <!-- Power & Airflow -->
+                    <div class="row g-3 mb-4">
+                        <div class="col-6">
+                            <div class="glass-panel-dark rounded-3 p-3">
+                                <small class="text-white-50 d-block">Power Consumption</small>
+                                <div class="d-flex align-items-center mt-1">
+                                    <span class="value-display text-white" id="powerValue">1250 W</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="glass-panel-dark rounded-3 p-3">
+                                <small class="text-white-50 d-block">Airflow Rate</small>
+                                <div class="d-flex align-items-center mt-1">
+                                    <span class="value-display text-white" id="airflowValue">850 CFM</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Environmental Controls -->
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-glass text-white" id="randomBackground">
+                            <i class="bi-palette me-2"></i> Random Background
+                        </button>
+                        <button class="btn btn-glass text-white" id="randomLighting">
+                            <i class="bi-lightbulb me-2"></i> Random Lighting
+                        </button>
+                        <button class="btn btn-glass text-white" id="resetCamera">
+                            <i class="bi-camera me-2"></i> Reset Camera
+                        </button>
+                    </div>
+                    
+                    <!-- Camera Mode -->
+                    <div class="mt-4">
+                        <label class="form-label text-white small">Camera Mode</label>
+                        <div class="btn-group w-100" role="group">
+                            <input type="radio" class="btn-check" name="cameraMode" id="modeOrbit" autocomplete="off" checked>
+                            <label class="btn btn-outline-light btn-sm" for="modeOrbit">Orbit</label>
+                            
+                            <input type="radio" class="btn-check" name="cameraMode" id="modeFly" autocomplete="off">
+                            <label class="btn btn-outline-light btn-sm" for="modeFly">Fly</label>
+                            
+                            <input type="radio" class="btn-check" name="cameraMode" id="modeFixed" autocomplete="off">
+                            <label class="btn btn-outline-light btn-sm" for="modeFixed">Fixed</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Touch Debug Panel -->
+    <div class="position-fixed bottom-0 start-0 m-3 glass-panel-dark rounded-3 p-3" style="z-index: 2000; max-width: 300px;">
+        <h6 class="text-white mb-3">
+            <i class="bi-touchpad me-2"></i> Touch Analytics
+        </h6>
+        
+        <div class="mb-2">
+            <small class="text-white-50">Active Zone:</small>
+            <div class="d-flex align-items-center mt-1">
+                <span class="value-display text-white" id="activeZone">None</span>
+            </div>
+        </div>
+        
+        <div class="row g-2">
+            <div class="col-6">
+                <small class="text-white-50">Velocity:</small>
+                <div class="d-flex align-items-center mt-1">
+                    <span class="value-display text-white" id="touchVelocity">0 px/s</span>
+                </div>
+            </div>
+            <div class="col-6">
+                <small class="text-white-50">Displacement:</small>
+                <div class="d-flex align-items-center mt-1">
+                    <span class="value-display text-white" id="touchDisplacement">0 px</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="mt-3">
+            <small class="text-white-50">Touch Coordinates:</small>
+            <div class="d-flex align-items-center mt-1">
+                <span class="value-display text-white" id="touchCoords">(0, 0)</span>
+            </div>
+        </div>
+        
+        <div class="mt-2">
+            <small class="text-white-50">Touch Duration:</small>
+            <div class="d-flex align-items-center mt-1">
+                <span class="value-display text-white" id="touchDuration">0 ms</span>
+            </div>
+        </div>
+        
+        <div class="mt-3">
+            <small class="text-white-50">Multi-touch:</small>
+            <div class="d-flex align-items-center mt-1">
+                <span class="value-display text-white" id="multiTouch">0 fingers</span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Instructions -->
+    <div class="position-fixed top-0 end-0 m-3 glass-panel-dark rounded-3 p-3" style="z-index: 2000; max-width: 250px;">
+        <h6 class="text-white mb-2">
+            <i class="bi-info-circle me-2"></i> Controls Guide
+        </h6>
+        <ul class="list-unstyled text-white-50 small mb-0">
+            <li class="mb-1">• Touch quarters = Arrow keys</li>
+            <li class="mb-1">• Slide = Camera movement</li>
+            <li class="mb-1">• Two-finger pinch = Zoom</li>
+            <li class="mb-1">• Two-finger rotate = Camera rotation</li>
+            <li class="mb-1">• Three-finger drag = Object move</li>
+            <li>• Adjust sliders for parameters</li>
+        </ul>
+    </div>
+
+    <!-- Physics Stats -->
+    <div class="position-fixed bottom-0 end-0 m-3 glass-panel-dark rounded-3 p-3" style="z-index: 2000;">
+        <h6 class="text-white mb-2">
+            <i class="bi-graph-up me-2"></i> Physics Engine
+        </h6>
+        <div class="d-flex flex-column gap-2">
+            <div>
+                <small class="text-white-50">Rotation Speed:</small>
+                <div class="d-flex align-items-center mt-1">
+                    <span class="value-display text-white" id="rotationSpeed">16.67 RPS</span>
+                </div>
+            </div>
+            <div>
+                <small class="text-white-50">Angular Velocity:</small>
+                <div class="d-flex align-items-center mt-1">
+                    <span class="value-display text-white" id="angularVelocity">104.72 rad/s</span>
+                </div>
+            </div>
+            <div>
+                <small class="text-white-50">Tip Speed:</small>
+                <div class="d-flex align-items-center mt-1">
+                    <span class="value-display text-white" id="tipSpeed">62.83 m/s</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Three.js Scripts -->
+    <script>
+        // ============================================
+        // TOUCH CONTROLLER WITH PRECISION PHYSICS
+        // ============================================
+        class PrecisionTouchController {
+            constructor() {
+                this.activeTouches = new Map();
+                this.activeZones = new Set();
+                this.slideData = null;
+                this.prevPositions = new Map();
+                this.multiTouchData = null;
+                this.lastUpdateTime = performance.now();
+                
+                // Zone elements
+                this.zones = {
+                    up: document.querySelector('.touch-zone.up'),
+                    down: document.querySelector('.touch-zone.down'),
+                    left: document.querySelector('.touch-zone.left'),
+                    right: document.querySelector('.touch-zone.right')
+                };
+                
+                // Debug elements
+                this.debugElements = {
+                    activeZone: document.getElementById('activeZone'),
+                    touchVelocity: document.getElementById('touchVelocity'),
+                    touchDisplacement: document.getElementById('touchDisplacement'),
+                    touchCoords: document.getElementById('touchCoords'),
+                    touchDuration: document.getElementById('touchDuration'),
+                    multiTouch: document.getElementById('multiTouch')
+                };
+                
+                this.init();
+            }
+            
+            init() {
+                // Touch event listeners for each zone
+                Object.entries(this.zones).forEach(([zone, element]) => {
+                    element.addEventListener('touchstart', (e) => this.handleTouchStart(e, zone), { passive: false });
+                    element.addEventListener('touchmove', (e) => this.handleTouchMove(e, zone), { passive: false });
+                    element.addEventListener('touchend', (e) => this.handleTouchEnd(e, zone), { passive: false });
+                    element.addEventListener('touchcancel', (e) => this.handleTouchEnd(e, zone), { passive: false });
+                });
+                
+                // Global multi-touch events for camera control
+                document.addEventListener('touchstart', (e) => this.handleGlobalTouchStart(e), { passive: false });
+                document.addEventListener('touchmove', (e) => this.handleGlobalTouchMove(e), { passive: false });
+                document.addEventListener('touchend', (e) => this.handleGlobalTouchEnd(e), { passive: false });
+                
+                // Start update loop
+                this.updateLoop();
+            }
+            
+            handleTouchStart(e, zone) {
+                e.preventDefault();
+                const touch = e.touches[0];
+                const touchId = touch.identifier;
+                const currentTime = performance.now();
+                
+                // Store touch data with high precision
+                this.activeTouches.set(touchId, {
+                    zone,
+                    x: touch.clientX,
+                    y: touch.clientY,
+                    t: currentTime,
+                    startX: touch.clientX,
+                    startY: touch.clientY,
+                    startT: currentTime,
+                    lastX: touch.clientX,
+                    lastY: touch.clientY,
+                    lastT: currentTime
+                });
+                
+                // Activate zone
+                this.activeZones.add(zone);
+                this.zones[zone].classList.add('active');
+                
+                // Initialize slide data if this is the first touch
+                if (this.activeTouches.size === 1) {
+                    this.slideData = {
+                        x0: touch.clientX,
+                        y0: touch.clientY,
+                        t0: currentTime,
+                        zone: 'slide'
+                    };
+                }
+                
+                // Emit press event
+                this.emitZoneEvent(zone, 'press', {
+                    x: touch.clientX,
+                    y: touch.clientY,
+                    t: currentTime
+                });
+                
+                this.updateDebug();
+            }
+            
+            handleTouchMove(e, zone) {
+                e.preventDefault();
+                const currentTime = performance.now();
+                
+                // Update all touches for this zone
+                Array.from(e.touches).forEach(touch => {
+                    const touchId = touch.identifier;
+                    if (this.activeTouches.has(touchId) && this.activeTouches.get(touchId).zone === zone) {
+                        const touchData = this.activeTouches.get(touchId);
+                        
+                        // Calculate precise deltas
+                        const dx = touch.clientX - touchData.x;
+                        const dy = touch.clientY - touchData.y;
+                        const dt = currentTime - touchData.t;
+                        
+                        const dxt = touch.clientX - touchData.lastX;
+                        const dyt = touch.clientY - touchData.lastY;
+                        
+                        // Update touch data
+                        touchData.lastX = touchData.x;
+                        touchData.lastY = touchData.y;
+                        touchData.lastT = touchData.t;
+                        
+                        touchData.x = touch.clientX;
+                        touchData.y = touch.clientY;
+                        touchData.t = currentTime;
+                        
+                        // Emit hold event with detailed physics
+                        if (dt > 0) {
+                            this.emitZoneEvent(zone, 'hold', {
+                                x: touch.clientX,
+                                y: touch.clientY,
+                                t: currentTime,
+                                dx, dy, dt,
+                                dxt, dyt,
+                                velocityX: dxt / dt * 1000,
+                                velocityY: dyt / dt * 1000
+                            });
+                        }
+                        
+                        // Update slide data
+                        if (this.slideData && this.activeTouches.size === 1) {
+                            this.updateSlideData(touch.clientX, touch.clientY, currentTime);
+                        }
+                    }
+                });
+                
+                this.updateDebug();
+            }
+            
+            handleTouchEnd(e, zone) {
+                e.preventDefault();
+                const currentTime = performance.now();
+                
+                // Find and remove touches for this zone
+                Array.from(e.changedTouches).forEach(touch => {
+                    const touchId = touch.identifier;
+                    if (this.activeTouches.has(touchId)) {
+                        const touchData = this.activeTouches.get(touchId);
+                        
+                        // Calculate final slide physics if this was the only touch
+                        if (this.activeTouches.size === 1 && this.slideData) {
+                            this.finalizeSlideData(touch.clientX, touch.clientY, currentTime);
+                        }
+                        
+                        // Emit release event
+                        this.emitZoneEvent(zone, 'release', {
+                            x: touch.clientX,
+                            y: touch.clientY,
+                            t: currentTime,
+                            dx: touch.clientX - touchData.startX,
+                            dy: touch.clientY - touchData.startY,
+                            dt: currentTime - touchData.startT
+                        });
+                        
+                        this.activeTouches.delete(touchId);
+                    }
+                });
+                
+                // Deactivate zone if no touches remain in it
+                const zoneStillActive = Array.from(this.activeTouches.values())
+                    .some(data => data.zone === zone);
+                
+                if (!zoneStillActive) {
+                    this.activeZones.delete(zone);
+                    this.zones[zone].classList.remove('active');
+                }
+                
+                // Clear slide data if no touches remain
+                if (this.activeTouches.size === 0) {
+                    this.slideData = null;
+                }
+                
+                this.updateDebug();
+            }
+            
+            handleGlobalTouchStart(e) {
+                if (e.touches.length >= 2) {
+                    // Multi-touch gesture for camera control
+                    this.multiTouchData = {
+                        touchCount: e.touches.length,
+                        initialTouches: Array.from(e.touches).map(t => ({
+                            x: t.clientX,
+                            y: t.clientY,
+                            id: t.identifier
+                        })),
+                        type: e.touches.length === 2 ? 'pinch-rotate' : 
+                              e.touches.length === 3 ? 'pan' : 'multi',
+                        startTime: performance.now()
+                    };
+                    
+                    this.debugElements.multiTouch.textContent = `${e.touches.length} fingers`;
+                }
+            }
+            
+            handleGlobalTouchMove(e) {
+                if (this.multiTouchData && e.touches.length >= 2) {
+                    e.preventDefault();
+                    
+                    const currentTouches = Array.from(e.touches);
+                    const currentTime = performance.now();
+                    
+                    if (this.multiTouchData.type === 'pinch-rotate' && currentTouches.length === 2) {
+                        // Two-finger pinch and rotate
+                        const touch1 = currentTouches[0];
+                        const touch2 = currentTouches[1];
+                        
+                        // Calculate pinch scale
+                        const initialDistance = this.calculateDistance(
+                            this.multiTouchData.initialTouches[0],
+                            this.multiTouchData.initialTouches[1]
+                        );
+                        const currentDistance = this.calculateDistance(touch1, touch2);
+                        const scale = currentDistance / initialDistance;
+                        
+                        // Calculate rotation
+                        const initialAngle = this.calculateAngle(
+                            this.multiTouchData.initialTouches[0],
+                            this.multiTouchData.initialTouches[1]
+                        );
+                        const currentAngle = this.calculateAngle(touch1, touch2);
+                        const rotation = currentAngle - initialAngle;
+                        
+                        // Calculate center point movement
+                        const initialCenter = this.calculateCenter(
+                            this.multiTouchData.initialTouches[0],
+                            this.multiTouchData.initialTouches[1]
+                        );
+                        const currentCenter = this.calculateCenter(touch1, touch2);
+                        const panX = currentCenter.x - initialCenter.x;
+                        const panY = currentCenter.y - initialCenter.y;
+                        
+                        // Emit camera control event
+                        this.emitCameraEvent('multi-touch', {
+                            type: 'pinch-rotate',
+                            scale: scale - 1, // Delta scale
+                            rotation: rotation,
+                            panX: panX,
+                            panY: panY,
+                            touchCount: 2
+                        });
+                        
+                    } else if (this.multiTouchData.type === 'pan' && currentTouches.length >= 3) {
+                        // Three-finger pan
+                        const avgX = currentTouches.reduce((sum, t) => sum + t.clientX, 0) / currentTouches.length;
+                        const avgY = currentTouches.reduce((sum, t) => sum + t.clientY, 0) / currentTouches.length;
+                        
+                        const initialAvgX = this.multiTouchData.initialTouches.reduce((sum, t) => sum + t.x, 0) / 
+                                          this.multiTouchData.initialTouches.length;
+                        const initialAvgY = this.multiTouchData.initialTouches.reduce((sum, t) => sum + t.y, 0) / 
+                                          this.multiTouchData.initialTouches.length;
+                        
+                        const panX = avgX - initialAvgX;
+                        const panY = avgY - initialAvgY;
+                        
+                        this.emitCameraEvent('multi-touch', {
+                            type: 'pan',
+                            panX: panX,
+                            panY: panY,
+                            touchCount: currentTouches.length
+                        });
+                    }
+                }
+            }
+            
+            handleGlobalTouchEnd(e) {
+                if (this.multiTouchData && e.touches.length < 2) {
+                    this.multiTouchData = null;
+                    this.debugElements.multiTouch.textContent = '0 fingers';
+                }
+            }
+            
+            updateSlideData(x, y, t) {
+                if (!this.slideData) return;
+                
+                const dx = x - this.slideData.x0;
+                const dy = y - this.slideData.y0;
+                const dt = t - this.slideData.t0;
+                
+                const displacement = Math.sqrt(dx * dx + dy * dy);
+                const velocity = dt > 0 ? displacement / dt * 1000 : 0;
+                
+                this.slideData.x = x;
+                this.slideData.y = y;
+                this.slideData.t = t;
+                this.slideData.displacement = displacement;
+                this.slideData.velocity = velocity;
+                this.slideData.dx = dx;
+                this.slideData.dy = dy;
+                
+                // Emit slide event
+                this.emitSlideEvent(this.slideData);
+            }
+            
+            finalizeSlideData(x1, y1, t1) {
+                if (!this.slideData) return;
+                
+                const dx = x1 - this.slideData.x0;
+                const dy = y1 - this.slideData.y0;
+                const dt = t1 - this.slideData.t0;
+                const displacement = Math.sqrt(dx * dx + dy * dy);
+                const velocity = dt > 0 ? displacement / dt * 1000 : 0;
+                
+                const finalData = {
+                    ...this.slideData,
+                    x1, y1, t1,
+                    dx, dy, dt,
+                    displacement,
+                    velocity,
+                    final: true
+                };
+                
+                this.emitSlideEvent(finalData);
+                console.log('Slide completed:', {
+                    displacement: displacement.toFixed(2),
+                    velocity: velocity.toFixed(2),
+                    duration: dt.toFixed(2)
+                });
+            }
+            
+            calculateDistance(t1, t2) {
+                const dx = t2.clientX - t1.clientX;
+                const dy = t2.clientY - t1.clientY;
+                return Math.sqrt(dx * dx + dy * dy);
+            }
+            
+            calculateAngle(t1, t2) {
+                const dx = t2.clientX - t1.clientX;
+                const dy = t2.clientY - t1.clientY;
+                return Math.atan2(dy, dx);
+            }
+            
+            calculateCenter(t1, t2) {
+                return {
+                    x: (t1.clientX + t2.clientX) / 2,
+                    y: (t1.clientY + t2.clientY) / 2
+                };
+            }
+            
+            emitZoneEvent(zone, action, data) {
+                const event = new CustomEvent('zoneEvent', {
+                    detail: {
+                        zone,
+                        action,
+                        ...data,
+                        timestamp: performance.now()
+                    }
+                });
+                window.dispatchEvent(event);
+            }
+            
+            emitSlideEvent(data) {
+                const event = new CustomEvent('slideEvent', { detail: data });
+                window.dispatchEvent(event);
+                
+                // Update debug display
+                this.debugElements.touchVelocity.textContent = `${data.velocity?.toFixed(1) || 0} px/s`;
+                this.debugElements.touchDisplacement.textContent = `${data.displacement?.toFixed(1) || 0} px`;
+                this.debugElements.touchCoords.textContent = `(${data.x?.toFixed(0) || 0}, ${data.y?.toFixed(0) || 0})`;
+                this.debugElements.touchDuration.textContent = `${data.t ? (data.t - data.t0).toFixed(0) : 0} ms`;
+            }
+            
+            emitCameraEvent(type, data) {
+                const event = new CustomEvent('cameraEvent', {
+                    detail: { type, ...data, timestamp: performance.now() }
+                });
+                window.dispatchEvent(event);
+            }
+            
+            updateDebug() {
+                // Update active zone display
+                if (this.activeZones.size > 0) {
+                    this.debugElements.activeZone.textContent = Array.from(this.activeZones).join(', ');
+                } else {
+                    this.debugElements.activeZone.textContent = 'None';
+                }
+            }
+            
+            updateLoop() {
+                // Continuous hold events for active zones
+                this.activeZones.forEach(zone => {
+                    this.emitZoneEvent(zone, 'hold', {
+                        x: 0, y: 0,
+                        t: performance.now(),
+                        continuous: true
+                    });
+                });
+                
+                requestAnimationFrame(() => this.updateLoop());
+            }
+        }
+
+        // ============================================
+        // ADVANCED 3D FAN WITH PRECISE PHYSICS
+        // ============================================
+        class AdvancedFan3D {
+            constructor(scene) {
+                this.scene = scene;
+                this.fanGroup = new THREE.Group();
+                this.scene.add(this.fanGroup);
+                
+                // Fan parameters with exact specifications
+                this.parameters = {
+                    bladeCount: 5,
+                    rpm: 1000,
+                    bladeLength: 60, // cm
+                    bladeWidth: 15,  // cm
+                    bladeThickness: 4, // cm at thickest point
+                    angleOfAttack: 15, // degrees
+                    hubDiameter: 25, // cm
+                    hubThickness: 15, // cm
+                    motorDiameter: 40, // cm
+                    motorLength: 50, // cm
+                    shaftDiameter: 5  // cm
+                };
+                
+                // Physics variables
+                this.rotationSpeed = 0;
+                this.angularVelocity = 0;
+                this.powerConsumption = 0;
+                this.airflowRate = 0;
+                this.staticPressure = 0;
+                
+                // Create fan components with high detail
+                this.createMotor();
+                this.createHub();
+                this.createBlades();
+                this.createMounting();
+                
+                // Position fan at center
+                this.fanGroup.position.set(0, 30, 0);
+                
+                // Update physics
+                this.updatePhysics();
+            }
+            
+            createMotor() {
+                this.motorGroup = new THREE.Group();
+                
+                // Motor shell (main cylinder)
+                const motorGeometry = new THREE.CylinderGeometry(
+                    this.parameters.motorDiameter / 2,
+                    this.parameters.motorDiameter / 2,
+                    this.parameters.motorLength,
+                    64, // High poly count for smoothness
+                    1,
+                    true // Open ended
+                );
+                
+                const motorMaterial = new THREE.MeshPhysicalMaterial({
+                    color: 0x222222,
+                    metalness: 0.9,
+                    roughness: 0.1,
+                    clearcoat: 1.0,
+                    clearcoatRoughness: 0.1,
+                    reflectivity: 0.5
+                });
+                
+                this.motorMesh = new THREE.Mesh(motorGeometry, motorMaterial);
+                this.motorMesh.rotation.x = Math.PI / 2;
+                this.motorMesh.castShadow = true;
+                this.motorMesh.receiveShadow = true;
+                this.motorGroup.add(this.motorMesh);
+                
+                // Motor end caps
+                const capGeometry = new THREE.CylinderGeometry(
+                    this.parameters.motorDiameter / 2 + 1,
+                    this.parameters.motorDiameter / 2 + 1,
+                    2,
+                    64
+                );
+                const capMaterial = new THREE.MeshPhysicalMaterial({
+                    color: 0x333333,
+                    metalness: 0.8,
+                    roughness: 0.2
+                });
+                
+                // Front cap
+                const frontCap = new THREE.Mesh(capGeometry, capMaterial);
+                frontCap.position.z = this.parameters.motorLength / 2 + 1;
+                frontCap.rotation.x = Math.PI / 2;
+                this.motorGroup.add(frontCap);
+                
+                // Rear cap
+                const rearCap = new THREE.Mesh(capGeometry, capMaterial);
+                rearCap.position.z = -this.parameters.motorLength / 2 - 1;
+                rearCap.rotation.x = Math.PI / 2;
+                this.motorGroup.add(rearCap);
+                
+                // Cooling fins
+                this.createCoolingFins();
+                
+                // Motor shaft
+                const shaftGeometry = new THREE.CylinderGeometry(
+                    this.parameters.shaftDiameter / 2,
+                    this.parameters.shaftDiameter / 2,
+                    20,
+                    32
+                );
+                const shaftMaterial = new THREE.MeshPhysicalMaterial({
+                    color: 0x888888,
+                    metalness: 1.0,
+                    roughness: 0.05
+                });
+                
+                this.shaftMesh = new THREE.Mesh(shaftGeometry, shaftMaterial);
+                this.shaftMesh.position.z = this.parameters.motorLength / 2 + 10;
+                this.shaftMesh.rotation.x = Math.PI / 2;
+                this.motorGroup.add(this.shaftMesh);
+                
+                // Motor mounting flange
+                this.createMountingFlange();
+                
+                this.fanGroup.add(this.motorGroup);
+            }
+            
+            createCoolingFins() {
+                const finCount = 24;
+                const finHeight = this.parameters.motorLength - 10;
+                const finThickness = 0.5;
+                const finDepth = 5;
+                
+                const finGeometry = new THREE.BoxGeometry(finThickness, finDepth, finHeight);
+                const finMaterial = new THREE.MeshPhysicalMaterial({
+                    color: 0x444444,
+                    metalness: 0.7,
+                    roughness: 0.3
+                });
+                
+                for (let i = 0; i < finCount; i++) {
+                    const angle = (i / finCount) * Math.PI * 2;
+                    const radius = this.parameters.motorDiameter / 2 + finDepth / 2;
+                    
+                    const fin = new THREE.Mesh(finGeometry, finMaterial);
+                    fin.position.x = Math.cos(angle) * radius;
+                    fin.position.y = Math.sin(angle) * radius;
+                    fin.rotation.z = angle;
+                    
+                    this.motorGroup.add(fin);
+                }
+            }
+            
+            createMountingFlange() {
+                const flangeGeometry = new THREE.CylinderGeometry(
+                    this.parameters.motorDiameter / 2 + 5,
+                    this.parameters.motorDiameter / 2 + 5,
+                    3,
+                    64
+                );
+                const flangeMaterial = new THREE.MeshPhysicalMaterial({
+                    color: 0x555555,
+                    metalness: 0.8,
+                    roughness: 0.2
+                });
+                
+                const flange = new THREE.Mesh(flangeGeometry, flangeMaterial);
+                flange.position.z = -this.parameters.motorLength / 2 - 1.5;
+                flange.rotation.x = Math.PI / 2;
+                this.motorGroup.add(flange);
+                
+                // Bolt holes
+                const boltHoleGeometry = new THREE.CylinderGeometry(0.5, 0.5, 4, 16);
+                const boltHoleMaterial = new THREE.MeshPhysicalMaterial({
+                    color: 0x222222,
+                    metalness: 0.9,
+                    roughness: 0.1
+                });
+                
+                for (let i = 0; i < 8; i++) {
+                    const angle = (i / 8) * Math.PI * 2;
+                    const radius = this.parameters.motorDiameter / 2 + 2;
+                    
+                    const boltHole = new THREE.Mesh(boltHoleGeometry, boltHoleMaterial);
+                    boltHole.position.x = Math.cos(angle) * radius;
+                    boltHole.position.y = Math.sin(angle) * radius;
+                    boltHole.position.z = -this.parameters.motorLength / 2 - 2;
+                    boltHole.rotation.x = Math.PI / 2;
+                    
+                    this.motorGroup.add(boltHole);
+                }
+            }
+            
+            createHub() {
+                this.hubGroup = new THREE.Group();
+                
+                // Main hub body
+                const hubGeometry = new THREE.CylinderGeometry(
+                    this.parameters.hubDiameter / 2,
+                    this.parameters.hubDiameter / 2,
+                    this.parameters.hubThickness,
+                    64
+                );
+                const hubMaterial = new THREE.MeshPhysicalMaterial({
+                    color: 0x666666,
+                    metalness: 0.8,
+                    roughness: 0.2,
+                    clearcoat: 0.5
+                });
+                
+                this.hubMesh = new THREE.Mesh(hubGeometry, hubMaterial);
+                this.hubMesh.rotation.x = Math.PI / 2;
+                this.hubMesh.castShadow = true;
+                this.hubGroup.add(this.hubMesh);
+                
+                // Hub arms for blade mounting
+                this.createHubArms();
+                
+                // Hub-shaft connection
+                const connectionGeometry = new THREE.CylinderGeometry(
+                    this.parameters.shaftDiameter / 2 + 1,
+                    this.parameters.hubDiameter / 2 - 5,
+                    5,
+                    32
+                );
+                const connectionMaterial = new THREE.MeshPhysicalMaterial({
+                    color: 0x777777,
+                    metalness: 0.9,
+                    roughness: 0.1
+                });
+                
+                const connection = new THREE.Mesh(connectionGeometry, connectionMaterial);
+                connection.position.z = -this.parameters.hubThickness / 2 - 2.5;
+                connection.rotation.x = Math.PI / 2;
+                this.hubGroup.add(connection);
+                
+                // Position hub at end of shaft
+                this.hubGroup.position.z = this.parameters.motorLength / 2 + 20;
+                
+                this.fanGroup.add(this.hubGroup);
+            }
+            
+            createHubArms() {
+                const armCount = this.parameters.bladeCount;
+                const armLength = this.parameters.hubDiameter / 2 + 5;
+                const armThickness = 3;
+                const armHeight = this.parameters.hubThickness + 2;
+                
+                const armGeometry = new THREE.BoxGeometry(armThickness, armLength, armHeight);
+                const armMaterial = new THREE.MeshPhysicalMaterial({
+                    color: 0x888888,
+                    metalness: 0.7,
+                    roughness: 0.3
+                });
+                
+                for (let i = 0; i < armCount; i++) {
+                    const angle = (i / armCount) * Math.PI * 2;
+                    const arm = new THREE.Mesh(armGeometry, armMaterial);
+                    
+                    // Position arm radially
+                    const radius = this.parameters.hubDiameter / 2 + armLength / 2;
+                    arm.position.x = Math.cos(angle) * radius;
+                    arm.position.y = Math.sin(angle) * radius;
+                    arm.rotation.z = angle;
+                    
+                    this.hubGroup.add(arm);
+                    
+                    // Bolt details on arm
+                    this.createArmBolts(arm, angle);
+                }
+            }
+            
+            createArmBolts(arm, angle) {
+                const boltGeometry = new THREE.CylinderGeometry(0.3, 0.3, 4, 16);
+                const boltMaterial = new THREE.MeshPhysicalMaterial({
+                    color: 0xAAAAAA,
+                    metalness: 0.9,
+                    roughness: 0.1
+                });
+                
+                const boltHeadGeometry = new THREE.CylinderGeometry(0.6, 0.6, 1, 6);
+                const boltHeadMaterial = new THREE.MeshPhysicalMaterial({
+                    color: 0x999999,
+                    metalness: 0.8,
+                    roughness: 0.2
+                });
+                
+                // Create bolt pattern (4 bolts per arm)
+                for (let j = 0; j < 4; j++) {
+                    const bolt = new THREE.Mesh(boltGeometry, boltMaterial);
+                    const boltHead = new THREE.Mesh(boltHeadGeometry, boltHeadMaterial);
+                    
+                    const offsetX = (j - 1.5) * 2;
+                    const offsetY = 0;
+                    
+                    bolt.position.set(offsetX, arm.geometry.parameters.height / 2 - 2, 0);
+                    boltHead.position.set(offsetX, arm.geometry.parameters.height / 2 + 0.5, 0);
+                    
+                    bolt.rotation.x = Math.PI / 2;
+                    boltHead.rotation.x = Math.PI / 2;
+                    
+                    arm.add(bolt);
+                    arm.add(boltHead);
+                }
+            }
+            
+            createBlades() {
+                this.blades = [];
+                this.bladeGroup = new THREE.Group();
+                
+                for (let i = 0; i < this.parameters.bladeCount; i++) {
+                    const blade = this.createAirfoilBlade();
+                    const angle = (i / this.parameters.bladeCount) * Math.PI * 2;
+                    
+                    // Position blade at end of hub arm
+                    const radius = this.parameters.hubDiameter / 2 + 8;
+                    blade.position.x = Math.cos(angle) * radius;
+                    blade.position.y = Math.sin(angle) * radius;
+                    blade.rotation.z = angle;
+                    
+                    // Set initial angle of attack
+                    const attackAngleRad = THREE.MathUtils.degToRad(this.parameters.angleOfAttack);
+                    blade.rotation.y = attackAngleRad;
+                    
+                    this.bladeGroup.add(blade);
+                    this.blades.push({
+                        mesh: blade,
+                        baseAngle: angle,
+                        armIndex: i
+                    });
+                }
+                
+                this.hubGroup.add(this.bladeGroup);
+            }
+            
+            createAirfoilBlade() {
+                // Create NACA 0012 airfoil profile (12% thickness)
+                const points = [];
+                const segments = 50;
+                const chordLength = this.parameters.bladeLength;
+                const maxThickness = this.parameters.bladeThickness;
+                
+                // Generate airfoil points
+                for (let i = 0; i <= segments; i++) {
+                    const x = i / segments; // Normalized position along chord
+                    
+                    // NACA 00xx thickness distribution
+                    const yt = 5 * maxThickness * (
+                        0.2969 * Math.sqrt(x) -
+                        0.1260 * x -
+                        0.3516 * x * x +
+                        0.2843 * x * x * x -
+                        0.1015 * x * x * x * x
+                    );
+                    
+                    // Upper surface
+                    points.push(new THREE.Vector2(x * chordLength, yt));
+                }
+                
+                for (let i = segments; i >= 0; i--) {
+                    const x = i / segments;
+                    const yt = 5 * maxThickness * (
+                        0.2969 * Math.sqrt(x) -
+                        0.1260 * x -
+                        0.3516 * x * x +
+                        0.2843 * x * x * x -
+                        0.1015 * x * x * x * x
+                    );
+                    
+                    // Lower surface
+                    points.push(new THREE.Vector2(x * chordLength, -yt));
+                }
+                
+                // Create shape from points
+                const shape = new THREE.Shape(points);
+                
+                // Extrude to create 3D blade with twist
+                const extrudeSettings = {
+                    steps: 1,
+                    depth: this.parameters.bladeWidth,
+                    bevelEnabled: true,
+                    bevelThickness: 0.5,
+                    bevelSize: 0.5,
+                    bevelOffset: 0,
+                    bevelSegments: 3
+                };
+                
+                const geometry = new THREE.ExtrudeGeometry(shape, extrudeSettings);
+                
+                // Apply transformations for correct orientation
+                geometry.rotateX(Math.PI / 2);
+                geometry.rotateY(Math.PI);
+                geometry.translate(-this.parameters.bladeLength / 2, -this.parameters.bladeWidth / 2, 0);
+                
+                const material = new THREE.MeshPhysicalMaterial({
+                    color: 0xCCCCCC,
+                    metalness: 0.3,
+                    roughness: 0.4,
+                    clearcoat: 0.2,
+                    side: THREE.DoubleSide
+                });
+                
+                return new THREE.Mesh(geometry, material);
+            }
+            
+            createMounting() {
+                // Create mounting bracket
+                const bracketGeometry = new THREE.BoxGeometry(60, 60, 5);
+                const bracketMaterial = new THREE.MeshPhysicalMaterial({
+                    color: 0x444444,
+                    metalness: 0.6,
+                    roughness: 0.4
+                });
+                
+                this.mountingBracket = new THREE.Mesh(bracketGeometry, bracketMaterial);
+                this.mountingBracket.position.set(0, -20, 0);
+                this.mountingBracket.castShadow = true;
+                this.fanGroup.add(this.mountingBracket);
+                
+                // Vibration isolators
+                this.createVibrationIsolators();
+            }
+            
+            createVibrationIsolators() {
+                const isolatorGeometry = new THREE.CylinderGeometry(3, 5, 10, 16);
+                const isolatorMaterial = new THREE.MeshPhysicalMaterial({
+                    color: 0x226622,
+                    roughness: 0.8,
+                    metalness: 0.1
+                });
+                
+                const positions = [
+                    [-25, -25, 2.5],
+                    [25, -25, 2.5],
+                    [-25, 25, 2.5],
+                    [25, 25, 2.5]
+                ];
+                
+                positions.forEach(pos => {
+                    const isolator = new THREE.Mesh(isolatorGeometry, isolatorMaterial);
+                    isolator.position.set(...pos);
+                    this.mountingBracket.add(isolator);
+                });
+            }
+            
+            updateBladeCount(count) {
+                this.parameters.bladeCount = count;
+                
+                // Remove old blades and arms
+                while (this.bladeGroup.children.length > 0) {
+                    this.bladeGroup.remove(this.bladeGroup.children[0]);
+                }
+                
+                // Remove old hub arms
+                const arms = this.hubGroup.children.filter(child => 
+                    child.geometry && child.geometry.type === 'BoxGeometry');
+                arms.forEach(arm => this.hubGroup.remove(arm));
+                
+                // Create new hub arms and blades
+                this.createHubArms();
+                this.createBlades();
+                
+                this.updatePhysics();
+            }
+            
+            updateAngleOfAttack(angle) {
+                this.parameters.angleOfAttack = Math.max(5, Math.min(35, angle));
+                const attackAngleRad = THREE.MathUtils.degToRad(this.parameters.angleOfAttack);
+                
+                // Update all blades
+                this.blades.forEach(bladeData => {
+                    bladeData.mesh.rotation.y = attackAngleRad;
+                });
+                
+                this.updatePhysics();
+            }
+            
+            updateBladeLength(length) {
+                this.parameters.bladeLength = length;
+                // Note: In a full implementation, we would regenerate the blade geometry
+                this.updatePhysics();
+            }
+            
+            updateRPM(rpm) {
+                this.parameters.rpm = rpm;
+                this.updatePhysics();
+            }
+            
+            updatePhysics() {
+                // Convert RPM to angular velocity (rad/s)
+                this.angularVelocity = (this.parameters.rpm * Math.PI * 2) / 60;
+                this.rotationSpeed = this.parameters.rpm / 60; // RPS
+                
+                // Calculate tip speed (m/s) - blade length in meters
+                const bladeLengthM = this.parameters.bladeLength / 100;
+                this.tipSpeed = this.angularVelocity * bladeLengthM;
+                
+                // Advanced physics calculations based on fan laws
+                const bladeArea = this.parameters.bladeLength * this.parameters.bladeWidth / 10000; // m²
+                const airDensity = 1.225; // kg/m³ at sea level
+                const attackAngleRad = THREE.MathUtils.degToRad(this.parameters.angleOfAttack);
+                
+                // Simplified fan power calculation (actual formula would be more complex)
+                const powerBase = 500; // Base power at 1000 RPM, 15° attack
+                const rpmFactor = Math.pow(this.parameters.rpm / 1000, 3);
+                const angleFactor = 1 + (Math.sin(attackAngleRad) - Math.sin(THREE.MathUtils.degToRad(15))) * 2;
+                const bladeCountFactor = this.parameters.bladeCount / 5;
+                
+                this.powerConsumption = powerBase * rpmFactor * angleFactor * bladeCountFactor;
+                
+                // Airflow calculation (CFM)
+                const airflowBase = 1000; // Base CFM at 1000 RPM
+                this.airflowRate = airflowBase * (this.parameters.rpm / 1000) * 
+                                 Math.cos(attackAngleRad) * bladeCountFactor;
+                
+                // Static pressure (simplified)
+                this.staticPressure = 0.5 * airDensity * Math.pow(this.tipSpeed, 2) * 
+                                    Math.sin(attackAngleRad) * 0.001; // Convert to kPa
+                
+                // Update UI displays
+                this.updatePhysicsDisplay();
+            }
+            
+            updatePhysicsDisplay() {
+                document.getElementById('rotationSpeed').textContent = 
+                    `${this.rotationSpeed.toFixed(2)} RPS`;
+                document.getElementById('angularVelocity').textContent = 
+                    `${this.angularVelocity.toFixed(2)} rad/s`;
+                document.getElementById('tipSpeed').textContent = 
+                    `${this.tipSpeed.toFixed(2)} m/s`;
+                document.getElementById('powerValue').textContent = 
+                    `${Math.round(this.powerConsumption)} W`;
+                document.getElementById('airflowValue').textContent = 
+                    `${Math.round(this.airflowRate)} CFM`;
+            }
+            
+            update(deltaTime) {
+                if (this.angularVelocity > 0) {
+                    // Rotate the hub and blades
+                    this.hubGroup.rotation.z += this.angularVelocity * deltaTime;
+                    
+                    // Add subtle vibration based on RPM
+                    const vibrationIntensity = this.parameters.rpm / 5000;
+                    this.fanGroup.position.x = Math.sin(performance.now() * 0.005) * vibrationIntensity;
+                    this.fanGroup.position.y = 30 + Math.cos(performance.now() * 0.003) * vibrationIntensity;
+                }
+            }
+        }
+
+        // ============================================
+        // MAIN ISOMETRIC SCENE WITH ADVANCED CONTROLS
+        // ============================================
+        class AdvancedIsometricScene {
+            constructor() {
+                this.initScene();
+                this.createEnvironment();
+                this.createLighting();
+                this.createFan();
+                this.setupControls();
+                this.setupUI();
+                this.animate();
+            }
+            
+            initScene() {
+                // Scene
+                this.scene = new THREE.Scene();
+                this.scene.fog = new THREE.Fog(0x000000, 100, 500);
+                
+                // Camera
+                const aspect = window.innerWidth / window.innerHeight;
+                this.camera = new THREE.PerspectiveCamera(45, aspect, 0.1, 2000);
+                this.camera.position.set(200, 150, 200);
+                this.camera.lookAt(0, 30, 0);
+                
+                // Renderer
+                this.renderer = new THREE.WebGLRenderer({ 
+                    antialias: true,
+                    alpha: true,
+                    powerPreference: "high-performance"
+                });
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
+                this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+                this.renderer.shadowMap.enabled = true;
+                this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+                this.renderer.outputEncoding = THREE.sRGBEncoding;
+                this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+                this.renderer.toneMappingExposure = 1.0;
+                
+                document.getElementById('canvas-container').appendChild(this.renderer.domElement);
+                
+                // Controls (for desktop)
+                this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
+                this.controls.enableDamping = true;
+                this.controls.dampingFactor = 0.05;
+                this.controls.screenSpacePanning = true;
+                this.controls.maxPolarAngle = Math.PI;
+                this.controls.minDistance = 50;
+                this.controls.maxDistance = 500;
+                
+                // Background options
+                this.backgrounds = [
+                    { color: 0x87CEEB, name: 'Sky Blue' },
+                    { color: 0x0A1931, name: 'Night Sky' },
+                    { color: 0x1A237E, name: 'Dark Blue' },
+                    { color: 0x808000, name: 'Olive' },
+                    { color: 0x228B22, name: 'Forest Green' }
+                ];
+                
+                // Clock for animation
+                this.clock = new THREE.Clock();
+                
+                // Camera modes
+                this.cameraMode = 'orbit';
+                this.cameraTarget = new THREE.Vector3(0, 30, 0);
+                this.cameraDistance = 300;
+                this.cameraAngle = Math.PI / 4;
+                this.cameraHeight = 150;
+                
+                // Handle window resize
+                window.addEventListener('resize', () => this.onWindowResize());
+            }
+            
+            createEnvironment() {
+                // Set random background
+                const randomBg = this.backgrounds[Math.floor(Math.random() * this.backgrounds.length)];
+                this.scene.background = new THREE.Color(randomBg.color);
+                this.scene.fog.color.set(randomBg.color);
+                
+                // Floor
+                const floorGeometry = new THREE.PlaneGeometry(1000, 1000, 100, 100);
+                const floorMaterial = new THREE.MeshPhysicalMaterial({
+                    color: 0x333333,
+                    roughness: 0.8,
+                    metalness: 0.1,
+                    side: THREE.DoubleSide
+                });
+                
+                this.floor = new THREE.Mesh(floorGeometry, floorMaterial);
+                this.floor.rotation.x = -Math.PI / 2;
+                this.floor.receiveShadow = true;
+                this.scene.add(this.floor);
+                
+                // Grid helper
+                const gridHelper = new THREE.GridHelper(1000, 100, 0x444444, 0x222222);
+                gridHelper.position.y = 0.1;
+                this.scene.add(gridHelper);
+                
+                // Room walls for context
+                this.createRoomWalls();
+            }
+            
+            createRoomWalls() {
+                const wallMaterial = new THREE.MeshPhysicalMaterial({
+                    color: 0x555555,
+                    roughness: 0.7,
+                    metalness: 0.1,
+                    transparent: true,
+                    opacity: 0.15,
+                    side: THREE.DoubleSide
+                });
+                
+                // Back wall
+                const backWall = new THREE.Mesh(
+                    new THREE.PlaneGeometry(800, 400),
+                    wallMaterial
+                );
+                backWall.position.z = -400;
+                backWall.position.y = 200;
+                this.scene.add(backWall);
+                
+                // Side walls
+                const leftWall = new THREE.Mesh(
+                    new THREE.PlaneGeometry(800, 400),
+                    wallMaterial
+                );
+                leftWall.position.x = -400;
+                leftWall.position.y = 200;
+                leftWall.rotation.y = Math.PI / 2;
+                this.scene.add(leftWall);
+                
+                const rightWall = new THREE.Mesh(
+                    new THREE.PlaneGeometry(800, 400),
+                    wallMaterial
+                );
+                rightWall.position.x = 400;
+                rightWall.position.y = 200;
+                rightWall.rotation.y = -Math.PI / 2;
+                this.scene.add(rightWall);
+                
+                // Ceiling
+                const ceiling = new THREE.Mesh(
+                    new THREE.PlaneGeometry(800, 800),
+                    wallMaterial
+                );
+                ceiling.position.y = 400;
+                ceiling.rotation.x = Math.PI / 2;
+                this.scene.add(ceiling);
+            }
+            
+            createLighting() {
+                // Ambient light
+                this.ambientLight = new THREE.AmbientLight(0xffffff, 0.3);
+                this.scene.add(this.ambientLight);
+                
+                // Corner point lights
+                this.cornerLights = [];
+                const lightColors = [0xFF6B6B, 0x4ECDC4, 0xFFD166, 0x06D6A0, 0x118AB2, 0x9D4EDD];
+                
+                const cornerPositions = [
+                    [-350, 350, -350],
+                    [350, 350, -350],
+                    [-350, 350, 350],
+                    [350, 350, 350]
+                ];
+                
+                cornerPositions.forEach((pos, i) => {
+                    const color = lightColors[Math.floor(Math.random() * lightColors.length)];
+                    const intensity = 0.4 + Math.random() * 0.6;
+                    
+                    const light = new THREE.PointLight(color, intensity, 500);
+                    light.position.set(...pos);
+                    light.castShadow = true;
+                    light.shadow.mapSize.width = 1024;
+                    light.shadow.mapSize.height = 1024;
+                    this.scene.add(light);
+                    this.cornerLights.push(light);
+                    
+                    // Visual indicator
+                    const lightHelper = new THREE.PointLightHelper(light, 15);
+                    this.scene.add(lightHelper);
+                });
+                
+                // Top directional light (sun/moon)
+                const isSun = Math.random() > 0.5;
+                this.topLight = new THREE.DirectionalLight(
+                    isSun ? 0xFFD700 : 0xE6E6FA,
+                    0.8 + Math.random() * 0.4
+                );
+                this.topLight.position.set(0, 500, 0);
+                this.topLight.castShadow = true;
+                this.topLight.shadow.mapSize.width = 2048;
+                this.topLight.shadow.mapSize.height = 2048;
+                this.topLight.shadow.camera.near = 0.5;
+                this.topLight.shadow.camera.far = 1000;
+                this.topLight.shadow.camera.left = -300;
+                this.topLight.shadow.camera.right = 300;
+                this.topLight.shadow.camera.top = 300;
+                this.topLight.shadow.camera.bottom = -300;
+                this.scene.add(this.topLight);
+                
+                // Bottom fill light
+                this.bottomLight = new THREE.DirectionalLight(0x4444FF, 0.3);
+                this.bottomLight.position.set(0, -200, 0);
+                this.scene.add(this.bottomLight);
+                
+                // Add hemisphere light for ambient fill
+                this.hemisphereLight = new THREE.HemisphereLight(0x87CEEB, 0x8B4513, 0.3);
+                this.scene.add(this.hemisphereLight);
+            }
+            
+            createFan() {
+                this.fan = new AdvancedFan3D(this.scene);
+            }
+            
+            setupControls() {
+                // Initialize touch controller
+                this.touchController = new PrecisionTouchController();
+                
+                // Handle zone events
+                window.addEventListener('zoneEvent', (e) => {
+                    const { zone, action } = e.detail;
+                    
+                    if (action === 'press' || action === 'hold') {
+                        switch(zone) {
+                            case 'up':
+                                this.cameraTarget.y += 5;
+                                break;
+                            case 'down':
+                                this.cameraTarget.y = Math.max(10, this.cameraTarget.y - 5);
+                                break;
+                            case 'left':
+                                this.cameraAngle -= 0.05;
+                                break;
+                            case 'right':
+                                this.cameraAngle += 0.05;
+                                break;
+                        }
+                        
+                        this.updateCameraPosition();
+                    }
+                });
+                
+                // Handle camera events from multi-touch
+                window.addEventListener('cameraEvent', (e) => {
+                    const { type, ...data } = e.detail;
+                    
+                    switch(type) {
+                        case 'multi-touch':
+                            this.handleMultiTouchCamera(data);
+                            break;
+                    }
+                });
+                
+                // Handle slide events
+                window.addEventListener('slideEvent', (e) => {
+                    const { dx, dy } = e.detail;
+                    
+                    // Pan camera based on slide
+                    if (!e.detail.final) {
+                        this.cameraTarget.x -= dx * 0.5;
+                        this.cameraTarget.z -= dy * 0.5;
+                        this.updateCameraPosition();
+                    }
+                });
+            }
+            
+            handleMultiTouchCamera(data) {
+                switch(data.type) {
+                    case 'pinch-rotate':
+                        // Zoom
+                        this.cameraDistance = Math.max(50, Math.min(500, 
+                            this.cameraDistance * (1 - data.scale * 0.5)));
+                        
+                        // Rotate
+                        this.cameraAngle += data.rotation * 2;
+                        
+                        // Pan
+                        this.cameraTarget.x -= data.panX * 0.5;
+                        this.cameraTarget.z -= data.panY * 0.5;
+                        break;
+                        
+                    case 'pan':
+                        // Pan with three fingers
+                        this.cameraTarget.x -= data.panX * 0.5;
+                        this.cameraTarget.z -= data.panY * 0.5;
+                        break;
+                }
+                
+                this.updateCameraPosition();
+            }
+            
+            updateCameraPosition() {
+                // Calculate camera position based on target, distance, and angle
+                const x = this.cameraTarget.x + Math.cos(this.cameraAngle) * this.cameraDistance;
+                const z = this.cameraTarget.z + Math.sin(this.cameraAngle) * this.cameraDistance;
+                const y = this.cameraTarget.y + this.cameraHeight;
+                
+                this.camera.position.set(x, y, z);
+                this.camera.lookAt(this.cameraTarget);
+                
+                // Update controls target
+                this.controls.target.copy(this.cameraTarget);
+            }
+            
+            setupUI() {
+                // RPM Slider
+                const rpmSlider = document.getElementById('rpmSlider');
+                const rpmValue = document.getElementById('rpmValue');
+                
+                rpmSlider.addEventListener('input', (e) => {
+                    const rpm = parseInt(e.target.value);
+                    rpmValue.textContent = `${rpm} RPM`;
+                    this.fan.updateRPM(rpm);
+                });
+                
+                // Blade count controls
+                document.getElementById('bladeDec').addEventListener('click', () => {
+                    const current = parseInt(document.getElementById('bladeCount').value);
+                    if (current > 3) {
+                        const newVal = current - 1;
+                        document.getElementById('bladeCount').value = newVal;
+                        this.fan.updateBladeCount(newVal);
+                    }
+                });
+                
+                document.getElementById('bladeInc').addEventListener('click', () => {
+                    const current = parseInt(document.getElementById('bladeCount').value);
+                    if (current < 10) {
+                        const newVal = current + 1;
+                        document.getElementById('bladeCount').value = newVal;
+                        this.fan.updateBladeCount(newVal);
+                    }
+                });
+                
+                document.getElementById('bladeCount').addEventListener('change', (e) => {
+                    const count = Math.min(10, Math.max(3, parseInt(e.target.value)));
+                    e.target.value = count;
+                    this.fan.updateBladeCount(count);
+                });
+                
+                // Angle of attack controls
+                document.getElementById('angleDec').addEventListener('click', () => {
+                    const current = parseInt(document.getElementById('angleAttack').value);
+                    if (current > 5) {
+                        const newVal = current - 1;
+                        document.getElementById('angleAttack').value = newVal;
+                        this.fan.updateAngleOfAttack(newVal);
+                    }
+                });
+                
+                document.getElementById('angleInc').addEventListener('click', () => {
+                    const current = parseInt(document.getElementById('angleAttack').value);
+                    if (current < 35) {
+                        const newVal = current + 1;
+                        document.getElementById('angleAttack').value = newVal;
+                        this.fan.updateAngleOfAttack(newVal);
+                    }
+                });
+                
+                document.getElementById('angleAttack').addEventListener('change', (e) => {
+                    const angle = Math.min(35, Math.max(5, parseInt(e.target.value)));
+                    e.target.value = angle;
+                    this.fan.updateAngleOfAttack(angle);
+                });
+                
+                // Blade length slider
+                const lengthSlider = document.getElementById('lengthSlider');
+                const lengthValue = document.getElementById('lengthValue');
+                
+                lengthSlider.addEventListener('input', (e) => {
+                    const length = parseInt(e.target.value);
+                    lengthValue.textContent = `${length} cm`;
+                    this.fan.updateBladeLength(length);
+                });
+                
+                // Environment controls
+                document.getElementById('randomBackground').addEventListener('click', () => {
+                    const randomBg = this.backgrounds[Math.floor(Math.random() * this.backgrounds.length)];
+                    this.scene.background.setHex(randomBg.color);
+                    this.scene.fog.color.setHex(randomBg.color);
+                });
+                
+                document.getElementById('randomLighting').addEventListener('click', () => {
+                    this.randomizeLighting();
+                });
+                
+                document.getElementById('resetCamera').addEventListener('click', () => {
+                    this.cameraTarget.set(0, 30, 0);
+                    this.cameraDistance = 300;
+                    this.cameraAngle = Math.PI / 4;
+                    this.cameraHeight = 150;
+                    this.updateCameraPosition();
+                });
+                
+                // Camera mode radio buttons
+                document.querySelectorAll('input[name="cameraMode"]').forEach(radio => {
+                    radio.addEventListener('change', (e) => {
+                        this.cameraMode = e.target.id.replace('mode', '').toLowerCase();
+                        this.controls.enabled = this.cameraMode === 'orbit';
+                    });
+                });
+            }
+            
+            randomizeLighting() {
+                const lightColors = [0xFF6B6B, 0x4ECDC4, 0xFFD166, 0x06D6A0, 0x118AB2, 0x9D4EDD, 0xFF9E00];
+                
+                // Randomize corner lights
+                this.cornerLights.forEach(light => {
+                    const color = lightColors[Math.floor(Math.random() * lightColors.length)];
+                    const intensity = 0.3 + Math.random() * 0.7;
+                    
+                    light.color.setHex(color);
+                    light.intensity = intensity;
+                });
+                
+                // Randomize top light
+                const isSun = Math.random() > 0.5;
+                this.topLight.color.setHex(isSun ? 0xFFD700 : 0xE6E6FA);
+                this.topLight.intensity = 0.5 + Math.random() * 0.5;
+                
+                // Update ambient light
+                this.ambientLight.intensity = 0.1 + Math.random() * 0.4;
+                this.hemisphereLight.intensity = 0.2 + Math.random() * 0.3;
+            }
+            
+            onWindowResize() {
+                const aspect = window.innerWidth / window.innerHeight;
+                
+                this.camera.aspect = aspect;
+                this.camera.updateProjectionMatrix();
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
+            }
+            
+            animate() {
+                requestAnimationFrame(() => this.animate());
+                
+                const deltaTime = this.clock.getDelta();
+                
+                // Update fan animation
+                this.fan.update(deltaTime);
+                
+                // Update controls if enabled
+                if (this.controls.enabled) {
+                    this.controls.update();
+                }
+                
+                // Update camera position if in fixed mode
+                if (this.cameraMode === 'fixed') {
+                    this.updateCameraPosition();
+                }
+                
+                // Render scene
+                this.renderer.render(this.scene, this.camera);
+            }
+        }
+
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', () => {
+            new AdvancedIsometricScene();
+        });
+
+        // Prevent default touch behaviors
+        document.addEventListener('touchstart', (e) => {
+            if (e.touches.length > 1) {
+                e.preventDefault();
+            }
+        }, { passive: false });
+
+        document.addEventListener('gesturestart', (e) => {
+            e.preventDefault();
+        });
+    </script>
+</body>
+</html>

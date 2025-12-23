@@ -1,0 +1,2502 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Rupture Disk 3D Simulation</title>
+    <style>
+        :root {
+            --primary: #4fc3f7;
+            --primary-dark: #0288d1;
+            --secondary: #4a76a8;
+            --success: #4caf50;
+            --warning: #ff9800;
+            --danger: #f44336;
+            --dark-bg: #0a1520;
+            --darker-bg: #07111a;
+            --light-text: #e0e0e0;
+            --medium-text: #b0bec5;
+            --card-bg: rgba(255, 255, 255, 0.05);
+            --card-border: rgba(79, 195, 247, 0.1);
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, var(--darker-bg), var(--dark-bg));
+            color: var(--light-text);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        
+        .container {
+            max-width: 100%;
+            margin: 0 auto;
+            padding: 0;
+        }
+        
+        /* Header Styles */
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            background: rgba(10, 21, 32, 0.95);
+            backdrop-filter: blur(10px);
+            z-index: 1000;
+            padding: 12px 20px;
+            border-bottom: 1px solid var(--card-border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .header h1 {
+            font-size: 1.4rem;
+            background: linear-gradient(90deg, var(--primary), var(--primary-dark));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            text-shadow: 0 0 10px rgba(79, 195, 247, 0.3);
+        }
+        
+        .header-controls {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .header-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: var(--light-text);
+            padding: 8px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 0.9rem;
+        }
+        
+        .header-btn:hover {
+            background: rgba(79, 195, 247, 0.2);
+            transform: translateY(-2px);
+        }
+        
+        .mobile-menu-btn {
+            display: none;
+            background: none;
+            border: none;
+            color: var(--light-text);
+            font-size: 1.3rem;
+            cursor: pointer;
+        }
+        
+        /* 3D Viewer Styles */
+        .viewer-container {
+            width: 100%;
+            height: 65vh;
+            min-height: 450px;
+            background: var(--darker-bg);
+            position: relative;
+            margin-top: 60px;
+            overflow: hidden;
+        }
+        
+        #viewer {
+            width: 100%;
+            height: 100%;
+        }
+        
+        /* Content Layout */
+        .content {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            padding: 20px;
+        }
+        
+        .controls {
+            flex: 1;
+            min-width: 300px;
+            background: var(--card-bg);
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--card-border);
+            display: flex;
+            flex-direction: column;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        
+        .control-section {
+            margin-bottom: 25px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.2);
+        }
+        
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            cursor: pointer;
+        }
+        
+        .section-header h2 {
+            margin: 0;
+            font-size: 1.3rem;
+        }
+        
+        .collapse-btn {
+            background: none;
+            border: none;
+            color: var(--primary);
+            cursor: pointer;
+            font-size: 1.2rem;
+            transition: transform 0.3s ease;
+        }
+        
+        .collapsed .collapse-btn {
+            transform: rotate(-90deg);
+        }
+        
+        .section-content {
+            transition: all 0.3s ease;
+            overflow: hidden;
+        }
+        
+        .collapsed .section-content {
+            height: 0;
+            opacity: 0;
+        }
+        
+        /* Control Group Styles */
+        .control-group {
+            margin-bottom: 20px;
+        }
+        
+        h2 {
+            font-size: 1.3rem;
+            margin-bottom: 15px;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+        }
+        
+        h2 i {
+            margin-right: 10px;
+            font-size: 1.1rem;
+        }
+        
+        .option-group {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .option {
+            padding: 10px 12px;
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 8px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 1px solid transparent;
+            font-size: 0.9rem;
+        }
+        
+        .option:hover {
+            background: rgba(79, 195, 247, 0.15);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+        
+        .option.selected {
+            background: rgba(79, 195, 247, 0.25);
+            box-shadow: 0 0 15px rgba(79, 195, 247, 0.4);
+            border: 1px solid rgba(79, 195, 247, 0.5);
+        }
+        
+        .parameter-control {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-top: 15px;
+        }
+        
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .slider-container span {
+            min-width: 150px;
+            font-weight: 500;
+            font-size: 0.9rem;
+        }
+        
+        .slider-value {
+            min-width: 50px;
+            text-align: right;
+            font-weight: bold;
+            color: var(--primary);
+            font-size: 0.9rem;
+        }
+        
+        input[type="range"] {
+            flex: 1;
+            height: 8px;
+            -webkit-appearance: none;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 5px;
+            outline: none;
+        }
+        
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            background: var(--primary);
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(79, 195, 247, 0.8);
+            transition: all 0.2s ease;
+        }
+        
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.1);
+            box-shadow: 0 0 15px rgba(79, 195, 247, 1);
+        }
+        
+        /* Pressure Control Styles */
+        .pressure-control {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .pressure-gauge-container {
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 10px;
+            padding: 12px;
+            margin-top: 10px;
+            position: relative;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .pressure-gauge {
+            height: 180px;
+            position: relative;
+            background: var(--darker-bg);
+            border-radius: 8px;
+            overflow: hidden;
+            border: 2px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .gauge-background {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(to top, 
+                var(--success) 0%, var(--success) 30%,
+                #8bc34a 30%, #8bc34a 50%,
+                #ffeb3b 50%, #ffeb3b 70%,
+                var(--warning) 70%, var(--warning) 90%,
+                var(--danger) 90%, var(--danger) 100%);
+            opacity: 0.2;
+        }
+        
+        .gauge-fill {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 0%;
+            background: linear-gradient(to top, var(--success), #8bc34a, #ffeb3b, var(--warning), var(--danger));
+            transition: height 0.5s ease;
+            border-radius: 0 0 8px 8px;
+        }
+        
+        .gauge-marks {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 8px 12px;
+        }
+        
+        .gauge-mark {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.8rem;
+            font-weight: 500;
+            position: relative;
+        }
+        
+        .gauge-mark::after {
+            content: '';
+            position: absolute;
+            right: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 8px;
+            height: 2px;
+            background: rgba(255, 255, 255, 0.5);
+        }
+        
+        .burst-indicator {
+            position: absolute;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            background: #ffeb3b;
+            box-shadow: 0 0 10px #ffeb3b;
+            z-index: 10;
+        }
+        
+        .pressure-value {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 1.8rem;
+            font-weight: bold;
+            text-shadow: 0 0 15px rgba(0, 0, 0, 0.8);
+            z-index: 10;
+            color: white;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 8px 16px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        
+        /* Action Buttons */
+        .action-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-top: 10px;
+        }
+        
+        .action-btn {
+            padding: 12px 16px;
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        
+        .action-btn:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+        }
+        
+        .action-btn:active {
+            transform: translateY(1px);
+        }
+        
+        .action-btn:disabled {
+            background: #546e7a;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .action-btn.reset {
+            background: linear-gradient(135deg, var(--warning), #f57c00);
+            grid-column: span 2;
+        }
+        
+        .action-btn.burst {
+            background: linear-gradient(135deg, var(--danger), #d32f2f);
+        }
+        
+        .action-btn.test {
+            background: linear-gradient(135deg, var(--success), #388e3c);
+        }
+        
+        /* Status and Camera Controls */
+        .status {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            padding: 10px 15px;
+            background: rgba(0, 0, 0, 0.7);
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: bold;
+            z-index: 100;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .assembled {
+            color: var(--success);
+            border-color: rgba(76, 175, 80, 0.3);
+        }
+        
+        .disassembled {
+            color: var(--warning);
+            border-color: rgba(255, 152, 0, 0.3);
+        }
+        
+        .burst {
+            color: var(--danger);
+            border-color: rgba(244, 67, 54, 0.3);
+            animation: pulse 1s infinite;
+        }
+        
+        .testing {
+            color: var(--warning);
+            border-color: rgba(255, 152, 0, 0.3);
+            animation: pulse 1s infinite;
+        }
+        
+        .camera-controls {
+            position: absolute;
+            bottom: 15px;
+            right: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            z-index: 100;
+        }
+        
+        .camera-btn {
+            width: 40px;
+            height: 40px;
+            background: rgba(0, 0, 0, 0.7);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            transition: all 0.3s ease;
+            color: var(--light-text);
+        }
+        
+        .camera-btn:hover {
+            background: rgba(79, 195, 247, 0.3);
+            transform: scale(1.1);
+        }
+        
+        /* Calculation Display */
+        .calculation-display {
+            margin-top: 20px;
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .calculation-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+        }
+        
+        .calculation-row.total {
+            border-top: 1px solid rgba(255, 255, 255, 0.2);
+            padding-top: 8px;
+            font-weight: bold;
+            font-size: 1rem;
+            color: var(--primary);
+        }
+        
+        /* Assembly Steps */
+        .assembly-steps {
+            margin-top: 20px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            padding: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        
+        .step {
+            display: flex;
+            align-items: center;
+            margin-bottom: 12px;
+            padding: 10px;
+            border-radius: 8px;
+            background: rgba(0, 0, 0, 0.2);
+            transition: all 0.3s ease;
+        }
+        
+        .step.active {
+            background: rgba(79, 195, 247, 0.2);
+            border: 1px solid rgba(79, 195, 247, 0.4);
+        }
+        
+        .step.completed {
+            background: rgba(76, 175, 80, 0.2);
+            border: 1px solid rgba(76, 175, 80, 0.4);
+        }
+        
+        .step-number {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 12px;
+            font-weight: bold;
+            font-size: 0.9rem;
+        }
+        
+        .step.active .step-number {
+            background: var(--primary);
+            color: white;
+        }
+        
+        .step.completed .step-number {
+            background: var(--success);
+            color: white;
+        }
+        
+        /* Animations */
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.6; }
+            100% { opacity: 1; }
+        }
+        
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+            20%, 40%, 60%, 80% { transform: translateX(5px); }
+        }
+        
+        .shake {
+            animation: shake 0.5s;
+        }
+        
+        @keyframes flash {
+            0%, 50%, 100% { opacity: 1; }
+            25%, 75% { opacity: 0.5; }
+        }
+        
+        .flash {
+            animation: flash 0.5s 3;
+        }
+        
+        /* Mobile Responsive Styles */
+        @media (max-width: 768px) {
+            .header {
+                padding: 10px 15px;
+            }
+            
+            .header h1 {
+                font-size: 1.2rem;
+            }
+            
+            .header-controls {
+                display: none;
+            }
+            
+            .mobile-menu-btn {
+                display: block;
+            }
+            
+            .viewer-container {
+                height: 50vh;
+                min-height: 350px;
+                margin-top: 50px;
+            }
+            
+            .content {
+                flex-direction: column;
+                padding: 15px;
+                gap: 15px;
+            }
+            
+            .controls {
+                min-width: 100%;
+                max-height: none;
+            }
+            
+            .option-group {
+                grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            }
+            
+            .option {
+                padding: 8px 10px;
+                font-size: 0.85rem;
+            }
+            
+            .slider-container {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 8px;
+            }
+            
+            .slider-container span {
+                min-width: 100%;
+            }
+            
+            input[type="range"] {
+                width: 100%;
+            }
+            
+            .pressure-gauge {
+                height: 150px;
+            }
+            
+            .action-buttons {
+                grid-template-columns: 1fr;
+            }
+            
+            .action-btn.reset {
+                grid-column: span 1;
+            }
+            
+            .camera-btn {
+                width: 36px;
+                height: 36px;
+            }
+            
+            .status {
+                top: 10px;
+                left: 10px;
+                padding: 8px 12px;
+                font-size: 0.9rem;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .header h1 {
+                font-size: 1.1rem;
+            }
+            
+            .viewer-container {
+                height: 40vh;
+                min-height: 300px;
+            }
+            
+            h2 {
+                font-size: 1.2rem;
+            }
+            
+            .option-group {
+                grid-template-columns: repeat(auto-fill, minmax(85px, 1fr));
+            }
+            
+            .pressure-gauge {
+                height: 120px;
+            }
+            
+            .pressure-value {
+                font-size: 1.5rem;
+                padding: 6px 12px;
+            }
+        }
+        
+        /* Tooltip Styles */
+        .tooltip {
+            position: relative;
+            display: inline-block;
+        }
+        
+        .tooltip .tooltiptext {
+            visibility: hidden;
+            width: 180px;
+            background-color: rgba(0, 0, 0, 0.8);
+            color: #fff;
+            text-align: center;
+            border-radius: 6px;
+            padding: 8px;
+            position: absolute;
+            z-index: 1;
+            bottom: 125%;
+            left: 50%;
+            transform: translateX(-50%);
+            opacity: 0;
+            transition: opacity 0.3s;
+            font-size: 0.8rem;
+            line-height: 1.4;
+        }
+        
+        .tooltip:hover .tooltiptext {
+            visibility: visible;
+            opacity: 1;
+        }
+        
+        /* Burst Particles */
+        .burst-particles {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 50;
+        }
+        
+        .particle {
+            position: absolute;
+            width: 6px;
+            height: 6px;
+            background: #ff5722;
+            border-radius: 50%;
+            box-shadow: 0 0 8px #ff5722;
+        }
+        
+        /* Light Control Styles */
+        .light-controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        
+        .light-direction {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .direction-btn {
+            padding: 8px 12px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 6px;
+            color: var(--light-text);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: center;
+        }
+        
+        .direction-btn:hover {
+            background: rgba(79, 195, 247, 0.2);
+        }
+        
+        .direction-btn.active {
+            background: rgba(79, 195, 247, 0.4);
+            border-color: var(--primary);
+        }
+        
+        .color-picker {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .color-preview {
+            width: 30px;
+            height: 30px;
+            border-radius: 6px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+        }
+        
+        /* Background Options */
+        .bg-options {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+            gap: 10px;
+        }
+        
+        .bg-option {
+            padding: 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            text-align: center;
+            font-size: 0.8rem;
+            border: 2px solid transparent;
+        }
+        
+        .bg-option.selected {
+            border-color: var(--primary);
+        }
+        
+        /* Mobile Sidebar */
+        .mobile-sidebar {
+            position: fixed;
+            top: 0;
+            right: -100%;
+            width: 85%;
+            height: 100%;
+            background: var(--darker-bg);
+            z-index: 2000;
+            transition: right 0.3s ease;
+            overflow-y: auto;
+            padding: 20px;
+            box-shadow: -5px 0 15px rgba(0, 0, 0, 0.5);
+        }
+        
+        .mobile-sidebar.active {
+            right: 0;
+        }
+        
+        .sidebar-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .close-sidebar {
+            background: none;
+            border: none;
+            color: var(--light-text);
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+        
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 1500;
+            display: none;
+        }
+        
+        .overlay.active {
+            display: block;
+        }
+    </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <h1>Rupture Disk Simulation</h1>
+            <div class="header-controls">
+                <button class="header-btn" id="toggle-grid">
+                    <i class="fas fa-th"></i> Grid
+                </button>
+                <button class="header-btn" id="toggle-help">
+                    <i class="fas fa-question-circle"></i> Help
+                </button>
+                <button class="header-btn" id="fullscreen-btn">
+                    <i class="fas fa-expand"></i> Fullscreen
+                </button>
+            </div>
+            <button class="mobile-menu-btn" id="mobile-menu-btn">
+                <i class="fas fa-bars"></i>
+            </button>
+        </header>
+        
+        <!-- 3D Viewer -->
+        <div class="viewer-container">
+            <div id="viewer"></div>
+            <div class="status disassembled" id="status">Step 1: Place Disk in Holder</div>
+            
+            <div class="camera-controls">
+                <div class="camera-btn" id="reset-camera" title="Reset Camera">
+                    <i class="fas fa-crosshairs"></i>
+                </div>
+                <div class="camera-btn" id="zoom-in" title="Zoom In">
+                    <i class="fas fa-search-plus"></i>
+                </div>
+                <div class="camera-btn" id="zoom-out" title="Zoom Out">
+                    <i class="fas fa-search-minus"></i>
+                </div>
+                <div class="camera-btn" id="top-view" title="Top View">
+                    <i class="fas fa-arrow-down"></i>
+                </div>
+                <div class="camera-btn" id="front-view" title="Front View">
+                    <i class="fas fa-arrow-up"></i>
+                </div>
+                <div class="camera-btn" id="side-view" title="Side View">
+                    <i class="fas fa-arrow-right"></i>
+                </div>
+            </div>
+            
+            <div class="burst-particles" id="burst-particles"></div>
+        </div>
+        
+        <!-- Content -->
+        <div class="content">
+            <!-- Main Controls Panel -->
+            <div class="controls">
+                <!-- Disk Configuration Section -->
+                <div class="control-section">
+                    <div class="section-header">
+                        <h2><i class="fas fa-cog"></i> Disk Configuration</h2>
+                        <button class="collapse-btn">‹</button>
+                    </div>
+                    <div class="section-content">
+                        <div class="control-group">
+                            <h3>Disk Type</h3>
+                            <div class="option-group">
+                                <div class="option selected" data-type="reverse">
+                                    <div class="tooltip">Reverse
+                                        <span class="tooltiptext">Reverse buckling disk - bulges away from pressure source before rupture</span>
+                                    </div>
+                                </div>
+                                <div class="option" data-type="forward">
+                                    <div class="tooltip">Forward
+                                        <span class="tooltiptext">Forward acting disk - bulges toward pressure source before rupture</span>
+                                    </div>
+                                </div>
+                                <div class="option" data-type="flat">
+                                    <div class="tooltip">Flat
+                                        <span class="tooltiptext">Flat disk with scored lines for controlled rupture</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="parameter-control">
+                                <div class="slider-container">
+                                    <span>Disk Thickness (mm):</span>
+                                    <input type="range" id="thickness-slider" min="0.1" max="2" step="0.1" value="1.0">
+                                    <span class="slider-value" id="thickness-value">1.0 mm</span>
+                                </div>
+                                
+                                <div class="slider-container">
+                                    <span>Dom Height (mm):</span>
+                                    <input type="range" id="domheight-slider" min="0" max="20" step="1" value="5">
+                                    <span class="slider-value" id="domheight-value">5 mm</span>
+                                </div>
+                                
+                                <div class="slider-container">
+                                    <span>Pattern Coefficient:</span>
+                                    <input type="range" id="pattern-slider" min="0.01" max="1" step="0.01" value="0.5">
+                                    <span class="slider-value" id="pattern-value">0.50</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="control-group">
+                            <h3>Size (inches)</h3>
+                            <div class="option-group">
+                                <div class="option" data-size="1">1"</div>
+                                <div class="option selected" data-size="2">2"</div>
+                                <div class="option" data-size="3">3"</div>
+                                <div class="option" data-size="4">4"</div>
+                                <div class="option" data-size="6">6"</div>
+                                <div class="option" data-size="8">8"</div>
+                            </div>
+                        </div>
+                        
+                        <div class="control-group">
+                            <h3>Material</h3>
+                            <div class="option-group">
+                                <div class="option" data-material="ss316">SS316</div>
+                                <div class="option" data-material="ss304">SS304</div>
+                                <div class="option" data-material="inconel">Inconel</div>
+                                <div class="option" data-material="monel">Monel</div>
+                                <div class="option selected" data-material="hastelloy">Hastelloy</div>
+                                <div class="option" data-material="graphite">Graphite</div>
+                                <div class="option" data-material="tantalum">Tantalum</div>
+                                <div class="option" data-material="aluminum">Aluminum</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Assembly Section -->
+                <div class="control-section">
+                    <div class="section-header">
+                        <h2><i class="fas fa-tools"></i> Assembly</h2>
+                        <button class="collapse-btn">‹</button>
+                    </div>
+                    <div class="section-content">
+                        <div class="assembly-steps">
+                            <div class="step completed" id="step1">
+                                <div class="step-number">1</div>
+                                <div class="step-text">Place Disk in Holder</div>
+                            </div>
+                            <div class="step active" id="step2">
+                                <div class="step-number">2</div>
+                                <div class="step-text">Position Top Holder</div>
+                            </div>
+                            <div class="step" id="step3">
+                                <div class="step-number">3</div>
+                                <div class="step-text">Tighten Bolts</div>
+                            </div>
+                            <div class="step" id="step4">
+                                <div class="step-number">4</div>
+                                <div class="step-text">Ready for Testing</div>
+                            </div>
+                        </div>
+                        
+                        <div class="action-buttons">
+                            <button class="action-btn" id="next-step-btn">
+                                <i class="fas fa-forward"></i> Next Step
+                            </button>
+                            <button class="action-btn reset" id="reset-assembly-btn">
+                                <i class="fas fa-undo"></i> Reset Assembly
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Testing Section -->
+                <div class="control-section">
+                    <div class="section-header">
+                        <h2><i class="fas fa-flask"></i> Testing</h2>
+                        <button class="collapse-btn">‹</button>
+                    </div>
+                    <div class="section-content">
+                        <div class="calculation-display">
+                            <h3>Burst Pressure Calculation</h3>
+                            <div class="calculation-row">
+                                <span>Material Coefficient:</span>
+                                <span id="material-coeff">1.30</span>
+                            </div>
+                            <div class="calculation-row">
+                                <span>Disk Thickness:</span>
+                                <span id="thickness-display">1.0 mm</span>
+                            </div>
+                            <div class="calculation-row">
+                                <span>Type Coefficient:</span>
+                                <span id="type-coeff">4.10</span>
+                            </div>
+                            <div class="calculation-row">
+                                <span>Shape Coefficient:</span>
+                                <span id="shape-coeff">1.25</span>
+                            </div>
+                            <div class="calculation-row">
+                                <span>Pattern Coefficient:</span>
+                                <span id="pattern-display">0.50</span>
+                            </div>
+                            <div class="calculation-row">
+                                <span>Size Factor:</span>
+                                <span id="size-factor">2.0 in</span>
+                            </div>
+                            <div class="calculation-row total">
+                                <span>Calculated Burst Pressure:</span>
+                                <span id="calculated-burst">66.6 PSI</span>
+                            </div>
+                        </div>
+                        
+                        <div class="pressure-control">
+                            <div class="slider-container">
+                                <span>Pressure Level:</span>
+                                <input type="range" id="pressure-slider" min="0" max="100" value="0">
+                                <span class="slider-value" id="pressure-value">0 PSI</span>
+                            </div>
+                            
+                            <div class="pressure-gauge-container">
+                                <div class="pressure-gauge">
+                                    <div class="gauge-background"></div>
+                                    <div class="gauge-fill" id="gauge-fill"></div>
+                                    <div class="gauge-marks">
+                                        <div class="gauge-mark"><span>0</span><span>PSI</span></div>
+                                        <div class="gauge-mark"><span>25</span><span>PSI</span></div>
+                                        <div class="gauge-mark"><span>50</span><span>PSI</span></div>
+                                        <div class="gauge-mark"><span>75</span><span>PSI</span></div>
+                                        <div class="gauge-mark"><span>100</span><span>PSI</span></div>
+                                    </div>
+                                    <div class="burst-indicator" id="burst-indicator"></div>
+                                    <div class="pressure-value" id="pressure-display">0 PSI</div>
+                                </div>
+                            </div>
+                            
+                            <div class="action-buttons">
+                                <button class="action-btn test" id="start-test-btn" disabled>
+                                    <i class="fas fa-play"></i> Start Test
+                                </button>
+                                <button class="action-btn burst" id="burst-btn" disabled>
+                                    <i class="fas fa-bomb"></i> Burst Disk
+                                </button>
+                                <button class="action-btn reset" id="reset-test-btn">
+                                    <i class="fas fa-redo"></i> Reset Test
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Advanced Controls Panel -->
+            <div class="controls">
+                <!-- Visualization Section -->
+                <div class="control-section">
+                    <div class="section-header">
+                        <h2><i class="fas fa-eye"></i> Visualization</h2>
+                        <button class="collapse-btn">‹</button>
+                    </div>
+                    <div class="section-content">
+                        <div class="control-group">
+                            <h3>Background</h3>
+                            <div class="bg-options">
+                                <div class="bg-option selected" style="background: #0a1520;" data-bg="#0a1520">Dark</div>
+                                <div class="bg-option" style="background: #1a1a2e;" data-bg="#1a1a2e">Navy</div>
+                                <div class="bg-option" style="background: #16213e;" data-bg="#16213e">Deep Blue</div>
+                                <div class="bg-option" style="background: #0f3460;" data-bg="#0f3460">Blue</div>
+                                <div class="bg-option" style="background: #1b1b2f;" data-bg="#1b1b2f">Purple</div>
+                                <div class="bg-option" style="background: #2c3e50;" data-bg="#2c3e50">Slate</div>
+                                <div class="bg-option" style="background: #34495e;" data-bg="#34495e">Gray</div>
+                                <div class="bg-option" style="background: #ffffff; color: #333;" data-bg="#ffffff">White</div>
+                            </div>
+                        </div>
+                        
+                        <div class="control-group">
+                            <h3>Grid & Helpers</h3>
+                            <div class="parameter-control">
+                                <div class="slider-container">
+                                    <span>Grid Size:</span>
+                                    <input type="range" id="grid-size-slider" min="10" max="100" step="10" value="50">
+                                    <span class="slider-value" id="grid-size-value">50</span>
+                                </div>
+                                
+                                <div class="slider-container">
+                                    <span>Grid Divisions:</span>
+                                    <input type="range" id="grid-divisions-slider" min="5" max="50" step="5" value="20">
+                                    <span class="slider-value" id="grid-divisions-value">20</span>
+                                </div>
+                            </div>
+                            
+                            <div class="option-group">
+                                <div class="option selected" id="toggle-grid-btn">
+                                    <i class="fas fa-th"></i> Show Grid
+                                </div>
+                                <div class="option" id="toggle-axes-btn">
+                                    <i class="fas fa-arrows-alt"></i> Show Axes
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Lighting Section -->
+                <div class="control-section">
+                    <div class="section-header">
+                        <h2><i class="fas fa-lightbulb"></i> Lighting</h2>
+                        <button class="collapse-btn">‹</button>
+                    </div>
+                    <div class="section-content">
+                        <div class="control-group">
+                            <h3>Ambient Light</h3>
+                            <div class="parameter-control">
+                                <div class="slider-container">
+                                    <span>Intensity:</span>
+                                    <input type="range" id="ambient-intensity-slider" min="0" max="100" value="50">
+                                    <span class="slider-value" id="ambient-intensity-value">50%</span>
+                                </div>
+                                
+                                <div class="color-picker">
+                                    <span>Color:</span>
+                                    <div class="color-preview" id="ambient-color-preview" style="background: #ffffff;"></div>
+                                    <input type="color" id="ambient-color-picker" value="#ffffff" style="opacity: 0; width: 0; height: 0;">
+                                    <button class="direction-btn" id="ambient-color-btn">Pick Color</button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="control-group">
+                            <h3>Directional Lights</h3>
+                            <div class="light-controls">
+                                <div class="light-direction">
+                                    <h4>Light 1</h4>
+                                    <div class="slider-container">
+                                        <span>Intensity:</span>
+                                        <input type="range" class="light-intensity" data-light="0" min="0" max="100" value="80">
+                                        <span class="slider-value">80%</span>
+                                    </div>
+                                    <div class="direction-buttons">
+                                        <button class="direction-btn active" data-light="0" data-direction="top">Top</button>
+                                        <button class="direction-btn" data-light="0" data-direction="front">Front</button>
+                                        <button class="direction-btn" data-light="0" data-direction="side">Side</button>
+                                    </div>
+                                </div>
+                                
+                                <div class="light-direction">
+                                    <h4>Light 2</h4>
+                                    <div class="slider-container">
+                                        <span>Intensity:</span>
+                                        <input type="range" class="light-intensity" data-light="1" min="0" max="100" value="30">
+                                        <span class="slider-value">30%</span>
+                                    </div>
+                                    <div class="direction-buttons">
+                                        <button class="direction-btn" data-light="1" data-direction="top">Top</button>
+                                        <button class="direction-btn active" data-light="1" data-direction="front">Front</button>
+                                        <button class="direction-btn" data-light="1" data-direction="side">Side</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="control-group">
+                            <h3>Special Effects</h3>
+                            <div class="parameter-control">
+                                <div class="slider-container">
+                                    <span>Bloom Intensity:</span>
+                                    <input type="range" id="bloom-slider" min="0" max="100" value="0">
+                                    <span class="slider-value" id="bloom-value">0%</span>
+                                </div>
+                                
+                                <div class="slider-container">
+                                    <span>Shadow Quality:</span>
+                                    <input type="range" id="shadow-quality-slider" min="512" max="2048" step="512" value="1024">
+                                    <span class="slider-value" id="shadow-quality-value">1024px</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Camera Section -->
+                <div class="control-section">
+                    <div class="section-header">
+                        <h2><i class="fas fa-camera"></i> Camera</h2>
+                        <button class="collapse-btn">‹</button>
+                    </div>
+                    <div class="section-content">
+                        <div class="control-group">
+                            <h3>Camera Controls</h3>
+                            <div class="parameter-control">
+                                <div class="slider-container">
+                                    <span>Zoom Level:</span>
+                                    <input type="range" id="zoom-slider" min="10" max="1000" value="120">
+                                    <span class="slider-value" id="zoom-value">120</span>
+                                </div>
+                                
+                                <div class="slider-container">
+                                    <span>Movement Speed:</span>
+                                    <input type="range" id="camera-speed-slider" min="1" max="10" value="5">
+                                    <span class="slider-value" id="camera-speed-value">Normal</span>
+                                </div>
+                            </div>
+                            
+                            <div class="option-group">
+                                <div class="option" id="auto-rotate-btn">
+                                    <i class="fas fa-sync"></i> Auto Rotate
+                                </div>
+                                <div class="option" id="invert-controls-btn">
+                                    <i class="fas fa-exchange-alt"></i> Invert Controls
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="control-group">
+                            <h3>Preset Views</h3>
+                            <div class="option-group">
+                                <div class="option" data-view="top">
+                                    <i class="fas fa-arrow-down"></i> Top
+                                </div>
+                                <div class="option" data-view="front">
+                                    <i class="fas fa-arrow-up"></i> Front
+                                </div>
+                                <div class="option" data-view="side">
+                                    <i class="fas fa-arrow-right"></i> Side
+                                </div>
+                                <div class="option" data-view="isometric">
+                                    <i class="fas fa-cube"></i> Isometric
+                                </div>
+                                <div class="option" data-view="exploded">
+                                    <i class="fas fa-expand-arrows-alt"></i> Exploded
+                                </div>
+                                <div class="option" data-view="closeup">
+                                    <i class="fas fa-search"></i> Close Up
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Mobile Sidebar -->
+    <div class="mobile-sidebar" id="mobile-sidebar">
+        <div class="sidebar-header">
+            <h2>Simulation Controls</h2>
+            <button class="close-sidebar" id="close-sidebar">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <!-- Mobile controls content would be duplicated here in a real implementation -->
+    </div>
+    
+    <!-- Overlay for mobile sidebar -->
+    <div class="overlay" id="overlay"></div>
+
+    <!-- Three.js Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.min.js"></script>
+    
+    <script>
+        // Enhanced 3D Rupture Disk Simulation with Advanced Customization
+        let scene, camera, renderer, controls;
+        let ruptureDisk, holderTop, holderBottom;
+        let bolts = [];
+        let diskType = 'reverse';
+        let currentStep = 1;
+        let isAssembled = false;
+        let isBurst = false;
+        let isTesting = false;
+        let burstPressure = 66.6;
+        let currentPressure = 0;
+        let ambientLight, directionalLights = [];
+        let burstParticles = [];
+        let testHistory = [];
+        let animationSpeed = 5;
+        let gridHelper, axesHelper;
+        let isGridVisible = true;
+        let isAxesVisible = false;
+        let autoRotate = false;
+        
+        // Material coefficients for burst pressure calculation
+        const materialCoefficients = {
+            'ss316': 1.0,
+            'ss304': 0.9,
+            'inconel': 1.2,
+            'monel': 1.1,
+            'hastelloy': 1.3,
+            'graphite': 0.7,
+            'tantalum': 1.4,
+            'aluminum': 0.5
+        };
+        
+        // Type coefficients
+        const typeCoefficients = {
+            'forward': 3.2,
+            'reverse': 4.1,
+            'flat': 1.2
+        };
+        
+        // Enhanced colors and textures for materials
+        const materialProperties = {
+            'ss316': { color: 0x8a8a8a, roughness: 0.4, metalness: 0.8 },
+            'ss304': { color: 0xa8a8a8, roughness: 0.3, metalness: 0.7 },
+            'inconel': { color: 0x4a4a4a, roughness: 0.5, metalness: 0.9 },
+            'monel': { color: 0x6a6a6a, roughness: 0.4, metalness: 0.8 },
+            'hastelloy': { color: 0x5a5a5a, roughness: 0.5, metalness: 0.85 },
+            'graphite': { color: 0x333333, roughness: 0.8, metalness: 0.1 },
+            'tantalum': { color: 0x7a7a7a, roughness: 0.6, metalness: 0.9 },
+            'aluminum': { color: 0xcccccc, roughness: 0.3, metalness: 0.6 }
+        };
+        
+        // Initialize the enhanced scene
+        function init() {
+            // Scene with customizable background
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0a1520);
+            
+            // Camera with unlimited zoom
+            const aspectRatio = document.getElementById('viewer').clientWidth / document.getElementById('viewer').clientHeight;
+            camera = new THREE.PerspectiveCamera(35, aspectRatio, 0.1, 10000); // Increased far plane for unlimited zoom
+            camera.position.set(80, 60, 120);
+            
+            // Enhanced renderer with antialiasing
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(document.getElementById('viewer').clientWidth, document.getElementById('viewer').clientHeight);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            document.getElementById('viewer').appendChild(renderer.domElement);
+            
+            // Enhanced controls with unlimited zoom
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.minDistance = 1; // Very close zoom
+            controls.maxDistance = 10000; // Very far zoom
+            controls.maxPolarAngle = Math.PI;
+            
+            // Setup lighting system
+            setupLighting();
+            
+            // Create helpers
+            createHelpers();
+            
+            // Create initial components
+            createComponents(2, 'hastelloy');
+            
+            // Handle window resize
+            window.addEventListener('resize', onWindowResize);
+            
+            // Start animation loop
+            animate();
+        }
+        
+        // Setup advanced lighting system
+        function setupLighting() {
+            // Ambient light
+            ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+            scene.add(ambientLight);
+            
+            // Directional lights
+            const light1 = new THREE.DirectionalLight(0xffffff, 0.8);
+            light1.position.set(60, 80, 60);
+            light1.castShadow = true;
+            light1.shadow.mapSize.width = 1024;
+            light1.shadow.mapSize.height = 1024;
+            scene.add(light1);
+            directionalLights.push(light1);
+            
+            const light2 = new THREE.DirectionalLight(0xffffff, 0.3);
+            light2.position.set(-50, 30, -50);
+            light2.castShadow = true;
+            scene.add(light2);
+            directionalLights.push(light2);
+            
+            // Additional point light for highlights
+            const pointLight = new THREE.PointLight(0x4fc3f7, 0.5, 100);
+            pointLight.position.set(0, 30, 0);
+            scene.add(pointLight);
+        }
+        
+        // Create grid and axes helpers
+        function createHelpers() {
+            // Grid helper
+            const gridSize = parseInt(document.getElementById('grid-size-slider').value);
+            const gridDivisions = parseInt(document.getElementById('grid-divisions-slider').value);
+            gridHelper = new THREE.GridHelper(gridSize, gridDivisions, 0x1a2a3a, 0x1a2a3a);
+            gridHelper.position.y = -40;
+            scene.add(gridHelper);
+            
+            // Axes helper
+            axesHelper = new THREE.AxesHelper(50);
+            axesHelper.visible = isAxesVisible;
+            scene.add(axesHelper);
+        }
+        
+        // Update lighting based on UI controls
+        function updateLighting() {
+            // Update ambient light
+            const ambientIntensity = parseInt(document.getElementById('ambient-intensity-slider').value) / 100;
+            ambientLight.intensity = ambientIntensity * 0.7;
+            
+            const ambientColor = document.getElementById('ambient-color-picker').value;
+            ambientLight.color = new THREE.Color(ambientColor);
+            document.getElementById('ambient-color-preview').style.background = ambientColor;
+            
+            // Update directional lights
+            document.querySelectorAll('.light-intensity').forEach(slider => {
+                const lightIndex = parseInt(slider.getAttribute('data-light'));
+                const intensity = parseInt(slider.value) / 100;
+                directionalLights[lightIndex].intensity = intensity;
+                
+                // Update slider value display
+                const valueSpan = slider.parentElement.querySelector('.slider-value');
+                valueSpan.textContent = Math.round(intensity * 100) + '%';
+            });
+        }
+        
+        // Update light direction
+        function updateLightDirection(lightIndex, direction) {
+            const light = directionalLights[lightIndex];
+            
+            switch(direction) {
+                case 'top':
+                    light.position.set(0, 100, 0);
+                    break;
+                case 'front':
+                    light.position.set(0, 0, 100);
+                    break;
+                case 'side':
+                    light.position.set(100, 0, 0);
+                    break;
+                case 'back':
+                    light.position.set(0, 0, -100);
+                    break;
+                case 'bottom':
+                    light.position.set(0, -100, 0);
+                    break;
+            }
+        }
+        
+        // Calculate burst pressure based on formula
+        function calculateBurstPressure(material, thickness, type, domHeight, pattern, size) {
+            const materialCoeff = materialCoefficients[material];
+            const typeCoeff = typeCoefficients[type];
+            
+            // Shape coefficient depends on dom height (0-20mm)
+            const shapeCoeff = 1 + (domHeight / 20) * 0.5; // 1.0 to 1.5
+            
+            // Apply formula: (material * thickness * type * shape * pattern) / size
+            const burstPressure = (materialCoeff * thickness * typeCoeff * shapeCoeff * pattern) / size;
+            
+            // Convert to reasonable PSI range (multiply by factor for realistic values)
+            return Math.round(burstPressure * 100 * 10) / 10;
+        }
+        
+        // Update burst pressure calculation display
+        function updateBurstCalculation() {
+            const material = document.querySelector('.option.selected[data-material]').getAttribute('data-material');
+            const thickness = parseFloat(document.getElementById('thickness-slider').value);
+            const type = diskType;
+            const domHeight = parseFloat(document.getElementById('domheight-slider').value);
+            const pattern = parseFloat(document.getElementById('pattern-slider').value);
+            const size = parseFloat(document.querySelector('.option.selected[data-size]').getAttribute('data-size'));
+            
+            // Update calculation display
+            document.getElementById('material-coeff').textContent = materialCoefficients[material].toFixed(2);
+            document.getElementById('thickness-display').textContent = thickness.toFixed(1) + ' mm';
+            document.getElementById('type-coeff').textContent = typeCoefficients[type].toFixed(2);
+            document.getElementById('shape-coeff').textContent = (1 + (domHeight / 20) * 0.5).toFixed(2);
+            document.getElementById('pattern-display').textContent = pattern.toFixed(2);
+            document.getElementById('size-factor').textContent = size.toFixed(1) + ' in';
+            
+            // Calculate and update burst pressure
+            burstPressure = calculateBurstPressure(material, thickness, type, domHeight, pattern, size);
+            document.getElementById('calculated-burst').textContent = burstPressure.toFixed(1) + ' PSI';
+            
+            // Update burst indicator position
+            const burstIndicator = document.getElementById('burst-indicator');
+            burstIndicator.style.bottom = Math.min(burstPressure, 100) + '%';
+        }
+        
+        // Create ring-shaped holders (proper OD, ID, thickness)
+        function createRingGeometry(outerRadius, innerRadius, height, segments = 32) {
+            const geometry = new THREE.CylinderGeometry(outerRadius, outerRadius, height, segments);
+            
+            // Create inner hole by creating a ring shape
+            if (innerRadius > 0) {
+                const innerGeometry = new THREE.CylinderGeometry(innerRadius, innerRadius, height + 2, segments);
+                
+                // Use CSG-like approach to create ring (simplified)
+                // In a real implementation, you would use ThreeCSG or similar library
+                // For this demo, we'll use a simplified approach
+                
+                // Create a group that will contain both cylinders
+                const group = new THREE.Group();
+                
+                // Outer cylinder
+                const outerMesh = new THREE.Mesh(geometry);
+                group.add(outerMesh);
+                
+                // We'll use material with transparency to simulate the hole
+                // In a production app, you'd use proper CSG operations
+            }
+            
+            return geometry;
+        }
+        
+        // Create rupture disk and holders with ring geometry
+        function createComponents(size, material) {
+            // Clear existing components
+            if (ruptureDisk) scene.remove(ruptureDisk);
+            if (holderTop) scene.remove(holderTop);
+            if (holderBottom) scene.remove(holderBottom);
+            bolts.forEach(bolt => scene.remove(bolt));
+            bolts = [];
+            
+            // Calculate dimensions based on formulas
+            const rpfod = size * 25 + 22 + size * 3; // Rupture disk flat outer diameter
+            const htod = rpfod + 10; // Holder top outer diameter
+            const htid = size * 25 + 2; // Holder top inner diameter
+            const htth = 10 + 5 * size; // Holder top thickness
+            const hbod = htod + 3; // Holder bottom outer diameter
+            const hbid = htid - 2; // Holder bottom inner diameter
+            const hbth = htth + 5; // Holder bottom thickness
+            
+            // Update dimension display
+            document.getElementById('rpfod-value').textContent = rpfod + ' mm';
+            document.getElementById('htod-value').textContent = htod + ' mm';
+            document.getElementById('htid-value').textContent = htid + ' mm';
+            document.getElementById('htth-value').textContent = htth + ' mm';
+            document.getElementById('hbod-value').textContent = hbod + ' mm';
+            document.getElementById('hbid-value').textContent = hbid + ' mm';
+            document.getElementById('hbth-value').textContent = hbth + ' mm';
+            
+            // Update burst calculation
+            updateBurstCalculation();
+            
+            // Create rupture disk with enhanced geometry based on type
+            let diskGeometry;
+            const diskSegments = 32;
+            
+            // Get dom height for shape
+            const domHeight = parseFloat(document.getElementById('domheight-slider').value);
+            
+            if (diskType === 'reverse') {
+                // Reverse buckling disk - concave shape
+                diskGeometry = new THREE.CylinderGeometry(rpfod/2, rpfod/2, 1, diskSegments);
+                // Create a concave deformation for reverse disk based on dom height
+                const positionAttribute = diskGeometry.getAttribute('position');
+                for (let i = 0; i < positionAttribute.count; i++) {
+                    const x = positionAttribute.getX(i);
+                    const y = positionAttribute.getY(i);
+                    const z = positionAttribute.getZ(i);
+                    
+                    // Create a concave shape for reverse disk
+                    if (y > 0) {
+                        const distance = Math.sqrt(x*x + z*z);
+                        const maxDistance = rpfod/2;
+                        const factor = 1 - (distance / maxDistance) * (domHeight / 20);
+                        positionAttribute.setY(i, y * factor);
+                    }
+                }
+                positionAttribute.needsUpdate = true;
+                diskGeometry.computeVertexNormals();
+            } else if (diskType === 'forward') {
+                // Forward acting disk - convex shape
+                diskGeometry = new THREE.CylinderGeometry(rpfod/2, rpfod/2, 1, diskSegments);
+                // Create a convex deformation for forward disk based on dom height
+                const positionAttribute = diskGeometry.getAttribute('position');
+                for (let i = 0; i < positionAttribute.count; i++) {
+                    const x = positionAttribute.getX(i);
+                    const y = positionAttribute.getY(i);
+                    const z = positionAttribute.getZ(i);
+                    
+                    // Create a convex shape for forward disk
+                    if (y > 0) {
+                        const distance = Math.sqrt(x*x + z*z);
+                        const maxDistance = rpfod/2;
+                        const factor = 1 + (distance / maxDistance) * (domHeight / 20);
+                        positionAttribute.setY(i, y * factor);
+                    }
+                }
+                positionAttribute.needsUpdate = true;
+                diskGeometry.computeVertexNormals();
+            } else {
+                // Flat disk
+                diskGeometry = new THREE.CylinderGeometry(rpfod/2, rpfod/2, 1, diskSegments);
+            }
+            
+            const diskMaterial = new THREE.MeshStandardMaterial({ 
+                color: materialProperties[material].color,
+                roughness: materialProperties[material].roughness,
+                metalness: materialProperties[material].metalness,
+                transparent: true,
+                opacity: 0.9
+            });
+            
+            ruptureDisk = new THREE.Mesh(diskGeometry, diskMaterial);
+            ruptureDisk.position.y = 0;
+            ruptureDisk.castShadow = true;
+            ruptureDisk.receiveShadow = true;
+            
+            // Create holder top as a ring (cylinder with hole)
+            const holderTopGeometry = createRingGeometry(htod/2, htid/2, htth, diskSegments);
+            const holderTopMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0x4a76a8,
+                roughness: 0.4,
+                metalness: 0.7
+            });
+            holderTop = new THREE.Mesh(holderTopGeometry, holderTopMaterial);
+            holderTop.position.y = 30; // Start above for assembly animation
+            holderTop.castShadow = true;
+            holderTop.receiveShadow = true;
+            
+            // Create holder bottom as a ring
+            const holderBottomGeometry = createRingGeometry(hbod/2, hbid/2, hbth, diskSegments);
+            const holderBottomMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0x4a76a8,
+                roughness: 0.4,
+                metalness: 0.7
+            });
+            holderBottom = new THREE.Mesh(holderBottomGeometry, holderBottomMaterial);
+            holderBottom.position.y = -hbth/2 - 0.5;
+            holderBottom.castShadow = true;
+            holderBottom.receiveShadow = true;
+            
+            // Create vertical bolts for assembly
+            createVerticalBolts(htod, htth, hbth);
+            
+            // Add components to scene
+            scene.add(ruptureDisk);
+            scene.add(holderTop);
+            scene.add(holderBottom);
+            bolts.forEach(bolt => scene.add(bolt));
+            
+            // Reset assembly state
+            currentStep = 1;
+            isAssembled = false;
+            isBurst = false;
+            isTesting = false;
+            currentPressure = 0;
+            updatePressureDisplay();
+            updateStatus();
+            updateAssemblySteps();
+        }
+        
+        // Create vertical bolts that move vertically
+        function createVerticalBolts(holderOD, topThickness, bottomThickness) {
+            const boltCount = 6;
+            const boltRadius = 3;
+            const boltLength = topThickness + bottomThickness + 15; // Longer bolts for vertical movement
+            const boltPosRadius = holderOD / 2 + 8;
+            
+            for (let i = 0; i < boltCount; i++) {
+                const angle = (i / boltCount) * Math.PI * 2;
+                const x = Math.cos(angle) * boltPosRadius;
+                const z = Math.sin(angle) * boltPosRadius;
+                
+                // Bolt geometry (vertical cylinder)
+                const boltGeometry = new THREE.CylinderGeometry(boltRadius, boltRadius, boltLength, 6);
+                const boltMaterial = new THREE.MeshStandardMaterial({ 
+                    color: 0x888888,
+                    roughness: 0.6,
+                    metalness: 0.8
+                });
+                
+                const bolt = new THREE.Mesh(boltGeometry, boltMaterial);
+                bolt.position.set(x, 20, z); // Start above the assembly
+                // Bolts are already vertical (default cylinder orientation)
+                
+                bolt.visible = false;
+                bolts.push(bolt);
+            }
+        }
+        
+        // Advance to the next assembly step
+        function nextStep() {
+            if (currentStep >= 4 || isBurst) return;
+            
+            currentStep++;
+            updateAssemblySteps();
+            
+            switch(currentStep) {
+                case 2:
+                    animateStep2();
+                    break;
+                case 3:
+                    animateStep3();
+                    break;
+                case 4:
+                    animateStep4();
+                    break;
+            }
+        }
+        
+        // Update the assembly steps UI
+        function updateAssemblySteps() {
+            // Reset all steps
+            for (let i = 1; i <= 4; i++) {
+                const step = document.getElementById(`step${i}`);
+                step.classList.remove('completed', 'active');
+            }
+            
+            // Set completed and active steps
+            for (let i = 1; i < currentStep; i++) {
+                document.getElementById(`step${i}`).classList.add('completed');
+            }
+            document.getElementById(`step${currentStep}`).classList.add('active');
+            
+            // Update buttons
+            document.getElementById('next-step-btn').disabled = currentStep >= 4;
+            document.getElementById('start-test-btn').disabled = currentStep < 4;
+            document.getElementById('burst-btn').disabled = currentStep < 4;
+        }
+        
+        // Animate step 2: Position top holder
+        function animateStep2() {
+            const startY = holderTop.position.y;
+            const targetY = 10.5;
+            const duration = 1200 / (animationSpeed / 5);
+            const startTime = Date.now();
+            
+            function update() {
+                const elapsed = Date.now() - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                
+                // Cubic easing out
+                const easeProgress = 1 - Math.pow(1 - progress, 3);
+                
+                holderTop.position.y = startY + (targetY - startY) * easeProgress;
+                
+                if (progress < 1) {
+                    requestAnimationFrame(update);
+                } else {
+                    updateStatus();
+                }
+            }
+            
+            update();
+        }
+        
+        // Animate step 3: Tighten bolts (vertical movement)
+        function animateStep3() {
+            // Make bolts visible
+            bolts.forEach(bolt => {
+                bolt.visible = true;
+            });
+            
+            // Animate bolts moving vertically into position
+            const duration = 1000 / (animationSpeed / 5);
+            const startTime = Date.now();
+            
+            function update() {
+                const elapsed = Date.now() - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                
+                // Cubic easing out
+                const easeProgress = 1 - Math.pow(1 - progress, 3);
+                
+                bolts.forEach(bolt => {
+                    // Move bolts vertically from starting position to final position
+                    bolt.position.y = 20 + (0 - 20) * easeProgress;
+                });
+                
+                if (progress < 1) {
+                    requestAnimationFrame(update);
+                } else {
+                    isAssembled = true;
+                    updateStatus();
+                }
+            }
+            
+            update();
+        }
+        
+        // Animate step 4: Ready for testing
+        function animateStep4() {
+            updateStatus();
+        }
+        
+        // Start pressure test
+        function startTest() {
+            if (!isAssembled || isBurst || isTesting) return;
+            
+            isTesting = true;
+            updateStatus();
+            
+            // Get test speed
+            const speedValue = parseInt(document.getElementById('speed-slider').value);
+            const testDuration = 4000 - (speedValue - 1) * 800;
+            
+            // Animate pressure increase to burst point
+            const startPressure = currentPressure;
+            const targetPressure = burstPressure;
+            const duration = testDuration;
+            const startTime = Date.now();
+            
+            function update() {
+                const elapsed = Date.now() - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                
+                currentPressure = Math.round(startPressure + (targetPressure - startPressure) * progress);
+                updatePressureDisplay();
+                
+                // Visual disk deformation based on pressure
+                if (!isBurst) {
+                    const deformationFactor = currentPressure / burstPressure;
+                    
+                    if (diskType === 'reverse') {
+                        // Reverse disk bulges away from pressure
+                        ruptureDisk.scale.y = Math.max(0.8, 1 - deformationFactor * 0.2);
+                        ruptureDisk.scale.x = 1 + deformationFactor * 0.1;
+                        ruptureDisk.scale.z = 1 + deformationFactor * 0.1;
+                    } else if (diskType === 'forward') {
+                        // Forward disk bulges toward pressure
+                        ruptureDisk.scale.y = Math.max(0.8, 1 + deformationFactor * 0.2);
+                        ruptureDisk.scale.x = 1 + deformationFactor * 0.1;
+                        ruptureDisk.scale.z = 1 + deformationFactor * 0.1;
+                    } else {
+                        // Flat disk shows minimal deformation until burst
+                        if (deformationFactor > 0.8) {
+                            ruptureDisk.scale.y = Math.max(0.7, 1 - (deformationFactor - 0.8) * 1.5);
+                        }
+                    }
+                }
+                
+                if (currentPressure >= burstPressure && !isBurst) {
+                    burstDisk();
+                }
+                
+                if (progress < 1 && !isBurst) {
+                    requestAnimationFrame(update);
+                }
+            }
+            
+            update();
+        }
+        
+        // Apply dramatic burst effect
+        function burstDisk() {
+            if (!isAssembled || isBurst) return;
+            
+            isBurst = true;
+            isTesting = false;
+            updateStatus();
+            
+            // Add to test history
+            const testResult = {
+                date: new Date().toLocaleString(),
+                type: diskType,
+                material: document.querySelector('.option.selected[data-material]').getAttribute('data-material'),
+                size: document.querySelector('.option.selected[data-size]').getAttribute('data-size'),
+                burstPressure: burstPressure,
+                success: true
+            };
+            testHistory.unshift(testResult);
+            updateTestHistory();
+            
+            // Visual effect for bursting - change color and add emissive glow
+            ruptureDisk.material.color.set(0xff3333);
+            ruptureDisk.material.emissive.set(0xff0000);
+            ruptureDisk.material.emissiveIntensity = 0.7;
+            
+            // Create burst particles
+            createBurstParticles();
+            
+            // Screen shake effect
+            document.querySelector('.viewer-container').classList.add('shake');
+            
+            // Flash effect
+            document.querySelector('.pressure-gauge').classList.add('flash');
+            
+            // Animate disk rupture with dramatic deformation
+            const startTime = Date.now();
+            const duration = 800 / (animationSpeed / 5);
+            
+            function update() {
+                const elapsed = Date.now() - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                
+                // Dramatic deformation and fragmentation effect
+                ruptureDisk.scale.y = Math.max(0.05, 1 - progress * 0.95);
+                ruptureDisk.scale.x = 1 + progress * 0.8;
+                ruptureDisk.scale.z = 1 + progress * 0.8;
+                ruptureDisk.rotation.y += 0.05;
+                
+                // Increase emissive intensity for burst effect
+                ruptureDisk.material.emissiveIntensity = 0.7 + progress * 1.0;
+                
+                // Animate bolts flying out vertically
+                bolts.forEach(bolt => {
+                    bolt.position.y += progress * 10; // Bolts fly upward
+                    bolt.rotation.x += 0.1;
+                });
+                
+                // Update particles
+                updateBurstParticles(progress);
+                
+                if (progress < 1) {
+                    requestAnimationFrame(update);
+                } else {
+                    // Remove shake effect after animation
+                    setTimeout(() => {
+                        document.querySelector('.viewer-container').classList.remove('shake');
+                    }, 500);
+                }
+            }
+            
+            update();
+        }
+        
+        // Update test history display
+        function updateTestHistory() {
+            const historyElement = document.getElementById('test-history');
+            
+            if (testHistory.length === 0) {
+                historyElement.innerHTML = '<p>No tests completed yet</p>';
+                return;
+            }
+            
+            let html = '';
+            testHistory.slice(0, 5).forEach(test => {
+                html += `
+                    <div class="calculation-row" style="margin-bottom: 10px; padding: 8px; background: rgba(0,0,0,0.2); border-radius: 5px;">
+                        <div>
+                            <div><strong>${test.type} ${test.material} ${test.size}"</strong></div>
+                            <div style="font-size: 0.8rem; color: #b0bec5;">${test.date}</div>
+                        </div>
+                        <div style="text-align: right;">
+                            <div style="color: #4fc3f7; font-weight: bold;">${test.burstPressure} PSI</div>
+                            <div style="font-size: 0.8rem; color: #4caf50;">Success</div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            historyElement.innerHTML = html;
+        }
+        
+        // Create burst particles for dramatic effect
+        function createBurstParticles() {
+            const particlesContainer = document.getElementById('burst-particles');
+            particlesContainer.innerHTML = '';
+            burstParticles = [];
+            
+            for (let i = 0; i < 20; i++) {
+                const particle = document.createElement('div');
+                particle.className = 'particle';
+                
+                // Random position around the disk
+                const angle = Math.random() * Math.PI * 2;
+                const distance = 20 + Math.random() * 50;
+                const x = 50 + Math.cos(angle) * distance;
+                const y = 50 + Math.sin(angle) * distance;
+                
+                particle.style.left = `${x}%`;
+                particle.style.top = `${y}%`;
+                
+                // Random size and color
+                const size = 4 + Math.random() * 8;
+                particle.style.width = `${size}px`;
+                particle.style.height = `${size}px`;
+                
+                const hue = 10 + Math.random() * 30;
+                particle.style.background = `hsl(${hue}, 100%, 50%)`;
+                particle.style.boxShadow = `0 0 10px hsl(${hue}, 100%, 50%)`;
+                
+                // Random velocity
+                const velocity = {
+                    x: (Math.random() - 0.5) * 10,
+                    y: (Math.random() - 0.5) * 10
+                };
+                
+                particlesContainer.appendChild(particle);
+                burstParticles.push({
+                    element: particle,
+                    x: x,
+                    y: y,
+                    velocity: velocity,
+                    life: 1.0
+                });
+            }
+        }
+        
+        // Update burst particles animation
+        function updateBurstParticles(progress) {
+            burstParticles.forEach(particle => {
+                particle.x += particle.velocity.x;
+                particle.y += particle.velocity.y;
+                particle.life -= 0.02;
+                
+                particle.element.style.left = `${particle.x}%`;
+                particle.element.style.top = `${particle.y}%`;
+                particle.element.style.opacity = particle.life;
+                
+                // Apply gravity
+                particle.velocity.y += 0.2;
+            });
+            
+            // Remove dead particles
+            burstParticles = burstParticles.filter(particle => particle.life > 0);
+        }
+        
+        // Reset the simulation to initial state
+        function resetSimulation() {
+            // Reset pressure
+            currentPressure = 0;
+            updatePressureDisplay();
+            
+            // Reset slider
+            document.getElementById('pressure-slider').value = 0;
+            
+            // Remove effects
+            document.querySelector('.viewer-container').classList.remove('shake');
+            document.querySelector('.pressure-gauge').classList.remove('flash');
+            
+            // Clear particles
+            document.getElementById('burst-particles').innerHTML = '';
+            burstParticles = [];
+            
+            // Reset disk
+            const size = document.querySelector('.option.selected[data-size]').getAttribute('data-size');
+            const material = document.querySelector('.option.selected[data-material]').getAttribute('data-material');
+            
+            createComponents(parseInt(size), material);
+        }
+        
+        // Reset only assembly
+        function resetAssembly() {
+            currentStep = 1;
+            isAssembled = false;
+            isBurst = false;
+            isTesting = false;
+            updateStatus();
+            updateAssemblySteps();
+            
+            // Reset component positions
+            holderTop.position.y = 30;
+            bolts.forEach(bolt => {
+                bolt.position.y = 20;
+                bolt.visible = false;
+            });
+            
+            // Reset disk
+            ruptureDisk.scale.set(1, 1, 1);
+            ruptureDisk.rotation.y = 0;
+            ruptureDisk.material.color.set(materialProperties[document.querySelector('.option.selected[data-material]').getAttribute('data-material')].color);
+            ruptureDisk.material.emissive.set(0x000000);
+            ruptureDisk.material.emissiveIntensity = 0;
+        }
+        
+        // Update pressure display with enhanced visual feedback
+        function updatePressureDisplay() {
+            document.getElementById('pressure-display').textContent = currentPressure + ' PSI';
+            document.getElementById('pressure-value').textContent = currentPressure + ' PSI';
+            document.getElementById('gauge-fill').style.height = currentPressure + '%';
+            
+            // Change gauge color based on pressure with smooth transitions
+            const gaugeFill = document.getElementById('gauge-fill');
+            if (currentPressure < burstPressure * 0.5) {
+                gaugeFill.style.background = 'linear-gradient(to top, var(--success), #66bb6a)';
+            } else if (currentPressure < burstPressure * 0.8) {
+                gaugeFill.style.background = 'linear-gradient(to top, #8bc34a, #cddc39)';
+            } else if (currentPressure < burstPressure) {
+                gaugeFill.style.background = 'linear-gradient(to top, var(--warning), #ffc107)';
+            } else {
+                gaugeFill.style.background = 'linear-gradient(to top, var(--danger), #ff5722)';
+            }
+        }
+        
+        // Update status display
+        function updateStatus() {
+            const statusElement = document.getElementById('status');
+            
+            if (isBurst) {
+                statusElement.textContent = 'DISK BURST!';
+                statusElement.className = 'status burst';
+            } else if (isTesting) {
+                statusElement.textContent = 'TEST IN PROGRESS...';
+                statusElement.className = 'status testing';
+            } else {
+                switch(currentStep) {
+                    case 1:
+                        statusElement.textContent = 'Step 1: Place Disk in Holder';
+                        statusElement.className = 'status disassembled';
+                        break;
+                    case 2:
+                        statusElement.textContent = 'Step 2: Positioning Top Holder';
+                        statusElement.className = 'status disassembled';
+                        break;
+                    case 3:
+                        statusElement.textContent = 'Step 3: Tightening Bolts';
+                        statusElement.className = 'status disassembled';
+                        break;
+                    case 4:
+                        statusElement.textContent = 'Step 4: Ready for Testing';
+                        statusElement.className = 'status assembled';
+                        break;
+                }
+            }
+        }
+        
+        // Handle window resize
+        function onWindowResize() {
+            const viewer = document.getElementById('viewer');
+            camera.aspect = viewer.clientWidth / viewer.clientHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(viewer.clientWidth, viewer.clientHeight);
+        }
+        
+        // Animation loop
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            // Auto rotate if enabled
+            if (autoRotate) {
+                controls.autoRotate = true;
+                controls.autoRotateSpeed = 1;
+            } else {
+                controls.autoRotate = false;
+            }
+            
+            controls.update();
+            renderer.render(scene, camera);
+        }
+        
+        // Set camera to specific view
+        function setCameraView(view) {
+            switch(view) {
+                case 'top':
+                    camera.position.set(0, 200, 0);
+                    controls.target.set(0, 0, 0);
+                    break;
+                case 'front':
+                    camera.position.set(0, 0, 200);
+                    controls.target.set(0, 0, 0);
+                    break;
+                case 'side':
+                    camera.position.set(200, 0, 0);
+                    controls.target.set(0, 0, 0);
+                    break;
+                case 'isometric':
+                    camera.position.set(100, 100, 100);
+                    controls.target.set(0, 0, 0);
+                    break;
+                case 'exploded':
+                    camera.position.set(0, 150, 250);
+                    controls.target.set(0, 50, 0);
+                    break;
+                case 'closeup':
+                    camera.position.set(0, 0, 50);
+                    controls.target.set(0, 0, 0);
+                    break;
+            }
+            controls.update();
+        }
+        
+        // Mobile sidebar functionality
+        function setupMobileSidebar() {
+            const menuBtn = document.getElementById('mobile-menu-btn');
+            const sidebar = document.getElementById('mobile-sidebar');
+            const closeBtn = document.getElementById('close-sidebar');
+            const overlay = document.getElementById('overlay');
+            
+            menuBtn.addEventListener('click', () => {
+                sidebar.classList.add('active');
+                overlay.classList.add('active');
+                document.body.style.overflow = 'hidden';
+            });
+            
+            closeBtn.addEventListener('click', closeSidebar);
+            overlay.addEventListener('click', closeSidebar);
+            
+            function closeSidebar() {
+                sidebar.classList.remove('active');
+                overlay.classList.remove('active');
+                document.body.style.overflow = '';
+            }
+        }
+        
+        // Section collapse functionality
+        function setupSectionCollapse() {
+            document.querySelectorAll('.section-header').forEach(header => {
+                header.addEventListener('click', () => {
+                    const section = header.parentElement;
+                    section.classList.toggle('collapsed');
+                });
+            });
+        }
+        
+        // Fullscreen functionality
+        function setupFullscreen() {
+            const fullscreenBtn = document.getElementById('fullscreen-btn');
+            const viewerContainer = document.querySelector('.viewer-container');
+            
+            fullscreenBtn.addEventListener('click', () => {
+                if (!document.fullscreenElement) {
+                    viewerContainer.requestFullscreen().catch(err => {
+                        console.error(`Error attempting to enable fullscreen: ${err.message}`);
+                    });
+                } else {
+                    document.exitFullscreen();
+                }
+            });
+        }
+        
+        // Event listeners for enhanced interactivity
+        document.addEventListener('DOMContentLoaded', () => {
+            // Initialize the simulation
+            init();
+            
+            // Setup mobile sidebar
+            setupMobileSidebar();
+            
+            // Setup section collapse
+            setupSectionCollapse();
+            
+            // Setup fullscreen
+            setupFullscreen();
+            
+            // Disk type selection
+            document.querySelectorAll('.option[data-type]').forEach(option => {
+                option.addEventListener('click', function() {
+                    document.querySelectorAll('.option[data-type]').forEach(opt => opt.classList.remove('selected'));
+                    this.classList.add('selected');
+                    diskType = this.getAttribute('data-type');
+                    
+                    const size = parseInt(document.querySelector('.option.selected[data-size]').getAttribute('data-size'));
+                    const material = document.querySelector('.option.selected[data-material]').getAttribute('data-material');
+                    createComponents(size, material);
+                });
+            });
+            
+            // Size selection
+            document.querySelectorAll('.option[data-size]').forEach(option => {
+                option.addEventListener('click', function() {
+                    document.querySelectorAll('.option[data-size]').forEach(opt => opt.classList.remove('selected'));
+                    this.classList.add('selected');
+                    
+                    const size = parseInt(this.getAttribute('data-size'));
+                    const material = document.querySelector('.option.selected[data-material]').getAttribute('data-material');
+                    createComponents(size, material);
+                });
+            });
+            
+            // Material selection
+            document.querySelectorAll('.option[data-material]').forEach(option => {
+                option.addEventListener('click', function() {
+                    document.querySelectorAll('.option[data-material]').forEach(opt => opt.classList.remove('selected'));
+                    this.classList.add('selected');
+                    
+                    const size = parseInt(document.querySelector('.option.selected[data-size]').getAttribute('data-size'));
+                    const material = this.getAttribute('data-material');
+                    createComponents(size, material);
+                });
+            });
+            
+            // Parameter sliders
+            document.getElementById('thickness-slider').addEventListener('input', function() {
+                document.getElementById('thickness-value').textContent = this.value + ' mm';
+                updateBurstCalculation();
+                const size = parseInt(document.querySelector('.option.selected[data-size]').getAttribute('data-size'));
+                const material = document.querySelector('.option.selected[data-material]').getAttribute('data-material');
+                createComponents(size, material);
+            });
+            
+            document.getElementById('domheight-slider').addEventListener('input', function() {
+                document.getElementById('domheight-value').textContent = this.value + ' mm';
+                updateBurstCalculation();
+                const size = parseInt(document.querySelector('.option.selected[data-size]').getAttribute('data-size'));
+                const material = document.querySelector('.option.selected[data-material]').getAttribute('data-material');
+                createComponents(size, material);
+            });
+            
+            document.getElementById('pattern-slider').addEventListener('input', function() {
+                document.getElementById('pattern-value').textContent = parseFloat(this.value).toFixed(2);
+                updateBurstCalculation();
+                const size = parseInt(document.querySelector('.option.selected[data-size]').getAttribute('data-size'));
+                const material = document.querySelector('.option.selected[data-material]').getAttribute('data-material');
+                createComponents(size, material);
+            });
+            
+            // Pressure slider
+            document.getElementById('pressure-slider').addEventListener('input', function() {
+                currentPressure = parseInt(this.value);
+                updatePressureDisplay();
+            });
+            
+            // Lighting controls
+            document.getElementById('ambient-intensity-slider').addEventListener('input', function() {
+                document.getElementById('ambient-intensity-value').textContent = this.value + '%';
+                updateLighting();
+            });
+            
+            document.getElementById('ambient-color-btn').addEventListener('click', function() {
+                document.getElementById('ambient-color-picker').click();
+            });
+            
+            document.getElementById('ambient-color-picker').addEventListener('input', function() {
+                updateLighting();
+            });
+            
+            // Light direction buttons
+            document.querySelectorAll('.direction-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const lightIndex = parseInt(this.getAttribute('data-light'));
+                    const direction = this.getAttribute('data-direction');
+                    
+                    // Update active state
+                    this.parentElement.querySelectorAll('.direction-btn').forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                    
+                    updateLightDirection(lightIndex, direction);
+                });
+            });
+            
+            // Light intensity sliders
+            document.querySelectorAll('.light-intensity').forEach(slider => {
+                slider.addEventListener('input', function() {
+                    updateLighting();
+                });
+            });
+            
+            // Background color options
+            document.querySelectorAll('.bg-option').forEach(option => {
+                option.addEventListener('click', function() {
+                    document.querySelectorAll('.bg-option').forEach(opt => opt.classList.remove('selected'));
+                    this.classList.add('selected');
+                    
+                    const bgColor = this.getAttribute('data-bg');
+                    scene.background = new THREE.Color(bgColor);
+                });
+            });
+            
+            // Grid controls
+            document.getElementById('grid-size-slider').addEventListener('input', function() {
+                document.getElementById('grid-size-value').textContent = this.value;
+                // Update grid in real implementation
+            });
+            
+            document.getElementById('grid-divisions-slider').addEventListener('input', function() {
+                document.getElementById('grid-divisions-value').textContent = this.value;
+                // Update grid in real implementation
+            });
+            
+            document.getElementById('toggle-grid-btn').addEventListener('click', function() {
+                isGridVisible = !isGridVisible;
+                gridHelper.visible = isGridVisible;
+                this.classList.toggle('selected');
+            });
+            
+            document.getElementById('toggle-axes-btn').addEventListener('click', function() {
+                isAxesVisible = !isAxesVisible;
+                axesHelper.visible = isAxesVisible;
+                this.classList.toggle('selected');
+            });
+            
+            // Camera controls
+            document.getElementById('zoom-slider').addEventListener('input', function() {
+                document.getElementById('zoom-value').textContent = this.value;
+                // In a real implementation, you would adjust camera position based on zoom
+            });
+            
+            document.getElementById('auto-rotate-btn').addEventListener('click', function() {
+                autoRotate = !autoRotate;
+                this.classList.toggle('selected');
+            });
+            
+            // Preset views
+            document.querySelectorAll('.option[data-view]').forEach(option => {
+                option.addEventListener('click', function() {
+                    const view = this.getAttribute('data-view');
+                    setCameraView(view);
+                });
+            });
+            
+            // Camera control buttons
+            document.getElementById('reset-camera').addEventListener('click', function() {
+                controls.reset();
+                camera.position.set(80, 60, 120);
+            });
+            
+            document.getElementById('zoom-in').addEventListener('click', function() {
+                camera.position.multiplyScalar(0.8);
+                controls.update();
+            });
+            
+            document.getElementById('zoom-out').addEventListener('click', function() {
+                camera.position.multiplyScalar(1.25);
+                controls.update();
+            });
+            
+            document.getElementById('top-view').addEventListener('click', function() {
+                setCameraView('top');
+            });
+            
+            document.getElementById('front-view').addEventListener('click', function() {
+                setCameraView('front');
+            });
+            
+            document.getElementById('side-view').addEventListener('click', function() {
+                setCameraView('side');
+            });
+            
+            // Button events
+            document.getElementById('next-step-btn').addEventListener('click', nextStep);
+            document.getElementById('start-test-btn').addEventListener('click', startTest);
+            document.getElementById('burst-btn').addEventListener('click', burstDisk);
+            document.getElementById('reset-test-btn').addEventListener('click', resetSimulation);
+            document.getElementById('reset-assembly-btn').addEventListener('click', resetAssembly);
+        });
+    </script>
+</body>
+</html>

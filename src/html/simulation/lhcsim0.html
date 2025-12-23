@@ -1,0 +1,1252 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>شبیه‌سازی پیشرفته LHC - ATLAS و CMS</title>
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Tahoma', 'Segoe UI', sans-serif;
+        }
+        
+        :root {
+            --atlas-color: #dc2626;
+            --cms-color: #06b6d4;
+            --proton-color: #3b82f6;
+            --antiproton-color: #ef4444;
+            --electron-color: #10b981;
+            --positron-color: #ec4899;
+            --photon-color: #fbbf24;
+            --muon-color: #8b5cf6;
+            --pion-color: #f59e0b;
+            --kaon-color: #84cc16;
+            --neutron-color: #6b7280;
+            --higgs-color: #dc2626;
+            --jet-color: #ec4899;
+            --beam-color: #fbbf24;
+            --collision-color: #dc2626;
+            --vacuum-color: #0f172a;
+            --magnet-color: #374151;
+            --text: #e2e8f0;
+            --highlight: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #0f172a, #1e1b4b);
+            color: var(--text);
+            line-height: 1.8;
+            min-height: 100vh;
+            padding: 20px;
+            overflow-x: hidden;
+        }
+        
+        .container {
+            max-width: 2400px;
+            margin: 0 auto;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding: 30px;
+            background: rgba(30, 41, 59, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(100, 116, 139, 0.4);
+            position: relative;
+            overflow: hidden;
+            backdrop-filter: blur(15px);
+        }
+        
+        header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 6px;
+            background: linear-gradient(90deg, 
+                var(--atlas-color), var(--cms-color), var(--beam-color),
+                var(--proton-color), var(--collision-color));
+            animation: acceleratorFlow 4s linear infinite;
+        }
+        
+        @keyframes acceleratorFlow {
+            0% { background-position: -300% 0; }
+            100% { background-position: 300% 0; }
+        }
+        
+        h1 {
+            font-size: 3.2rem;
+            margin-bottom: 15px;
+            background: linear-gradient(135deg, 
+                var(--atlas-color), var(--cms-color), var(--beam-color));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            text-shadow: 0 6px 25px rgba(0, 0, 0, 0.5);
+            animation: titleGlow 8s ease-in-out infinite;
+        }
+        
+        @keyframes titleGlow {
+            0%, 100% { filter: drop-shadow(0 0 20px rgba(220, 38, 38, 0.4)); }
+            33% { filter: drop-shadow(0 0 25px rgba(6, 182, 212, 0.5)); }
+            66% { filter: drop-shadow(0 0 20px rgba(251, 191, 36, 0.4)); }
+        }
+
+        .accelerator-complex {
+            display: grid;
+            grid-template-columns: 1fr 450px;
+            gap: 30px;
+            margin-bottom: 40px;
+            min-height: 900px;
+        }
+        
+        @media (max-width: 1600px) {
+            .accelerator-complex {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .detectors-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+        
+        .detector-panel {
+            background: rgba(30, 41, 59, 0.9);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+            border: 2px solid;
+            position: relative;
+            overflow: hidden;
+            backdrop-filter: blur(10px);
+        }
+        
+        .atlas-panel {
+            border-color: var(--atlas-color);
+        }
+        
+        .cms-panel {
+            border-color: var(--cms-color);
+        }
+        
+        .detector-panel::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: inherit;
+            border-color: inherit;
+        }
+        
+        .atlas-panel::before {
+            background: var(--atlas-color);
+        }
+        
+        .cms-panel::before {
+            background: var(--cms-color);
+        }
+
+        .detector-visualization {
+            position: relative;
+            width: 100%;
+            height: 400px;
+            background: 
+                radial-gradient(circle at 50% 50%, rgba(15, 23, 42, 0.95) 0%, var(--vacuum-color) 100%),
+                repeating-radial-gradient(circle at 50% 50%, 
+                    transparent 0%, 
+                    rgba(139, 92, 246, 0.03) 1px,
+                    transparent 2px);
+            border-radius: 15px;
+            border: 2px solid rgba(100, 116, 139, 0.6);
+            overflow: hidden;
+            margin-bottom: 25px;
+        }
+
+        .detector-3d {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            perspective: 1000px;
+        }
+
+        .detector-structure {
+            position: relative;
+            width: 280px;
+            height: 280px;
+            transform-style: preserve-3d;
+            animation: detectorRotate 40s linear infinite;
+        }
+
+        @keyframes detectorRotate {
+            from { transform: rotateY(0deg) rotateX(10deg); }
+            to { transform: rotateY(360deg) rotateX(10deg); }
+        }
+
+        .detector-layer {
+            position: absolute;
+            border-radius: 50%;
+            border: 3px solid;
+            transform-style: preserve-3d;
+            box-shadow: 0 0 30px currentColor;
+        }
+
+        .atlas .detector-layer {
+            border-color: var(--atlas-color);
+        }
+
+        .cms .detector-layer {
+            border-color: var(--cms-color);
+        }
+
+        .pixel-layer {
+            width: 80px;
+            height: 80px;
+            transform: translateZ(20px);
+            animation: layerPulse 3s ease-in-out infinite;
+        }
+
+        .tracker-layer {
+            width: 140px;
+            height: 140px;
+            transform: translateZ(40px);
+            animation: layerPulse 4s ease-in-out infinite 0.5s;
+        }
+
+        .calorimeter-layer {
+            width: 200px;
+            height: 200px;
+            transform: translateZ(60px);
+            animation: layerPulse 5s ease-in-out infinite 1s;
+        }
+
+        .muon-layer {
+            width: 260px;
+            height: 260px;
+            transform: translateZ(80px);
+            animation: layerPulse 6s ease-in-out infinite 1.5s;
+        }
+
+        @keyframes layerPulse {
+            0%, 100% { opacity: 0.7; box-shadow: 0 0 20px currentColor; }
+            50% { opacity: 1; box-shadow: 0 0 40px currentColor; }
+        }
+
+        .beam-line {
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, 
+                transparent 0%,
+                var(--beam-color) 20%,
+                var(--beam-color) 80%,
+                transparent 100%);
+            transform: translateY(-50%);
+            box-shadow: 0 0 20px var(--beam-color);
+        }
+
+        .collision-event {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 25px;
+            height: 25px;
+            background: radial-gradient(circle, var(--collision-color), transparent);
+            border-radius: 50%;
+            box-shadow: 0 0 40px var(--collision-color);
+            animation: collisionExplosion 1.5s ease-out infinite;
+            z-index: 20;
+        }
+
+        @keyframes collisionExplosion {
+            0% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+            100% { transform: translate(-50%, -50%) scale(4); opacity: 0; }
+        }
+
+        .particle-emission {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            box-shadow: 0 0 15px currentColor;
+            animation: particleEmit 2s ease-out forwards;
+            z-index: 15;
+        }
+
+        @keyframes particleEmit {
+            0% { 
+                transform: translate(-50%, -50%) scale(1);
+                opacity: 1;
+            }
+            100% { 
+                transform: translate(calc(-50% + var(--tx)), calc(-50% + var(--ty))) scale(0.3);
+                opacity: 0;
+            }
+        }
+
+        .particle-track {
+            position: absolute;
+            height: 2px;
+            background: linear-gradient(90deg, 
+                var(--collision-color), 
+                currentColor,
+                transparent);
+            transform-origin: 0 0;
+            z-index: 10;
+            pointer-events: none;
+            animation: trackFade 3s ease-out forwards;
+        }
+
+        @keyframes trackFade {
+            0% { opacity: 1; }
+            100% { opacity: 0; }
+        }
+
+        .control-advanced {
+            background: rgba(30, 41, 59, 0.9);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+            border: 2px solid rgba(100, 116, 139, 0.6);
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+            backdrop-filter: blur(10px);
+        }
+
+        .accelerator-controls, .detector-controls, .physics-controls {
+            background: rgba(15, 23, 42, 0.7);
+            border-radius: 15px;
+            padding: 25px;
+            border-left: 5px solid var(--proton-color);
+        }
+
+        .control-section-title {
+            font-size: 1.4rem;
+            margin-bottom: 20px;
+            color: var(--proton-color);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        .control-section-title::before {
+            content: '⚙️';
+            font-size: 1.3rem;
+        }
+
+        .control-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .control-group {
+            margin-bottom: 20px;
+        }
+
+        .control-label {
+            display: flex;
+            justify-content: between;
+            align-items: center;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        .control-value {
+            font-family: 'Courier New', monospace;
+            background: rgba(30, 41, 59, 0.8);
+            padding: 4px 12px;
+            border-radius: 6px;
+            border: 1px solid rgba(100, 116, 139, 0.4);
+            min-width: 80px;
+            text-align: center;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            height: 10px;
+            border-radius: 5px;
+            background: linear-gradient(90deg, var(--proton-color), var(--beam-color));
+            outline: none;
+            -webkit-appearance: none;
+            transition: all 0.3s ease;
+        }
+
+        input[type="range"]:hover {
+            box-shadow: 0 0 15px rgba(59, 130, 246, 0.4);
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: white;
+            cursor: pointer;
+            box-shadow: 0 3px 12px rgba(0, 0, 0, 0.4);
+            border: 3px solid var(--proton-color);
+            transition: all 0.3s ease;
+        }
+
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+            box-shadow: 0 0 20px var(--proton-color);
+        }
+
+        .button-advanced {
+            background: linear-gradient(135deg, var(--proton-color), #3b82f6);
+            border: none;
+            color: white;
+            padding: 14px 24px;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .button-advanced::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+            transition: left 0.6s;
+        }
+
+        .button-advanced:hover {
+            transform: translateY(-3px) scale(1.05);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+        }
+
+        .button-advanced:hover::before {
+            left: 100%;
+        }
+
+        .experiment-monitor {
+            background: rgba(30, 41, 59, 0.9);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+            border: 2px solid rgba(100, 116, 139, 0.6);
+            margin-top: 30px;
+            backdrop-filter: blur(10px);
+        }
+
+        .monitor-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .monitor-panel {
+            background: rgba(15, 23, 42, 0.7);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            border: 2px solid;
+            transition: all 0.3s ease;
+        }
+
+        .monitor-panel:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
+        }
+
+        .monitor-value {
+            font-size: 2.2rem;
+            font-weight: bold;
+            margin: 15px 0;
+            font-family: 'Courier New', monospace;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+        }
+
+        .monitor-label {
+            font-size: 1rem;
+            opacity: 0.9;
+            font-weight: 600;
+        }
+
+        .event-display-advanced {
+            background: rgba(30, 41, 59, 0.9);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+            border: 2px solid rgba(100, 116, 139, 0.6);
+            margin-top: 30px;
+            height: 400px;
+            overflow-y: auto;
+            backdrop-filter: blur(10px);
+        }
+
+        .event-log-advanced {
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            line-height: 1.7;
+        }
+
+        .event-entry-advanced {
+            margin-bottom: 12px;
+            padding: 15px;
+            background: rgba(15, 23, 42, 0.6);
+            border-radius: 10px;
+            border-left: 4px solid var(--collision-color);
+            transition: all 0.3s ease;
+        }
+
+        .event-entry-advanced:hover {
+            background: rgba(15, 23, 42, 0.8);
+            transform: translateX(5px);
+        }
+
+        .event-time {
+            color: var(--highlight);
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .event-details {
+            color: var(--text);
+            opacity: 0.9;
+        }
+
+        .particle-legend-advanced {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin: 25px 0;
+            justify-content: center;
+        }
+
+        .legend-item-advanced {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 20px;
+            background: rgba(15, 23, 42, 0.8);
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .legend-item-advanced:hover {
+            transform: translateY(-3px);
+            border-color: var(--proton-color);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+        }
+
+        .legend-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+        }
+
+        footer {
+            text-align: center;
+            margin-top: 50px;
+            padding: 30px;
+            font-size: 1rem;
+            opacity: 0.9;
+            border-top: 2px solid rgba(100, 116, 139, 0.4);
+            background: rgba(15, 23, 42, 0.6);
+            border-radius: 16px;
+            backdrop-filter: blur(10px);
+        }
+
+        .magnet-system {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 400px;
+            height: 400px;
+            border: 4px dashed var(--magnet-color);
+            border-radius: 50%;
+            animation: magnetRotate 30s linear infinite;
+            opacity: 0.3;
+        }
+
+        @keyframes magnetRotate {
+            from { transform: translate(-50%, -50%) rotate(0deg); }
+            to { transform: translate(-50%, -50%) rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container" x-data="advancedColliderSimulation()">
+        <header>
+            <h1>شبیه‌سازی پیشرفته شتاب‌دهنده LHC</h1>
+            <p class="subtitle">سیستم کامل ATLAS و CMS با کنترل‌های پیشرفته و نمایش سه‌بعدی</p>
+            
+            <div class="particle-legend-advanced">
+                <div class="legend-item-advanced">
+                    <div class="legend-color" style="background: var(--proton-color);"></div>
+                    <span>پروتون</span>
+                </div>
+                <div class="legend-item-advanced">
+                    <div class="legend-color" style="background: var(--electron-color);"></div>
+                    <span>الکترون</span>
+                </div>
+                <div class="legend-item-advanced">
+                    <div class="legend-color" style="background: var(--photon-color);"></div>
+                    <span>فوتون</span>
+                </div>
+                <div class="legend-item-advanced">
+                    <div class="legend-color" style="background: var(--muon-color);"></div>
+                    <span>میون</span>
+                </div>
+                <div class="legend-item-advanced">
+                    <div class="legend-color" style="background: var(--pion-color);"></div>
+                    <span>پایون</span>
+                </div>
+                <div class="legend-item-advanced">
+                    <div class="legend-color" style="background: var(--higgs-color);"></div>
+                    <span>هیگز</span>
+                </div>
+                <div class="legend-item-advanced">
+                    <div class="legend-color" style="background: var(--jet-color);"></div>
+                    <span>جت کوارکی</span>
+                </div>
+            </div>
+        </header>
+        
+        <div class="accelerator-complex">
+            <div>
+                <div class="detectors-grid">
+                    <div class="detector-panel atlas-panel">
+                        <h2 class="panel-title">🔬 دتکتور ATLAS</h2>
+                        <div class="detector-visualization" id="atlasViz">
+                            <div class="magnet-system"></div>
+                            <div class="beam-line"></div>
+                            <div class="detector-3d atlas">
+                                <div class="detector-structure">
+                                    <div class="detector-layer pixel-layer"></div>
+                                    <div class="detector-layer tracker-layer"></div>
+                                    <div class="detector-layer calorimeter-layer"></div>
+                                    <div class="detector-layer muon-layer"></div>
+                                </div>
+                            </div>
+                            <div class="collision-event"></div>
+                        </div>
+                        
+                        <div class="monitor-grid">
+                            <div class="monitor-panel" style="border-color: var(--atlas-color);">
+                                <div class="monitor-label">ردیاب داخلی</div>
+                                <div class="monitor-value" x-text="atlasReadouts.tracker" style="color: var(--atlas-color);"></div>
+                                <div>مسیرهای باردار</div>
+                            </div>
+                            <div class="monitor-panel" style="border-color: var(--atlas-color);">
+                                <div class="monitor-label">کالریمتر</div>
+                                <div class="monitor-value" x-text="atlasReadouts.calorimeter" style="color: var(--atlas-color);"></div>
+                                <div>انرژی ذرات</div>
+                            </div>
+                            <div class="monitor-panel" style="border-color: var(--atlas-color);">
+                                <div class="monitor-label">سیستم میون</div>
+                                <div class="monitor-value" x-text="atlasReadouts.muon" style="color: var(--atlas-color);"></div>
+                                <div>میون‌های پرانرژی</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="detector-panel cms-panel">
+                        <h2 class="panel-title">📊 دتکتور CMS</h2>
+                        <div class="detector-visualization" id="cmsViz">
+                            <div class="magnet-system"></div>
+                            <div class="beam-line"></div>
+                            <div class="detector-3d cms">
+                                <div class="detector-structure">
+                                    <div class="detector-layer pixel-layer"></div>
+                                    <div class="detector-layer tracker-layer"></div>
+                                    <div class="detector-layer calorimeter-layer"></div>
+                                    <div class="detector-layer muon-layer"></div>
+                                </div>
+                            </div>
+                            <div class="collision-event"></div>
+                        </div>
+                        
+                        <div class="monitor-grid">
+                            <div class="monitor-panel" style="border-color: var(--cms-color);">
+                                <div class="monitor-label">ردیاب سیلیکونی</div>
+                                <div class="monitor-value" x-text="cmsReadouts.tracker" style="color: var(--cms-color);"></div>
+                                <div>دقت موقعیت‌یابی</div>
+                            </div>
+                            <div class="monitor-panel" style="border-color: var(--cms-color);">
+                                <div class="monitor-label">کریستال‌های سرب</div>
+                                <div class="monitor-value" x-text="cmsReadouts.calorimeter" style="color: var(--cms-color);"></div>
+                                <div>رزولوشن انرژی</div>
+                            </div>
+                            <div class="monitor-panel" style="border-color: var(--cms-color);">
+                                <div class="monitor-label">میدان مغناطیسی</div>
+                                <div class="monitor-value" x-text="cmsReadouts.magnetic" style="color: var(--cms-color);"></div>
+                                <div>تسلا</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="experiment-monitor">
+                    <h3 class="control-section-title">📈 مانیتورینگ پیشرفته آزمایش</h3>
+                    <div class="monitor-grid">
+                        <div class="monitor-panel" style="border-color: var(--proton-color);">
+                            <div class="monitor-label">انرژی مرکز جرم</div>
+                            <div class="monitor-value" x-text="`${experimentStats.centerOfMassEnergy} TeV`" style="color: var(--proton-color);"></div>
+                            <div>مقدار اسمی: ۱۳.۶ TeV</div>
+                        </div>
+                        <div class="monitor-panel" style="border-color: var(--beam-color);">
+                            <div class="monitor-label">درخشندگی فوری</div>
+                            <div class="monitor-value" x-text="experimentStats.instantLuminosity" style="color: var(--beam-color);"></div>
+                            <div>cm⁻²s⁻¹</div>
+                        </div>
+                        <div class="monitor-panel" style="border-color: var(--collision-color);">
+                            <div class="monitor-label">تعداد برخوردها</div>
+                            <div class="monitor-value" x-text="experimentStats.totalCollisions.toLocaleString()" style="color: var(--collision-color);"></div>
+                            <div>از شروع آزمایش</div>
+                        </div>
+                        <div class="monitor-panel" style="border-color: var(--highlight);">
+                            <div class="monitor-label">نرخ برخورد مؤثر</div>
+                            <div class="monitor-value" x-text="`${experimentStats.effectiveRate} kHz`" style="color: var(--highlight);"></div>
+                            <div>برخورد در ثانیه</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="control-advanced">
+                <div class="accelerator-controls">
+                    <h3 class="control-section-title">کنترل‌های پیشرفته شتاب‌دهنده</h3>
+                    <div class="control-grid">
+                        <div class="control-group">
+                            <div class="control-label">
+                                <span>انرژی پرتو (TeV)</span>
+                                <div class="control-value" x-text="`${acceleratorControls.beamEnergy} TeV`"></div>
+                            </div>
+                            <input type="range" min="1" max="14" step="0.1" x-model="acceleratorControls.beamEnergy" @input="updateAccelerator">
+                        </div>
+                        <div class="control-group">
+                            <div class="control-label">
+                                <span>شدت پرتو</span>
+                                <div class="control-value" x-text="`${acceleratorControls.beamIntensity}%`"></div>
+                            </div>
+                            <input type="range" min="1" max="100" x-model="acceleratorControls.beamIntensity" @input="updateAccelerator">
+                        </div>
+                        <div class="control-group">
+                            <div class="control-label">
+                                <span>فرکانس برخورد (kHz)</span>
+                                <div class="control-value" x-text="acceleratorControls.collisionFrequency"></div>
+                            </div>
+                            <input type="range" min="1" max="100" x-model="acceleratorControls.collisionFrequency" @input="updateAccelerator">
+                        </div>
+                        <div class="control-group">
+                            <div class="control-label">
+                                <span>فشرده‌سازی پرتو</span>
+                                <div class="control-value" x-text="`${acceleratorControls.bunchCompression}%`"></div>
+                            </div>
+                            <input type="range" min="1" max="100" x-model="acceleratorControls.bunchCompression" @input="updateAccelerator">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="detector-controls">
+                    <h3 class="control-section-title">تنظیمات دتکتور</h3>
+                    <div class="control-grid">
+                        <div class="control-group">
+                            <div class="control-label">
+                                <span>حساسیت ATLAS</span>
+                                <div class="control-value" x-text="`${detectorControls.atlasSensitivity}%`"></div>
+                            </div>
+                            <input type="range" min="1" max="100" x-model="detectorControls.atlasSensitivity" @input="updateDetectors">
+                        </div>
+                        <div class="control-group">
+                            <div class="control-label">
+                                <span>حساسیت CMS</span>
+                                <div class="control-value" x-text="`${detectorControls.cmsSensitivity}%`"></div>
+                            </div>
+                            <input type="range" min="1" max="100" x-model="detectorControls.cmsSensitivity" @input="updateDetectors">
+                        </div>
+                        <div class="control-group">
+                            <div class="control-label">
+                                <span>میدان مغناطیسی</span>
+                                <div class="control-value" x-text="`${detectorControls.magneticField} T`"></div>
+                            </div>
+                            <input type="range" min="1" max="8" step="0.1" x-model="detectorControls.magneticField" @input="updateDetectors">
+                        </div>
+                        <div class="control-group">
+                            <div class="control-label">
+                                <span>آستانه انرژی</span>
+                                <div class="control-value" x-text="`${detectorControls.energyThreshold} GeV`"></div>
+                            </div>
+                            <input type="range" min="1" max="100" x-model="detectorControls.energyThreshold" @input="updateDetectors">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="physics-controls">
+                    <h3 class="control-section-title">کنترل فیزیک برخورد</h3>
+                    <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 20px;">
+                        <button class="button-advanced" @click="startExperiment()">شروع آزمایش</button>
+                        <button class="button-advanced" @click="pauseExperiment()">توقف موقت</button>
+                        <button class="button-advanced" @click="resetExperiment()">بازنشانی کامل</button>
+                    </div>
+                    <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+                        <button class="button-advanced" @click="triggerHiggsEvent()">شبیه‌سازی هیگز</button>
+                        <button class="button-advanced" @click="triggerTopQuarkEvent()">کوارک سر</button>
+                        <button class="button-advanced" @click="triggerJetEvent()">جت‌های کوارکی</button>
+                        <button class="button-advanced" @click="exportData()">ذخیره داده‌ها</button>
+                    </div>
+                </div>
+                
+                <div class="experiment-stats-mini">
+                    <h3 class="control-section-title">آمار فوری</h3>
+                    <div class="control-grid">
+                        <div class="control-group">
+                            <div class="control-label">
+                                <span>برخوردهای ATLAS</span>
+                                <div class="control-value" x-text="experimentStats.atlasEvents"></div>
+                            </div>
+                        </div>
+                        <div class="control-group">
+                            <div class="control-label">
+                                <span>برخوردهای CMS</span>
+                                <div class="control-value" x-text="experimentStats.cmsEvents"></div>
+                            </div>
+                        </div>
+                        <div class="control-group">
+                            <div class="control-label">
+                                <span>زمان آزمایش</span>
+                                <div class="control-value" x-text="`${experimentStats.runTime} h`"></div>
+                            </div>
+                        </div>
+                        <div class="control-group">
+                            <div class="control-label">
+                                <span>دمای سیستم</span>
+                                <div class="control-value" x-text="`${experimentStats.systemTemp} K`"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="event-display-advanced">
+            <h3 class="control-section-title">📝 گزارش پیشرفته رویدادها</h3>
+            <div class="event-log-advanced" id="eventLogAdvanced">
+                <div x-html="eventLog"></div>
+            </div>
+        </div>
+        
+        <footer>
+            <p>شبیه‌سازی پیشرفته شتاب‌دهنده LHC با دتکتورهای ATLAS و CMS | طراحی شده برای آموزش و پژوهش در فیزیک ذرات پرانرژی</p>
+            <p>⚛️ شامل کنترل‌های واقع‌گرایانه، نمایش سه‌بعدی و آنالیز پیشرفته رویدادهای برخورد</p>
+        </footer>
+    </div>
+
+    <script>
+        document.addEventListener('alpine:init', () => {
+            Alpine.data('advancedColliderSimulation', () => ({
+                // کنترل‌های پیشرفته شتاب‌دهنده
+                acceleratorControls: {
+                    beamEnergy: 6.8,
+                    beamIntensity: 85,
+                    collisionFrequency: 40,
+                    bunchCompression: 75
+                },
+                
+                // کنترل‌های دتکتور
+                detectorControls: {
+                    atlasSensitivity: 90,
+                    cmsSensitivity: 88,
+                    magneticField: 3.8,
+                    energyThreshold: 20
+                },
+                
+                // خوانش دتکتورها
+                atlasReadouts: {
+                    tracker: '2,847',
+                    calorimeter: '1.2 TeV',
+                    muon: '34'
+                },
+                
+                cmsReadouts: {
+                    tracker: '3,125',
+                    calorimeter: '2.8%',
+                    magnetic: '3.8 T'
+                },
+                
+                // آمار آزمایش
+                experimentStats: {
+                    totalCollisions: 0,
+                    atlasEvents: 0,
+                    cmsEvents: 0,
+                    centerOfMassEnergy: 13.6,
+                    instantLuminosity: '2.1×10³⁴',
+                    effectiveRate: 28,
+                    runTime: 0,
+                    systemTemp: 1.9
+                },
+                
+                // سیستم‌های شبیه‌سازی
+                activeEvents: [],
+                particleTracks: [],
+                eventLog: '',
+                
+                // وضعیت آزمایش
+                isRunning: false,
+                simulationTime: 0,
+                collisionTimer: 0,
+                runStartTime: 0,
+                
+                init() {
+                    this.initializeAdvancedSystems();
+                    this.startSimulationLoop();
+                },
+                
+                initializeAdvancedSystems() {
+                    this.createBeamParticles();
+                    this.updateExperimentStats();
+                    this.runStartTime = Date.now();
+                },
+                
+                createBeamParticles() {
+                    // ایجاد ذرات پرتو برای نمایش
+                    setInterval(() => {
+                        this.createBeamParticle('atlas');
+                        this.createBeamParticle('cms');
+                    }, 100);
+                },
+                
+                createBeamParticle(detector) {
+                    const container = document.getElementById(`${detector}Viz`);
+                    const beamParticle = document.createElement('div');
+                    beamParticle.className = 'particle-emission';
+                    beamParticle.style.background = var(--beam-color);
+                    
+                    if (Math.random() > 0.5) {
+                        // پرتو از چپ
+                        beamParticle.style.left = '0%';
+                        beamParticle.style.setProperty('--tx', '400px');
+                    } else {
+                        // پرتو از راست
+                        beamParticle.style.left = '100%';
+                        beamParticle.style.setProperty('--tx', '-400px');
+                    }
+                    
+                    beamParticle.style.setProperty('--ty', (Math.random() - 0.5) * 50 + 'px');
+                    container.appendChild(beamParticle);
+                    
+                    setTimeout(() => beamParticle.remove(), 2000);
+                },
+                
+                startSimulationLoop() {
+                    this.isRunning = true;
+                    this.runSimulation();
+                },
+                
+                runSimulation() {
+                    if (!this.isRunning) return;
+                    
+                    this.simulationTime += 0.016;
+                    this.collisionTimer += 0.016;
+                    
+                    this.updateCollisionSystem();
+                    this.updateDetectorReadouts();
+                    this.updateExperimentStats();
+                    this.renderAdvancedVisualization();
+                    
+                    requestAnimationFrame(() => this.runSimulation());
+                },
+                
+                updateCollisionSystem() {
+                    const collisionInterval = 1 / (this.acceleratorControls.collisionFrequency * 10);
+                    
+                    if (this.collisionTimer >= collisionInterval) {
+                        this.triggerAdvancedCollision();
+                        this.collisionTimer = 0;
+                    }
+                },
+                
+                triggerAdvancedCollision() {
+                    this.experimentStats.totalCollisions++;
+                    
+                    // توزیع تصادفی بین دتکتورها
+                    const detector = Math.random() > 0.5 ? 'atlas' : 'cms';
+                    if (detector === 'atlas') {
+                        this.experimentStats.atlasEvents++;
+                    } else {
+                        this.experimentStats.cmsEvents++;
+                    }
+                    
+                    this.generateAdvancedCollisionProducts(detector);
+                    this.logAdvancedEvent(detector);
+                },
+                
+                generateAdvancedCollisionProducts(detector) {
+                    const numParticles = 6 + Math.floor(Math.random() * 12 * (this.acceleratorControls.beamEnergy / 14));
+                    const container = document.getElementById(`${detector}Viz`);
+                    
+                    for (let i = 0; i < numParticles; i++) {
+                        const particleType = this.getRandomParticleType();
+                        const angle = Math.random() * Math.PI * 2;
+                        const distance = 80 + Math.random() * 120;
+                        const speed = 3 + Math.random() * 4;
+                        
+                        const particle = document.createElement('div');
+                        particle.className = 'particle-emission';
+                        particle.style.background = this.getParticleColor(particleType);
+                        particle.style.left = '50%';
+                        particle.style.top = '50%';
+                        particle.style.setProperty('--tx', Math.cos(angle) * distance + 'px');
+                        particle.style.setProperty('--ty', Math.sin(angle) * distance + 'px');
+                        
+                        container.appendChild(particle);
+                        
+                        // ایجاد مسیر ذره
+                        const track = document.createElement('div');
+                        track.className = 'particle-track';
+                        track.style.left = '50%';
+                        track.style.top = '50%';
+                        track.style.background = `linear-gradient(90deg, ${this.getParticleColor(particleType)}, transparent)`;
+                        
+                        const trackLength = distance;
+                        const trackAngle = angle * 180 / Math.PI;
+                        track.style.width = trackLength + 'px';
+                        track.style.transform = `rotate(${trackAngle}deg)`;
+                        
+                        container.appendChild(track);
+                        
+                        setTimeout(() => {
+                            particle.remove();
+                            track.remove();
+                        }, 2000);
+                    }
+                },
+                
+                getRandomParticleType() {
+                    const types = ['pion', 'kaon', 'proton', 'electron', 'photon', 'muon', 'neutron', 'jet'];
+                    const weights = [0.25, 0.18, 0.12, 0.1, 0.15, 0.08, 0.08, 0.04];
+                    
+                    let rand = Math.random();
+                    let cumulative = 0;
+                    
+                    for (let i = 0; i < types.length; i++) {
+                        cumulative += weights[i];
+                        if (rand <= cumulative) {
+                            return types[i];
+                        }
+                    }
+                    
+                    return 'pion';
+                },
+                
+                getParticleColor(type) {
+                    const colors = {
+                        'pion': var(--pion-color),
+                        'kaon': var(--kaon-color),
+                        'proton': var(--proton-color),
+                        'electron': var(--electron-color),
+                        'photon': var(--photon-color),
+                        'muon': var(--muon-color),
+                        'neutron': var(--neutron-color),
+                        'jet': var(--jet-color),
+                        'higgs': var(--higgs-color)
+                    };
+                    
+                    return colors[type] || '#ffffff';
+                },
+                
+                updateDetectorReadouts() {
+                    const sensitivity = this.detectorControls.atlasSensitivity / 100;
+                    this.atlasReadouts.tracker = Math.floor(2500 + Math.random() * 700 * sensitivity).toLocaleString();
+                    this.atlasReadouts.calorimeter = `${(0.8 + Math.random() * 0.8 * sensitivity).toFixed(1)} TeV`;
+                    this.atlasReadouts.muon = Math.floor(25 + Math.random() * 20 * sensitivity);
+                    
+                    const cmsSensitivity = this.detectorControls.cmsSensitivity / 100;
+                    this.cmsReadouts.tracker = Math.floor(2800 + Math.random() * 650 * cmsSensitivity).toLocaleString();
+                    this.cmsReadouts.calorimeter = `${(2.5 + Math.random() * 1.0 * cmsSensitivity).toFixed(1)}%`;
+                    this.cmsReadouts.magnetic = `${this.detectorControls.magneticField} T`;
+                },
+                
+                updateExperimentStats() {
+                    this.experimentStats.centerOfMassEnergy = (this.acceleratorControls.beamEnergy * 2).toFixed(1);
+                    this.experimentStats.effectiveRate = Math.min(this.acceleratorControls.collisionFrequency, 
+                        this.acceleratorControls.collisionFrequency * (this.acceleratorControls.beamIntensity / 100));
+                    
+                    const runDuration = (Date.now() - this.runStartTime) / 1000 / 60 / 60; // ساعت
+                    this.experimentStats.runTime = runDuration.toFixed(1);
+                    
+                    // محاسبه درخشندگی فوری
+                    const luminosity = 2.1 + Math.random() * 0.3;
+                    this.experimentStats.instantLuminosity = `${luminosity.toFixed(1)}×10³⁴`;
+                },
+                
+                renderAdvancedVisualization() {
+                    // به‌روزرسانی انیمیشن‌های موجود
+                    // این تابع می‌تواند برای اثرات ویژه اضافی استفاده شود
+                },
+                
+                logAdvancedEvent(detector) {
+                    const timestamp = this.simulationTime.toFixed(1);
+                    const energy = this.experimentStats.centerOfMassEnergy;
+                    const detectorName = detector === 'atlas' ? 'ATLAS' : 'CMS';
+                    const eventTypes = ['برخورد سخت', 'پراکندگی الاستیک', 'تولید جفت', 'واپاشی ذره'];
+                    const eventType = eventTypes[Math.floor(Math.random() * eventTypes.length)];
+                    
+                    const eventText = `
+                        <div class="event-entry-advanced">
+                            <div class="event-time">[${timestamp}s] ${detectorName} - ${eventType}</div>
+                            <div class="event-details">
+                                انرژی: ${energy} TeV | 
+                                ذرات: ${6 + Math.floor(Math.random() * 8)} | 
+                                دتکتور: ${this.getDetectorReadout(detector)}
+                            </div>
+                        </div>
+                    `;
+                    
+                    this.eventLog = eventText + this.eventLog;
+                    
+                    // محدود کردن طول گزارش
+                    const events = this.eventLog.split('<div class="event-entry-advanced">');
+                    if (events.length > 12) {
+                        this.eventLog = events.slice(0, 12).join('<div class="event-entry-advanced">');
+                    }
+                },
+                
+                getDetectorReadout(detector) {
+                    if (detector === 'atlas') {
+                        return `${this.atlasReadouts.tracker} مسیر`;
+                    } else {
+                        return `${this.cmsReadouts.tracker} رد`;
+                    }
+                },
+                
+                updateAccelerator() {
+                    this.updateExperimentStats();
+                    this.addEventLog('تنظیمات شتاب‌دهنده به‌روزرسانی شد');
+                },
+                
+                updateDetectors() {
+                    this.addEventLog('تنظیمات دتکتور بهینه‌سازی شد');
+                },
+                
+                startExperiment() {
+                    this.isRunning = true;
+                    this.runStartTime = Date.now();
+                    this.addEventLog('آزمایش LHC شروع شد - تمام سیستم‌ها فعال');
+                },
+                
+                pauseExperiment() {
+                    this.isRunning = false;
+                    this.addEventLog('آزمایش متوقف شد - سیستم در حالت آماده‌باش');
+                },
+                
+                resetExperiment() {
+                    this.isRunning = false;
+                    this.experimentStats.totalCollisions = 0;
+                    this.experimentStats.atlasEvents = 0;
+                    this.experimentStats.cmsEvents = 0;
+                    this.eventLog = '';
+                    this.initializeAdvancedSystems();
+                    this.addEventLog('آزمایش کاملاً بازنشانی شد');
+                },
+                
+                triggerHiggsEvent() {
+                    this.addEventLog('🔥 رویداد ویژه: بوزون هیگز شناسایی شد - واپاشی به دو فوتون');
+                    this.simulateSpecialEvent('higgs');
+                },
+                
+                triggerTopQuarkEvent() {
+                    this.addEventLog('💫 رویداد ویژه: کوارک سر تولید شد - واپاشی به بوزون W و کوارک پایین');
+                    this.simulateSpecialEvent('top');
+                },
+                
+                triggerJetEvent() {
+                    this.addEventLog('💥 رویداد ویژه: جت‌های کوارکی پرانرژی شناسایی شدند');
+                    this.simulateSpecialEvent('jet');
+                },
+                
+                simulateSpecialEvent(type) {
+                    const detectors = ['atlas', 'cms'];
+                    detectors.forEach(detector => {
+                        const numParticles = type === 'higgs' ? 8 : type === 'top' ? 10 : 12;
+                        for (let i = 0; i < numParticles; i++) {
+                            this.generateSpecialParticle(detector, type);
+                        }
+                    });
+                },
+                
+                generateSpecialParticle(detector, type) {
+                    const container = document.getElementById(`${detector}Viz`);
+                    const particle = document.createElement('div');
+                    particle.className = 'particle-emission';
+                    particle.style.background = this.getParticleColor(type);
+                    particle.style.left = '50%';
+                    particle.style.top = '50%';
+                    
+                    const angle = Math.random() * Math.PI * 2;
+                    const distance = type === 'higgs' ? 150 : 200;
+                    particle.style.setProperty('--tx', Math.cos(angle) * distance + 'px');
+                    particle.style.setProperty('--ty', Math.sin(angle) * distance + 'px');
+                    
+                    container.appendChild(particle);
+                    setTimeout(() => particle.remove(), 2500);
+                },
+                
+                addEventLog(message) {
+                    const timestamp = this.simulationTime.toFixed(1);
+                    const eventText = `
+                        <div class="event-entry-advanced">
+                            <div class="event-time">[${timestamp}s] ${message}</div>
+                        </div>
+                    `;
+                    this.eventLog = eventText + this.eventLog;
+                },
+                
+                exportData() {
+                    const data = {
+                        accelerator: this.acceleratorControls,
+                        detectors: this.detectorControls,
+                        statistics: this.experimentStats,
+                        readouts: {
+                            atlas: this.atlasReadouts,
+                            cms: this.cmsReadouts
+                        }
+                    };
+                    
+                    console.log('داده‌های پیشرفته آزمایش:', data);
+                    this.addEventLog('داده‌های آزمایش در قالب JSON ذخیره شد');
+                }
+            }));
+        });
+    </script>
+</body>
+</html>

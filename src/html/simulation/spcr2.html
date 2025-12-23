@@ -1,0 +1,1897 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced 3-Stage Rocket Simulator with RCS</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Courier New', monospace;
+            background: #0a0a1a;
+            color: #e0e0ff;
+            overflow-x: hidden;
+        }
+        #container {
+            display: flex;
+            min-height: 100vh;
+        }
+        #fuelSelectionPanel {
+            width: 450px;
+            background: rgba(10, 15, 35, 0.95);
+            border-right: 3px solid #00aaff;
+            padding: 20px;
+            overflow-y: auto;
+            z-index: 100;
+        }
+        #simulationArea {
+            flex: 1;
+            position: relative;
+        }
+        canvas {
+            display: block;
+            background: #000;
+        }
+        .panel {
+            background: rgba(20, 25, 45, 0.9);
+            border: 2px solid #4444ff;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        h2 {
+            color: #00ffff;
+            margin-bottom: 15px;
+            text-shadow: 0 0 10px #00ffff;
+            font-size: 1.4em;
+        }
+        h3 {
+            color: #ff8800;
+            margin: 15px 0 10px 0;
+            font-size: 1.2em;
+        }
+        .stage-panel {
+            background: rgba(30, 40, 60, 0.9);
+            border: 1px solid #5555ff;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 10px 0;
+            position: relative;
+        }
+        .stage-number {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: #00aaff;
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+        .slider-container {
+            margin: 10px 0;
+        }
+        .slider-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+        }
+        input[type="range"] {
+            width: 100%;
+            height: 8px;
+            -webkit-appearance: none;
+            background: linear-gradient(to right, #003366, #00aaff);
+            border-radius: 4px;
+            outline: none;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            background: #00ffff;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 0 10px #00ffff;
+        }
+        .button {
+            background: linear-gradient(45deg, #0066cc, #00aaff);
+            border: none;
+            color: white;
+            padding: 12px 24px;
+            margin: 10px 5px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 1.1em;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .button:hover {
+            background: linear-gradient(45deg, #0077dd, #00bbff);
+            transform: scale(1.05);
+            box-shadow: 0 0 20px #00aaff;
+        }
+        .button:disabled {
+            background: #555;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        .stat-box {
+            background: rgba(0, 30, 60, 0.7);
+            border-left: 4px solid #00aaff;
+            padding: 10px;
+            margin: 10px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+        .property-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+            margin: 10px 0;
+        }
+        .property {
+            background: rgba(20, 40, 80, 0.6);
+            padding: 8px;
+            border-radius: 5px;
+            font-size: 0.9em;
+        }
+        .property-name {
+            color: #aaaaff;
+            font-size: 0.8em;
+        }
+        .property-value {
+            color: #00ffff;
+            font-weight: bold;
+        }
+        .warning {
+            color: #ff4444;
+            animation: pulse 1s infinite;
+        }
+        .success {
+            color: #44ff44;
+        }
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        .progress-bar {
+            height: 15px;
+            background: rgba(0, 40, 80, 0.8);
+            border-radius: 8px;
+            overflow: hidden;
+            margin: 8px 0;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #0066cc, #00ffff);
+            transition: width 0.3s;
+        }
+        #telemetryPanel {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 350px;
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid #ff8800;
+            border-radius: 10px;
+            padding: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+        #controlPanel {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid #44ff44;
+            border-radius: 10px;
+            padding: 15px;
+            display: flex;
+            gap: 10px;
+        }
+        .rcs-button {
+            background: rgba(20, 80, 20, 0.8);
+            border: 2px solid #44ff44;
+            color: white;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            font-size: 1.5em;
+            cursor: pointer;
+            transition: all 0.1s;
+        }
+        .rcs-button:active {
+            background: rgba(40, 120, 40, 0.9);
+            transform: scale(0.95);
+            box-shadow: 0 0 20px #44ff44;
+        }
+        .stage-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 5px;
+        }
+        .stage-active {
+            background: #00ff00;
+            box-shadow: 0 0 10px #00ff00;
+        }
+        .stage-inactive {
+            background: #888;
+        }
+        .stage-separated {
+            background: #ff8800;
+            box-shadow: 0 0 10px #ff8800;
+        }
+        .impulse-indicator {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            background: #ffff00;
+            border-radius: 50%;
+            pointer-events: none;
+            opacity: 0;
+        }
+        .fuel-delta {
+            position: absolute;
+            color: #ff4444;
+            font-size: 0.8em;
+            pointer-events: none;
+            opacity: 0;
+        }
+        .timeline {
+            display: flex;
+            justify-content: space-between;
+            margin: 10px 0;
+            padding: 10px;
+            background: rgba(0, 20, 40, 0.8);
+            border-radius: 5px;
+        }
+        .timeline-event {
+            text-align: center;
+            font-size: 0.8em;
+        }
+        .event-time {
+            font-weight: bold;
+            color: #00ffff;
+        }
+        .event-desc {
+            color: #aaa;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <div id="fuelSelectionPanel">
+            <div class="panel">
+                <h2>🚀 3-STAGE ROCKET DESIGNER</h2>
+                
+                <h3>Stage 1 Configuration (Booster)</h3>
+                <div class="stage-panel">
+                    <div class="stage-number">1</div>
+                    <div class="slider-container">
+                        <div class="slider-label">
+                            <span>Fuel Mass:</span>
+                            <span id="stage1MassValue">200,000 kg</span>
+                        </div>
+                        <input type="range" id="stage1MassSlider" min="50000" max="500000" step="1000" value="200000">
+                    </div>
+                    <div class="slider-container">
+                        <div class="slider-label">
+                            <span>Burn Time:</span>
+                            <span id="stage1TimeValue">180 s</span>
+                        </div>
+                        <input type="range" id="stage1TimeSlider" min="30" max="300" step="5" value="180">
+                    </div>
+                    <div class="property-grid">
+                        <div class="property">
+                            <div class="property-name">Thrust</div>
+                            <div class="property-value" id="stage1Thrust">7.6 MN</div>
+                        </div>
+                        <div class="property">
+                            <div class="property-name">TWR</div>
+                            <div class="property-value" id="stage1TWR">1.3</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <h3>Stage 2 Configuration (Sustainer)</h3>
+                <div class="stage-panel">
+                    <div class="stage-number">2</div>
+                    <div class="slider-container">
+                        <div class="slider-label">
+                            <span>Fuel Mass:</span>
+                            <span id="stage2MassValue">60,000 kg</span>
+                        </div>
+                        <input type="range" id="stage2MassSlider" min="10000" max="150000" step="1000" value="60000">
+                    </div>
+                    <div class="slider-container">
+                        <div class="slider-label">
+                            <span>Burn Time:</span>
+                            <span id="stage2TimeValue">240 s</span>
+                        </div>
+                        <input type="range" id="stage2TimeSlider" min="60" max="400" step="10" value="240">
+                    </div>
+                    <div class="property-grid">
+                        <div class="property">
+                            <div class="property-name">Thrust</div>
+                            <div class="property-value" id="stage2Thrust">1.2 MN</div>
+                        </div>
+                        <div class="property">
+                            <div class="property-name">ISP</div>
+                            <div class="property-value" id="stage2ISP">380 s</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <h3>Stage 3 Configuration (Orbital)</h3>
+                <div class="stage-panel">
+                    <div class="stage-number">3</div>
+                    <div class="slider-container">
+                        <div class="slider-label">
+                            <span>Fuel Mass:</span>
+                            <span id="stage3MassValue">15,000 kg</span>
+                        </div>
+                        <input type="range" id="stage3MassSlider" min="2000" max="40000" step="500" value="15000">
+                    </div>
+                    <div class="slider-container">
+                        <div class="slider-label">
+                            <span>RCS Fuel:</span>
+                            <span id="rcsFuelValue">500 kg</span>
+                        </div>
+                        <input type="range" id="rcsFuelSlider" min="100" max="2000" step="10" value="500">
+                    </div>
+                    <div class="property-grid">
+                        <div class="property">
+                            <div class="property-name">Thrust</div>
+                            <div class="property-value" id="stage3Thrust">250 kN</div>
+                        </div>
+                        <div class="property">
+                            <div class="property-name">RCS Impulse</div>
+                            <div class="property-value" id="rcsImpulse">220 N·s</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="panel">
+                    <h3>Launch Timeline</h3>
+                    <div class="timeline">
+                        <div class="timeline-event">
+                            <div class="event-time" id="event1Time">T+00:00</div>
+                            <div class="event-desc">Liftoff</div>
+                        </div>
+                        <div class="timeline-event">
+                            <div class="event-time" id="event2Time">T+01:20</div>
+                            <div class="event-desc">Max-Q</div>
+                        </div>
+                        <div class="timeline-event">
+                            <div class="event-time" id="event3Time">T+02:40</div>
+                            <div class="event-desc">Stage 1 Sep</div>
+                        </div>
+                        <div class="timeline-event">
+                            <div class="event-time" id="event4Time">T+06:40</div>
+                            <div class="event-desc">Stage 2 Sep</div>
+                        </div>
+                        <div class="timeline-event">
+                            <div class="event-time" id="event5Time">T+12:00</div>
+                            <div class="event-desc">Orbit</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="panel">
+                    <h3>Performance Summary</h3>
+                    <div class="stat-box">
+                        <div>Total ΔV: <span id="totalDeltaV" class="property-value">12,500 m/s</span></div>
+                        <div>Payload to LEO: <span id="payloadLEO" class="property-value">15,000 kg</span></div>
+                        <div>Stages: <span class="stage-indicator stage-active"></span>
+                                     <span class="stage-indicator stage-active"></span>
+                                     <span class="stage-indicator stage-active"></span></div>
+                        <div>RCS Fuel: <span id="rcsTotalFuel" class="property-value">500 kg</span></div>
+                    </div>
+                    <button id="designRocket" class="button">Design Rocket</button>
+                    <button id="launchRocket" class="button" disabled>Launch Simulation</button>
+                </div>
+            </div>
+        </div>
+        
+        <div id="simulationArea">
+            <canvas id="simulationCanvas"></canvas>
+            
+            <div id="telemetryPanel">
+                <h3 style="color: #ff8800; margin-bottom: 10px;">🛰️ FLIGHT TELEMETRY</h3>
+                <div class="property-grid">
+                    <div class="property">
+                        <div class="property-name">TIME</div>
+                        <div class="property-value" id="teleTime">T+00:00.0</div>
+                    </div>
+                    <div class="property">
+                        <div class="property-name">STAGE</div>
+                        <div class="property-value" id="teleStage">1</div>
+                    </div>
+                    <div class="property">
+                        <div class="property-name">ALTITUDE</div>
+                        <div class="property-value" id="teleAltitude">0 km</div>
+                    </div>
+                    <div class="property">
+                        <div class="property-name">VELOCITY</div>
+                        <div class="property-value" id="teleVelocity">0 m/s</div>
+                    </div>
+                    <div class="property">
+                        <div class="property-name">ACCELERATION</div>
+                        <div class="property-value" id="teleAcceleration">0.0 g</div>
+                    </div>
+                    <div class="property">
+                        <div class="property-name">APOGEE</div>
+                        <div class="property-value" id="teleApogee">0 km</div>
+                    </div>
+                    <div class="property">
+                        <div class="property-name">DOWNRANGE</div>
+                        <div class="property-value" id="teleDownrange">0 km</div>
+                    </div>
+                    <div class="property">
+                        <div class="property-name">FUEL</div>
+                        <div class="property-value" id="teleFuel">100%</div>
+                    </div>
+                </div>
+                <div style="margin-top: 10px; border-top: 1px solid #444; padding-top: 10px;">
+                    <div>RCS Fuel: <span id="teleRCSFuel">100%</span></div>
+                    <div>Stage Status: 
+                        <span class="stage-indicator stage-active" id="stage1Indicator"></span>
+                        <span class="stage-indicator stage-inactive" id="stage2Indicator"></span>
+                        <span class="stage-indicator stage-inactive" id="stage3Indicator"></span>
+                    </div>
+                    <div>Attitude: <span id="teleAttitude">0.0°</span></div>
+                    <div>Rotation Rate: <span id="teleRotation">0.0°/s</span></div>
+                </div>
+            </div>
+            
+            <div id="controlPanel">
+                <div style="display: flex; flex-direction: column; align-items: center;">
+                    <button class="rcs-button" id="rcsPitchUp">↑</button>
+                    <div style="display: flex; gap: 10px; margin: 10px 0;">
+                        <button class="rcs-button" id="rcsYawLeft">←</button>
+                        <button class="rcs-button" id="rcsYawRight">→</button>
+                    </div>
+                    <button class="rcs-button" id="rcsPitchDown">↓</button>
+                </div>
+                <div style="margin-left: 20px; display: flex; flex-direction: column; justify-content: center;">
+                    <button class="rcs-button" style="background: rgba(80, 20, 20, 0.8); border-color: #ff4444;" id="rcsRollLeft">↶</button>
+                    <div style="height: 10px;"></div>
+                    <button class="rcs-button" style="background: rgba(80, 20, 20, 0.8); border-color: #ff4444;" id="rcsRollRight">↷</button>
+                </div>
+                <div style="margin-left: 20px; display: flex; flex-direction: column; justify-content: center;">
+                    <button class="button" id="stageSepButton" style="background: rgba(120, 60, 0, 0.8); border-color: #ff8800;">STAGE SEP</button>
+                    <div style="height: 10px;"></div>
+                    <button class="button" id="engineToggle" style="background: rgba(0, 80, 0, 0.8); border-color: #44ff44;">ENGINE ON</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.min.js"></script>
+    <script>
+        // Advanced 3-Stage Rocket Simulator with RCS Physics
+        const PHYSICS_CONSTANTS = {
+            G: 6.67430e-11, // Gravitational constant
+            EARTH_MASS: 5.972e24, // kg
+            EARTH_RADIUS: 6371000, // meters
+            ATMOSPHERE_HEIGHT: 100000, // meters
+            STANDARD_GRAVITY: 9.80665, // m/s²
+            GAS_CONSTANT: 8.314462618, // J/(mol·K)
+            UNIVERSAL_GAS_CONSTANT: 8314.462618 // J/(kmol·K)
+        };
+
+        // RCS Thruster Configuration
+        const RCS_CONFIG = {
+            thrustPerThruster: 400, // Newtons (typical RCS thruster)
+            impulseBit: 220, // N·s (impulse per pulse)
+            specificImpulse: 220, // seconds (hydrazine)
+            pulseDuration: 0.1, // seconds
+            minPulseTime: 0.02, // minimum pulse time
+            fuelConsumption: 0.02, // kg per pulse (simplified)
+            maxPulseRate: 10 // pulses per second
+        };
+
+        // Stage Configuration Database
+        const STAGE_TEMPLATES = {
+            booster: {
+                fuelType: 'kerosene',
+                oxidizer: 'oxygen',
+                structuralCoefficient: 0.08, // Mass fraction for structure
+                engineCount: 9,
+                engineThrust: 845000, // N per engine (Merlin 1D)
+                engineISP: 311, // seconds (sea level)
+                engineISPVac: 348, // seconds (vacuum)
+                gimbalRange: 8, // degrees
+                separationForce: 50000 // N
+            },
+            sustainer: {
+                fuelType: 'kerosene',
+                oxidizer: 'oxygen',
+                structuralCoefficient: 0.1,
+                engineCount: 1,
+                engineThrust: 1200000,
+                engineISP: 380,
+                engineISPVac: 380,
+                gimbalRange: 10,
+                separationForce: 30000
+            },
+            orbital: {
+                fuelType: 'hydrogen',
+                oxidizer: 'oxygen',
+                structuralCoefficient: 0.15,
+                engineCount: 1,
+                engineThrust: 250000,
+                engineISP: 450,
+                engineISPVac: 450,
+                gimbalRange: 15,
+                separationForce: 20000
+            }
+        };
+
+        // Simulation Variables
+        let scene, camera, renderer;
+        let rocket, earth, separatedStages = [];
+        let stars = [];
+        
+        // Three.js Materials
+        let materials = {
+            stage1: new THREE.MeshPhongMaterial({ color: 0x666666, shininess: 30 }),
+            stage2: new THREE.MeshPhongMaterial({ color: 0x777777, shininess: 40 }),
+            stage3: new THREE.MeshPhongMaterial({ color: 0x888888, shininess: 50 }),
+            fairing: new THREE.MeshPhongMaterial({ color: 0xffffff, shininess: 80 }),
+            interstage: new THREE.MeshPhongMaterial({ color: 0x555555, shininess: 20 }),
+            rcsThruster: new THREE.MeshPhongMaterial({ color: 0x44ff44, emissive: 0x004400 })
+        };
+
+        // Rocket Physics State
+        let rocketState = {
+            position: new THREE.Vector3(0, 0, 0),
+            velocity: new THREE.Vector3(0, 0, 0),
+            acceleration: new THREE.Vector3(0, 0, 0),
+            rotation: new THREE.Euler(0, 0, 0),
+            angularVelocity: new THREE.Vector3(0, 0, 0),
+            angularAcceleration: new THREE.Vector3(0, 0, 0),
+            
+            // Stage-specific states
+            stages: [
+                {
+                    active: true,
+                    separated: false,
+                    fuelMass: 200000,
+                    dryMass: 15000,
+                    thrust: 7600000,
+                    isp: 311,
+                    fuelFlowRate: 0,
+                    enginesActive: true,
+                    fairingAttached: true
+                },
+                {
+                    active: false,
+                    separated: false,
+                    fuelMass: 60000,
+                    dryMass: 6000,
+                    thrust: 1200000,
+                    isp: 380,
+                    fuelFlowRate: 0,
+                    enginesActive: false,
+                    fairingAttached: true
+                },
+                {
+                    active: false,
+                    separated: false,
+                    fuelMass: 15000,
+                    dryMass: 2000,
+                    thrust: 250000,
+                    isp: 450,
+                    fuelFlowRate: 0,
+                    enginesActive: false,
+                    fairingAttached: false,
+                    rcsFuel: 500
+                }
+            ],
+            
+            // Flight state
+            currentStage: 0,
+            simulationTime: 0,
+            altitude: 0,
+            downrangeDistance: 0,
+            atmosphericPressure: 101.325,
+            dynamicPressure: 0,
+            machNumber: 0,
+            
+            // RCS state
+            rcsActive: false,
+            rcsPulseQueue: [],
+            rcsThrusterPositions: [],
+            rcsImpulseHistory: []
+        };
+
+        // DOM Elements
+        const stage1MassSlider = document.getElementById('stage1MassSlider');
+        const stage1MassValue = document.getElementById('stage1MassValue');
+        const stage1TimeSlider = document.getElementById('stage1TimeSlider');
+        const stage1TimeValue = document.getElementById('stage1TimeValue');
+        const stage1Thrust = document.getElementById('stage1Thrust');
+        const stage1TWR = document.getElementById('stage1TWR');
+        
+        const stage2MassSlider = document.getElementById('stage2MassSlider');
+        const stage2MassValue = document.getElementById('stage2MassValue');
+        const stage2TimeSlider = document.getElementById('stage2TimeSlider');
+        const stage2TimeValue = document.getElementById('stage2TimeValue');
+        const stage2Thrust = document.getElementById('stage2Thrust');
+        const stage2ISP = document.getElementById('stage2ISP');
+        
+        const stage3MassSlider = document.getElementById('stage3MassSlider');
+        const stage3MassValue = document.getElementById('stage3MassValue');
+        const rcsFuelSlider = document.getElementById('rcsFuelSlider');
+        const rcsFuelValue = document.getElementById('rcsFuelValue');
+        const stage3Thrust = document.getElementById('stage3Thrust');
+        const rcsImpulse = document.getElementById('rcsImpulse');
+        
+        const totalDeltaV = document.getElementById('totalDeltaV');
+        const payloadLEO = document.getElementById('payloadLEO');
+        const rcsTotalFuel = document.getElementById('rcsTotalFuel');
+        
+        const teleTime = document.getElementById('teleTime');
+        const teleStage = document.getElementById('teleStage');
+        const teleAltitude = document.getElementById('teleAltitude');
+        const teleVelocity = document.getElementById('teleVelocity');
+        const teleAcceleration = document.getElementById('teleAcceleration');
+        const teleApogee = document.getElementById('teleApogee');
+        const teleDownrange = document.getElementById('teleDownrange');
+        const teleFuel = document.getElementById('teleFuel');
+        const teleRCSFuel = document.getElementById('teleRCSFuel');
+        const teleAttitude = document.getElementById('teleAttitude');
+        const teleRotation = document.getElementById('teleRotation');
+        
+        const stage1Indicator = document.getElementById('stage1Indicator');
+        const stage2Indicator = document.getElementById('stage2Indicator');
+        const stage3Indicator = document.getElementById('stage3Indicator');
+        
+        const designRocketBtn = document.getElementById('designRocket');
+        const launchRocketBtn = document.getElementById('launchRocket');
+        const stageSepButton = document.getElementById('stageSepButton');
+        const engineToggle = document.getElementById('engineToggle');
+        
+        // RCS Control Buttons
+        const rcsPitchUp = document.getElementById('rcsPitchUp');
+        const rcsPitchDown = document.getElementById('rcsPitchDown');
+        const rcsYawLeft = document.getElementById('rcsYawLeft');
+        const rcsYawRight = document.getElementById('rcsYawRight');
+        const rcsRollLeft = document.getElementById('rcsRollLeft');
+        const rcsRollRight = document.getElementById('rcsRollRight');
+
+        // Initialize
+        init();
+        
+        function init() {
+            setupEventListeners();
+            initializeThreeJS();
+            createRocket();
+            calculatePerformance();
+            updateStageIndicators();
+            
+            // Pre-calculate RCS thruster positions
+            calculateRCSThrusterPositions();
+        }
+        
+        function setupEventListeners() {
+            // Stage configuration sliders
+            stage1MassSlider.addEventListener('input', updateStage1Config);
+            stage1TimeSlider.addEventListener('input', updateStage1Config);
+            stage2MassSlider.addEventListener('input', updateStage2Config);
+            stage2TimeSlider.addEventListener('input', updateStage2Config);
+            stage3MassSlider.addEventListener('input', updateStage3Config);
+            rcsFuelSlider.addEventListener('input', updateRCSConfig);
+            
+            // Buttons
+            designRocketBtn.addEventListener('click', designRocket);
+            launchRocketBtn.addEventListener('click', startSimulation);
+            stageSepButton.addEventListener('click', triggerStageSeparation);
+            engineToggle.addEventListener('click', toggleEngines);
+            
+            // RCS Controls
+            const rcsButtons = [rcsPitchUp, rcsPitchDown, rcsYawLeft, rcsYawRight, rcsRollLeft, rcsRollRight];
+            rcsButtons.forEach(btn => {
+                btn.addEventListener('mousedown', (e) => startRCSImpulse(e.target.id));
+                btn.addEventListener('mouseup', (e) => stopRCSImpulse(e.target.id));
+                btn.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    startRCSImpulse(e.target.id);
+                });
+                btn.addEventListener('touchend', (e) => {
+                    e.preventDefault();
+                    stopRCSImpulse(e.target.id);
+                });
+            });
+            
+            // Keyboard controls for RCS
+            document.addEventListener('keydown', handleKeyDown);
+            document.addEventListener('keyup', handleKeyUp);
+            
+            // Window resize
+            window.addEventListener('resize', onWindowResize);
+        }
+        
+        function updateStage1Config() {
+            const mass = parseInt(stage1MassSlider.value);
+            const burnTime = parseInt(stage1TimeSlider.value);
+            
+            stage1MassValue.textContent = formatMass(mass);
+            stage1TimeValue.textContent = burnTime + ' s';
+            
+            // Calculate thrust based on mass and desired TWR
+            const desiredTWR = 1.3;
+            const initialMass = mass + 100000; // Include upper stages
+            const thrust = initialMass * desiredTWR * PHYSICS_CONSTANTS.STANDARD_GRAVITY;
+            
+            stage1Thrust.textContent = formatThrust(thrust);
+            stage1TWR.textContent = desiredTWR.toFixed(1);
+            
+            // Update rocket state
+            rocketState.stages[0].fuelMass = mass;
+            rocketState.stages[0].thrust = thrust;
+            rocketState.stages[0].isp = calculateStageISP(0);
+            
+            calculatePerformance();
+        }
+        
+        function updateStage2Config() {
+            const mass = parseInt(stage2MassSlider.value);
+            const burnTime = parseInt(stage2TimeSlider.value);
+            
+            stage2MassValue.textContent = formatMass(mass);
+            stage2TimeValue.textContent = burnTime + ' s';
+            
+            // Calculate thrust (less than stage 1 for vacuum optimization)
+            const thrust = mass * 20; // Simplified calculation
+            const isp = 380 + (burnTime > 200 ? 20 : 0); // Higher ISP for longer burns
+            
+            stage2Thrust.textContent = formatThrust(thrust);
+            stage2ISP.textContent = isp + ' s';
+            
+            rocketState.stages[1].fuelMass = mass;
+            rocketState.stages[1].thrust = thrust;
+            rocketState.stages[1].isp = isp;
+            
+            calculatePerformance();
+        }
+        
+        function updateStage3Config() {
+            const mass = parseInt(stage3MassSlider.value);
+            stage3MassValue.textContent = formatMass(mass);
+            
+            const thrust = 250000; // Fixed for orbital stage
+            stage3Thrust.textContent = formatThrust(thrust);
+            
+            rocketState.stages[2].fuelMass = mass;
+            rocketState.stages[2].thrust = thrust;
+            
+            calculatePerformance();
+        }
+        
+        function updateRCSConfig() {
+            const rcsFuel = parseInt(rcsFuelSlider.value);
+            rcsFuelValue.textContent = rcsFuel + ' kg';
+            rcsTotalFuel.textContent = rcsFuel + ' kg';
+            
+            rocketState.stages[2].rcsFuel = rcsFuel;
+            rcsImpulse.textContent = RCS_CONFIG.impulseBit + ' N·s';
+        }
+        
+        function calculateStageISP(stageIndex) {
+            const stage = rocketState.stages[stageIndex];
+            const altitude = rocketState.altitude;
+            
+            // ISP varies with atmospheric pressure
+            if (stageIndex === 0) {
+                // Booster stage: lower ISP at sea level, higher in vacuum
+                const pressureFactor = Math.max(0, 1 - altitude / 10000);
+                return STAGE_TEMPLATES.booster.engineISP * (1 - pressureFactor * 0.1) + 
+                       STAGE_TEMPLATES.booster.engineISPVac * (pressureFactor * 0.1);
+            } else if (stageIndex === 1) {
+                // Sustainer: vacuum optimized
+                return STAGE_TEMPLATES.sustainer.engineISPVac;
+            } else {
+                // Orbital: high vacuum ISP
+                return STAGE_TEMPLATES.orbital.engineISPVac;
+            }
+        }
+        
+        function calculatePerformance() {
+            let totalDeltaVValue = 0;
+            
+            // Calculate Delta-V for each stage using Tsiolkovsky rocket equation
+            for (let i = 0; i < 3; i++) {
+                const stage = rocketState.stages[i];
+                
+                // Calculate initial and final masses for this stage
+                let initialMass = stage.dryMass + stage.fuelMass;
+                let finalMass = stage.dryMass;
+                
+                // Add mass of upper stages for first two stages
+                for (let j = i + 1; j < 3; j++) {
+                    const upperStage = rocketState.stages[j];
+                    initialMass += upperStage.dryMass + upperStage.fuelMass;
+                    finalMass += upperStage.dryMass + upperStage.fuelMass;
+                }
+                
+                // Add payload mass
+                const payloadMass = stage.fuelMass * 0.1; // Simplified
+                initialMass += payloadMass;
+                finalMass += payloadMass;
+                
+                // Calculate stage Delta-V
+                const stageDeltaV = stage.isp * PHYSICS_CONSTANTS.STANDARD_GRAVITY * 
+                                  Math.log(initialMass / finalMass);
+                
+                totalDeltaVValue += stageDeltaV;
+                
+                // Update payload estimate
+                if (i === 0) {
+                    payloadLEO.textContent = formatMass(payloadMass);
+                }
+            }
+            
+            totalDeltaV.textContent = Math.round(totalDeltaVValue) + ' m/s';
+            
+            // Update timeline events based on configuration
+            updateTimelineEvents();
+        }
+        
+        function updateTimelineEvents() {
+            const stage1Time = parseInt(stage1TimeSlider.value);
+            const stage2Time = parseInt(stage2TimeSlider.value);
+            
+            document.getElementById('event1Time').textContent = 'T+00:00';
+            document.getElementById('event2Time').textContent = `T+${Math.floor(stage1Time/3/60)}:${Math.floor(stage1Time/3%60).toString().padStart(2, '0')}`;
+            document.getElementById('event3Time').textContent = `T+${Math.floor(stage1Time/60)}:${Math.floor(stage1Time%60).toString().padStart(2, '0')}`;
+            document.getElementById('event4Time').textContent = `T+${Math.floor((stage1Time + stage2Time)/60)}:${Math.floor((stage1Time + stage2Time)%60).toString().padStart(2, '0')}`;
+            document.getElementById('event5Time').textContent = `T+${Math.floor((stage1Time + stage2Time + 300)/60)}:${Math.floor((stage1Time + stage2Time + 300)%60).toString().padStart(2, '0')}`;
+        }
+        
+        function designRocket() {
+            createRocket();
+            launchRocketBtn.disabled = false;
+            launchRocketBtn.innerHTML = "🚀 LAUNCH SIMULATION";
+        }
+        
+        function initializeThreeJS() {
+            // Scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x000010);
+            
+            // Camera
+            camera = new THREE.PerspectiveCamera(60, 
+                (window.innerWidth - 450) / window.innerHeight, 0.1, 1000000);
+            camera.position.set(0, 50, 200);
+            
+            // Renderer
+            renderer = new THREE.WebGLRenderer({ 
+                canvas: document.getElementById('simulationCanvas'),
+                antialias: true 
+            });
+            renderer.setSize(window.innerWidth - 450, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            
+            // Lighting
+            const ambientLight = new THREE.AmbientLight(0x222244, 0.5);
+            scene.add(ambientLight);
+            
+            const sunLight = new THREE.DirectionalLight(0xffffff, 1);
+            sunLight.position.set(1000, 1000, 1000);
+            sunLight.castShadow = true;
+            sunLight.shadow.mapSize.width = 2048;
+            sunLight.shadow.mapSize.height = 2048;
+            scene.add(sunLight);
+            
+            // Create Earth
+            createEarth();
+            
+            // Create stars
+            createStarField();
+            
+            // Start animation loop
+            animate();
+        }
+        
+        function createEarth() {
+            const geometry = new THREE.SphereGeometry(100, 64, 64);
+            const material = new THREE.MeshPhongMaterial({
+                color: 0x2233ff,
+                shininess: 30
+            });
+            
+            earth = new THREE.Mesh(geometry, material);
+            earth.position.set(0, -150, 0);
+            earth.receiveShadow = true;
+            scene.add(earth);
+        }
+        
+        function createStarField() {
+            const geometry = new THREE.BufferGeometry();
+            const starCount = 10000;
+            const positions = new Float32Array(starCount * 3);
+            
+            for (let i = 0; i < starCount * 3; i += 3) {
+                positions[i] = (Math.random() - 0.5) * 20000;
+                positions[i + 1] = (Math.random() - 0.5) * 20000;
+                positions[i + 2] = (Math.random() - 0.5) * 20000;
+            }
+            
+            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            
+            const material = new THREE.PointsMaterial({
+                color: 0xffffff,
+                size: 0.5,
+                transparent: true
+            });
+            
+            const starField = new THREE.Points(geometry, material);
+            scene.add(starField);
+        }
+        
+        function createRocket() {
+            // Remove existing rocket
+            if (rocket) {
+                scene.remove(rocket);
+            }
+            
+            const rocketGroup = new THREE.Group();
+            
+            // Stage 3 (Top stage)
+            const stage3 = createStage(2, 0, 65, 3, 30);
+            rocketGroup.add(stage3);
+            
+            // Interstage 2-3
+            const interstage23 = createInterstage(3, 30, 2.5, 5);
+            interstage23.position.y = 30;
+            rocketGroup.add(interstage23);
+            
+            // Stage 2
+            const stage2 = createStage(1, 0, 35, 4, 55);
+            stage2.position.y = 35;
+            rocketGroup.add(stage2);
+            
+            // Interstage 1-2
+            const interstage12 = createInterstage(4, 55, 3.5, 5);
+            interstage12.position.y = 55;
+            rocketGroup.add(interstage12);
+            
+            // Stage 1
+            const stage1 = createStage(0, -20, 20, 5, 75);
+            stage1.position.y = 20;
+            rocketGroup.add(stage1);
+            
+            // Add RCS thrusters to stage 3
+            addRCSThrusters(stage3);
+            
+            // Add fairing to stage 3
+            addFairing(stage3);
+            
+            // Add grid fins to stage 1
+            addGridFins(stage1);
+            
+            scene.add(rocketGroup);
+            rocket = rocketGroup;
+            
+            // Position rocket on launch pad
+            rocket.position.y = 10;
+            
+            // Update camera
+            updateCamera();
+        }
+        
+        function createStage(stageIndex, minY, maxY, radius, height) {
+            const group = new THREE.Group();
+            group.userData = { stageIndex: stageIndex };
+            
+            // Main tank
+            const tankGeometry = new THREE.CylinderGeometry(radius, radius, height, 32);
+            const tank = new THREE.Mesh(tankGeometry, materials[`stage${stageIndex + 1}`]);
+            tank.castShadow = true;
+            tank.receiveShadow = true;
+            group.add(tank);
+            
+            // Engine section
+            const engineGeometry = new THREE.CylinderGeometry(radius * 0.8, radius, height * 0.2, 32);
+            const engine = new THREE.Mesh(engineGeometry, materials[`stage${stageIndex + 1}`]);
+            engine.position.y = -height / 2;
+            engine.castShadow = true;
+            group.add(engine);
+            
+            // Engine nozzles
+            const engineCount = STAGE_TEMPLATES[stageIndex === 0 ? 'booster' : 
+                                               stageIndex === 1 ? 'sustainer' : 'orbital'].engineCount;
+            const nozzleGeometry = new THREE.ConeGeometry(radius * 0.3, height * 0.3, 16);
+            const nozzleMaterial = new THREE.MeshPhongMaterial({ 
+                color: 0x333333,
+                emissive: 0x111111
+            });
+            
+            for (let i = 0; i < engineCount; i++) {
+                const angle = (i / engineCount) * Math.PI * 2;
+                const distance = stageIndex === 0 ? radius * 0.6 : 0;
+                
+                const nozzle = new THREE.Mesh(nozzleGeometry, nozzleMaterial);
+                nozzle.position.set(
+                    Math.cos(angle) * distance,
+                    -height / 2 - height * 0.15,
+                    Math.sin(angle) * distance
+                );
+                nozzle.rotation.x = Math.PI;
+                nozzle.castShadow = true;
+                group.add(nozzle);
+            }
+            
+            return group;
+        }
+        
+        function createInterstage(topRadius, height, bottomRadius, thickness) {
+            const group = new THREE.Group();
+            
+            const geometry = new THREE.CylinderGeometry(topRadius, bottomRadius, thickness, 32);
+            const material = new THREE.MeshPhongMaterial({ 
+                color: 0x444444,
+                shininess: 10
+            });
+            
+            const interstage = new THREE.Mesh(geometry, material);
+            interstage.castShadow = true;
+            interstage.receiveShadow = true;
+            group.add(interstage);
+            
+            // Separation plane visualization
+            const separationGeometry = new THREE.RingGeometry(bottomRadius * 0.9, bottomRadius, 32);
+            const separationMaterial = new THREE.MeshBasicMaterial({ 
+                color: 0xff8800,
+                side: THREE.DoubleSide,
+                transparent: true,
+                opacity: 0.3
+            });
+            
+            const separationPlane = new THREE.Mesh(separationGeometry, separationMaterial);
+            separationPlane.rotation.x = Math.PI / 2;
+            separationPlane.position.y = -thickness / 2;
+            group.add(separationPlane);
+            
+            return group;
+        }
+        
+        function addRCSThrusters(stage) {
+            // Add RCS thruster blocks at four positions around the stage
+            const rcsGeometry = new THREE.BoxGeometry(0.5, 0.5, 0.5);
+            
+            // Positions: top front, top back, bottom front, bottom back (relative to stage)
+            const positions = [
+                new THREE.Vector3(3, 15, 0),   // Top front
+                new THREE.Vector3(-3, 15, 0),  // Top back
+                new THREE.Vector3(0, 15, 3),   // Top right
+                new THREE.Vector3(0, 15, -3),  // Top left
+                new THREE.Vector3(3, -15, 0),  // Bottom front
+                new THREE.Vector3(-3, -15, 0), // Bottom back
+                new THREE.Vector3(0, -15, 3),  // Bottom right
+                new THREE.Vector3(0, -15, -3)  // Bottom left
+            ];
+            
+            positions.forEach(pos => {
+                const thruster = new THREE.Mesh(rcsGeometry, materials.rcsThruster);
+                thruster.position.copy(pos);
+                stage.add(thruster);
+            });
+        }
+        
+        function addFairing(stage) {
+            const fairingGroup = new THREE.Group();
+            
+            // Fairing halves
+            const fairingGeometry = new THREE.ConeGeometry(3, 15, 32);
+            const fairingMaterial = materials.fairing;
+            
+            const leftFairing = new THREE.Mesh(fairingGeometry, fairingMaterial);
+            leftFairing.position.y = 30;
+            leftFairing.castShadow = true;
+            fairingGroup.add(leftFairing);
+            
+            const rightFairing = leftFairing.clone();
+            rightFairing.rotation.y = Math.PI;
+            fairingGroup.add(rightFairing);
+            
+            stage.add(fairingGroup);
+            stage.userData.fairing = fairingGroup;
+        }
+        
+        function addGridFins(stage) {
+            const finGeometry = new THREE.BoxGeometry(4, 3, 0.1);
+            const finMaterial = new THREE.MeshPhongMaterial({ color: 0x666666 });
+            
+            for (let i = 0; i < 4; i++) {
+                const angle = (i / 4) * Math.PI * 2;
+                const fin = new THREE.Mesh(finGeometry, finMaterial);
+                
+                fin.position.set(
+                    Math.cos(angle) * 5,
+                    -25,
+                    Math.sin(angle) * 5
+                );
+                
+                // Rotate to face outward
+                fin.rotation.y = angle + Math.PI / 2;
+                
+                // Tilt for aerodynamic effect
+                fin.rotation.x = Math.PI / 6;
+                
+                fin.castShadow = true;
+                stage.add(fin);
+            }
+        }
+        
+        function calculateRCSThrusterPositions() {
+            // Pre-calculate RCS thruster positions and orientations for impulse calculations
+            rocketState.rcsThrusterPositions = [
+                // Top thrusters (for pitch/yaw control)
+                { position: new THREE.Vector3(3, 15, 0), direction: new THREE.Vector3(-1, 0, 0) }, // Pitch up
+                { position: new THREE.Vector3(-3, 15, 0), direction: new THREE.Vector3(1, 0, 0) }, // Pitch down
+                { position: new THREE.Vector3(0, 15, 3), direction: new THREE.Vector3(0, 0, -1) }, // Yaw left
+                { position: new THREE.Vector3(0, 15, -3), direction: new THREE.Vector3(0, 0, 1) }, // Yaw right
+                
+                // Bottom thrusters (for roll control)
+                { position: new THREE.Vector3(3, -15, 0), direction: new THREE.Vector3(0, 0, 1) }, // Roll right
+                { position: new THREE.Vector3(-3, -15, 0), direction: new THREE.Vector3(0, 0, -1) }, // Roll left
+                { position: new THREE.Vector3(0, -15, 3), direction: new THREE.Vector3(1, 0, 0) }, // Roll left (secondary)
+                { position: new THREE.Vector3(0, -15, -3), direction: new THREE.Vector3(-1, 0, 0) }  // Roll right (secondary)
+            ];
+        }
+        
+        function startRCSImpulse(controlId) {
+            if (!rocketState.rcsActive || rocketState.stages[2].rcsFuel <= 0) return;
+            
+            let thrusterIndex;
+            let pulseDuration = RCS_CONFIG.pulseDuration;
+            
+            switch(controlId) {
+                case 'rcsPitchUp':
+                    thrusterIndex = 0;
+                    break;
+                case 'rcsPitchDown':
+                    thrusterIndex = 1;
+                    break;
+                case 'rcsYawLeft':
+                    thrusterIndex = 2;
+                    break;
+                case 'rcsYawRight':
+                    thrusterIndex = 3;
+                    break;
+                case 'rcsRollLeft':
+                    thrusterIndex = 5;
+                    pulseDuration *= 2; // Roll needs more impulse
+                    break;
+                case 'rcsRollRight':
+                    thrusterIndex = 4;
+                    pulseDuration *= 2;
+                    break;
+                default:
+                    return;
+            }
+            
+            const pulse = {
+                thrusterIndex: thrusterIndex,
+                startTime: rocketState.simulationTime,
+                duration: pulseDuration,
+                active: true
+            };
+            
+            rocketState.rcsPulseQueue.push(pulse);
+            
+            // Apply immediate impulse
+            applyRCSImpulse(pulse);
+            
+            // Visual feedback
+            createImpulseVisual(pulse);
+        }
+        
+        function stopRCSImpulse(controlId) {
+            // Find and stop the corresponding pulse
+            rocketState.rcsPulseQueue = rocketState.rcsPulseQueue.filter(pulse => {
+                if (pulse.active) {
+                    pulse.active = false;
+                    return false;
+                }
+                return true;
+            });
+        }
+        
+        function applyRCSImpulse(pulse) {
+            const thruster = rocketState.rcsThrusterPositions[pulse.thrusterIndex];
+            const stage = rocketState.stages[2];
+            
+            // Check fuel
+            if (stage.rcsFuel <= 0) return;
+            
+            // Calculate impulse
+            const impulseMagnitude = RCS_CONFIG.impulseBit;
+            const impulse = thruster.direction.clone().multiplyScalar(impulseMagnitude);
+            
+            // Apply linear impulse (small effect on velocity due to large mass)
+            const totalMass = calculateTotalMass();
+            const velocityChange = impulse.clone().divideScalar(totalMass);
+            rocketState.velocity.add(velocityChange);
+            
+            // Apply angular impulse (torque)
+            const torque = thruster.position.clone().cross(impulse);
+            const momentOfInertia = calculateMomentOfInertia();
+            const angularAcceleration = torque.divideScalar(momentOfInertia);
+            rocketState.angularVelocity.add(angularAcceleration.multiplyScalar(pulse.duration));
+            
+            // Consume fuel
+            stage.rcsFuel -= RCS_CONFIG.fuelConsumption;
+            
+            // Record impulse for visualization
+            rocketState.rcsImpulseHistory.push({
+                time: rocketState.simulationTime,
+                position: thruster.position.clone(),
+                direction: thruster.direction.clone(),
+                magnitude: impulseMagnitude
+            });
+        }
+        
+        function createImpulseVisual(pulse) {
+            const thruster = rocketState.rcsThrusterPositions[pulse.thrusterIndex];
+            
+            // Create impulse indicator
+            const indicator = document.createElement('div');
+            indicator.className = 'impulse-indicator';
+            
+            // Convert 3D position to screen position
+            const worldPosition = thruster.position.clone();
+            const stage3 = rocket.children[0]; // Stage 3 is first child
+            const localPosition = worldPosition.clone().applyMatrix4(stage3.matrixWorld);
+            const screenPosition = localPosition.clone().project(camera);
+            
+            const x = (screenPosition.x * 0.5 + 0.5) * (window.innerWidth - 450);
+            const y = (-screenPosition.y * 0.5 + 0.5) * window.innerHeight;
+            
+            indicator.style.left = x + 'px';
+            indicator.style.top = y + 'px';
+            
+            document.getElementById('simulationArea').appendChild(indicator);
+            
+            // Animate
+            indicator.animate([
+                { opacity: 1, transform: 'scale(1)' },
+                { opacity: 0, transform: 'scale(3)' }
+            ], {
+                duration: 200,
+                easing: 'ease-out'
+            }).onfinish = () => indicator.remove();
+            
+            // Create fuel delta indicator
+            const fuelDelta = document.createElement('div');
+            fuelDelta.className = 'fuel-delta';
+            fuelDelta.textContent = '-' + RCS_CONFIG.fuelConsumption.toFixed(2) + 'kg';
+            fuelDelta.style.left = (x + 10) + 'px';
+            fuelDelta.style.top = (y + 10) + 'px';
+            
+            document.getElementById('simulationArea').appendChild(fuelDelta);
+            
+            fuelDelta.animate([
+                { opacity: 1, transform: 'translateY(0)' },
+                { opacity: 0, transform: 'translateY(-20px)' }
+            ], {
+                duration: 1000,
+                easing: 'ease-out'
+            }).onfinish = () => fuelDelta.remove();
+        }
+        
+        function calculateTotalMass() {
+            let mass = 0;
+            
+            for (let i = 0; i <= rocketState.currentStage; i++) {
+                const stage = rocketState.stages[i];
+                if (!stage.separated) {
+                    mass += stage.dryMass + stage.fuelMass;
+                }
+            }
+            
+            // Add RCS fuel from stage 3
+            if (rocketState.currentStage >= 2 && !rocketState.stages[2].separated) {
+                mass += rocketState.stages[2].rcsFuel;
+            }
+            
+            return mass;
+        }
+        
+        function calculateMomentOfInertia() {
+            // Simplified moment of inertia calculation
+            const mass = calculateTotalMass();
+            const radius = 3; // Approximate radius of rocket
+            const height = 100; // Approximate height
+            
+            // Cylinder moment of inertia
+            const Ixx = (1/12) * mass * (3 * radius * radius + height * height);
+            const Iyy = (1/2) * mass * radius * radius;
+            
+            return (Ixx + Iyy) / 2; // Average
+        }
+        
+        function handleKeyDown(event) {
+            if (!rocketState.rcsActive) return;
+            
+            switch(event.key) {
+                case 'ArrowUp':
+                    startRCSImpulse('rcsPitchUp');
+                    break;
+                case 'ArrowDown':
+                    startRCSImpulse('rcsPitchDown');
+                    break;
+                case 'ArrowLeft':
+                    startRCSImpulse('rcsYawLeft');
+                    break;
+                case 'ArrowRight':
+                    startRCSImpulse('rcsYawRight');
+                    break;
+                case 'q':
+                case 'Q':
+                    startRCSImpulse('rcsRollLeft');
+                    break;
+                case 'e':
+                case 'E':
+                    startRCSImpulse('rcsRollRight');
+                    break;
+                case ' ':
+                    if (!event.repeat) triggerStageSeparation();
+                    break;
+            }
+        }
+        
+        function handleKeyUp(event) {
+            switch(event.key) {
+                case 'ArrowUp':
+                    stopRCSImpulse('rcsPitchUp');
+                    break;
+                case 'ArrowDown':
+                    stopRCSImpulse('rcsPitchDown');
+                    break;
+                case 'ArrowLeft':
+                    stopRCSImpulse('rcsYawLeft');
+                    break;
+                case 'ArrowRight':
+                    stopRCSImpulse('rcsYawRight');
+                    break;
+                case 'q':
+                case 'Q':
+                    stopRCSImpulse('rcsRollLeft');
+                    break;
+                case 'e':
+                case 'E':
+                    stopRCSImpulse('rcsRollRight');
+                    break;
+            }
+        }
+        
+        function startSimulation() {
+            rocketState.rcsActive = true;
+            rocketState.simulationTime = 0;
+            
+            // Enable RCS for stage 3
+            if (rocketState.currentStage >= 2) {
+                rocketState.rcsActive = true;
+            }
+            
+            // Start physics loop
+            animate();
+            
+            // Update UI
+            document.getElementById('fuelSelectionPanel').style.display = 'none';
+            stageSepButton.disabled = false;
+            
+            // Schedule stage separations based on burn times
+            scheduleStageSeparations();
+        }
+        
+        function scheduleStageSeparations() {
+            const stage1Time = parseInt(stage1TimeSlider.value);
+            const stage2Time = parseInt(stage2TimeSlider.value);
+            
+            // Stage 1 separation
+            setTimeout(() => {
+                if (rocketState.currentStage === 0) {
+                    triggerStageSeparation();
+                }
+            }, stage1Time * 1000);
+            
+            // Stage 2 separation
+            setTimeout(() => {
+                if (rocketState.currentStage === 1) {
+                    triggerStageSeparation();
+                }
+            }, (stage1Time + stage2Time) * 1000);
+        }
+        
+        function triggerStageSeparation() {
+            const currentStage = rocketState.stages[rocketState.currentStage];
+            
+            if (currentStage.separated || !currentStage.active) return;
+            
+            // Mark stage as separated
+            currentStage.separated = true;
+            currentStage.active = false;
+            currentStage.enginesActive = false;
+            
+            // Activate next stage
+            rocketState.currentStage++;
+            if (rocketState.currentStage < 3) {
+                const nextStage = rocketState.stages[rocketState.currentStage];
+                nextStage.active = true;
+                nextStage.enginesActive = true;
+                
+                if (rocketState.currentStage === 2) {
+                    // Activate RCS for orbital stage
+                    rocketState.rcsActive = true;
+                    // Jettison fairing
+                    if (rocket.children[0].userData.fairing) {
+                        jettisonFairing();
+                    }
+                }
+            }
+            
+            // Visual separation effect
+            createStageSeparationVisual();
+            
+            // Update UI
+            updateStageIndicators();
+            
+            // Apply separation impulse
+            applySeparationImpulse();
+        }
+        
+        function applySeparationImpulse() {
+            // Apply small impulse to separated stage
+            const separationForce = STAGE_TEMPLATES[
+                rocketState.currentStage === 0 ? 'booster' : 
+                rocketState.currentStage === 1 ? 'sustainer' : 'orbital'
+            ].separationForce;
+            
+            // Apply in opposite direction to rocket's velocity
+            const impulseDirection = rocketState.velocity.clone().normalize().multiplyScalar(-1);
+            const impulse = impulseDirection.multiplyScalar(separationForce);
+            
+            // Create separated stage object
+            const separatedStage = createSeparatedStageVisual();
+            if (separatedStage) {
+                separatedStage.userData.velocity = rocketState.velocity.clone().add(
+                    impulse.divideScalar(calculateStageMass(rocketState.currentStage - 1))
+                );
+                separatedStages.push(separatedStage);
+            }
+            
+            // Apply opposite impulse to remaining rocket
+            const remainingMass = calculateTotalMass();
+            const velocityChange = impulse.clone().multiplyScalar(-1).divideScalar(remainingMass);
+            rocketState.velocity.add(velocityChange);
+        }
+        
+        function createSeparatedStageVisual() {
+            if (rocketState.currentStage === 0) return null;
+            
+            // Clone the stage mesh
+            const stageIndex = rocketState.currentStage - 1;
+            const stageMesh = rocket.children[stageIndex * 2].clone(); // Every other child is a stage
+            
+            // Position it at current rocket position
+            stageMesh.position.copy(rocket.position);
+            stageMesh.rotation.copy(rocket.rotation);
+            
+            // Add to scene
+            scene.add(stageMesh);
+            
+            return stageMesh;
+        }
+        
+        function createStageSeparationVisual() {
+            // Create explosion/debris particles at separation point
+            const particleCount = 100;
+            const geometry = new THREE.BufferGeometry();
+            const positions = new Float32Array(particleCount * 3);
+            const velocities = [];
+            
+            for (let i = 0; i < particleCount * 3; i += 3) {
+                positions[i] = (Math.random() - 0.5) * 5;
+                positions[i + 1] = (Math.random() - 0.5) * 5;
+                positions[i + 2] = (Math.random() - 0.5) * 5;
+                
+                velocities.push(new THREE.Vector3(
+                    (Math.random() - 0.5) * 10,
+                    (Math.random() - 0.5) * 10,
+                    (Math.random() - 0.5) * 10
+                ));
+            }
+            
+            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            
+            const material = new THREE.PointsMaterial({
+                color: 0xff8800,
+                size: 0.5,
+                transparent: true
+            });
+            
+            const particles = new THREE.Points(geometry, material);
+            particles.position.copy(rocket.position);
+            particles.userData.velocities = velocities;
+            particles.userData.lifetime = 0;
+            particles.userData.maxLifetime = 2;
+            
+            scene.add(particles);
+            
+            // Animate particles
+            const animateParticles = () => {
+                particles.userData.lifetime += 0.016;
+                
+                if (particles.userData.lifetime > particles.userData.maxLifetime) {
+                    scene.remove(particles);
+                    return;
+                }
+                
+                const positions = particles.geometry.attributes.position.array;
+                
+                for (let i = 0; i < velocities.length; i++) {
+                    positions[i * 3] += velocities[i].x * 0.016;
+                    positions[i * 3 + 1] += velocities[i].y * 0.016;
+                    positions[i * 3 + 2] += velocities[i].z * 0.016;
+                }
+                
+                particles.geometry.attributes.position.needsUpdate = true;
+                particles.material.opacity = 1 - (particles.userData.lifetime / particles.userData.maxLifetime);
+                
+                requestAnimationFrame(animateParticles);
+            };
+            
+            animateParticles();
+        }
+        
+        function jettisonFairing() {
+            const stage3 = rocket.children[0];
+            const fairing = stage3.userData.fairing;
+            
+            if (fairing) {
+                // Create separate fairing halves
+                const leftFairing = fairing.children[0].clone();
+                const rightFairing = fairing.children[1].clone();
+                
+                // Position them
+                leftFairing.position.copy(rocket.position);
+                rightFairing.position.copy(rocket.position);
+                
+                // Add rotation
+                leftFairing.userData.velocity = new THREE.Vector3(
+                    rocketState.velocity.x + 5,
+                    rocketState.velocity.y,
+                    rocketState.velocity.z
+                );
+                rightFairing.userData.velocity = new THREE.Vector3(
+                    rocketState.velocity.x - 5,
+                    rocketState.velocity.y,
+                    rocketState.velocity.z
+                );
+                
+                scene.add(leftFairing);
+                scene.add(rightFairing);
+                separatedStages.push(leftFairing, rightFairing);
+                
+                // Remove from rocket
+                stage3.remove(fairing);
+            }
+        }
+        
+        function toggleEngines() {
+            const currentStage = rocketState.stages[rocketState.currentStage];
+            
+            if (currentStage && !currentStage.separated) {
+                currentStage.enginesActive = !currentStage.enginesActive;
+                engineToggle.textContent = currentStage.enginesActive ? 'ENGINE OFF' : 'ENGINE ON';
+            }
+        }
+        
+        function calculateStageMass(stageIndex) {
+            const stage = rocketState.stages[stageIndex];
+            return stage.dryMass + stage.fuelMass;
+        }
+        
+        function updateStageIndicators() {
+            // Update stage indicator dots
+            for (let i = 0; i < 3; i++) {
+                const indicator = document.getElementById(`stage${i + 1}Indicator`);
+                const stage = rocketState.stages[i];
+                
+                if (stage.separated) {
+                    indicator.className = 'stage-indicator stage-separated';
+                } else if (stage.active) {
+                    indicator.className = 'stage-indicator stage-active';
+                } else {
+                    indicator.className = 'stage-indicator stage-inactive';
+                }
+            }
+        }
+        
+        function updatePhysics(deltaTime) {
+            // Update simulation time
+            rocketState.simulationTime += deltaTime;
+            
+            // Update altitude and atmospheric conditions
+            rocketState.altitude = rocket.position.y - 10; // Launch pad at y=10
+            rocketState.downrangeDistance = Math.sqrt(rocket.position.x * rocket.position.x + 
+                                                     rocket.position.z * rocket.position.z);
+            
+            // Calculate atmospheric pressure
+            const scaleHeight = 8500; // meters
+            rocketState.atmosphericPressure = 101.325 * Math.exp(-rocketState.altitude / scaleHeight);
+            
+            // Calculate dynamic pressure
+            const airDensity = rocketState.atmosphericPressure * 1.225 / 101.325;
+            rocketState.dynamicPressure = 0.5 * airDensity * rocketState.velocity.lengthSq();
+            
+            // Calculate Mach number
+            const speedOfSound = 340.29 * Math.sqrt(rocketState.atmosphericPressure / 101.325);
+            rocketState.machNumber = rocketState.velocity.length() / speedOfSound;
+            
+            // Get current stage
+            const currentStage = rocketState.stages[rocketState.currentStage];
+            
+            // Calculate thrust
+            let totalThrust = new THREE.Vector3(0, 0, 0);
+            
+            if (currentStage && currentStage.enginesActive && !currentStage.separated) {
+                // Calculate ISP at current altitude
+                const isp = calculateStageISP(rocketState.currentStage);
+                
+                // Calculate fuel flow rate
+                const fuelFlowRate = currentStage.thrust / (isp * PHYSICS_CONSTANTS.STANDARD_GRAVITY);
+                currentStage.fuelFlowRate = fuelFlowRate;
+                
+                // Consume fuel
+                const fuelConsumed = fuelFlowRate * deltaTime;
+                if (currentStage.fuelMass > fuelConsumed) {
+                    currentStage.fuelMass -= fuelConsumed;
+                } else {
+                    currentStage.fuelMass = 0;
+                    currentStage.enginesActive = false;
+                    
+                    // Auto-separate if stage is empty
+                    if (rocketState.currentStage < 2) {
+                        setTimeout(() => triggerStageSeparation(), 1000);
+                    }
+                }
+                
+                // Calculate thrust vector (aligned with rocket orientation)
+                const thrustMagnitude = currentStage.thrust * 
+                                      (rocketState.atmosphericPressure / 101.325); // Reduced at altitude
+                
+                const thrustDirection = new THREE.Vector3(0, 1, 0)
+                    .applyEuler(rocketState.rotation);
+                
+                totalThrust = thrustDirection.multiplyScalar(thrustMagnitude);
+                
+                // Add gimballing effect
+                const gimbalAngle = Math.sin(rocketState.simulationTime) * 0.05;
+                totalThrust.applyAxisAngle(new THREE.Vector3(1, 0, 0), gimbalAngle);
+            }
+            
+            // Calculate gravitational force
+            const distanceFromCenter = PHYSICS_CONSTANTS.EARTH_RADIUS + rocketState.altitude;
+            const gravitationalForce = PHYSICS_CONSTANTS.G * PHYSICS_CONSTANTS.EARTH_MASS * 
+                                     calculateTotalMass() / (distanceFromCenter * distanceFromCenter);
+            
+            const gravityDirection = rocket.position.clone().normalize().multiplyScalar(-1);
+            const gravity = gravityDirection.multiplyScalar(gravitationalForce);
+            
+            // Calculate aerodynamic drag
+            let drag = new THREE.Vector3(0, 0, 0);
+            if (rocketState.altitude < PHYSICS_CONSTANTS.ATMOSPHERE_HEIGHT) {
+                const dragCoefficient = 0.5;
+                const referenceArea = Math.PI * 2.5 * 2.5;
+                const dragForce = 0.5 * rocketState.dynamicPressure * dragCoefficient * referenceArea;
+                drag = rocketState.velocity.clone().normalize().multiplyScalar(-dragForce);
+            }
+            
+            // Calculate total force
+            const totalForce = totalThrust.add(gravity).add(drag);
+            
+            // Calculate acceleration (F = ma)
+            const mass = calculateTotalMass();
+            rocketState.acceleration = totalForce.divideScalar(mass);
+            
+            // Update velocity
+            rocketState.velocity.add(rocketState.acceleration.clone().multiplyScalar(deltaTime));
+            
+            // Update position
+            rocket.position.add(rocketState.velocity.clone().multiplyScalar(deltaTime));
+            
+            // Update rotation from angular velocity
+            rocket.rotation.x += rocketState.angularVelocity.x * deltaTime;
+            rocket.rotation.y += rocketState.angularVelocity.y * deltaTime;
+            rocket.rotation.z += rocketState.angularVelocity.z * deltaTime;
+            
+            // Apply damping to angular velocity
+            rocketState.angularVelocity.multiplyScalar(0.99);
+            
+            // Update separated stages
+            updateSeparatedStages(deltaTime);
+            
+            // Update RCS pulses
+            updateRCSPulses(deltaTime);
+            
+            // Update telemetry
+            updateTelemetry();
+        }
+        
+        function updateSeparatedStages(deltaTime) {
+            for (let i = separatedStages.length - 1; i >= 0; i--) {
+                const stage = separatedStages[i];
+                
+                if (stage.userData.velocity) {
+                    // Apply gravity
+                    const distanceFromCenter = PHYSICS_CONSTANTS.EARTH_RADIUS + stage.position.y;
+                    const gravity = PHYSICS_CONSTANTS.STANDARD_GRAVITY * 
+                                  Math.pow(PHYSICS_CONSTANTS.EARTH_RADIUS / distanceFromCenter, 2);
+                    
+                    stage.userData.velocity.y -= gravity * deltaTime;
+                    
+                    // Update position
+                    stage.position.add(stage.userData.velocity.clone().multiplyScalar(deltaTime));
+                    
+                    // Add rotation
+                    stage.rotation.x += 0.5 * deltaTime;
+                    stage.rotation.y += 0.3 * deltaTime;
+                    
+                    // Remove if too far away or below ground
+                    if (stage.position.length() > 10000 || stage.position.y < -200) {
+                        scene.remove(stage);
+                        separatedStages.splice(i, 1);
+                    }
+                }
+            }
+        }
+        
+        function updateRCSPulses(deltaTime) {
+            // Update active RCS pulses
+            for (let i = rocketState.rcsPulseQueue.length - 1; i >= 0; i--) {
+                const pulse = rocketState.rcsPulseQueue[i];
+                
+                if (pulse.active) {
+                    pulse.duration -= deltaTime;
+                    
+                    if (pulse.duration <= 0) {
+                        rocketState.rcsPulseQueue.splice(i, 1);
+                    }
+                }
+            }
+            
+            // Clean up old impulse history
+            const cutoffTime = rocketState.simulationTime - 5; // Keep 5 seconds of history
+            rocketState.rcsImpulseHistory = rocketState.rcsImpulseHistory.filter(
+                impulse => impulse.time > cutoffTime
+            );
+        }
+        
+        function updateTelemetry() {
+            // Format time
+            const minutes = Math.floor(rocketState.simulationTime / 60);
+            const seconds = Math.floor(rocketState.simulationTime % 60);
+            const milliseconds = Math.floor((rocketState.simulationTime % 1) * 10);
+            teleTime.textContent = `T+${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}.${milliseconds}`;
+            
+            teleStage.textContent = rocketState.currentStage + 1;
+            teleAltitude.textContent = (rocketState.altitude / 1000).toFixed(2) + ' km';
+            teleVelocity.textContent = Math.round(rocketState.velocity.length()) + ' m/s';
+            teleAcceleration.textContent = (rocketState.acceleration.length() / PHYSICS_CONSTANTS.STANDARD_GRAVITY).toFixed(2) + ' g';
+            teleApogee.textContent = '--'; // Would need orbit calculation
+            teleDownrange.textContent = (rocketState.downrangeDistance / 1000).toFixed(1) + ' km';
+            
+            // Fuel percentage
+            const currentStage = rocketState.stages[rocketState.currentStage];
+            if (currentStage) {
+                const fuelPercentage = (currentStage.fuelMass / 
+                    (parseInt([stage1MassSlider, stage2MassSlider, stage3MassSlider][rocketState.currentStage].value))) * 100;
+                teleFuel.textContent = fuelPercentage.toFixed(1) + '%';
+            }
+            
+            // RCS fuel
+            if (rocketState.currentStage >= 2) {
+                const rcsFuelPercentage = (rocketState.stages[2].rcsFuel / 
+                    parseInt(rcsFuelSlider.value)) * 100;
+                teleRCSFuel.textContent = rcsFuelPercentage.toFixed(1) + '%';
+            } else {
+                teleRCSFuel.textContent = 'N/A';
+            }
+            
+            // Attitude
+            teleAttitude.textContent = (rocketState.rotation.x * 180 / Math.PI).toFixed(1) + '°';
+            teleRotation.textContent = (rocketState.angularVelocity.x * 180 / Math.PI).toFixed(1) + '°/s';
+        }
+        
+        function updateCamera() {
+            // Dynamic camera based on altitude
+            let cameraDistance, cameraHeight;
+            
+            if (rocketState.altitude < 1000) {
+                // Close-up during launch
+                cameraDistance = 100 + rocketState.altitude * 0.1;
+                cameraHeight = 50 + rocketState.altitude * 0.05;
+            } else if (rocketState.altitude < 10000) {
+                // Medium distance during ascent
+                cameraDistance = 200 + rocketState.altitude * 0.05;
+                cameraHeight = 100 + rocketState.altitude * 0.02;
+            } else {
+                // Far view in space
+                cameraDistance = 1000 + rocketState.altitude * 0.01;
+                cameraHeight = 500 + rocketState.altitude * 0.005;
+            }
+            
+            // Smooth camera movement
+            const targetX = Math.sin(rocket.rotation.x) * cameraDistance;
+            const targetY = cameraHeight;
+            const targetZ = Math.cos(rocket.rotation.x) * cameraDistance;
+            
+            camera.position.x += (targetX - camera.position.x) * 0.05;
+            camera.position.y += (targetY - camera.position.y) * 0.05;
+            camera.position.z += (targetZ - camera.position.z) * 0.05;
+            
+            camera.lookAt(rocket.position.x, rocket.position.y + 20, rocket.position.z);
+        }
+        
+        function animate(currentTime = 0) {
+            requestAnimationFrame(animate);
+            
+            const deltaTime = Math.min(0.016, (currentTime - lastTime) / 1000) || 0.016;
+            lastTime = currentTime;
+            
+            if (rocketState.rcsActive) {
+                updatePhysics(deltaTime);
+                updateCamera();
+            }
+            
+            renderer.render(scene, camera);
+        }
+        
+        function onWindowResize() {
+            camera.aspect = (window.innerWidth - 450) / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth - 450, window.innerHeight);
+        }
+        
+        function formatMass(kg) {
+            if (kg >= 1000000) {
+                return (kg / 1000000).toFixed(1) + 'M kg';
+            } else if (kg >= 1000) {
+                return (kg / 1000).toFixed(0) + 'k kg';
+            }
+            return kg + ' kg';
+        }
+        
+        function formatThrust(newtons) {
+            if (newtons >= 1000000) {
+                return (newtons / 1000000).toFixed(1) + ' MN';
+            } else if (newtons >= 1000) {
+                return (newtons / 1000).toFixed(0) + ' kN';
+            }
+            return newtons + ' N';
+        }
+        
+        let lastTime = 0;
+    </script>
+</body>
+</html>

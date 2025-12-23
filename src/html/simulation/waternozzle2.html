@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>شبیه سازی پیشرفته نازل آب پاش</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+            touch-action: none;
+        }
+        #canvas-container {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+        }
+        #controls {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            right: 10px;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.3);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            max-height: 70vh;
+            overflow-y: auto;
+        }
+        .control-group {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+        }
+        .control-group-column {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        label {
+            font-weight: bold;
+            min-width: 120px;
+        }
+        input[type="range"], input[type="color"], select {
+            width: 60%;
+            min-width: 150px;
+        }
+        input[type="checkbox"] {
+            transform: scale(1.2);
+        }
+        button {
+            padding: 10px 15px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+            margin: 5px 0;
+        }
+        button:active {
+            background: #3e8e41;
+        }
+        .value-display {
+            min-width: 40px;
+            text-align: center;
+        }
+        #nozzle-info {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(255, 255, 255, 0.9);
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 14px;
+            max-width: 200px;
+        }
+        .section-title {
+            font-weight: bold;
+            margin-top: 10px;
+            padding-bottom: 5px;
+            border-bottom: 1px solid #ddd;
+        }
+        @media (max-width: 600px) {
+            #controls {
+                padding: 10px;
+                font-size: 14px;
+            }
+            button {
+                padding: 8px 12px;
+            }
+            label {
+                min-width: 100px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="canvas-container"></div>
+    <div id="nozzle-info">
+        <div>🔺 ذرات: <span id="particle-count">0</span></div>
+        <div>🔹 شکل فعلی: <span id="particle-shape">کره</span></div>
+        <div>🌈 رنگ: <span id="particle-color">آبی</span></div>
+    </div>
+    <div id="controls">
+        <div class="section-title">تنظیمات پاشش</div>
+        <div class="control-group">
+            <label for="intensity">شدت پاشش:</label>
+            <input type="range" id="intensity" min="1" max="30" value="10">
+            <span id="intensity-value" class="value-display">10</span>
+        </div>
+        <div class="control-group">
+            <label for="distance">فاصله پاشش:</label>
+            <input type="range" id="distance" min="1" max="15" value="7" step="0.1">
+            <span id="distance-value" class="value-display">7</span>
+        </div>
+        <div class="control-group">
+            <label for="angle">زاویه پاشش:</label>
+            <input type="range" id="angle" min="15" max="75" value="45">
+            <span id="angle-value" class="value-display">45°</span>
+        </div>
+        
+        <div class="section-title">تنظیمات ذرات</div>
+        <div class="control-group">
+            <label for="particle-type">نوع ذره:</label>
+            <select id="particle-type">
+                <option value="random">تصادفی</option>
+                <option value="sphere">کره</option>
+                <option value="cube">مکعب</option>
+                <option value="pyramid">هرم</option>
+            </select>
+        </div>
+        <div class="control-group">
+            <label for="size-variation">تنوع اندازه:</label>
+            <input type="range" id="size-variation" min="0" max="100" value="50">
+            <span id="size-variation-value" class="value-display">50%</span>
+        </div>
+        <div class="control-group">
+            <label for="opacity-variation">تنوع شفافیت:</label>
+            <input type="range" id="opacity-variation" min="0" max="100" value="30">
+            <span id="opacity-variation-value" class="value-display">30%</span>
+        </div>
+        <div class="control-group">
+            <label for="particle-color">رنگ ذرات:</label>
+            <input type="color" id="particle-color" value="#0095DD">
+        </div>
+        <div class="control-group">
+            <label for="gravity">نیروی گرانش:</label>
+            <input type="range" id="gravity" min="0" max="200" value="100">
+            <span id="gravity-value" class="value-display">100%</span>
+        </div>
+        
+        <div class="section-title">تنظیمات محیط</div>
+        <div class="control-group">
+            <label for="bg-color">رنگ پس‌زمینه:</label>
+            <input type="color" id="bg-color" value="#f0f0f0">
+        </div>
+        <div class="control-group">
+            <label for="light-color">رنگ نور:</label>
+            <input type="color" id="light-color" value="#ffffff">
+        </div>
+        <div class="control-group">
+            <label for="show-ground">نمایش زمین:</label>
+            <input type="checkbox" id="show-ground" checked>
+        </div>
+        
+        <div class="control-group-column">
+            <button id="spray-btn">🚿 شروع پاشش</button>
+            <button id="stop-btn">⏹ توقف پاشش</button>
+            <button id="clear-btn">🧹 پاک کردن ذرات</button>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.min.js"></script>
+    <script>
+        // تنظیمات اولیه
+        let scene, camera, renderer, nozzle, particles = [];
+        let isSpraying = false;
+        let sprayInterval;
+        let particleSystem;
+        let particleObjects = [];
+        let particlePool = [];
+        let maxParticles = 300;
+        
+        // تنظیمات قابل تغییر
+        let settings = {
+            intensity: 10,
+            sprayDistance: 7,
+            sprayAngle: 45,
+            particleType: 'random',
+            sizeVariation: 50,
+            opacityVariation: 30,
+            particleColor: '#0095DD',
+            gravity: 100,
+            bgColor: '#f0f0f0',
+            lightColor: '#ffffff',
+            showGround: true
+        };
+        
+        // رنگ‌ها برای نمایش
+        const colorNames = {
+            '#0095DD': 'آبی',
+            '#FF0000': 'قرمز',
+            '#00FF00': 'سبز',
+            '#FFFF00': 'زرد',
+            '#FF00FF': 'بنفش',
+            '#00FFFF': 'فیروزه‌ای',
+            '#FFFFFF': 'سفید',
+            '#000000': 'سیاه'
+        };
+        
+        // اشکال ذرات
+        const particleShapes = {
+            sphere: createSphereGeometry,
+            cube: createCubeGeometry,
+            pyramid: createPyramidGeometry
+        };
+        
+        // مقداردهی اولیه
+        function init() {
+            // ایجاد صحنه
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(settings.bgColor);
+            
+            // ایجاد دوربین
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 2, 5);
+            
+            // ایجاد رندرر
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            document.getElementById('canvas-container').appendChild(renderer.domElement);
+            
+            // کنترل‌های دوربین
+            const controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            
+            // نورپردازی
+            const ambientLight = new THREE.AmbientLight(settings.lightColor, 0.5);
+            scene.add(ambientLight);
+            
+            const directionalLight = new THREE.DirectionalLight(settings.lightColor, 0.8);
+            directionalLight.position.set(1, 1, 1);
+            scene.add(directionalLight);
+            
+            // ایجاد زمین
+            createGround();
+            
+            // ایجاد نازل آب پاش
+            createNozzle();
+            
+            // ایجاد استخر ذرات
+            createParticlePool();
+            
+            // رویدادهای کنترل‌ها
+            setupControls();
+            
+            // رویداد تغییر اندازه پنجره
+            window.addEventListener('resize', onWindowResize);
+            
+            // شروع انیمیشن
+            animate();
+        }
+        
+        // ایجاد زمین
+        function createGround() {
+            if (settings.showGround) {
+                // حذف زمین قبلی اگر وجود دارد
+                const oldGround = scene.getObjectByName('ground');
+                if (oldGround) scene.remove(oldGround);
+                
+                const groundGeometry = new THREE.PlaneGeometry(20, 20);
+                const groundMaterial = new THREE.MeshStandardMaterial({ 
+                    color: 0xcccccc,
+                    roughness: 0.8,
+                    metalness: 0.2
+                });
+                const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+                ground.name = 'ground';
+                ground.rotation.x = -Math.PI / 2;
+                ground.receiveShadow = true;
+                scene.add(ground);
+                
+                // ایجاد شبکه
+                const gridHelper = new THREE.GridHelper(20, 20, 0x888888, 0x888888);
+                gridHelper.name = 'grid';
+                scene.add(gridHelper);
+            } else {
+                const ground = scene.getObjectByName('ground');
+                if (ground) scene.remove(ground);
+                const grid = scene.getObjectByName('grid');
+                if (grid) scene.remove(grid);
+            }
+        }
+        
+        // ایجاد نازل آب پاش
+        function createNozzle() {
+            // حذف نازل قبلی اگر وجود دارد
+            const oldNozzle = scene.getObjectByName('nozzle');
+            if (oldNozzle) scene.remove(oldNozzle);
+            
+            const nozzleGroup = new THREE.Group();
+            nozzleGroup.name = 'nozzle';
+            
+            // پایه نازل
+            const baseGeometry = new THREE.CylinderGeometry(0.1, 0.2, 0.2, 32);
+            const baseMaterial = new THREE.MeshStandardMaterial({ color: 0x333333, metalness: 0.7, roughness: 0.3 });
+            const base = new THREE.Mesh(baseGeometry, baseMaterial);
+            base.position.y = 0.1;
+            nozzleGroup.add(base);
+            
+            // بدنه نازل
+            const bodyGeometry = new THREE.CylinderGeometry(0.05, 0.05, 0.5, 32);
+            const bodyMaterial = new THREE.MeshStandardMaterial({ color: 0x555555, metalness: 0.7, roughness: 0.3 });
+            const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+            body.position.y = 0.35;
+            nozzleGroup.add(body);
+            
+            // سر نازل
+            const headGeometry = new THREE.CylinderGeometry(0.03, 0.06, 0.2, 32);
+            const headMaterial = new THREE.MeshStandardMaterial({ color: 0x777777, metalness: 0.7, roughness: 0.3 });
+            const head = new THREE.Mesh(headGeometry, headMaterial);
+            head.position.y = 0.6;
+            head.rotation.z = THREE.MathUtils.degToRad(settings.sprayAngle);
+            nozzleGroup.add(head);
+            
+            // نشانگر جهت پاشش
+            const sprayIndicator = new THREE.ArrowHelper(
+                new THREE.Vector3(0, Math.sin(THREE.MathUtils.degToRad(settings.sprayAngle)), -Math.cos(THREE.MathUtils.degToRad(settings.sprayAngle))),
+                new THREE.Vector3(0, 0.7, 0),
+                1,
+                0x0095DD,
+                0.1,
+                0.05
+            );
+            nozzleGroup.add(sprayIndicator);
+            
+            nozzle = nozzleGroup;
+            nozzle.position.y = 0;
+            scene.add(nozzle);
+        }
+        
+        // ایجاد استخر ذرات
+        function createParticlePool() {
+            // پاک کردن ذرات قبلی
+            particleObjects.forEach(obj => scene.remove(obj));
+            particleObjects = [];
+            particlePool = [];
+            particles = [];
+            
+            // ایجاد ذرات اولیه در استخر
+            for (let i = 0; i < maxParticles; i++) {
+                const particle = createParticleMesh();
+                particle.visible = false;
+                scene.add(particle);
+                particlePool.push(particle);
+            }
+        }
+        
+        // ایجاد مش ذره
+        function createParticleMesh() {
+            let shapeType = settings.particleType;
+            if (shapeType === 'random') {
+                const shapes = ['sphere', 'cube', 'pyramid'];
+                shapeType = shapes[Math.floor(Math.random() * shapes.length)];
+            }
+            
+            const geometry = particleShapes[shapeType]();
+            const material = new THREE.MeshStandardMaterial({
+                color: new THREE.Color(settings.particleColor),
+                transparent: true,
+                opacity: 0.8,
+                metalness: 0.1,
+                roughness: 0.5
+            });
+            
+            return new THREE.Mesh(geometry, material);
+        }
+        
+        // ایجاد هندسه کره
+        function createSphereGeometry() {
+            const size = 0.05 * (1 + (Math.random() * settings.sizeVariation / 100));
+            return new THREE.SphereGeometry(size, 8, 8);
+        }
+        
+        // ایجاد هندسه مکعب
+        function createCubeGeometry() {
+            const size = 0.05 * (1 + (Math.random() * settings.sizeVariation / 100));
+            return new THREE.BoxGeometry(size, size, size);
+        }
+        
+        // ایجاد هندسه هرم
+        function createPyramidGeometry() {
+            const size = 0.05 * (1 + (Math.random() * settings.sizeVariation / 100));
+            const geometry = new THREE.ConeGeometry(size, size * 2, 4);
+            geometry.rotateY(Math.PI / 4); // چرخش برای شبیه‌سازی هرم
+            return geometry;
+        }
+        
+        // گرفتن ذره از استخر
+        function getParticleFromPool() {
+            for (let i = 0; i < particlePool.length; i++) {
+                if (!particlePool[i].visible) {
+                    return particlePool[i];
+                }
+            }
+            return null; // اگر ذره خالی پیدا نشد
+        }
+        
+        // اضافه کردن ذره جدید
+        function addParticle() {
+            if (!isSpraying) return;
+            
+            const particle = getParticleFromPool();
+            if (!particle) return; // اگر ذره‌ای در استخر نبود
+            
+            // موقعیت شروع (سر نازل)
+            const startX = 0;
+            const startY = 0.7;
+            const startZ = 0;
+            
+            // جهت پاشش با زاویه تنظیم شده
+            const angleRad = THREE.MathUtils.degToRad(settings.sprayAngle);
+            const dirX = 0;
+            const dirY = Math.sin(angleRad);
+            const dirZ = -Math.cos(angleRad);
+            
+            // کمی تغییرات تصادفی در جهت
+            const spreadAngle = Math.PI / 16; // ±11.25 درجه
+            const randomY = Math.random() * spreadAngle * 2 - spreadAngle;
+            const randomZ = Math.random() * spreadAngle * 2 - spreadAngle;
+            
+            const finalDirY = dirY + randomY;
+            const finalDirZ = dirZ + randomZ;
+            
+            // نرمال کردن جهت
+            const length = Math.sqrt(dirX*dirX + finalDirY*finalDirY + finalDirZ*finalDirZ);
+            const normX = dirX / length;
+            const normY = finalDirY / length;
+            const normZ = finalDirZ / length;
+            
+            // سرعت اولیه با توجه به شدت پاشش
+            const speed = 0.05 + Math.random() * 0.02 * settings.intensity;
+            
+            // تنظیمات ذره
+            particle.position.set(startX, startY, startZ);
+            
+            // اندازه و شفافیت تصادفی
+            const sizeScale = 0.8 + Math.random() * (settings.sizeVariation / 100);
+            particle.scale.set(sizeScale, sizeScale, sizeScale);
+            
+            const opacity = 0.6 + Math.random() * (settings.opacityVariation / 100) * 0.4;
+            particle.material.opacity = opacity;
+            
+            // رنگ ذره
+            particle.material.color.set(settings.particleColor);
+            particle.material.needsUpdate = true;
+            
+            particle.visible = true;
+            
+            // ذخیره اطلاعات ذره
+            const particleData = {
+                mesh: particle,
+                vx: normX * speed,
+                vy: normY * speed,
+                vz: normZ * speed,
+                life: 100 + Math.random() * 50,
+                maxLife: 150,
+                active: true
+            };
+            
+            particles.push(particleData);
+            updateParticleCount();
+            updateParticleShapeDisplay();
+            updateParticleColorDisplay();
+        }
+        
+        // به روز رسانی ذرات
+        function updateParticles() {
+            for (let i = particles.length - 1; i >= 0; i--) {
+                const p = particles[i];
+                
+                if (!p.active) continue;
+                
+                // اعمال گرانش (با توجه به تنظیمات)
+                p.vy -= 0.001 * (settings.gravity / 100);
+                
+                // به روز رسانی موقعیت
+                p.mesh.position.x += p.vx;
+                p.mesh.position.y += p.vy;
+                p.mesh.position.z += p.vz;
+                
+                // کاهش طول عمر
+                p.life--;
+                
+                // بررسی برخورد با زمین
+                if (p.mesh.position.y <= 0 && settings.showGround) {
+                    p.mesh.position.y = 0;
+                    p.vy = -p.vy * 0.3; // کمی برگشت
+                    p.vx *= 0.5;
+                    p.vz *= 0.5;
+                }
+                
+                // غیرفعال کردن ذرات پیر یا دور
+                const distance = p.mesh.position.length();
+                if (p.life <= 0 || distance > settings.sprayDistance * 2) {
+                    p.active = false;
+                    p.mesh.visible = false;
+                    particles.splice(i, 1);
+                }
+            }
+            
+            updateParticleCount();
+        }
+        
+        // به روز رسانی شمارنده ذرات
+        function updateParticleCount() {
+            document.getElementById('particle-count').textContent = particles.length;
+        }
+        
+        // به روز رسانی نمایش شکل ذرات
+        function updateParticleShapeDisplay() {
+            let shapeName = 'تصادفی';
+            if (settings.particleType !== 'random') {
+                const shapeNames = {
+                    'sphere': 'کره',
+                    'cube': 'مکعب',
+                    'pyramid': 'هرم'
+                };
+                shapeName = shapeNames[settings.particleType];
+            }
+            document.getElementById('particle-shape').textContent = shapeName;
+        }
+        
+        // به روز رسانی نمایش رنگ ذرات
+        function updateParticleColorDisplay() {
+            const colorHex = settings.particleColor.toUpperCase();
+            document.getElementById('particle-color').textContent = colorNames[colorHex] || colorHex;
+        }
+        
+        // تنظیم کنترل‌ها
+        function setupControls() {
+            // عناصر کنترل
+            const intensitySlider = document.getElementById('intensity');
+            const intensityValue = document.getElementById('intensity-value');
+            const distanceSlider = document.getElementById('distance');
+            const distanceValue = document.getElementById('distance-value');
+            const angleSlider = document.getElementById('angle');
+            const angleValue = document.getElementById('angle-value');
+            const particleTypeSelect = document.getElementById('particle-type');
+            const sizeVariationSlider = document.getElementById('size-variation');
+            const sizeVariationValue = document.getElementById('size-variation-value');
+            const opacityVariationSlider = document.getElementById('opacity-variation');
+            const opacityVariationValue = document.getElementById('opacity-variation-value');
+            const particleColorInput = document.getElementById('particle-color');
+            const gravitySlider = document.getElementById('gravity');
+            const gravityValue = document.getElementById('gravity-value');
+            const bgColorInput = document.getElementById('bg-color');
+            const lightColorInput = document.getElementById('light-color');
+            const showGroundCheckbox = document.getElementById('show-ground');
+            const sprayBtn = document.getElementById('spray-btn');
+            const stopBtn = document.getElementById('stop-btn');
+            const clearBtn = document.getElementById('clear-btn');
+            
+            // مقداردهی اولیه کنترل‌ها
+            intensitySlider.value = settings.intensity;
+            intensityValue.textContent = settings.intensity;
+            distanceSlider.value = settings.sprayDistance;
+            distanceValue.textContent = settings.sprayDistance;
+            angleSlider.value = settings.sprayAngle;
+            angleValue.textContent = settings.sprayAngle + '°';
+            particleTypeSelect.value = settings.particleType;
+            sizeVariationSlider.value = settings.sizeVariation;
+            sizeVariationValue.textContent = settings.sizeVariation + '%';
+            opacityVariationSlider.value = settings.opacityVariation;
+            opacityVariationValue.textContent = settings.opacityVariation + '%';
+            particleColorInput.value = settings.particleColor;
+            gravitySlider.value = settings.gravity;
+            gravityValue.textContent = settings.gravity + '%';
+            bgColorInput.value = settings.bgColor;
+            lightColorInput.value = settings.lightColor;
+            showGroundCheckbox.checked = settings.showGround;
+            
+            // رویدادهای کنترل‌ها
+            intensitySlider.addEventListener('input', function() {
+                settings.intensity = parseInt(this.value);
+                intensityValue.textContent = settings.intensity;
+            });
+            
+            distanceSlider.addEventListener('input', function() {
+                settings.sprayDistance = parseFloat(this.value);
+                distanceValue.textContent = settings.sprayDistance;
+            });
+            
+            angleSlider.addEventListener('input', function() {
+                settings.sprayAngle = parseInt(this.value);
+                angleValue.textContent = settings.sprayAngle + '°';
+                createNozzle(); // نازل را با زاویه جدید بساز
+            });
+            
+            particleTypeSelect.addEventListener('change', function() {
+                settings.particleType = this.value;
+                updateParticleShapeDisplay();
+            });
+            
+            sizeVariationSlider.addEventListener('input', function() {
+                settings.sizeVariation = parseInt(this.value);
+                sizeVariationValue.textContent = settings.sizeVariation + '%';
+            });
+            
+            opacityVariationSlider.addEventListener('input', function() {
+                settings.opacityVariation = parseInt(this.value);
+                opacityVariationValue.textContent = settings.opacityVariation + '%';
+            });
+            
+            particleColorInput.addEventListener('input', function() {
+                settings.particleColor = this.value;
+                updateParticleColorDisplay();
+            });
+            
+            gravitySlider.addEventListener('input', function() {
+                settings.gravity = parseInt(this.value);
+                gravityValue.textContent = settings.gravity + '%';
+            });
+            
+            bgColorInput.addEventListener('input', function() {
+                settings.bgColor = this.value;
+                scene.background = new THREE.Color(settings.bgColor);
+            });
+            
+            lightColorInput.addEventListener('input', function() {
+                settings.lightColor = this.value;
+                scene.traverse(obj => {
+                    if (obj.isLight) {
+                        obj.color = new THREE.Color(settings.lightColor);
+                    }
+                });
+            });
+            
+            showGroundCheckbox.addEventListener('change', function() {
+                settings.showGround = this.checked;
+                createGround();
+            });
+            
+            sprayBtn.addEventListener('click', startSpraying);
+            stopBtn.addEventListener('click', stopSpraying);
+            clearBtn.addEventListener('click', clearParticles);
+            
+            // رویدادهای لمسی برای موبایل
+            sprayBtn.addEventListener('touchstart', startSpraying);
+            stopBtn.addEventListener('touchstart', stopSpraying);
+            clearBtn.addEventListener('touchstart', clearParticles);
+        }
+        
+        // شروع پاشش
+        function startSpraying() {
+            if (isSpraying) return;
+            
+            isSpraying = true;
+            sprayInterval = setInterval(addParticle, 100 / settings.intensity);
+        }
+        
+        // توقف پاشش
+        function stopSpraying() {
+            isSpraying = false;
+            clearInterval(sprayInterval);
+        }
+        
+        // پاک کردن ذرات
+        function clearParticles() {
+            particles.forEach(p => {
+                p.mesh.visible = false;
+            });
+            particles = [];
+            updateParticleCount();
+        }
+        
+        // تغییر اندازه پنجره
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+        
+        // انیمیشن
+        function animate() {
+            requestAnimationFrame(animate);
+            
+            // به روز رسانی ذرات
+            updateParticles();
+            
+            // رندر صحنه
+            renderer.render(scene, camera);
+        }
+        
+        // شروع برنامه
+        init();
+    </script>
+</body>
+</html>

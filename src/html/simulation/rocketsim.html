@@ -1,0 +1,1244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Rocket Fuel Simulator</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Courier New', monospace;
+            background: #0a0a1a;
+            color: #e0e0ff;
+            overflow-x: hidden;
+        }
+        #container {
+            display: flex;
+            min-height: 100vh;
+        }
+        #fuelSelectionPanel {
+            width: 400px;
+            background: rgba(10, 15, 35, 0.95);
+            border-right: 3px solid #00aaff;
+            padding: 20px;
+            overflow-y: auto;
+            z-index: 100;
+        }
+        #simulationArea {
+            flex: 1;
+            position: relative;
+        }
+        canvas {
+            display: block;
+            background: #000;
+        }
+        .panel {
+            background: rgba(20, 25, 45, 0.9);
+            border: 2px solid #4444ff;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        h2 {
+            color: #00ffff;
+            margin-bottom: 15px;
+            text-shadow: 0 0 10px #00ffff;
+            font-size: 1.4em;
+        }
+        h3 {
+            color: #ff8800;
+            margin: 15px 0 10px 0;
+            font-size: 1.2em;
+        }
+        .fuel-option {
+            background: rgba(30, 35, 60, 0.8);
+            border: 1px solid #5555ff;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 10px 0;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .fuel-option:hover {
+            background: rgba(40, 45, 80, 0.9);
+            border-color: #00ffff;
+            transform: translateX(5px);
+        }
+        .fuel-option.selected {
+            background: rgba(0, 50, 100, 0.9);
+            border-color: #00ffff;
+            box-shadow: 0 0 15px #00aaff;
+        }
+        .slider-container {
+            margin: 15px 0;
+        }
+        .slider-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+        }
+        input[type="range"] {
+            width: 100%;
+            height: 8px;
+            -webkit-appearance: none;
+            background: linear-gradient(to right, #003366, #00aaff);
+            border-radius: 4px;
+            outline: none;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            background: #00ffff;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 0 10px #00ffff;
+        }
+        .button {
+            background: linear-gradient(45deg, #0066cc, #00aaff);
+            border: none;
+            color: white;
+            padding: 12px 24px;
+            margin: 10px 5px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 1.1em;
+            transition: all 0.3s;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .button:hover {
+            background: linear-gradient(45deg, #0077dd, #00bbff);
+            transform: scale(1.05);
+            box-shadow: 0 0 20px #00aaff;
+        }
+        .button:disabled {
+            background: #555;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        .stat-box {
+            background: rgba(0, 30, 60, 0.7);
+            border-left: 4px solid #00aaff;
+            padding: 10px;
+            margin: 10px 0;
+            font-family: 'Courier New', monospace;
+        }
+        .molecule {
+            font-size: 1.5em;
+            color: #00ffaa;
+            text-align: center;
+            margin: 10px 0;
+        }
+        .reaction-equation {
+            background: rgba(0, 40, 80, 0.8);
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 1.1em;
+            color: #88ff88;
+            text-align: center;
+            border: 1px solid #00aa88;
+        }
+        .property-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin: 15px 0;
+        }
+        .property {
+            background: rgba(20, 40, 80, 0.6);
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .property-name {
+            color: #aaaaff;
+            font-size: 0.9em;
+        }
+        .property-value {
+            color: #00ffff;
+            font-size: 1.1em;
+            font-weight: bold;
+        }
+        .warning {
+            color: #ff4444;
+            animation: pulse 1s infinite;
+        }
+        .success {
+            color: #44ff44;
+        }
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        #startSimulation {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+            font-size: 1.3em;
+            padding: 15px 40px;
+        }
+        #debugInfo {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #ff8800;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            max-width: 400px;
+        }
+        .progress-bar {
+            height: 20px;
+            background: rgba(0, 40, 80, 0.8);
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #0066cc, #00ffff);
+            transition: width 0.3s;
+        }
+        .efficiency-meter {
+            position: relative;
+            height: 100px;
+            background: rgba(0, 20, 40, 0.8);
+            border-radius: 10px;
+            margin: 20px 0;
+            overflow: hidden;
+        }
+        .efficiency-fill {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            background: linear-gradient(to top, #ff0000, #ffff00, #00ff00);
+            transition: height 0.5s;
+        }
+        .chemical-diagram {
+            position: relative;
+            height: 200px;
+            margin: 20px 0;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        .atom {
+            position: absolute;
+            border-radius: 50%;
+            font-size: 0.8em;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+        }
+        .bond {
+            position: absolute;
+            background: #888;
+            transform-origin: 0 0;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <div id="fuelSelectionPanel">
+            <div class="panel">
+                <h2>🚀 ROCKET FUEL SELECTOR</h2>
+                <div class="molecule">H₂ + ½O₂ → H₂O + Energy</div>
+                
+                <h3>Fuel Types</h3>
+                <div class="fuel-option" data-fuel="hydrogen" data-isp="450">
+                    <strong>Liquid Hydrogen (LH₂)</strong>
+                    <div>Molecular: H₂</div>
+                    <div class="property-grid">
+                        <div class="property">
+                            <div class="property-name">Density</div>
+                            <div class="property-value">71 kg/m³</div>
+                        </div>
+                        <div class="property">
+                            <div class="property-name">ISP (Vac)</div>
+                            <div class="property-value">450 s</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="fuel-option" data-fuel="kerosene" data-isp="350">
+                    <strong>RP-1 Kerosene</strong>
+                    <div>Approx: C₁₂H₂₆</div>
+                    <div class="property-grid">
+                        <div class="property">
+                            <div class="property-name">Density</div>
+                            <div class="property-value">810 kg/m³</div>
+                        </div>
+                        <div class="property">
+                            <div class="property-name">ISP (Vac)</div>
+                            <div class="property-value">350 s</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="fuel-option" data-fuel="hydrazine" data-isp="340">
+                    <strong>Hydrazine (N₂H₄)</strong>
+                    <div>Monopropellant</div>
+                    <div class="property-grid">
+                        <div class="property">
+                            <div class="property-name">Density</div>
+                            <div class="property-value">1004 kg/m³</div>
+                        </div>
+                        <div class="property">
+                            <div class="property-name">ISP (Vac)</div>
+                            <div class="property-value">340 s</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="fuel-option" data-fuel="methane" data-isp="380">
+                    <strong>Liquid Methane (CH₄)</strong>
+                    <div>Molecular: CH₄</div>
+                    <div class="property-grid">
+                        <div class="property">
+                            <div class="property-name">Density</div>
+                            <div class="property-value">423 kg/m³</div>
+                        </div>
+                        <div class="property">
+                            <div class="property-name">ISP (Vac)</div>
+                            <div class="property-value">380 s</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="fuel-option" data-fuel="alcohol" data-isp="300">
+                    <strong>Ethanol (C₂H₅OH)</strong>
+                    <div>Alcohol-based</div>
+                    <div class="property-grid">
+                        <div class="property">
+                            <div class="property-name">Density</div>
+                            <div class="property-value">789 kg/m³</div>
+                        </div>
+                        <div class="property">
+                            <div class="property-name">ISP (Vac)</div>
+                            <div class="property-value">300 s</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="fuel-option" data-fuel="hypergolic" data-isp="320">
+                    <strong>Hypergolic Mix</strong>
+                    <div>N₂H₄ + N₂O₄</div>
+                    <div class="property-grid">
+                        <div class="property">
+                            <div class="property-name">Density</div>
+                            <div class="property-value">1440 kg/m³</div>
+                        </div>
+                        <div class="property">
+                            <div class="property-name">ISP (Vac)</div>
+                            <div class="property-value">320 s</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="panel">
+                <h3>Oxidizer Selection</h3>
+                <div class="fuel-option" data-oxidizer="oxygen">
+                    <strong>Liquid Oxygen (LOX)</strong>
+                    <div>Molecular: O₂</div>
+                    <div class="property-grid">
+                        <div class="property">
+                            <div class="property-name">Density</div>
+                            <div class="property-value">1141 kg/m³</div>
+                        </div>
+                        <div class="property">
+                            <div class="property-name">Temp</div>
+                            <div class="property-value">-183°C</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="fuel-option" data-oxidizer="tetroxide">
+                    <strong>Nitrogen Tetroxide (N₂O₄)</strong>
+                    <div>Hypergolic oxidizer</div>
+                    <div class="property-grid">
+                        <div class="property">
+                            <div class="property-name">Density</div>
+                            <div class="property-value">1444 kg/m³</div>
+                        </div>
+                        <div class="property">
+                            <div class="property-name">Toxicity</div>
+                            <div class="property-value warning">HIGH</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="fuel-option" data-oxidizer="fluorine">
+                    <strong>Fluorine (F₂)</strong>
+                    <div>High-energy oxidizer</div>
+                    <div class="property-grid">
+                        <div class="property">
+                            <div class="property-name">Density</div>
+                            <div class="property-value">1506 kg/m³</div>
+                        </div>
+                        <div class="property">
+                            <div class="property-name">Reactivity</div>
+                            <div class="property-value warning">EXTREME</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="panel">
+                <h3>Mixture Ratio (O/F)</h3>
+                <div class="slider-container">
+                    <div class="slider-label">
+                        <span>Fuel Rich</span>
+                        <span id="mixtureValue">2.56</span>
+                        <span>Oxidizer Rich</span>
+                    </div>
+                    <input type="range" id="mixtureSlider" min="1" max="8" step="0.1" value="2.56">
+                    <div class="reaction-equation" id="reactionEquation">
+                        2H₂ + O₂ → 2H₂O
+                    </div>
+                </div>
+                
+                <h3>Fuel Mass Allocation</h3>
+                <div class="slider-container">
+                    <div class="slider-label">
+                        <span>Fuel Mass:</span>
+                        <span id="fuelMassValue">80,000 kg</span>
+                    </div>
+                    <input type="range" id="massSlider" min="1000" max="200000" step="1000" value="80000">
+                    <div class="progress-bar">
+                        <div id="massProgress" class="progress-fill" style="width: 40%"></div>
+                    </div>
+                    <div>Available Payload: <span id="payloadMass">20,000 kg</span></div>
+                </div>
+            </div>
+            
+            <div class="panel">
+                <h3>Performance Prediction</h3>
+                <div class="stat-box">
+                    <div>Specific Impulse (ISP): <span id="predictedISP" class="property-value">450 s</span></div>
+                    <div>Thrust: <span id="predictedThrust" class="property-value">2.1 MN</span></div>
+                    <div>ΔV (Delta-V): <span id="predictedDeltaV" class="property-value">9,800 m/s</span></div>
+                    <div>Burn Time: <span id="predictedBurnTime" class="property-value">380 s</span></div>
+                    <div>Chamber Temp: <span id="predictedTemp" class="property-value">3,500 K</span></div>
+                </div>
+                
+                <div class="efficiency-meter">
+                    <div id="efficiencyFill" class="efficiency-fill" style="height: 90%"></div>
+                    <div style="position: absolute; bottom: 0; width: 100%; text-align: center; padding: 10px;">
+                        Efficiency: <span id="efficiencyValue">90%</span>
+                    </div>
+                </div>
+                
+                <button id="calculateBtn" class="button">Calculate Performance</button>
+                <button id="startBtn" class="button" disabled>Start Simulation</button>
+            </div>
+        </div>
+        
+        <div id="simulationArea">
+            <canvas id="simulationCanvas"></canvas>
+            <button id="startSimulation" class="button" style="display: none;">LAUNCH ROCKET</button>
+            <div id="debugInfo"></div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.min.js"></script>
+    <script>
+        // Comprehensive Rocket Fuel Database
+        const FUEL_DATABASE = {
+            hydrogen: {
+                name: "Liquid Hydrogen",
+                formula: "H₂",
+                molarMass: 2.016, // g/mol
+                density: 71, // kg/m³
+                energyDensity: 120, // MJ/kg (chemical)
+                specificImpulse: 450, // seconds (with LOX)
+                oxidizerRatio: 8, // Optimal O/F ratio
+                combustionTemp: 3500, // K
+                combustionProducts: ["H₂O", "H₂"],
+                color: 0x88ffff,
+                properties: {
+                    cryogenic: true,
+                    storageTemp: -253,
+                    difficulty: "high"
+                }
+            },
+            kerosene: {
+                name: "RP-1 Kerosene",
+                formula: "C₁₂H₂₆",
+                molarMass: 170.34,
+                density: 810,
+                energyDensity: 43,
+                specificImpulse: 350,
+                oxidizerRatio: 2.56,
+                combustionTemp: 3700,
+                combustionProducts: ["CO₂", "H₂O", "CO", "H₂"],
+                color: 0xaaaaaa,
+                properties: {
+                    cryogenic: false,
+                    storageTemp: 20,
+                    difficulty: "low"
+                }
+            },
+            hydrazine: {
+                name: "Hydrazine",
+                formula: "N₂H₄",
+                molarMass: 32.045,
+                density: 1004,
+                energyDensity: 19.4,
+                specificImpulse: 340,
+                oxidizerRatio: 1.4, // For NTO
+                combustionTemp: 3200,
+                combustionProducts: ["N₂", "H₂", "NH₃"],
+                color: 0x88ff88,
+                properties: {
+                    cryogenic: false,
+                    storageTemp: 20,
+                    toxicity: "high",
+                    hypergolic: true
+                }
+            },
+            methane: {
+                name: "Liquid Methane",
+                formula: "CH₄",
+                molarMass: 16.04,
+                density: 423,
+                energyDensity: 55.6,
+                specificImpulse: 380,
+                oxidizerRatio: 3.6,
+                combustionTemp: 3600,
+                combustionProducts: ["CO₂", "H₂O"],
+                color: 0xff8844,
+                properties: {
+                    cryogenic: true,
+                    storageTemp: -161,
+                    difficulty: "medium"
+                }
+            },
+            alcohol: {
+                name: "Ethanol",
+                formula: "C₂H₅OH",
+                molarMass: 46.07,
+                density: 789,
+                energyDensity: 29.7,
+                specificImpulse: 300,
+                oxidizerRatio: 1.5,
+                combustionTemp: 3400,
+                combustionProducts: ["CO₂", "H₂O"],
+                color: 0xffaa88,
+                properties: {
+                    cryogenic: false,
+                    storageTemp: 20,
+                    difficulty: "low"
+                }
+            },
+            hypergolic: {
+                name: "Hypergolic Mix",
+                formula: "N₂H₄/N₂O₄",
+                molarMass: 62.03,
+                density: 1440,
+                energyDensity: 15.2,
+                specificImpulse: 320,
+                oxidizerRatio: 1.0,
+                combustionTemp: 3100,
+                combustionProducts: ["N₂", "H₂O", "NO", "NO₂"],
+                color: 0xff4444,
+                properties: {
+                    cryogenic: false,
+                    storageTemp: 20,
+                    toxicity: "extreme",
+                    hypergolic: true,
+                    difficulty: "high"
+                }
+            }
+        };
+
+        const OXIDIZER_DATABASE = {
+            oxygen: {
+                name: "Liquid Oxygen",
+                formula: "O₂",
+                molarMass: 32.00,
+                density: 1141,
+                boilingPoint: -183,
+                color: 0x4488ff,
+                compatibility: ["hydrogen", "kerosene", "methane", "alcohol"]
+            },
+            tetroxide: {
+                name: "Nitrogen Tetroxide",
+                formula: "N₂O₄",
+                molarMass: 92.011,
+                density: 1444,
+                boilingPoint: 21,
+                color: 0x8844ff,
+                compatibility: ["hydrazine", "hypergolic"]
+            },
+            fluorine: {
+                name: "Fluorine",
+                formula: "F₂",
+                molarMass: 38.00,
+                density: 1506,
+                boilingPoint: -188,
+                color: 0xff4444,
+                compatibility: ["hydrogen", "kerosene"],
+                toxicity: "extreme"
+            }
+        };
+
+        // Global Variables
+        let selectedFuel = 'hydrogen';
+        let selectedOxidizer = 'oxygen';
+        let mixtureRatio = 2.56; // O/F ratio
+        let totalFuelMass = 80000; // kg
+        let rocketMass = 20000; // Dry mass kg
+        let simulationStarted = false;
+        
+        // Three.js Variables
+        let scene, camera, renderer, controls;
+        let rocket, earth, exhaustParticles;
+        let exhaustGeometry, exhaustMaterial;
+        
+        // Simulation Variables
+        let velocity = 0;
+        let altitude = 0;
+        let fuelRemaining = 0;
+        let oxidizerRemaining = 0;
+        let thrust = 0;
+        let isp = 450;
+        let burnTime = 0;
+        let deltaTime = 0;
+        let lastTime = 0;
+        let launchTime = 0;
+        let exhaustIntensity = 0;
+        
+        // DOM Elements
+        const fuelOptions = document.querySelectorAll('.fuel-option[data-fuel]');
+        const oxidizerOptions = document.querySelectorAll('.fuel-option[data-oxidizer]');
+        const mixtureSlider = document.getElementById('mixtureSlider');
+        const mixtureValue = document.getElementById('mixtureValue');
+        const massSlider = document.getElementById('massSlider');
+        const fuelMassValue = document.getElementById('fuelMassValue');
+        const massProgress = document.getElementById('massProgress');
+        const payloadMass = document.getElementById('payloadMass');
+        const reactionEquation = document.getElementById('reactionEquation');
+        const predictedISP = document.getElementById('predictedISP');
+        const predictedThrust = document.getElementById('predictedThrust');
+        const predictedDeltaV = document.getElementById('predictedDeltaV');
+        const predictedBurnTime = document.getElementById('predictedBurnTime');
+        const predictedTemp = document.getElementById('predictedTemp');
+        const efficiencyFill = document.getElementById('efficiencyFill');
+        const efficiencyValue = document.getElementById('efficiencyValue');
+        const calculateBtn = document.getElementById('calculateBtn');
+        const startBtn = document.getElementById('startBtn');
+        const startSimulationBtn = document.getElementById('startSimulation');
+        const debugInfo = document.getElementById('debugInfo');
+        
+        // Initialize
+        init();
+        
+        function init() {
+            setupEventListeners();
+            initializeThreeJS();
+            calculatePerformance();
+            updateSelectionVisuals();
+        }
+        
+        function setupEventListeners() {
+            // Fuel selection
+            fuelOptions.forEach(option => {
+                option.addEventListener('click', () => {
+                    selectedFuel = option.dataset.fuel;
+                    updateSelectionVisuals();
+                    checkCompatibility();
+                    calculatePerformance();
+                });
+            });
+            
+            // Oxidizer selection
+            oxidizerOptions.forEach(option => {
+                option.addEventListener('click', () => {
+                    selectedOxidizer = option.dataset.oxidizer;
+                    updateSelectionVisuals();
+                    checkCompatibility();
+                    calculatePerformance();
+                });
+            });
+            
+            // Mixture ratio slider
+            mixtureSlider.addEventListener('input', () => {
+                mixtureRatio = parseFloat(mixtureSlider.value);
+                mixtureValue.textContent = mixtureRatio.toFixed(2);
+                calculatePerformance();
+                updateReactionEquation();
+            });
+            
+            // Mass slider
+            massSlider.addEventListener('input', () => {
+                totalFuelMass = parseInt(massSlider.value);
+                fuelMassValue.textContent = formatMass(totalFuelMass);
+                const progress = (totalFuelMass / 200000) * 100;
+                massProgress.style.width = progress + '%';
+                
+                // Calculate payload mass (20% of total for simplicity)
+                const payload = Math.round(rocketMass * 0.2);
+                payloadMass.textContent = formatMass(payload);
+                
+                calculatePerformance();
+            });
+            
+            // Calculate button
+            calculateBtn.addEventListener('click', calculatePerformance);
+            
+            // Start button
+            startBtn.addEventListener('click', () => {
+                document.getElementById('fuelSelectionPanel').style.display = 'none';
+                startSimulationBtn.style.display = 'block';
+                setupSimulation();
+            });
+            
+            // Launch button
+            startSimulationBtn.addEventListener('click', startSimulation);
+            
+            // Window resize
+            window.addEventListener('resize', onWindowResize);
+        }
+        
+        function updateSelectionVisuals() {
+            // Update fuel selection visuals
+            fuelOptions.forEach(option => {
+                option.classList.toggle('selected', option.dataset.fuel === selectedFuel);
+            });
+            
+            // Update oxidizer selection visuals
+            oxidizerOptions.forEach(option => {
+                option.classList.toggle('selected', option.dataset.oxidizer === selectedOxidizer);
+            });
+            
+            // Update mixture slider based on optimal ratio
+            const optimalRatio = FUEL_DATABASE[selectedFuel].oxidizerRatio;
+            mixtureSlider.value = optimalRatio;
+            mixtureRatio = optimalRatio;
+            mixtureValue.textContent = optimalRatio.toFixed(2);
+        }
+        
+        function checkCompatibility() {
+            const oxidizer = OXIDIZER_DATABASE[selectedOxidizer];
+            const compatible = oxidizer.compatibility.includes(selectedFuel);
+            
+            if (!compatible) {
+                reactionEquation.innerHTML = `<span class="warning">⚠️ INCOMPATIBLE MIXTURE!</span><br>${oxidizer.name} cannot be used with ${FUEL_DATABASE[selectedFuel].name}`;
+                startBtn.disabled = true;
+                startBtn.innerHTML = "INCOMPATIBLE FUELS";
+            } else {
+                startBtn.disabled = false;
+                startBtn.innerHTML = "START SIMULATION";
+                updateReactionEquation();
+            }
+        }
+        
+        function updateReactionEquation() {
+            const fuel = FUEL_DATABASE[selectedFuel];
+            const oxidizer = OXIDIZER_DATABASE[selectedOxidizer];
+            
+            let equation = "";
+            
+            switch(selectedFuel) {
+                case 'hydrogen':
+                    equation = `2H₂ + O₂ → 2H₂O + Energy`;
+                    break;
+                case 'kerosene':
+                    equation = `C₁₂H₂₆ + 18.5O₂ → 12CO₂ + 13H₂O`;
+                    break;
+                case 'methane':
+                    equation = `CH₄ + 2O₂ → CO₂ + 2H₂O`;
+                    break;
+                case 'alcohol':
+                    equation = `C₂H₅OH + 3O₂ → 2CO₂ + 3H₂O`;
+                    break;
+                case 'hydrazine':
+                    equation = `N₂H₄ + O₂ → N₂ + 2H₂O`;
+                    break;
+                case 'hypergolic':
+                    equation = `N₂H₄ + N₂O₄ → 3N₂ + 4H₂O`;
+                    break;
+            }
+            
+            reactionEquation.innerHTML = equation;
+        }
+        
+        function calculatePerformance() {
+            const fuel = FUEL_DATABASE[selectedFuel];
+            const oxidizer = OXIDIZER_DATABASE[selectedOxidizer];
+            
+            // Calculate mass fractions
+            const oxidizerMass = totalFuelMass * (mixtureRatio / (1 + mixtureRatio));
+            const fuelMass = totalFuelMass - oxidizerMass;
+            
+            // Calculate ISP based on mixture ratio efficiency
+            const optimalRatio = fuel.oxidizerRatio;
+            const ratioEfficiency = 1 - Math.abs(mixtureRatio - optimalRatio) / optimalRatio;
+            const baseISP = fuel.specificImpulse;
+            const calculatedISP = baseISP * ratioEfficiency;
+            
+            // Calculate thrust (simplified)
+            const massFlowRate = 1000; // kg/s (simplified)
+            const g0 = 9.81; // Earth gravity
+            const calculatedThrust = massFlowRate * calculatedISP * g0 / 1000000; // MN
+            
+            // Calculate Delta-V using Tsiolkovsky rocket equation
+            const totalMass = rocketMass + totalFuelMass;
+            const dryMass = rocketMass;
+            const deltaV = calculatedISP * g0 * Math.log(totalMass / dryMass);
+            
+            // Calculate burn time
+            const calculatedBurnTime = totalFuelMass / massFlowRate;
+            
+            // Calculate combustion temperature
+            const tempEfficiency = 0.7 + (ratioEfficiency * 0.3);
+            const calculatedTemp = fuel.combustionTemp * tempEfficiency;
+            
+            // Calculate overall efficiency
+            const efficiency = Math.min(100, ratioEfficiency * 100);
+            
+            // Update display
+            predictedISP.textContent = calculatedISP.toFixed(0) + " s";
+            predictedThrust.textContent = calculatedThrust.toFixed(2) + " MN";
+            predictedDeltaV.textContent = deltaV.toFixed(0) + " m/s";
+            predictedBurnTime.textContent = calculatedBurnTime.toFixed(0) + " s";
+            predictedTemp.textContent = calculatedTemp.toFixed(0) + " K";
+            
+            efficiencyValue.textContent = efficiency.toFixed(1) + "%";
+            efficiencyFill.style.height = efficiency + "%";
+            
+            // Store values for simulation
+            isp = calculatedISP;
+            thrust = calculatedThrust * 1000000; // Convert back to Newtons
+            burnTime = calculatedBurnTime;
+            fuelRemaining = fuelMass;
+            oxidizerRemaining = oxidizerMass;
+            
+            // Update efficiency meter color based on efficiency
+            let hue = efficiency * 1.2; // 0-120
+            efficiencyFill.style.background = `linear-gradient(to top, 
+                hsl(${hue}, 100%, 20%), 
+                hsl(${hue}, 100%, 50%))`;
+        }
+        
+        function initializeThreeJS() {
+            // Scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x000010);
+            
+            // Camera
+            camera = new THREE.PerspectiveCamera(60, 
+                (window.innerWidth - 400) / window.innerHeight, 0.1, 1000000);
+            camera.position.set(0, 50, 200);
+            
+            // Renderer
+            renderer = new THREE.WebGLRenderer({ 
+                canvas: document.getElementById('simulationCanvas'),
+                antialias: true 
+            });
+            renderer.setSize(window.innerWidth - 400, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            
+            // Lighting
+            const ambientLight = new THREE.AmbientLight(0x222244, 0.5);
+            scene.add(ambientLight);
+            
+            const sunLight = new THREE.DirectionalLight(0xffffff, 1);
+            sunLight.position.set(1000, 1000, 1000);
+            sunLight.castShadow = true;
+            sunLight.shadow.mapSize.width = 2048;
+            sunLight.shadow.mapSize.height = 2048;
+            scene.add(sunLight);
+            
+            // Create Earth
+            createEarth();
+            
+            // Create rocket (placeholder)
+            createRocketPlaceholder();
+            
+            // Create exhaust particles system
+            createExhaustSystem();
+            
+            // Stars
+            createStarField();
+            
+            // Animation loop
+            animate();
+        }
+        
+        function createEarth() {
+            const geometry = new THREE.SphereGeometry(100, 64, 64);
+            const textureLoader = new THREE.TextureLoader();
+            
+            // Create earth material
+            const material = new THREE.MeshPhongMaterial({
+                color: 0x2233ff,
+                shininess: 30,
+                transparent: true,
+                opacity: 0.8
+            });
+            
+            earth = new THREE.Mesh(geometry, material);
+            earth.position.set(0, -150, 0);
+            earth.receiveShadow = true;
+            scene.add(earth);
+            
+            // Add atmosphere
+            const atmosphereGeometry = new THREE.SphereGeometry(102, 64, 64);
+            const atmosphereMaterial = new THREE.MeshPhongMaterial({
+                color: 0x4488ff,
+                transparent: true,
+                opacity: 0.1,
+                side: THREE.BackSide
+            });
+            const atmosphere = new THREE.Mesh(atmosphereGeometry, atmosphereMaterial);
+            earth.add(atmosphere);
+        }
+        
+        function createRocketPlaceholder() {
+            const group = new THREE.Group();
+            
+            // Main body
+            const bodyGeometry = new THREE.CylinderGeometry(2, 3, 40, 16);
+            const fuelColor = FUEL_DATABASE[selectedFuel].color;
+            const bodyMaterial = new THREE.MeshPhongMaterial({ 
+                color: fuelColor,
+                shininess: 100 
+            });
+            const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+            body.castShadow = true;
+            group.add(body);
+            
+            // Payload section
+            const payloadGeometry = new THREE.ConeGeometry(3, 10, 8);
+            const payloadMaterial = new THREE.MeshPhongMaterial({ 
+                color: 0xffffff,
+                shininess: 100 
+            });
+            const payload = new THREE.Mesh(payloadGeometry, payloadMaterial);
+            payload.position.y = 25;
+            payload.castShadow = true;
+            group.add(payload);
+            
+            // Fuel tanks visualization
+            const fuelGeometry = new THREE.CylinderGeometry(2.5, 2.5, 30, 16);
+            const fuelMaterial = new THREE.MeshPhongMaterial({ 
+                color: fuelColor,
+                transparent: true,
+                opacity: 0.7,
+                side: THREE.DoubleSide
+            });
+            
+            const oxidizerMaterial = new THREE.MeshPhongMaterial({ 
+                color: OXIDIZER_DATABASE[selectedOxidizer].color,
+                transparent: true,
+                opacity: 0.7,
+                side: THREE.DoubleSide
+            });
+            
+            const fuelTank = new THREE.Mesh(fuelGeometry, fuelMaterial);
+            fuelTank.position.y = -5;
+            group.add(fuelTank);
+            
+            const oxidizerTank = new THREE.Mesh(fuelGeometry, oxidizerMaterial);
+            oxidizerTank.position.y = -5;
+            oxidizerTank.scale.x = 0.8;
+            oxidizerTank.scale.z = 0.8;
+            group.add(oxidizerTank);
+            
+            // Engine nozzles
+            const nozzleGeometry = new THREE.ConeGeometry(3, 5, 8);
+            const nozzleMaterial = new THREE.MeshPhongMaterial({ 
+                color: 0x888888,
+                shininess: 30 
+            });
+            const nozzle = new THREE.Mesh(nozzleGeometry, nozzleMaterial);
+            nozzle.position.y = -22.5;
+            nozzle.rotation.x = Math.PI;
+            nozzle.castShadow = true;
+            group.add(nozzle);
+            
+            scene.add(group);
+            rocket = group;
+        }
+        
+        function createExhaustSystem() {
+            // Exhaust particle system
+            exhaustGeometry = new THREE.BufferGeometry();
+            const particleCount = 5000;
+            const positions = new Float32Array(particleCount * 3);
+            const colors = new Float32Array(particleCount * 3);
+            
+            for (let i = 0; i < particleCount * 3; i += 3) {
+                positions[i] = (Math.random() - 0.5) * 5;
+                positions[i + 1] = Math.random() * -50 - 10;
+                positions[i + 2] = (Math.random() - 0.5) * 5;
+                
+                // Color based on combustion temperature
+                const tempFactor = Math.random();
+                colors[i] = 1.0; // R
+                colors[i + 1] = 0.5 + tempFactor * 0.5; // G
+                colors[i + 2] = 0.0; // B
+            }
+            
+            exhaustGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            exhaustGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+            
+            exhaustMaterial = new THREE.PointsMaterial({
+                size: 2,
+                vertexColors: true,
+                transparent: true,
+                opacity: 0.8,
+                blending: THREE.AdditiveBlending
+            });
+            
+            exhaustParticles = new THREE.Points(exhaustGeometry, exhaustMaterial);
+            rocket.add(exhaustParticles);
+        }
+        
+        function createStarField() {
+            const starGeometry = new THREE.BufferGeometry();
+            const starCount = 10000;
+            const positions = new Float32Array(starCount * 3);
+            
+            for (let i = 0; i < starCount * 3; i += 3) {
+                positions[i] = (Math.random() - 0.5) * 20000;
+                positions[i + 1] = (Math.random() - 0.5) * 20000;
+                positions[i + 2] = (Math.random() - 0.5) * 20000;
+            }
+            
+            starGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            
+            const starMaterial = new THREE.PointsMaterial({
+                color: 0xffffff,
+                size: 0.5,
+                transparent: true
+            });
+            
+            const starField = new THREE.Points(starGeometry, starMaterial);
+            scene.add(starField);
+        }
+        
+        function setupSimulation() {
+            // Reset simulation variables
+            velocity = 0;
+            altitude = 0;
+            launchTime = 0;
+            simulationStarted = false;
+            
+            // Update rocket visuals based on fuel selection
+            updateRocketAppearance();
+            
+            // Position rocket on launch pad
+            rocket.position.set(0, 0, 0);
+            rocket.rotation.x = 0;
+            
+            // Camera setup for launch
+            camera.position.set(0, 50, 200);
+            camera.lookAt(rocket.position);
+        }
+        
+        function updateRocketAppearance() {
+            // Update rocket color based on fuel
+            const fuelColor = FUEL_DATABASE[selectedFuel].color;
+            const oxidizerColor = OXIDIZER_DATABASE[selectedOxidizer].color;
+            
+            rocket.traverse(child => {
+                if (child.isMesh) {
+                    if (child.material.color) {
+                        if (child.material.opacity === 0.7) {
+                            if (child.material.color.getHex() === fuelColor) {
+                                child.material.color.setHex(fuelColor);
+                            } else {
+                                child.material.color.setHex(oxidizerColor);
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        function startSimulation() {
+            simulationStarted = true;
+            launchTime = performance.now();
+            startSimulationBtn.style.display = 'none';
+            
+            // Start animation loop
+            animate();
+        }
+        
+        function updateExhaustParticles(deltaTime) {
+            if (!exhaustParticles || !simulationStarted) return;
+            
+            const positions = exhaustGeometry.attributes.position.array;
+            const colors = exhaustGeometry.attributes.color.array;
+            
+            // Fuel burn rate affects particle count and intensity
+            const burnRate = fuelRemaining / totalFuelMass;
+            const particleIntensity = simulationStarted ? 1 : 0;
+            
+            for (let i = 0; i < positions.length; i += 3) {
+                if (simulationStarted && Math.random() > 0.95 * burnRate) {
+                    // Reset particle to nozzle
+                    positions[i] = (Math.random() - 0.5) * 5;
+                    positions[i + 1] = Math.random() * -10 - 5;
+                    positions[i + 2] = (Math.random() - 0.5) * 5;
+                } else {
+                    // Move particle downward
+                    positions[i] += (Math.random() - 0.5) * 0.5;
+                    positions[i + 1] -= (10 + Math.random() * 20) * deltaTime * 60;
+                    positions[i + 2] += (Math.random() - 0.5) * 0.5;
+                    
+                    // If particle goes too far, reset it
+                    if (positions[i + 1] < -100) {
+                        positions[i + 1] = Math.random() * -10 - 5;
+                    }
+                }
+                
+                // Update color based on combustion efficiency
+                const efficiency = isp / 450; // Normalized efficiency
+                colors[i] = 1.0; // Red stays high
+                colors[i + 1] = 0.3 + efficiency * 0.7; // Green varies with efficiency
+                colors[i + 2] = (1 - efficiency) * 0.5; // Blue varies inversely
+            }
+            
+            exhaustGeometry.attributes.position.needsUpdate = true;
+            exhaustGeometry.attributes.color.needsUpdate = true;
+            
+            // Adjust particle size based on thrust
+            exhaustMaterial.size = 1 + thrust / 1000000;
+            exhaustMaterial.opacity = 0.3 + burnRate * 0.7;
+        }
+        
+        function updatePhysics(deltaTime) {
+            if (!simulationStarted) return;
+            
+            const elapsedTime = (performance.now() - launchTime) / 1000;
+            
+            // Calculate fuel consumption
+            const massFlowRate = thrust / (isp * 9.81);
+            const fuelConsumed = massFlowRate * deltaTime;
+            
+            if (fuelRemaining > 0) {
+                fuelRemaining -= fuelConsumed * (1 / (1 + mixtureRatio));
+                oxidizerRemaining -= fuelConsumed * (mixtureRatio / (1 + mixtureRatio));
+                
+                // Calculate acceleration (F = ma)
+                const totalMass = rocketMass + fuelRemaining + oxidizerRemaining;
+                const acceleration = thrust / totalMass;
+                
+                // Subtract gravity (simplified)
+                const gravity = 9.81 * Math.pow(100 / (100 + altitude), 2);
+                const netAcceleration = Math.max(0, acceleration - gravity);
+                
+                // Update velocity and altitude
+                velocity += netAcceleration * deltaTime;
+                altitude += velocity * deltaTime;
+                
+                // Update thrust based on remaining fuel
+                if (fuelRemaining <= 0 || oxidizerRemaining <= 0) {
+                    thrust = 0;
+                }
+            } else {
+                // Coasting phase
+                const gravity = 9.81 * Math.pow(100 / (100 + altitude), 2);
+                velocity -= gravity * deltaTime;
+                altitude += velocity * deltaTime;
+            }
+            
+            // Update rocket rotation based on altitude
+            const rotationAngle = Math.min(Math.PI / 2, altitude / 100000 * Math.PI);
+            rocket.rotation.x = rotationAngle;
+            
+            // Update rocket position
+            rocket.position.y = altitude;
+            
+            // Update camera to follow rocket
+            updateCamera();
+            
+            // Update debug info
+            updateDebugInfo(elapsedTime);
+        }
+        
+        function updateCamera() {
+            // Camera follows rocket
+            const cameraDistance = 200 + altitude * 0.1;
+            const cameraHeight = 50 + altitude;
+            
+            camera.position.x = Math.sin(rocket.rotation.x) * cameraDistance;
+            camera.position.y = cameraHeight;
+            camera.position.z = Math.cos(rocket.rotation.x) * cameraDistance;
+            
+            camera.lookAt(rocket.position.x, rocket.position.y + 20, rocket.position.z);
+        }
+        
+        function updateDebugInfo(elapsedTime) {
+            const info = `
+                <strong>🚀 Flight Telemetry</strong><br>
+                Time: ${elapsedTime.toFixed(1)}s<br>
+                Altitude: ${(altitude/1000).toFixed(2)} km<br>
+                Velocity: ${velocity.toFixed(1)} m/s<br>
+                Acceleration: ${(velocity/elapsedTime).toFixed(1)} m/s²<br>
+                Fuel Remaining: ${fuelRemaining.toFixed(0)} kg<br>
+                Oxidizer: ${oxidizerRemaining.toFixed(0)} kg<br>
+                Thrust: ${(thrust/1000000).toFixed(2)} MN<br>
+                ISP: ${isp.toFixed(0)} s<br>
+                Mass: ${(rocketMass + fuelRemaining + oxidizerRemaining).toFixed(0)} kg
+            `;
+            
+            debugInfo.innerHTML = info;
+        }
+        
+        function animate(currentTime = 0) {
+            requestAnimationFrame(animate);
+            
+            deltaTime = (currentTime - lastTime) / 1000;
+            if (deltaTime > 0.1) deltaTime = 0.1; // Cap delta time
+            lastTime = currentTime;
+            
+            if (simulationStarted) {
+                updatePhysics(deltaTime);
+            }
+            
+            updateExhaustParticles(deltaTime);
+            
+            // Rotate Earth
+            if (earth) {
+                earth.rotation.y += 0.1 * deltaTime;
+            }
+            
+            renderer.render(scene, camera);
+        }
+        
+        function onWindowResize() {
+            camera.aspect = (window.innerWidth - 400) / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth - 400, window.innerHeight);
+        }
+        
+        function formatMass(kg) {
+            if (kg >= 1000000) {
+                return (kg / 1000000).toFixed(1) + 'M kg';
+            } else if (kg >= 1000) {
+                return (kg / 1000).toFixed(0) + 'k kg';
+            }
+            return kg + ' kg';
+        }
+    </script>
+</body>
+</html>

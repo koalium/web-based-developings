@@ -1,0 +1,1326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Quantum Field Theory Simulation</title>
+    <style>
+        body { 
+            margin: 0; 
+            overflow: hidden; 
+            font-family: 'Arial', sans-serif;
+            background: #000;
+        }
+        #ui-container {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.9);
+            color: #00ff00;
+            padding: 20px;
+            border-radius: 15px;
+            max-width: 350px;
+            z-index: 100;
+            border: 1px solid #00ff00;
+            font-size: 12px;
+        }
+        .control-group {
+            margin: 15px 0;
+            padding: 10px;
+            background: rgba(0,255,0,0.1);
+            border-radius: 8px;
+        }
+        label { 
+            display: block; 
+            margin: 8px 0;
+            font-size: 11px;
+            color: #00ff00;
+        }
+        input[type="range"], select, button {
+            width: 100%;
+            margin: 8px 0;
+            background: #001100;
+            color: #00ff00;
+            border: 1px solid #00ff00;
+            padding: 5px;
+            border-radius: 4px;
+        }
+        button {
+            background: #003300;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        button:hover {
+            background: #005500;
+        }
+        .particle-info {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.9);
+            color: #00ff00;
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 11px;
+            border: 1px solid #00ff00;
+            max-width: 300px;
+        }
+        .energy-display {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0,0,0,0.9);
+            color: #ff4444;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #ff4444;
+            font-size: 11px;
+        }
+        .statistics {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            background: rgba(0,0,0,0.9);
+            color: #ffff00;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #ffff00;
+            font-size: 11px;
+            max-width: 300px;
+        }
+    </style>
+</head>
+<body>
+    <div id="ui-container">
+        <h3 style="color: #00ff00; text-align: center;">QUANTUM FIELD THEORY SIMULATOR</h3>
+        
+        <div class="control-group">
+            <label>Time Scale: <span id="timeScaleValue">1.0</span>x</label>
+            <input type="range" id="timeScale" min="0.001" max="5" step="0.01" value="1.0">
+            
+            <label>Beam Energy: <span id="beamEnergyValue">100</span> GeV</label>
+            <input type="range" id="beamEnergy" min="0.1" max="10000" step="1" value="100">
+            
+            <label>Luminosity: <span id="luminosityValue">10</span></label>
+            <input type="range" id="luminosity" min="1" max="100" step="1" value="10">
+        </div>
+
+        <div class="control-group">
+            <label>Energy Regime:</label>
+            <select id="energyRegime">
+                <option value="qed">QED (Virtual Photons)</option>
+                <option value="qcd">QCD (Gluons & Quarks)</option>
+                <option value="electroweak">Electroweak (W/Z Bosons)</option>
+                <option value="higgs">Higgs Sector</option>
+                <option value="composite">Composite Particles</option>
+            </select>
+            
+            <label>Beam Type:</label>
+            <select id="beamType">
+                <option value="protonProton">Proton-Proton</option>
+                <option value="electronPositron">Electron-Positron</option>
+                <option value="heavyIons">Heavy Ions</option>
+                <option value="photonPhoton">Photon-Photon</option>
+            </select>
+        </div>
+
+        <div class="control-group">
+            <label>Magnetic Field: <span id="magneticFieldValue">2.0</span> T</label>
+            <input type="range" id="magneticField" min="0" max="10" step="0.1" value="2.0">
+            
+            <label>Electric Field: <span id="electricFieldValue">1.0</span> kV/cm</label>
+            <input type="range" id="electricField" min="0" max="5" step="0.1" value="1.0">
+        </div>
+
+        <div class="control-group">
+            <button id="startCollision">START COLLISION</button>
+            <button id="continuousMode">CONTINUOUS MODE</button>
+            <button id="clearAll">CLEAR ALL</button>
+            <button id="advancedMode">ADVANCED QUANTUM MODE</button>
+        </div>
+    </div>
+
+    <div class="energy-display" id="energyDisplay">
+        <div>Center of Mass Energy: <span id="comEnergy">0</span> GeV</div>
+        <div>Instant Luminosity: <span id="instLuminosity">0</span></div>
+        <div>Event Rate: <span id="eventRate">0</span> Hz</div>
+    </div>
+
+    <div class="particle-info" id="particleInfo">
+        Hover over particles for quantum information
+    </div>
+
+    <div class="statistics" id="statistics">
+        <div>Total Particles: <span id="totalParticles">0</span></div>
+        <div>Active Collisions: <span id="activeCollisions">0</span></div>
+        <div>Decay Chains: <span id="decayChains">0</span></div>
+        <div>Detector Hits: <span id="detectorHits">0</span></div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.min.js"></script>
+    <script>
+        // Enhanced Particle Database with Quantum Properties
+        const QUANTUM_PROPERTIES = {
+            // Gauge Bosons
+            photon: {
+                name: "Photon", symbol: "γ", mass: 0, charge: 0, spin: 1,
+                color: 0xffff00, radius: 0.1, lifetime: Infinity,
+                type: "gauge_boson", interaction: "electromagnetic",
+                magnetic_moment: 0, g_factor: 2.002
+            },
+            gluon: {
+                name: "Gluon", symbol: "g", mass: 0, charge: 0, spin: 1,
+                color: 0xff00ff, radius: 0.12, lifetime: Infinity,
+                type: "gauge_boson", interaction: "strong",
+                color_charge: true, magnetic_moment: 0
+            },
+            w_boson_plus: {
+                name: "W⁺ Boson", symbol: "W⁺", mass: 80379, charge: 1, spin: 1,
+                color: 0xff4444, radius: 0.3, lifetime: 3.32e-25,
+                type: "gauge_boson", interaction: "weak",
+                magnetic_moment: 2.0, decay_channels: ["lepton", "quark"]
+            },
+            w_boson_minus: {
+                name: "W⁻ Boson", symbol: "W⁻", mass: 80379, charge: -1, spin: 1,
+                color: 0x4444ff, radius: 0.3, lifetime: 3.32e-25,
+                type: "gauge_boson", interaction: "weak",
+                magnetic_moment: 2.0, decay_channels: ["lepton", "quark"]
+            },
+            z_boson: {
+                name: "Z Boson", symbol: "Z", mass: 91188, charge: 0, spin: 1,
+                color: 0x44ff44, radius: 0.35, lifetime: 3.32e-25,
+                type: "gauge_boson", interaction: "weak",
+                magnetic_moment: 0, decay_channels: ["fermion", "fermion"]
+            },
+            higgs: {
+                name: "Higgs Boson", symbol: "H", mass: 125100, charge: 0, spin: 0,
+                color: 0xffffff, radius: 0.4, lifetime: 1.56e-22,
+                type: "scalar_boson", interaction: "higgs",
+                decay_channels: ["boson", "fermion"]
+            },
+
+            // Leptons
+            electron: {
+                name: "Electron", symbol: "e⁻", mass: 0.511, charge: -1, spin: 0.5,
+                color: 0x00ff00, radius: 0.08, lifetime: Infinity,
+                type: "lepton", generation: 1,
+                magnetic_moment: -1.001, g_factor: -2.002,
+                helicity: "left", weak_isospin: -0.5
+            },
+            positron: {
+                name: "Positron", symbol: "e⁺", mass: 0.511, charge: 1, spin: 0.5,
+                color: 0x0000ff, radius: 0.08, lifetime: Infinity,
+                type: "lepton", generation: 1,
+                magnetic_moment: 1.001, g_factor: 2.002,
+                helicity: "right", weak_isospin: 0
+            },
+            muon: {
+                name: "Muon", symbol: "μ⁻", mass: 105.66, charge: -1, spin: 0.5,
+                color: 0xff00ff, radius: 0.15, lifetime: 2.197e-6,
+                type: "lepton", generation: 2,
+                magnetic_moment: -1.001, decay_channels: ["electron"]
+            },
+            antimuon: {
+                name: "Antimuon", symbol: "μ⁺", mass: 105.66, charge: 1, spin: 0.5,
+                color: 0xff8800, radius: 0.15, lifetime: 2.197e-6,
+                type: "lepton", generation: 2,
+                magnetic_moment: 1.001, decay_channels: ["positron"]
+            },
+            tau: {
+                name: "Tau", symbol: "τ⁻", mass: 1776.86, charge: -1, spin: 0.5,
+                color: 0xff44ff, radius: 0.2, lifetime: 2.903e-13,
+                type: "lepton", generation: 3,
+                decay_channels: ["muon", "electron", "hadron"]
+            },
+            antitau: {
+                name: "Antitau", symbol: "τ⁺", mass: 1776.86, charge: 1, spin: 0.5,
+                color: 0x44ffff, radius: 0.2, lifetime: 2.903e-13,
+                type: "lepton", generation: 3,
+                decay_channels: ["antimuon", "positron", "hadron"]
+            },
+
+            // Quarks
+            quark_up: {
+                name: "Up Quark", symbol: "u", mass: 2.2, charge: 2/3, spin: 0.5,
+                color: 0xff6666, radius: 0.06, lifetime: Infinity,
+                type: "quark", generation: 1, color_charge: true
+            },
+            quark_down: {
+                name: "Down Quark", symbol: "d", mass: 4.7, charge: -1/3, spin: 0.5,
+                color: 0x6666ff, radius: 0.06, lifetime: Infinity,
+                type: "quark", generation: 1, color_charge: true
+            },
+            quark_charm: {
+                name: "Charm Quark", symbol: "c", mass: 1270, charge: 2/3, spin: 0.5,
+                color: 0xff66ff, radius: 0.08, lifetime: 1.0e-12,
+                type: "quark", generation: 2, color_charge: true
+            },
+            quark_strange: {
+                name: "Strange Quark", symbol: "s", mass: 96, charge: -1/3, spin: 0.5,
+                color: 0x66ffff, radius: 0.07, lifetime: 1.0e-8,
+                type: "quark", generation: 2, color_charge: true
+            },
+            quark_top: {
+                name: "Top Quark", symbol: "t", mass: 173100, charge: 2/3, spin: 0.5,
+                color: 0xff4444, radius: 0.25, lifetime: 5.0e-25,
+                type: "quark", generation: 3, color_charge: true
+            },
+            quark_bottom: {
+                name: "Bottom Quark", symbol: "b", mass: 4180, charge: -1/3, spin: 0.5,
+                color: 0x4444ff, radius: 0.1, lifetime: 1.5e-12,
+                type: "quark", generation: 3, color_charge: true
+            },
+
+            // Mesons
+            pion_plus: {
+                name: "π⁺", symbol: "π⁺", mass: 139.57, charge: 1, spin: 0,
+                color: 0xff8888, radius: 0.4, lifetime: 2.6033e-8,
+                type: "meson", composition: ["quark_up", "antiquark_down"],
+                decay_channels: ["muon", "antimuon"]
+            },
+            pion_minus: {
+                name: "π⁻", symbol: "π⁻", mass: 139.57, charge: -1, spin: 0,
+                color: 0x8888ff, radius: 0.4, lifetime: 2.6033e-8,
+                type: "meson", composition: ["quark_down", "antiquark_up"],
+                decay_channels: ["muon", "antimuon"]
+            },
+            kaon_plus: {
+                name: "K⁺", symbol: "K⁺", mass: 493.677, charge: 1, spin: 0,
+                color: 0xffaa00, radius: 0.45, lifetime: 1.2380e-8,
+                type: "meson", composition: ["quark_up", "antiquark_strange"],
+                decay_channels: ["muon", "pion"]
+            },
+            kaon_minus: {
+                name: "K⁻", symbol: "K⁻", mass: 493.677, charge: -1, spin: 0,
+                color: 0x00aaff, radius: 0.45, lifetime: 1.2380e-8,
+                type: "meson", composition: ["quark_strange", "antiquark_up"],
+                decay_channels: ["antimuon", "pion"]
+            }
+        };
+
+        // Advanced Reaction Database with Energy-dependent Cross Sections
+        const QUANTUM_REACTIONS = {
+            qed: {
+                name: "Quantum Electrodynamics",
+                energy_range: [0.1, 100],
+                reactions: [
+                    {
+                        process: "e⁻e⁺ → γγ",
+                        threshold: 1.022,
+                        cross_section: (energy) => 87e-32 / (energy * 1000),
+                        products: ["photon", "photon"],
+                        probability: 0.7,
+                        feynman_diagram: "annihilation"
+                    },
+                    {
+                        process: "e⁻e⁺ → μ⁺μ⁻", 
+                        threshold: 211.32,
+                        cross_section: (energy) => 4e-32 * Math.log(energy),
+                        products: ["muon", "antimuon"],
+                        probability: 0.2,
+                        feynman_diagram: "pair_production"
+                    },
+                    {
+                        process: "γγ → e⁻e⁺",
+                        threshold: 1.022,
+                        cross_section: (energy) => 6.65e-29,
+                        products: ["electron", "positron"],
+                        probability: 0.1,
+                        feynman_diagram: "breit_wheeler"
+                    }
+                ]
+            },
+            qcd: {
+                name: "Quantum Chromodynamics", 
+                energy_range: [100, 1000],
+                reactions: [
+                    {
+                        process: "gg → qq̄",
+                        threshold: 10,
+                        cross_section: (energy) => 1e-30 * energy,
+                        products: ["quark_up", "antiquark_up"],
+                        probability: 0.3,
+                        feynman_diagram: "gluon_fusion"
+                    },
+                    {
+                        process: "qq̄ → gg",
+                        threshold: 1,
+                        cross_section: (energy) => 3e-31 * energy,
+                        products: ["gluon", "gluon"], 
+                        probability: 0.4,
+                        feynman_diagram: "annihilation"
+                    },
+                    {
+                        process: "qg → qg",
+                        threshold: 1,
+                        cross_section: (energy) => 2e-30 * Math.sqrt(energy),
+                        products: ["quark_up", "gluon"],
+                        probability: 0.3,
+                        feynman_diagram: "compton_like"
+                    }
+                ]
+            },
+            electroweak: {
+                name: "Electroweak Unification",
+                energy_range: [1000, 10000],
+                reactions: [
+                    {
+                        process: "e⁻e⁺ → Z → ff̄",
+                        threshold: 91188,
+                        cross_section: (energy) => 2e-32 * (energy/1000),
+                        products: ["quark_up", "antiquark_up"],
+                        probability: 0.4,
+                        feynman_diagram: "z_resonance"
+                    },
+                    {
+                        process: "qq̄ → W → lν",
+                        threshold: 80379, 
+                        cross_section: (energy) => 3e-33 * (energy/1000),
+                        products: ["w_boson_plus"],
+                        probability: 0.3,
+                        feynman_diagram: "w_production"
+                    },
+                    {
+                        process: "e⁻e⁺ → γZ",
+                        threshold: 91188,
+                        cross_section: (energy) => 1e-34 * energy,
+                        products: ["photon", "z_boson"],
+                        probability: 0.2,
+                        feynman_diagram: "radiation"
+                    }
+                ]
+            },
+            higgs: {
+                name: "Higgs Sector",
+                energy_range: [10000, 50000],
+                reactions: [
+                    {
+                        process: "gg → H → γγ",
+                        threshold: 125100,
+                        cross_section: (energy) => 5e-37 * Math.pow(energy/1000, 2),
+                        products: ["higgs"],
+                        probability: 0.5,
+                        feynman_diagram: "higgs_production"
+                    },
+                    {
+                        process: "qq̄ → HZ", 
+                        threshold: 125100 + 91188,
+                        cross_section: (energy) => 2e-38 * energy,
+                        products: ["higgs", "z_boson"],
+                        probability: 0.3,
+                        feynman_diagram: "higgs_strahlung"
+                    }
+                ]
+            }
+        };
+
+        class AdvancedQuantumSimulation {
+            constructor() {
+                this.initThreeJS();
+                this.setupAdvancedControls();
+                this.setupEventListeners();
+                
+                this.quantumParticles = [];
+                this.collisionEvents = [];
+                this.beamParticles = [];
+                this.detectorHits = [];
+                this.decayChains = [];
+                
+                this.isRunning = false;
+                this.continuousMode = false;
+                this.advancedQuantumMode = true;
+                
+                this.timeScale = 1.0;
+                this.beamEnergy = 100.0;
+                this.luminosity = 10;
+                this.magneticField = 2.0;
+                this.electricField = 1.0;
+                
+                this.quantumState = {
+                    vacuum_fluctuations: false,
+                    quantum_entanglement: false,
+                    wave_function_collapse: false
+                };
+                
+                this.raycaster = new THREE.Raycaster();
+                this.mouse = new THREE.Vector2();
+                
+                this.frameCount = 0;
+                this.eventCount = 0;
+                
+                this.animate();
+            }
+
+            initThreeJS() {
+                // Advanced Scene Setup
+                this.scene = new THREE.Scene();
+                this.scene.background = new THREE.Color(0x000011);
+                this.scene.fog = new THREE.Fog(0x000022, 10, 50);
+
+                // Advanced Camera
+                this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.01, 1000);
+                this.camera.position.set(0, 5, 15);
+                this.camera.lookAt(0, 0, 0);
+
+                // Advanced Renderer
+                this.renderer = new THREE.WebGLRenderer({ 
+                    antialias: true,
+                    alpha: true
+                });
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
+                this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+                this.renderer.shadowMap.enabled = true;
+                this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+                document.body.appendChild(this.renderer.domElement);
+
+                // Advanced Lighting
+                const ambientLight = new THREE.AmbientLight(0x404040, 0.3);
+                this.scene.add(ambientLight);
+                
+                const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+                directionalLight.position.set(10, 10, 5);
+                directionalLight.castShadow = true;
+                this.scene.add(directionalLight);
+
+                const pointLight = new THREE.PointLight(0x00ff00, 0.5, 100);
+                pointLight.position.set(0, 0, 0);
+                this.scene.add(pointLight);
+
+                // Quantum Field Grid
+                this.createQuantumFieldGrid();
+                
+                // Advanced Detector System
+                this.createAdvancedDetector();
+                
+                // Particle Trails Container
+                this.trailContainer = new THREE.Group();
+                this.scene.add(this.trailContainer);
+            }
+
+            createQuantumFieldGrid() {
+                const gridSize = 20;
+                const gridDivisions = 40;
+                const grid = new THREE.GridHelper(gridSize, gridDivisions, 0x00ff00, 0x003300);
+                grid.position.y = -5;
+                this.scene.add(grid);
+
+                // Quantum fluctuation points
+                this.fluctuationPoints = [];
+                for (let i = 0; i < 100; i++) {
+                    const point = new THREE.Mesh(
+                        new THREE.SphereGeometry(0.05, 8, 8),
+                        new THREE.MeshBasicMaterial({ color: 0x00ff00, transparent: true, opacity: 0.3 })
+                    );
+                    point.position.set(
+                        (Math.random() - 0.5) * gridSize,
+                        -4.9,
+                        (Math.random() - 0.5) * gridSize
+                    );
+                    this.scene.add(point);
+                    this.fluctuationPoints.push(point);
+                }
+            }
+
+            createAdvancedDetector() {
+                // Cylindrical Main Detector
+                const detectorGeometry = new THREE.CylinderGeometry(8, 8, 15, 32);
+                const detectorMaterial = new THREE.MeshPhongMaterial({ 
+                    color: 0x444444, 
+                    wireframe: true,
+                    transparent: true,
+                    opacity: 0.2,
+                    emissive: 0x222222
+                });
+                this.detector = new THREE.Mesh(detectorGeometry, detectorMaterial);
+                this.detector.position.y = 0;
+                this.scene.add(this.detector);
+
+                // Inner Tracking System
+                const innerTracker = new THREE.Mesh(
+                    new THREE.CylinderGeometry(6, 6, 14, 32),
+                    new THREE.MeshBasicMaterial({ color: 0xff4444, wireframe: true, transparent: true, opacity: 0.3 })
+                );
+                this.scene.add(innerTracker);
+
+                // Calorimeter Layers
+                const emCalorimeter = new THREE.Mesh(
+                    new THREE.CylinderGeometry(7, 7, 13, 32),
+                    new THREE.MeshBasicMaterial({ color: 0xffff00, wireframe: true, transparent: true, opacity: 0.2 })
+                );
+                this.scene.add(emCalorimeter);
+
+                // Muon Chambers
+                const muonChamber = new THREE.Mesh(
+                    new THREE.CylinderGeometry(9, 9, 16, 32),
+                    new THREE.MeshBasicMaterial({ color: 0xff00ff, wireframe: true, transparent: true, opacity: 0.2 })
+                );
+                this.scene.add(muonChamber);
+            }
+
+            setupAdvancedControls() {
+                this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
+                this.controls.enableDamping = true;
+                this.controls.dampingFactor = 0.05;
+                this.controls.screenSpacePanning = false;
+                this.controls.minDistance = 1;
+                this.controls.maxDistance = 200;
+                this.controls.maxPolarAngle = Math.PI;
+            }
+
+            setupEventListeners() {
+                window.addEventListener('resize', () => this.onWindowResize());
+                
+                // Control Event Listeners
+                const controls = ['timeScale', 'beamEnergy', 'luminosity', 'magneticField', 'electricField'];
+                controls.forEach(control => {
+                    document.getElementById(control).addEventListener('input', (e) => {
+                        this[control] = parseFloat(e.target.value);
+                        document.getElementById(control + 'Value').textContent = this[control].toFixed(2);
+                    });
+                });
+
+                document.getElementById('startCollision').addEventListener('click', () => {
+                    this.startAdvancedCollision();
+                });
+
+                document.getElementById('continuousMode').addEventListener('click', () => {
+                    this.continuousMode = !this.continuousMode;
+                    if (this.continuousMode) {
+                        this.startContinuousCollisions();
+                    }
+                });
+
+                document.getElementById('clearAll').addEventListener('click', () => {
+                    this.clearAllParticles();
+                });
+
+                document.getElementById('advancedMode').addEventListener('click', () => {
+                    this.advancedQuantumMode = !this.advancedQuantumMode;
+                    this.activateQuantumEffects();
+                });
+
+                // Mouse interaction
+                this.renderer.domElement.addEventListener('mousemove', (e) => this.onMouseMove(e));
+                this.renderer.domElement.addEventListener('click', (e) => this.onMouseClick(e));
+            }
+
+            createQuantumParticle(type, position, velocity = new THREE.Vector3(), spin = 0) {
+                const props = QUANTUM_PROPERTIES[type];
+                if (!props) {
+                    console.error(`Unknown quantum particle: ${type}`);
+                    return null;
+                }
+
+                // Create particle geometry based on spin
+                let geometry;
+                if (props.spin === 0) { // Scalar
+                    geometry = new THREE.SphereGeometry(props.radius, 16, 16);
+                } else if (props.spin === 0.5) { // Fermion
+                    geometry = new THREE.TetrahedronGeometry(props.radius);
+                } else { // Vector boson
+                    geometry = new THREE.ConeGeometry(props.radius, props.radius * 2, 8);
+                }
+
+                const material = new THREE.MeshPhongMaterial({ 
+                    color: props.color,
+                    emissive: props.color,
+                    emissiveIntensity: 0.5,
+                    shininess: 100
+                });
+
+                const particle = new THREE.Mesh(geometry, material);
+                particle.position.copy(position);
+                
+                // Set spin orientation
+                if (props.spin !== 0) {
+                    particle.rotation.set(
+                        Math.random() * Math.PI,
+                        Math.random() * Math.PI, 
+                        Math.random() * Math.PI
+                    );
+                }
+
+                // Advanced quantum properties
+                particle.userData = {
+                    type: type,
+                    properties: props,
+                    velocity: velocity,
+                    spin: spin,
+                    helicity: Math.random() > 0.5 ? 1 : -1,
+                    age: 0,
+                    lifetime: props.lifetime,
+                    willDecay: props.lifetime < Infinity,
+                    quantumState: {
+                        wave_function: new THREE.Vector3(1, 0, 0),
+                        superposition: false,
+                        entangled_with: null
+                    },
+                    trail: null,
+                    trailPoints: []
+                };
+
+                // Add charge and spin indicators
+                this.addQuantumIndicators(particle);
+
+                this.scene.add(particle);
+                this.quantumParticles.push(particle);
+
+                // Create advanced trail
+                this.addAdvancedTrail(particle);
+
+                return particle;
+            }
+
+            addQuantumIndicators(particle) {
+                const props = particle.userData.properties;
+                
+                // Charge indicator
+                if (props.charge !== 0) {
+                    const chargeGeometry = new THREE.RingGeometry(props.radius * 1.3, props.radius * 1.5, 16);
+                    const chargeMaterial = new THREE.MeshBasicMaterial({ 
+                        color: props.charge > 0 ? 0xff0000 : 0x0000ff,
+                        side: THREE.DoubleSide,
+                        transparent: true,
+                        opacity: 0.7
+                    });
+                    const chargeRing = new THREE.Mesh(chargeGeometry, chargeMaterial);
+                    particle.add(chargeRing);
+                }
+
+                // Spin indicator
+                if (props.spin !== 0) {
+                    const spinGeometry = new THREE.ArrowHelper(
+                        new THREE.Vector3(0, 1, 0),
+                        new THREE.Vector3(0, 0, 0),
+                        props.radius * 2,
+                        props.spin > 0 ? 0x00ff00 : 0xff0000
+                    );
+                    particle.add(spinGeometry);
+                }
+            }
+
+            addAdvancedTrail(particle) {
+                const trailGeometry = new THREE.BufferGeometry();
+                const trailMaterial = new THREE.LineBasicMaterial({ 
+                    color: particle.userData.properties.color,
+                    transparent: true,
+                    opacity: 0.8,
+                    linewidth: 2
+                });
+                
+                const trail = new THREE.Line(trailGeometry, trailMaterial);
+                particle.userData.trail = trail;
+                particle.userData.trailPoints = [];
+                this.trailContainer.add(trail);
+            }
+
+            updateAdvancedTrail(particle) {
+                if (particle.userData.trail) {
+                    // Add current position to trail
+                    particle.userData.trailPoints.push(particle.position.clone());
+                    
+                    // Limit trail length based on particle type
+                    const maxPoints = particle.userData.properties.type === 'lepton' ? 100 : 50;
+                    if (particle.userData.trailPoints.length > maxPoints) {
+                        particle.userData.trailPoints.shift();
+                    }
+                    
+                    // Update trail geometry
+                    const positions = new Float32Array(particle.userData.trailPoints.length * 3);
+                    particle.userData.trailPoints.forEach((point, i) => {
+                        positions[i * 3] = point.x;
+                        positions[i * 3 + 1] = point.y;
+                        positions[i * 3 + 2] = point.z;
+                    });
+                    
+                    particle.userData.trail.geometry.setAttribute('position', 
+                        new THREE.BufferAttribute(positions, 3));
+                    
+                    // Fade trail
+                    const opacity = Math.max(0.1, 1 - (particle.userData.trailPoints.length / maxPoints));
+                    particle.userData.trail.material.opacity = opacity;
+                }
+            }
+
+            startAdvancedCollision() {
+                this.isRunning = true;
+                const energyRegime = document.getElementById('energyRegime').value;
+                const beamType = document.getElementById('beamType').value;
+                
+                this.clearAllParticles();
+                this.generateBeamCollision(energyRegime, beamType);
+            }
+
+            generateBeamCollision(energyRegime, beamType) {
+                const beamEnergy = this.beamEnergy;
+                const speed = 1+ beamEnergy * 0.001; // Relativistic scaling
+                
+                let particle1Type, particle2Type;
+                
+                switch(beamType) {
+                    case 'protonProton':
+                        particle1Type = 'quark_up';
+                        particle2Type = 'quark_up';
+                        break;
+                    case 'electronPositron':
+                        particle1Type = 'electron';
+                        particle2Type = 'positron';
+                        break;
+                    case 'heavyIons':
+                        particle1Type = 'quark_up';
+                        particle2Type = 'quark_down';
+                        break;
+                    case 'photonPhoton':
+                        particle1Type = 'photon';
+                        particle2Type = 'photon';
+                        break;
+                }
+                
+                // Create opposing beams with realistic distributions
+                for (let i = 0; i < this.luminosity; i++) {
+                    const offset = new THREE.Vector3(
+                        (Math.random() - 0.5) * 2,
+                        (Math.random() - 0.5) * 2,
+                        0
+                    );
+                    
+                    const particle1 = this.createQuantumParticle(
+                        particle1Type, 
+                        new THREE.Vector3(-8 + offset.x, offset.y, offset.z), 
+                        new THREE.Vector3(speed, 0, 0),
+                        Math.random() > 0.5 ? 0.5 : -0.5
+                    );
+                    
+                    const particle2 = this.createQuantumParticle(
+                        particle2Type,
+                        new THREE.Vector3(8 + offset.x, offset.y, offset.z),
+                        new THREE.Vector3(-speed, 0, 0),
+                        Math.random() > 0.5 ? 0.5 : -0.5
+                    );
+                    
+                    if (particle1 && particle2) {
+                        this.beamParticles.push(particle1, particle2);
+                    }
+                }
+            }
+
+            startContinuousCollisions() {
+                setInterval(() => {
+                    if (this.continuousMode && this.quantumParticles.length < 1000) {
+                        this.startAdvancedCollision();
+                    }
+                }, 1000);
+            }
+
+            activateQuantumEffects() {
+                if (this.advancedQuantumMode) {
+                    // Activate vacuum fluctuations
+                    this.quantumState.vacuum_fluctuations = true;
+                    
+                    // Create virtual particle pairs
+                    setInterval(() => {
+                        if (this.quantumParticles.length < 500) {
+                            this.createVirtualParticlePair();
+                        }
+                    }, 500);
+                }
+            }
+
+            createVirtualParticlePair() {
+                const position = new THREE.Vector3(
+                    (Math.random() - 0.5) * 10,
+                    (Math.random() - 0.5) * 10,
+                    (Math.random() - 0.5) * 10
+                );
+                
+                const particle = this.createQuantumParticle('electron', position.clone());
+                const antiparticle = this.createQuantumParticle('positron', position.clone());
+                
+                if (particle && antiparticle) {
+                    // Virtual particles annihilate quickly
+                    setTimeout(() => {
+                        this.removeParticle(particle);
+                        this.removeParticle(antiparticle);
+                    }, 100);
+                }
+            }
+
+            updateQuantumParticles(deltaTime) {
+                const magneticForce = new THREE.Vector3(0, this.magneticField * 0.1, 0);
+                const electricForce = new THREE.Vector3(this.electricField * 0.05, 0, 0);
+                
+                for (let i = this.quantumParticles.length - 1; i >= 0; i--) {
+                    const particle = this.quantumParticles[i];
+                    const props = particle.userData.properties;
+                    
+                    // Update age
+                    particle.userData.age += deltaTime * this.timeScale;
+                    
+                    // Apply electromagnetic forces
+                    if (props.charge !== 0) {
+                        const lorentzForce = magneticForce.clone().cross(particle.userData.velocity);
+                        lorentzForce.multiplyScalar(props.charge);
+                        particle.userData.velocity.add(lorentzForce);
+                        
+                        const electricEffect = electricForce.clone().multiplyScalar(props.charge);
+                        particle.userData.velocity.add(electricEffect);
+                    }
+                    
+                    // Update position
+                    particle.position.add(particle.userData.velocity.clone().multiplyScalar(deltaTime));
+                    
+                    // Update spin rotation
+                    if (props.spin !== 0) {
+                        particle.rotation.x += props.spin * deltaTime * 5;
+                        particle.rotation.y += props.spin * deltaTime * 3;
+                    }
+                    
+                    // Check for decay
+                    if (particle.userData.willDecay && particle.userData.age >= particle.userData.lifetime) {
+                        this.quantumDecay(particle);
+                    }
+                    
+                    // Update trail
+                    this.updateAdvancedTrail(particle);
+                    
+                    // Check detector hits
+                    this.checkDetectorHit(particle);
+                }
+                
+                // Check for quantum collisions
+                this.checkQuantumCollisions();
+            }
+
+            checkQuantumCollisions() {
+                for (let i = 0; i < this.quantumParticles.length; i++) {
+                    for (let j = i + 1; j < this.quantumParticles.length; j++) {
+                        const p1 = this.quantumParticles[i];
+                        const p2 = this.quantumParticles[j];
+                        
+                        const distance = p1.position.distanceTo(p2.position);
+                        const collisionDistance = p1.userData.properties.radius + p2.userData.properties.radius;
+                        
+                        if (distance < collisionDistance * 0.3) {
+                            this.handleQuantumCollision(p1, p2);
+                        }
+                    }
+                }
+            }
+
+            handleQuantumCollision(particle1, particle2) {
+                const energyRegime = document.getElementById('energyRegime').value;
+                const reactions = QUANTUM_REACTIONS[energyRegime];
+                
+                if (!reactions) return;
+                
+                const comEnergy = this.beamEnergy * 1000; // Center of mass energy in MeV
+                const collisionPoint = new THREE.Vector3().addVectors(particle1.position, particle2.position).multiplyScalar(0.5);
+                
+                // Find possible reactions based on energy
+                const possibleReactions = reactions.reactions.filter(r => comEnergy >= r.threshold);
+                
+                if (possibleReactions.length > 0) {
+                    // Select reaction based on cross sections
+                    const totalCrossSection = possibleReactions.reduce((sum, r) => sum + r.cross_section(comEnergy), 0);
+                    let randomValue = Math.random() * totalCrossSection;
+                    let selectedReaction = null;
+                    
+                    for (const reaction of possibleReactions) {
+                        randomValue -= reaction.cross_section(comEnergy);
+                        if (randomValue <= 0) {
+                            selectedReaction = reaction;
+                            break;
+                        }
+                    }
+                    
+                    if (selectedReaction) {
+                        this.performQuantumReaction(particle1, particle2, selectedReaction, collisionPoint);
+                    }
+                }
+            }
+
+            performQuantumReaction(particle1, particle2, reaction, collisionPoint) {
+                // Remove original particles
+                this.removeParticle(particle1);
+                this.removeParticle(particle2);
+                
+                // Create reaction products with quantum conservation
+                const totalEnergy = this.beamEnergy * 1000;
+                const nProducts = reaction.products.length;
+                
+                reaction.products.forEach((productType, index) => {
+                    // Calculate momentum direction (opposite for 2-body, spherical for multi-body)
+                    let direction;
+                    if (nProducts === 2) {
+                        const angle = index * Math.PI;
+                        direction = new THREE.Vector3(Math.cos(angle), Math.sin(angle), 0);
+                    } else {
+                        const phi = Math.acos(2 * Math.random() - 1);
+                        const theta = 2 * Math.PI * Math.random();
+                        direction = new THREE.Vector3(
+                            Math.sin(phi) * Math.cos(theta),
+                            Math.sin(phi) * Math.sin(theta), 
+                            Math.cos(phi)
+                        );
+                    }
+                    
+                    const velocity = direction.multiplyScalar(totalEnergy * 0.001 / nProducts);
+                    const spin = Math.random() > 0.5 ? 0.5 : -0.5;
+                    
+                    const product = this.createQuantumParticle(productType, collisionPoint.clone(), velocity, spin);
+                    
+                    if (product) {
+                        // Set quantum properties
+                        product.userData.quantumState.superposition = Math.random() > 0.7;
+                    }
+                });
+                
+                // Create quantum collision effect
+                this.createQuantumCollisionEffect(collisionPoint, reaction);
+                
+                this.eventCount++;
+            }
+
+            createQuantumCollisionEffect(position, reaction) {
+                // Quantum explosion effect
+                const explosionGeometry = new THREE.SphereGeometry(1, 32, 32);
+                const explosionMaterial = new THREE.MeshBasicMaterial({
+                    color: 0xffffff,
+                    transparent: true,
+                    opacity: 1.0
+                });
+                
+                const explosion = new THREE.Mesh(explosionGeometry, explosionMaterial);
+                explosion.position.copy(position);
+                this.scene.add(explosion);
+                
+                // Animate quantum explosion
+                const startTime = Date.now();
+                const animateExplosion = () => {
+                    const elapsed = (Date.now() - startTime) / 1000;
+                    const scale = 1 + elapsed * 10;
+                    const opacity = 1.0 - elapsed * 5;
+                    
+                    explosion.scale.set(scale, scale, scale);
+                    explosionMaterial.opacity = opacity;
+                    
+                    // Add color shift based on reaction type
+                    const hue = (elapsed * 360) % 360;
+                    explosionMaterial.color.setHSL(hue / 360, 1, 0.5);
+                    
+                    if (opacity > 0) {
+                        requestAnimationFrame(animateExplosion);
+                    } else {
+                        this.scene.remove(explosion);
+                    }
+                };
+                animateExplosion();
+                
+                // Add Feynman diagram visualization
+                this.showFeynmanDiagram(reaction, position);
+            }
+
+            showFeynmanDiagram(reaction, position) {
+                // Create simple Feynman diagram representation
+                const points = [];
+                const timeExtent = 3;
+                
+                // Incoming particles
+                points.push(new THREE.Vector3(-timeExtent, -1, 0).add(position));
+                points.push(new THREE.Vector3(0, -1, 0).add(position));
+                points.push(new THREE.Vector3(-timeExtent, 1, 0).add(position));
+                points.push(new THREE.Vector3(0, 1, 0).add(position));
+                
+                // Outgoing particles
+                reaction.products.forEach((_, i) => {
+                    const angle = (i / reaction.products.length) * Math.PI;
+                    points.push(new THREE.Vector3(0, 0, 0).add(position));
+                    points.push(new THREE.Vector3(timeExtent, Math.cos(angle) * 2, Math.sin(angle) * 2).add(position));
+                });
+                
+                const geometry = new THREE.BufferGeometry().setFromPoints(points);
+                const material = new THREE.LineBasicMaterial({ color: 0xffff00, transparent: true, opacity: 0.7 });
+                const feynmanDiagram = new THREE.LineSegments(geometry, material);
+                this.scene.add(feynmanDiagram);
+                
+                // Remove after animation
+                setTimeout(() => {
+                    this.scene.remove(feynmanDiagram);
+                }, 2000);
+            }
+
+            quantumDecay(particle) {
+                const decayPoint = particle.position.clone();
+                const particleType = particle.userData.type;
+                
+                // Define quantum decay modes
+                let decayProducts = [];
+                let decayEnergy = this.beamEnergy * 500; // MeV
+                
+                switch(particleType) {
+                    case 'muon':
+                        decayProducts = ['electron', 'photon', 'photon'];
+                        decayEnergy = 105.66;
+                        break;
+                    case 'antimuon':
+                        decayProducts = ['positron', 'photon', 'photon'];
+                        decayEnergy = 105.66;
+                        break;
+                    case 'tau':
+                        decayProducts = ['muon', 'photon', 'photon'];
+                        decayEnergy = 1776.86;
+                        break;
+                    case 'w_boson_plus':
+                        decayProducts = ['quark_up', 'antiquark_down'];
+                        decayEnergy = 80379;
+                        break;
+                    case 'z_boson':
+                        decayProducts = ['electron', 'positron'];
+                        decayEnergy = 91188;
+                        break;
+                    case 'higgs':
+                        decayProducts = ['photon', 'photon'];
+                        decayEnergy = 125100;
+                        break;
+                }
+                
+                if (decayProducts.length > 0) {
+                    // Calculate momentum conservation
+                    const totalMass = decayProducts.reduce((sum, type) => sum + QUANTUM_PROPERTIES[type].mass, 0);
+                    const availableEnergy = decayEnergy - totalMass;
+                    
+                    if (availableEnergy > 0) {
+                        decayProducts.forEach((productType, index) => {
+                            const phi = Math.acos(2 * Math.random() - 1);
+                            const theta = 2 * Math.PI * Math.random();
+                            const direction = new THREE.Vector3(
+                                Math.sin(phi) * Math.cos(theta),
+                                Math.sin(phi) * Math.sin(theta),
+                                Math.cos(phi)
+                            );
+                            
+                            const velocity = direction.multiplyScalar(availableEnergy * 0.001 / decayProducts.length);
+                            const spin = particle.userData.spin; // Spin conservation
+                            
+                            this.createQuantumParticle(productType, decayPoint.clone(), velocity, spin);
+                        });
+                        
+                        this.decayChains.push({
+                            parent: particleType,
+                            products: decayProducts,
+                            energy: decayEnergy
+                        });
+                    }
+                }
+                
+                this.removeParticle(particle);
+            }
+
+            checkDetectorHit(particle) {
+                const detectorRadius = 8;
+                const detectorHeight = 7.5;
+                
+                const distanceFromCenter = Math.sqrt(particle.position.x * particle.position.x + particle.position.z * particle.position.z);
+                const height = Math.abs(particle.position.y);
+                
+                if (distanceFromCenter >= detectorRadius * 0.9 && distanceFromCenter <= detectorRadius * 1.1 && height <= detectorHeight) {
+                    // Particle hit detector
+                    this.createDetectorHit(particle.position, particle.userData.properties);
+                    this.detectorHits.push({
+                        particle: particle.userData.type,
+                        position: particle.position.clone(),
+                        time: Date.now()
+                    });
+                }
+            }
+
+            createDetectorHit(position, properties) {
+                // Create hit visualization
+                const hitGeometry = new THREE.SphereGeometry(0.2, 8, 8);
+                const hitMaterial = new THREE.MeshBasicMaterial({
+                    color: properties.color,
+                    transparent: true,
+                    opacity: 0.8
+                });
+                
+                const hit = new THREE.Mesh(hitGeometry, hitMaterial);
+                hit.position.copy(position);
+                this.scene.add(hit);
+                
+                // Animate hit
+                const startTime = Date.now();
+                const animateHit = () => {
+                    const elapsed = (Date.now() - startTime) / 1000;
+                    const scale = 1 + elapsed * 2;
+                    const opacity = 0.8 - elapsed * 2;
+                    
+                    hit.scale.set(scale, scale, scale);
+                    hitMaterial.opacity = opacity;
+                    
+                    if (opacity > 0) {
+                        requestAnimationFrame(animateHit);
+                    } else {
+                        this.scene.remove(hit);
+                    }
+                };
+                animateHit();
+            }
+
+            removeParticle(particle) {
+                // Remove trail
+                if (particle.userData.trail) {
+                    this.trailContainer.remove(particle.userData.trail);
+                }
+                
+                // Remove particle
+                this.scene.remove(particle);
+                const index = this.quantumParticles.indexOf(particle);
+                if (index > -1) {
+                    this.quantumParticles.splice(index, 1);
+                }
+            }
+
+            clearAllParticles() {
+                for (let i = this.quantumParticles.length - 1; i >= 0; i--) {
+                    this.removeParticle(this.quantumParticles[i]);
+                }
+                this.beamParticles = [];
+                this.detectorHits = [];
+                this.decayChains = [];
+                this.eventCount = 0;
+                this.isRunning = false;
+            }
+
+            onMouseMove(event) {
+                this.mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+                this.mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+                this.updateParticleInfo();
+            }
+
+            onMouseClick(event) {
+                this.raycaster.setFromCamera(this.mouse, this.camera);
+                const intersects = this.raycaster.intersectObjects(this.quantumParticles);
+                
+                if (intersects.length > 0) {
+                    const particle = intersects[0].object;
+                    this.createParticleExplosion(particle);
+                }
+            }
+
+            createParticleExplosion(particle) {
+                const position = particle.position.clone();
+                const props = particle.userData.properties;
+                
+                // Create explosion effect
+                const explosionGeometry = new THREE.SphereGeometry(1, 16, 16);
+                const explosionMaterial = new THREE.MeshBasicMaterial({
+                    color: props.color,
+                    transparent: true,
+                    opacity: 0.8
+                });
+                
+                const explosion = new THREE.Mesh(explosionGeometry, explosionMaterial);
+                explosion.position.copy(position);
+                this.scene.add(explosion);
+                
+                // Animate explosion
+                const startTime = Date.now();
+                const animateExplosion = () => {
+                    const elapsed = (Date.now() - startTime) / 1000;
+                    const scale = 1 + elapsed * 5;
+                    const opacity = 0.8 - elapsed * 3;
+                    
+                    explosion.scale.set(scale, scale, scale);
+                    explosionMaterial.opacity = opacity;
+                    
+                    if (opacity > 0) {
+                        requestAnimationFrame(animateExplosion);
+                    } else {
+                        this.scene.remove(explosion);
+                    }
+                };
+                animateExplosion();
+                
+                this.removeParticle(particle);
+            }
+
+            updateParticleInfo() {
+                this.raycaster.setFromCamera(this.mouse, this.camera);
+                const intersects = this.raycaster.intersectObjects(this.quantumParticles);
+                const infoElement = document.getElementById('particleInfo');
+                
+                if (intersects.length > 0) {
+                    const particle = intersects[0].object;
+                    const props = particle.userData.properties;
+                    const data = particle.userData;
+                    
+                    infoElement.innerHTML = `
+                        <strong>${props.name} (${props.symbol})</strong><br>
+                        Mass: ${props.mass} MeV/c²<br>
+                        Charge: ${props.charge}<br>
+                        Spin: ${props.spin}<br>
+                        Type: ${props.type}<br>
+                        Helicity: ${data.helicity}<br>
+                        Age: ${data.age.toFixed(4)} s<br>
+                        Velocity: ${data.velocity.length().toFixed(4)}<br>
+                        Quantum State: ${data.quantumState.superposition ? 'Superposition' : 'Definite'}
+                    `;
+                } else {
+                    infoElement.innerHTML = "Hover over particles for quantum information<br>Click to create explosion";
+                }
+            }
+
+            updateStatistics() {
+                document.getElementById('totalParticles').textContent = this.quantumParticles.length;
+                document.getElementById('activeCollisions').textContent = this.eventCount;
+                document.getElementById('decayChains').textContent = this.decayChains.length;
+                document.getElementById('detectorHits').textContent = this.detectorHits.length;
+                
+                // Update energy display
+                document.getElementById('comEnergy').textContent = (this.beamEnergy * 1000).toFixed(1);
+                document.getElementById('instLuminosity').textContent = this.luminosity;
+                document.getElementById('eventRate').textContent = (this.eventCount / (this.frameCount / 60)).toFixed(1);
+            }
+
+            onWindowResize() {
+                this.camera.aspect = window.innerWidth / window.innerHeight;
+                this.camera.updateProjectionMatrix();
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
+            }
+
+            animate() {
+                requestAnimationFrame(() => this.animate());
+                
+                const deltaTime = 0.016; // ~60fps
+                this.frameCount++;
+                
+                if (this.isRunning || this.continuousMode) {
+                    this.updateQuantumParticles(deltaTime);
+                }
+                
+                // Update quantum fluctuations
+                if (this.advancedQuantumMode) {
+                    this.updateQuantumFluctuations();
+                }
+                
+                this.updateStatistics();
+                this.controls.update();
+                this.renderer.render(this.scene, this.camera);
+            }
+
+            updateQuantumFluctuations() {
+                this.fluctuationPoints.forEach((point, index) => {
+                    point.position.y = -4.9 + Math.sin(Date.now() * 0.001 + index) * 0.1;
+                    point.material.opacity = 0.3 + Math.sin(Date.now() * 0.002 + index) * 0.2;
+                });
+            }
+        }
+
+        // Initialize advanced simulation
+        window.addEventListener('load', () => {
+            new AdvancedQuantumSimulation();
+        });
+    </script>
+</body>
+</html>

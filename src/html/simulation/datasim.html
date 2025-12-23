@@ -1,0 +1,898 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Data Manager</title>
+    <!-- Tailwind CSS for modern UI/UX -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- SheetJS (xlsx) for handling Excel files -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f9fafb;
+        }
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border-radius: 9999px;
+            font-weight: 600;
+            transition-property: transform;
+            transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+            transition-duration: 200ms;
+            transform: translateY(0);
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+        }
+        .btn.primary {
+            background-color: #3b82f6;
+            color: white;
+        }
+        .btn.primary:hover {
+            background-color: #2563eb;
+        }
+        .btn.secondary {
+            background-color: #e5e7eb;
+            color: #4b5563;
+        }
+        .btn.secondary:hover {
+            background-color: #d1d5db;
+        }
+        /* Custom styles for the dropdown menus */
+        .dropdown-menu {
+            position: absolute;
+            top: 100%;
+            margin-top: 0.5rem;
+            width: 12rem;
+            background-color: white;
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            padding: 0.25rem 0;
+            z-index: 10;
+        }
+        .dropdown-menu button {
+            display: block;
+            width: 100%;
+            text-align: left;
+            padding: 0.5rem 1rem;
+            font-size: 0.875rem;
+            line-height: 1.25rem;
+            color: #4b5563;
+        }
+        .dropdown-menu button:hover {
+            background-color: #f3f4f6;
+        }
+        .tab-btn.active {
+            border-bottom: 3px solid #3b82f6;
+            color: #3b82f6;
+            font-weight: 600;
+        }
+        .data-table-row:hover {
+            background-color: #f3f4f6;
+        }
+        /* Style for selected rows */
+        .data-table-row.selected {
+            background-color: #e0f2fe;
+        }
+        .data-table-row.selected:hover {
+            background-color: #e0f2fe;
+        }
+    </style>
+</head>
+<body class="p-8 bg-gray-50 min-h-screen">
+    <div class="max-w-7xl mx-auto">
+        <h1 class="text-4xl font-extrabold text-center text-gray-800 mb-8">Advanced Data Manager</h1>
+
+        <!-- Control Panel -->
+        <div class="bg-white p-6 rounded-2xl shadow-lg mb-8 flex flex-col md:flex-row items-center justify-between space-y-4 md:space-y-0">
+            <div class="flex flex-wrap items-center space-x-4">
+                <label for="fileInput" class="btn primary cursor-pointer flex items-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 mr-2"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.4L15.4 2A2 2 0 0 0 15 2z"></path><path d="M14 2v4a2 2 0 0 0 2 2h4"></path><path d="M12 11v6"></path><path d="m9 14 3-3 3 3"></path></svg>
+                    Upload File
+                </label>
+                <input type="file" id="fileInput" class="hidden" accept=".csv, .xlsx, .json, .txt, .prn" />
+
+                <div class="relative inline-block" id="exportMenuContainer">
+                    <button id="exportBtn" class="btn secondary disabled:opacity-50 disabled:cursor-not-allowed flex items-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 mr-2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" x2="12" y1="15" y2="3"></line></svg>
+                        Export
+                    </button>
+                    <div id="exportMenu" class="dropdown-menu hidden">
+                        <button class="export-option" data-format="json">Export as JSON</button>
+                        <button class="export-option" data-format="xlsx">Export as XLSX</button>
+                        <button class="export-option" data-format="jsx">Export as JSX</button>
+                        <button class="export-option" data-format="ts">Export as TypeScript (.ts)</button>
+                        <button class="export-option" data-format="tsx">Export as TSX (.tsx)</button>
+                        <button class="export-option" data-format="sql_sqlite">Export as SQLite (.sql)</button>
+                        <button class="export-option" data-format="sql_mysql">Export as MySQL (.sql)</button>
+                    </div>
+                </div>
+
+                <div class="relative inline-block" id="reportsMenuContainer">
+                    <button id="reportsBtn" class="btn secondary disabled:opacity-50 disabled:cursor-not-allowed flex items-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 mr-2"><path d="M12 3v18"></path><rect width="18" height="18" x="3" y="3" rx="2"></rect><path d="M3 9h18"></path><path d="M3 15h18"></path></svg>
+                        Generate Reports
+                    </button>
+                    <div id="reportsMenu" class="dropdown-menu hidden">
+                        <button class="report-option" data-report="mto">MTO (Material Take-Off)</button>
+                        <button class="report-option" data-report="bom">BOM (Bill of Materials)</button>
+                        <button class="report-option" data-report="mr">MR (Material Requisition)</button>
+                        <button class="report-option" data-report="pricing">Pricing Report</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex items-center space-x-4">
+                <span class="font-medium text-gray-700">Duplicate Finder:</span>
+                <div id="duplicateFinderToggle" class="w-12 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors duration-300 bg-gray-300">
+                    <div class="bg-white w-4 h-4 rounded-full shadow-md transform transition-transform duration-300 translate-x-0"></div>
+                </div>
+            </div>
+            
+            <div class="text-center md:text-right">
+                <p class="text-sm text-gray-600">Total Records: <span id="totalRecords" class="font-bold text-gray-800">0</span></p>
+                <p class="text-sm text-gray-600">Duplicates found: <span id="duplicateCount" class="font-bold text-red-500">0</span></p>
+            </div>
+        </div>
+
+        <!-- Tab Navigation -->
+        <div id="tabContainer" class="hidden md:flex bg-white px-6 rounded-t-lg shadow-lg mb-1 -mt-4">
+            <button id="tableViewBtn" class="tab-btn py-3 px-6 text-gray-600 focus:outline-none transition-all duration-200">
+                <div class="flex items-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12h20"></path><path d="M2 18h20"></path><path d="M2 6h20"></path></svg>
+                    Table View
+                </div>
+            </button>
+            <button id="treeViewBtn" class="tab-btn py-3 px-6 text-gray-600 focus:outline-none transition-all duration-200">
+                <div class="flex items-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 17v-7.5C9 7.78 7.21 6 5 6H3"></path><path d="M12 11v4"></path><path d="M18 13v1"></path><path d="M12 3v4"></path><path d="M18 3v6"></path><path d="M21 3v2"></path><path d="M12 19v2"></path><path d="M18 17v2"></path><circle cx="12" cy="7" r="2"></circle><circle cx="18" cy="11" r="2"></circle><circle cx="18" cy="5" r="2"></circle><circle cx="18" cy="17" r="2"></circle><circle cx="21" cy="7" r="2"></circle><circle cx="3" cy="6" r="2"></circle><circle cx="9" cy="13" r="2"></circle></svg>
+                    Tree View
+                </div>
+            </button>
+        </div>
+
+        <!-- Main Content Area -->
+        <div id="mainContent" class="bg-white rounded-2xl shadow-lg p-6 min-h-[500px]">
+            <div class="text-center py-20 text-gray-500">
+                <p class="text-2xl font-medium mb-4">Upload a data file to get started.</p>
+                <p>Supported formats: CSV, XLSX, JSON, TXT, PRN.</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- State Management ---
+        let data = [];
+        let headers = [];
+        let view = 'initial'; // 'initial', 'loading', 'error', 'table', 'tree', 'report'
+        let currentReport = null;
+        let isDuplicateFinderEnabled = false;
+        let selectedRows = new Set();
+        let colorCache = {};
+        
+        // --- DOM Elements ---
+        const fileInput = document.getElementById('fileInput');
+        const exportBtn = document.getElementById('exportBtn');
+        const exportMenu = document.getElementById('exportMenu');
+        const reportsBtn = document.getElementById('reportsBtn');
+        const reportsMenu = document.getElementById('reportsMenu');
+        const mainContent = document.getElementById('mainContent');
+        const duplicateFinderToggle = document.getElementById('duplicateFinderToggle');
+        const totalRecordsSpan = document.getElementById('totalRecords');
+        const duplicateCountSpan = document.getElementById('duplicateCount');
+        const tabContainer = document.getElementById('tabContainer');
+        const tableViewBtn = document.getElementById('tableViewBtn');
+        const treeViewBtn = document.getElementById('treeViewBtn');
+
+        // --- Utility Functions ---
+        const stringToHslColor = (str, s = 50, l = 75) => {
+            let hash = 0;
+            for (let i = 0; i < str.length; i++) {
+                hash = str.charCodeAt(i) + ((hash << 5) - hash);
+            }
+            const h = hash % 360;
+            return `hsl(${h}, ${s}%, ${l}%)`;
+        };
+
+        const getGradientColor = (str) => {
+            if (colorCache[str]) {
+                return colorCache[str];
+            }
+            const baseColor = stringToHslColor(str, 80, 70);
+            const darkerColor = stringToHslColor(str, 80, 50);
+            const gradient = `linear-gradient(to right, ${baseColor}, ${darkerColor})`;
+            colorCache[str] = gradient;
+            return gradient;
+        };
+
+        const parseTextFile = (text, delimiter) => {
+            const lines = text.trim().split('\n');
+            if (lines.length < 2) return { data: [], headers: [] };
+            const headers = lines[0].split(delimiter).map(h => h.trim().replace(/^"|"$/g, ''));
+            const fileData = lines.slice(1).map(line => {
+                const values = line.split(delimiter).map(v => v.trim().replace(/^"|"$/g, ''));
+                const obj = {};
+                headers.forEach((header, index) => obj[header] = values[index] || '');
+                return obj;
+            });
+            return { data: fileData, headers };
+        };
+
+        const parseXLSX = (arrayBuffer) => {
+            if (typeof XLSX === 'undefined') {
+                console.error("XLSX library not loaded. Please check the CDN link.");
+                return { data: [], headers: [] };
+            }
+            const workbook = XLSX.read(new Uint8Array(arrayBuffer), { type: 'array' });
+            let allData = [];
+            let fileHeaders = [];
+            workbook.SheetNames.forEach(sheetName => {
+                const worksheet = workbook.Sheets[sheetName];
+                const sheetData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+                if (sheetData.length > 0) {
+                    if (fileHeaders.length === 0) {
+                        fileHeaders = Object.keys(sheetData[0]);
+                    }
+                    allData = allData.concat(sheetData);
+                }
+            });
+            return { data: allData, headers: fileHeaders };
+        };
+
+        const parseJSON = (jsonText) => {
+            const parsedData = JSON.parse(jsonText);
+            const parsedHeaders = parsedData.length > 0 ? Object.keys(parsedData[0]) : [];
+            return { data: parsedData, headers: parsedHeaders };
+        };
+        
+        const findExactDuplicates = (records) => {
+            const seen = new Set();
+            const duplicates = new Set();
+            records.forEach(record => {
+                const recordString = JSON.stringify(Object.values(record));
+                if (seen.has(recordString)) {
+                    duplicates.add(recordString);
+                }
+                seen.add(recordString);
+            });
+            return Array.from(duplicates).length;
+        };
+
+        const handleAddRecord = (e) => {
+            e.preventDefault();
+            const newRecord = {};
+            new FormData(e.target).forEach((value, key) => newRecord[key] = value);
+
+            if (isDuplicateFinderEnabled) {
+                const duplicateCount = findExactDuplicates([...data, newRecord]);
+                if (duplicateCount > findExactDuplicates(data)) {
+                    console.log('This record is an exact duplicate and cannot be added.');
+                    return;
+                }
+            }
+            data.push(newRecord);
+            e.target.reset();
+            updateUI();
+        };
+
+        // --- View Rendering ---
+        const renderInitialView = () => `
+            <div class="text-center py-20 text-gray-500">
+                <p class="text-2xl font-medium mb-4">Upload a data file to get started.</p>
+                <p>Supported formats: CSV, XLSX, JSON, TXT, PRN.</p>
+            </div>
+        `;
+
+        const renderLoadingView = () => `
+            <div class="flex justify-center items-center h-full min-h-[500px]">
+                <svg class="animate-spin h-10 w-10 text-blue-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+            </div>
+        `;
+
+        const renderErrorView = () => `
+            <div class="text-center py-20 text-red-500">
+                <p class="text-2xl font-medium mb-4">Error: Invalid file format or data.</p>
+                <p>Please check your file and try again.</p>
+            </div>
+        `;
+
+        const renderTable = (tableData) => {
+            if (tableData.length === 0) {
+                return `<div class="p-4 text-center text-gray-500">No data to display.</div>`;
+            }
+
+            const uniquePCode = new Set(data.map(item => item['p_code']));
+            const uniqueSPName = new Set(data.map(item => item['sp-name']));
+            const pCodeColors = {};
+            const spNameColors = {};
+
+            uniquePCode.forEach(code => pCodeColors[code] = stringToHslColor(code));
+            uniqueSPName.forEach(name => spNameColors[name] = stringToHslColor(name, 50, 85));
+
+            return `
+                <div class="overflow-x-auto rounded-lg shadow-md">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-100">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Select</th>
+                                ${headers.map(header => `<th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">${header}</th>`).join('')}
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            ${tableData.map((row, index) => {
+                                const isSelected = selectedRows.has(index);
+                                const pCode = row['p_code'] || '';
+                                const spName = row['sp-name'] || '';
+                                const pCodeBg = getGradientColor(pCode);
+                                const spNameBg = spNameColors[spName] || 'transparent';
+
+                                return `
+                                    <tr class="data-table-row ${isSelected ? 'selected' : ''}" data-index="${index}">
+                                        <td class="px-6 py-4 whitespace-nowrap">
+                                            <input type="checkbox" class="data-select-checkbox" data-index="${index}" ${isSelected ? 'checked' : ''}>
+                                        </td>
+                                        ${headers.map(header => {
+                                            let style = '';
+                                            if (header === 'p_code') {
+                                                style = `background-image: ${pCodeBg}; color: #fff; text-shadow: 1px 1px 2px rgba(0,0,0,0.5);`;
+                                            } else if (header === 'sp-name') {
+                                                style = `background-color: ${spNameBg};`;
+                                            }
+                                            return `<td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900" style="${style}">${row[header] || '-'}</td>`;
+                                        }).join('')}
+                                    </tr>
+                                `;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        };
+        
+        const renderTableView = () => {
+            return `
+                <div class="p-4">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4 flex items-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12h20"></path><path d="M2 18h20"></path><path d="M2 6h20"></path></svg>
+                        Full Data Table
+                    </h2>
+                    ${renderTable(data)}
+                    <div class="mt-4 text-sm text-gray-600">
+                        <span class="font-semibold text-gray-800">Note:</span> Each \`p_code\` has a unique color gradient, and each \`sp-name\` has a unique background color for visual clarity.
+                    </div>
+                </div>
+            `;
+        };
+
+        const buildTree = (records) => {
+            const tree = {};
+            records.forEach(record => {
+                const mainProduct = record['mp-name'] || 'Uncategorized';
+                const productCode = record['p_code'] || 'Uncategorized';
+                const subProduct = record['sp-name'] || 'Uncategorized';
+                if (!tree[mainProduct]) tree[mainProduct] = { children: {}, records: [] };
+                if (!tree[mainProduct].children[productCode]) tree[mainProduct].children[productCode] = { children: {}, records: [] };
+                if (!tree[mainProduct].children[productCode].children[subProduct]) tree[mainProduct].children[productCode].children[subProduct] = { records: [] };
+                tree[mainProduct].records.push(record);
+                tree[mainProduct].children[productCode].records.push(record);
+                tree[mainProduct].children[productCode].children[subProduct].records.push(record);
+            });
+            return tree;
+        };
+        
+        const renderTreeViewRecursive = (treeData, level = 0) => {
+            let html = `<ul class="pl-${level > 0 ? 6 : 0} border-l border-gray-300 ml-1">`;
+            for (const key in treeData) {
+                const node = treeData[key];
+                const hasChildren = node.children && Object.keys(node.children).length > 0;
+                const expandClass = hasChildren ? 'cursor-pointer' : '';
+                html += `
+                    <li class="my-1">
+                        <div class="flex items-center space-x-2 p-2 rounded-md hover:bg-gray-100 transition-colors ${expandClass}" data-key="${key}" data-level="${level}">
+                            <span class="w-4 text-blue-500 font-bold">${hasChildren ? '[+]' : ''}</span>
+                            <span class="font-medium text-gray-700">${key} <span class="text-sm text-gray-500">(${node.records.length} items)</span></span>
+                        </div>
+                        <div class="children-container hidden">
+                            ${hasChildren ? renderTreeViewRecursive(node.children, level + 1) : ''}
+                        </div>
+                    </li>
+                `;
+            }
+            html += `</ul>`;
+            return html;
+        };
+
+        const renderTreeView = () => {
+            const treeData = buildTree(data);
+            const formInputs = headers.map(header => `
+                <div>
+                    <label class="block text-sm font-medium text-gray-700">${header}</label>
+                    <input type="text" name="${header}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" required />
+                </div>
+            `).join('');
+            
+            return `
+                <div class="p-4">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4 flex items-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 mr-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M8 12h8"></path><path d="M12 8v8"></path></svg>
+                        Add New Record
+                    </h2>
+                    <form id="addRecordForm" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 bg-gray-50 p-6 rounded-lg shadow-inner">
+                        ${formInputs}
+                        <button type="submit" class="btn primary col-span-full mt-2">Add Record</button>
+                    </form>
+                </div>
+            `;
+        };
+
+        const renderReportView = () => `
+            <div class="p-4">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-2xl font-bold text-gray-800">${currentReport.title}</h2>
+                    <button id="backToTableBtn" class="btn secondary flex items-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4 mr-2"><path d="m12 19-7-7 7-7"></path><path d="M19 12H5"></path></svg>
+                        Back to Data
+                    </button>
+                </div>
+                ${renderTable(currentReport.data)}
+            </div>
+        `;
+
+        const updateUI = () => {
+            let content = '';
+            let activeBtn = null;
+            if (data.length > 0) {
+                tabContainer.classList.remove('hidden');
+            } else {
+                tabContainer.classList.add('hidden');
+            }
+            tableViewBtn.classList.remove('active');
+            treeViewBtn.classList.remove('active');
+
+            if (view === 'initial') {
+                content = renderInitialView();
+            } else if (view === 'loading') {
+                content = renderLoadingView();
+            } else if (view === 'error') {
+                content = renderErrorView();
+            } else if (view === 'table') {
+                content = renderTableView();
+                activeBtn = tableViewBtn;
+            } else if (view === 'tree') {
+                content = renderTreeView();
+                activeBtn = treeViewBtn;
+            } else if (view === 'report' && currentReport) {
+                content = renderReportView();
+            }
+
+            if (activeBtn) {
+                activeBtn.classList.add('active');
+            }
+            mainContent.innerHTML = content;
+            updateDynamicListeners();
+            updateStats();
+        };
+
+        const updateStats = () => {
+            totalRecordsSpan.textContent = data.length;
+            const duplicates = findExactDuplicates(data);
+            duplicateCountSpan.textContent = duplicates;
+        };
+
+        // --- Data Processing & Exports ---
+        const generateReport = (reportType) => {
+            const dataSource = selectedRows.size > 0 ? data.filter((_, i) => selectedRows.has(i)) : data;
+            
+            let reportData = [];
+            let title = '';
+            
+            if (reportType === 'mto') {
+                title = "Material Take-Off (MTO) Report";
+                const mtoMap = {};
+                dataSource.forEach(record => {
+                    const matName = record['mat-name'] || 'N/A';
+                    const qty = parseFloat(String(record['matperpro'] || 0).replace(/,/g, ''));
+                    if (mtoMap[matName]) {
+                        mtoMap[matName].quantity += qty;
+                    } else {
+                        mtoMap[matName] = { 'Material Name': matName, 'Total Quantity': qty, 'Unit': record['mat-unit'] || 'N/A' };
+                    }
+                });
+                reportData = Object.values(mtoMap);
+            } else if (reportType === 'bom') {
+                title = "Bill of Materials (BOM) Report";
+                reportData = dataSource.map(record => ({
+                    'Main Product': record['mp-name'] || 'N/A',
+                    'Product Code': record['p_code'] || 'N/A',
+                    'Part Name': record['part-name'] || 'N/A',
+                    'Quantity': record['partperpro'] || 'N/A'
+                }));
+            } else if (reportType === 'mr') {
+                title = "Material Requisition (MR) Report";
+                reportData = dataSource.map(record => ({
+                    'Part Code': record['part-code'] || 'N/A',
+                    'Part Name': record['part-name'] || 'N/A',
+                    'Required Quantity': parseFloat(String(record['matperpro'] || 0).replace(/,/g, ''))
+                }));
+            } else if (reportType === 'pricing') {
+                title = "Pricing Report";
+                const pricingMap = {};
+                dataSource.forEach(record => {
+                    const mainProduct = record['mp-name'] || 'N/A';
+                    const cost = parseFloat(String(record['mattotalprice'] || 0).replace(/,/g, ''));
+                    if (pricingMap[mainProduct]) {
+                        pricingMap[mainProduct].totalCost += cost;
+                    } else {
+                        pricingMap[mainProduct] = { 'Main Product': mainProduct, 'Total Cost': cost };
+                    }
+                });
+                reportData = Object.values(pricingMap).map(p => ({
+                    ...p, 'Total Cost': p['Total Cost'].toLocaleString('en-US')
+                }));
+            }
+            
+            currentReport = { title: title, data: reportData };
+            view = 'report';
+            reportsMenu.classList.add('hidden');
+            updateUI();
+        };
+        
+        // Helper function to infer data type
+        const inferDataType = (value) => {
+            if (value === null || value === undefined || value === '') {
+                return 'TEXT';
+            }
+            // Check for integer
+            if (!isNaN(value) && parseInt(Number(value)) == value && !isNaN(parseInt(value, 10))) {
+                return 'INTEGER';
+            }
+            // Check for float
+            if (!isNaN(value) && parseFloat(Number(value)) == value) {
+                return 'REAL';
+            }
+            return 'TEXT';
+        };
+
+        // Helper function to escape and format values for SQL
+        const getSQLValue = (value) => {
+            if (value === null || value === undefined || value === '') {
+                return 'NULL';
+            }
+            const type = inferDataType(value);
+            if (type === 'INTEGER' || type === 'REAL') {
+                return value;
+            }
+            // Escape single quotes for SQL strings and wrap in quotes
+            return `'${String(value).replace(/'/g, "''")}'`;
+        };
+
+        // Function to generate SQL statements
+        const generateSQL = (tableData, dbType) => {
+            if (tableData.length === 0) return '';
+            
+            const tableName = 'data_table';
+            const headers = Object.keys(tableData[0]).filter(h => h.trim() !== '');
+            
+            // Generate CREATE TABLE statement
+            const columnDefinitions = headers.map(header => {
+                const cleanHeader = header.replace(/[^a-zA-Z0-9_]/g, '_');
+                const sampleValue = tableData[0][header];
+                const type = inferDataType(sampleValue);
+                return `\`${cleanHeader}\` ${type}`;
+            });
+            const createTableStatement = `CREATE TABLE \`${tableName}\` (\n  ${columnDefinitions.join(',\n  ')}\n);\n`;
+
+            // Generate INSERT INTO statements
+            const insertStatements = tableData.map(row => {
+                const values = headers.map(header => getSQLValue(row[header]));
+                const cleanHeaders = headers.map(h => `\`${h.replace(/[^a-zA-Z0-9_]/g, '_')}\``);
+                return `INSERT INTO \`${tableName}\` (${cleanHeaders.join(', ')}) VALUES (${values.join(', ')});`;
+            }).join('\n');
+
+            return `${createTableStatement}\n\n${insertStatements}`;
+        };
+
+
+        const exportFile = (format) => {
+            let fileData = selectedRows.size > 0 ? data.filter((_, i) => selectedRows.has(i)) : data;
+            let fileName = 'data';
+            
+            if (view === 'report') {
+                fileData = currentReport.data;
+                fileName = currentReport.title.replace(/\s/g, '_');
+            }
+
+            let content;
+            let mimeType;
+            let fileExtension;
+
+            if (format === 'json') {
+                content = JSON.stringify(fileData, null, 2);
+                mimeType = 'application/json';
+                fileExtension = 'json';
+            } else if (format === 'xlsx') {
+                if (typeof XLSX === 'undefined') {
+                    console.error("XLSX library not loaded.");
+                    return;
+                }
+                const worksheet = XLSX.utils.json_to_sheet(fileData);
+                const workbook = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(workbook, worksheet, "Sheet1");
+                XLSX.writeFile(workbook, `${fileName}.xlsx`);
+                return;
+            } else if (format === 'jsx') {
+                content = `export const mtoData = ${JSON.stringify(fileData, null, 2)};`;
+                mimeType = 'text/jsx';
+                fileExtension = 'jsx';
+            } else if (format === 'ts') {
+                const typeScriptInterface = `
+// Type definitions for the data.
+export interface DataRecord {
+    // Add your data properties here based on the headers
+    ${headers.map(h => `'${h.replace(/'/g, "\\'")}': string | number;`).join('\n    ')}
+}
+
+// Exported data as a constant.
+export const mtoData: DataRecord[] = ${JSON.stringify(fileData, null, 2)};
+                `;
+                content = typeScriptInterface;
+                mimeType = 'text/plain';
+                fileExtension = 'ts';
+            } else if (format === 'tsx') {
+                const tsxContent = `
+import React from 'react';
+
+// Type definitions for the data.
+export interface DataRecord {
+    // Add your data properties here based on the headers
+    ${headers.map(h => `'${h.replace(/'/g, "\\'")}': string | number;`).join('\n    ')}
+}
+
+// Exported data as a constant.
+export const mtoData: DataRecord[] = ${JSON.stringify(fileData, null, 2)};
+
+// An example React component that uses the exported data.
+const DataDisplayComponent: React.FC = () => {
+  return (
+    <div>
+      <h1>Data Records</h1>
+      <ul>
+        {mtoData.map((record, index) => (
+          <li key={index}>
+            {Object.entries(record).map(([key, value]) => (
+              <span key={key}><strong>{key}:</strong> {String(value)}</span>
+            ))}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+};
+
+export default DataDisplayComponent;
+                `;
+                content = tsxContent;
+                mimeType = 'text/plain';
+                fileExtension = 'tsx';
+            } else if (format === 'sql_sqlite') {
+                content = generateSQL(fileData, 'sqlite');
+                mimeType = 'text/plain';
+                fileExtension = 'sql';
+            } else if (format === 'sql_mysql') {
+                content = generateSQL(fileData, 'mysql');
+                mimeType = 'text/plain';
+                fileExtension = 'sql';
+            }
+
+            const blob = new Blob([content], { type: mimeType });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `${fileName}.${fileExtension}`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+
+            exportMenu.classList.add('hidden');
+        };
+
+        const toggleTreeExpand = (event) => {
+            const target = event.target.closest('div');
+            if (!target) return;
+            const childrenContainer = target.nextElementSibling;
+            const expandIcon = target.querySelector('span:first-child');
+            if (childrenContainer && childrenContainer.classList.contains('children-container')) {
+                childrenContainer.classList.toggle('hidden');
+                expandIcon.textContent = childrenContainer.classList.contains('hidden') ? '[+]' : '[-]';
+            }
+        };
+
+        const updateDynamicListeners = () => {
+            const addRecordForm = document.getElementById('addRecordForm');
+            if (addRecordForm) {
+                addRecordForm.addEventListener('submit', handleAddRecord);
+            }
+
+            const backToTableBtn = document.getElementById('backToTableBtn');
+            if (backToTableBtn) {
+                backToTableBtn.addEventListener('click', () => {
+                    view = 'table';
+                    currentReport = null;
+                    updateUI();
+                });
+            }
+
+            const treeNodes = document.querySelectorAll('#treeViewContainer div');
+            treeNodes.forEach(node => {
+                node.addEventListener('click', toggleTreeExpand);
+            });
+            
+            const checkboxes = document.querySelectorAll('.data-select-checkbox');
+            checkboxes.forEach(checkbox => {
+                checkbox.addEventListener('change', (e) => {
+                    const index = parseInt(e.target.dataset.index, 10);
+                    const row = e.target.closest('.data-table-row');
+                    if (e.target.checked) {
+                        selectedRows.add(index);
+                        row.classList.add('selected');
+                    } else {
+                        selectedRows.delete(index);
+                        row.classList.remove('selected');
+                    }
+                });
+            });
+            
+            const tableRows = document.querySelectorAll('.data-table-row');
+            tableRows.forEach(row => {
+                 row.addEventListener('click', (e) => {
+                     // Do not toggle if click is on the checkbox itself
+                     if (e.target.type !== 'checkbox') {
+                         const checkbox = row.querySelector('.data-select-checkbox');
+                         checkbox.checked = !checkbox.checked;
+                         const event = new Event('change');
+                         checkbox.dispatchEvent(event);
+                     }
+                 });
+            });
+        };
+
+        // --- Event Listeners ---
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const fileName = file.name;
+            const fileExtension = fileName.split('.').pop().toLowerCase();
+            view = 'loading';
+            updateUI();
+            selectedRows = new Set();
+            colorCache = {};
+
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                try {
+                    let result;
+                    if (fileExtension === 'csv') {
+                        result = parseTextFile(event.target.result, ',');
+                    } else if (['txt', 'prn'].includes(fileExtension)) {
+                        result = parseTextFile(event.target.result, '\t');
+                    } else if (fileExtension === 'json') {
+                        result = parseJSON(event.target.result);
+                    } else if (fileExtension === 'xlsx') {
+                        reader.readAsArrayBuffer(file);
+                        return; // Exit here and wait for the onloadend or a new handler for XLSX
+                    } else {
+                        throw new Error('Unsupported file type');
+                    }
+
+                    data = result.data;
+                    headers = result.headers;
+                    view = 'table';
+                    updateUI();
+                    exportBtn.disabled = false;
+                    reportsBtn.disabled = false;
+                } catch (error) {
+                    console.error("Error parsing file:", error);
+                    data = [];
+                    headers = [];
+                    view = 'error';
+                    updateUI();
+                    exportBtn.disabled = true;
+                    reportsBtn.disabled = true;
+                }
+            };
+            
+            // Separate handler for XLSX to use readAsArrayBuffer
+            const xlsxReader = new FileReader();
+            xlsxReader.onload = (event) => {
+                try {
+                    const result = parseXLSX(event.target.result);
+                    data = result.data;
+                    headers = result.headers;
+                    view = 'table';
+                    updateUI();
+                    exportBtn.disabled = false;
+                    reportsBtn.disabled = false;
+                } catch (error) {
+                    console.error("Error parsing XLSX file:", error);
+                    data = [];
+                    headers = [];
+                    view = 'error';
+                    updateUI();
+                    exportBtn.disabled = true;
+                    reportsBtn.disabled = true;
+                }
+            };
+
+            if (fileExtension === 'xlsx') {
+                xlsxReader.readAsArrayBuffer(file);
+            } else {
+                reader.readAsText(file);
+            }
+        });
+
+
+        exportBtn.addEventListener('click', () => {
+            exportMenu.classList.toggle('hidden');
+            reportsMenu.classList.add('hidden');
+        });
+        document.querySelectorAll('.export-option').forEach(btn => {
+            btn.addEventListener('click', (e) => exportFile(e.target.dataset.format));
+        });
+
+        reportsBtn.addEventListener('click', () => {
+            reportsMenu.classList.toggle('hidden');
+            exportMenu.classList.add('hidden');
+        });
+        document.querySelectorAll('.report-option').forEach(btn => {
+            btn.addEventListener('click', (e) => generateReport(e.target.dataset.report));
+        });
+        
+        tableViewBtn.addEventListener('click', () => {
+            view = 'table';
+            updateUI();
+        });
+        
+        treeViewBtn.addEventListener('click', () => {
+            view = 'tree';
+            updateUI();
+        });
+
+        duplicateFinderToggle.addEventListener('click', () => {
+            isDuplicateFinderEnabled = !isDuplicateFinderEnabled;
+            const circle = duplicateFinderToggle.querySelector('div');
+            if (isDuplicateFinderEnabled) {
+                duplicateFinderToggle.classList.replace('bg-gray-300', 'bg-blue-500');
+                circle.classList.replace('translate-x-0', 'translate-x-6');
+            } else {
+                duplicateFinderToggle.classList.replace('bg-blue-500', 'bg-gray-300');
+                circle.classList.replace('translate-x-6', 'translate-x-0');
+            }
+            updateStats();
+        });
+
+        // Hide menus when clicking outside
+        document.addEventListener('click', (event) => {
+            const exportMenuContainer = document.getElementById('exportMenuContainer');
+            const reportsMenuContainer = document.getElementById('reportsMenuContainer');
+            if (!exportMenuContainer.contains(event.target)) {
+                exportMenu.classList.add('hidden');
+            }
+            if (!reportsMenuContainer.contains(event.target)) {
+                reportsMenu.classList.add('hidden');
+            }
+        });
+
+        // Initial setup
+        updateUI();
+        exportBtn.disabled = true;
+        reportsBtn.disabled = true;
+    </script>
+</body>
+</html>

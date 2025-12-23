@@ -1,0 +1,1741 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Dynamic Particle Physics Simulation</title>
+    <script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        :root {
+            --accelerator-primary: #2563eb;
+            --accelerator-secondary: #7c3aed;
+            --detector-atlas: #dc2626;
+            --detector-cms: #059669;
+            --proton-beam: #3b82f6;
+            --antiproton-beam: #ef4444;
+            --electron-beam: #8b5cf6;
+            --positron-beam: #06b6d4;
+            --photon: #f59e0b;
+            --gluon: #f97316;
+            --higgs: #ec4899;
+            --top-quark: #10b981;
+            --bottom-quark: #8b5cf6;
+            --charm-quark: #ef4444;
+            --strange-quark: #84cc16;
+            --up-quark: #3b82f6;
+            --down-quark: #06b6d4;
+            --muon: #d946ef;
+            --tau: #f97316;
+            --neutrino: #6b7280;
+            --w-boson: #dc2626;
+            --z-boson: #7c3aed;
+            --pion: #ec4899;
+            --kaon: #84cc16;
+            --tracker: #f59e0b;
+            --calorimeter: #10b981;
+            --muon-chamber: #8b5cf6;
+            --magnet: #6b7280;
+            --magnetic-field: #3b82f6;
+            --dark-bg: #0f172a;
+            --card-bg: #1e293b;
+            --text: #e2e8f0;
+            --highlight: #10b981;
+        }
+        
+        body {
+            background: linear-gradient(135deg, var(--dark-bg), #1e1b4b);
+            color: var(--text);
+            line-height: 1.6;
+            min-height: 100vh;
+            padding: 20px;
+            overflow-x: hidden;
+        }
+        
+        .container {
+            max-width: 2000px;
+            margin: 0 auto;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding: 30px;
+            background: rgba(30, 41, 59, 0.7);
+            border-radius: 16px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(100, 116, 139, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--accelerator-primary), var(--detector-atlas), var(--detector-cms));
+        }
+        
+        h1 {
+            font-size: 2.8rem;
+            margin-bottom: 15px;
+            background: linear-gradient(90deg, var(--accelerator-primary), var(--detector-atlas));
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+        
+        .subtitle {
+            font-size: 1.3rem;
+            opacity: 0.9;
+            max-width: 800px;
+            margin: 0 auto 20px;
+        }
+        
+        .simulation-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+        
+        @media (max-width: 1600px) {
+            .simulation-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .view-panel {
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(100, 116, 139, 0.3);
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .panel-title {
+            font-size: 1.4rem;
+            margin-bottom: 20px;
+            color: var(--accelerator-primary);
+            border-bottom: 2px solid rgba(100, 150, 255, 0.3);
+            padding-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .detector-panel .panel-title {
+            color: var(--detector-atlas);
+        }
+        
+        .motion-panel .panel-title {
+            color: var(--highlight);
+        }
+        
+        .panel-title::before {
+            content: '';
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+        
+        .accelerator-panel .panel-title::before {
+            background: var(--accelerator-primary);
+        }
+        
+        .detector-panel .panel-title::before {
+            background: var(--detector-atlas);
+        }
+        
+        .motion-panel .panel-title::before {
+            background: var(--highlight);
+        }
+        
+        .visualization-area {
+            position: relative;
+            width: 100%;
+            height: 400px;
+            background: rgba(15, 23, 42, 0.7);
+            border-radius: 12px;
+            border: 1px solid rgba(100, 116, 139, 0.3);
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+        
+        .motion-area {
+            position: relative;
+            width: 100%;
+            height: 300px;
+            background: rgba(15, 23, 42, 0.7);
+            border-radius: 12px;
+            border: 1px solid rgba(100, 116, 139, 0.3);
+            overflow: hidden;
+        }
+        
+        /* Accelerator Visualization */
+        .accelerator-ring {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 300px;
+            height: 300px;
+            border-radius: 50%;
+            border: 3px solid var(--accelerator-primary);
+            background: transparent;
+            box-shadow: 0 0 30px rgba(37, 99, 235, 0.3);
+        }
+        
+        .beam-pipe {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 280px;
+            height: 280px;
+            border-radius: 50%;
+            border: 2px dashed rgba(100, 116, 139, 0.5);
+            background: transparent;
+        }
+        
+        .beam-particle {
+            position: absolute;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            transition: all 0.1s linear;
+        }
+        
+        .proton-beam { background: var(--proton-beam); }
+        .antiproton-beam { background: var(--antiproton-beam); }
+        .electron-beam { background: var(--electron-beam); }
+        .positron-beam { background: var(--positron-beam); }
+        
+        .interaction-point {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: rgba(220, 38, 38, 0.7);
+            box-shadow: 0 0 20px rgba(220, 38, 38, 0.5);
+            z-index: 10;
+        }
+        
+        /* Detector Visualization */
+        .detector-visualization {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .detector-layer {
+            position: absolute;
+            border-radius: 50%;
+            border-style: solid;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-weight: bold;
+            font-size: 12px;
+        }
+        
+        .tracker { 
+            border-color: var(--tracker);
+            background: rgba(245, 158, 11, 0.1);
+        }
+        
+        .calorimeter { 
+            border-color: var(--calorimeter);
+            background: rgba(16, 185, 129, 0.1);
+        }
+        
+        .muon-system { 
+            border-color: var(--muon-chamber);
+            background: rgba(139, 92, 246, 0.1);
+        }
+        
+        .magnet {
+            position: absolute;
+            background: rgba(107, 114, 128, 0.3);
+            border: 2px solid var(--magnet);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-weight: bold;
+        }
+        
+        /* Motion & Activity Visualization */
+        .motion-visualization {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            background: rgba(15, 23, 42, 0.5);
+        }
+        
+        .magnetic-field {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                repeating-linear-gradient(
+                    0deg,
+                    transparent,
+                    transparent 20px,
+                    rgba(59, 130, 246, 0.1) 20px,
+                    rgba(59, 130, 246, 0.1) 40px
+                );
+            pointer-events: none;
+            z-index: 1;
+        }
+        
+        .field-lines {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 2;
+        }
+        
+        .field-line {
+            position: absolute;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--magnetic-field), transparent);
+            opacity: 0.3;
+        }
+        
+        .dynamic-particle {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 10;
+            transition: transform 0.05s linear;
+        }
+        
+        .particle-trail {
+            position: absolute;
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            background: inherit;
+            opacity: 0.6;
+            z-index: 5;
+        }
+        
+        .scattering-center {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            border: 2px solid rgba(255, 255, 255, 0.5);
+            z-index: 3;
+        }
+        
+        .annihilation-zone {
+            position: absolute;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(255,0,0,0.3), transparent);
+            transform: translate(-50%, -50%);
+            animation: zonePulse 2s infinite;
+            z-index: 4;
+        }
+        
+        @keyframes zonePulse {
+            0% { width: 30px; height: 30px; opacity: 0.5; }
+            50% { width: 50px; height: 50px; opacity: 0.2; }
+            100% { width: 30px; height: 30px; opacity: 0.5; }
+        }
+        
+        .energy-ripple {
+            position: absolute;
+            border-radius: 50%;
+            background: radial-gradient(circle, var(--photon), transparent);
+            transform: translate(-50%, -50%);
+            animation: rippleExpand 1s ease-out forwards;
+            z-index: 15;
+        }
+        
+        @keyframes rippleExpand {
+            0% { width: 0; height: 0; opacity: 0.8; }
+            100% { width: 100px; height: 100px; opacity: 0; }
+        }
+        
+        .spin-indicator {
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            border: 2px solid;
+            border-radius: 50%;
+            border-top-color: transparent;
+            animation: spin 1s linear infinite;
+            z-index: 11;
+        }
+        
+        @keyframes spin {
+            0% { transform: translate(-50%, -50%) rotate(0deg); }
+            100% { transform: translate(-50%, -50%) rotate(360deg); }
+        }
+        
+        .charge-glow {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(255,255,255,0.4), transparent);
+            filter: blur(5px);
+            z-index: 9;
+        }
+        
+        .collision-flash {
+            position: absolute;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(255,255,255,0.9), transparent);
+            transform: translate(-50%, -50%);
+            animation: flashExpand 0.2s ease-out forwards;
+            z-index: 20;
+        }
+        
+        @keyframes flashExpand {
+            0% { width: 0; height: 0; opacity: 1; }
+            100% { width: 60px; height: 60px; opacity: 0; }
+        }
+        
+        .particle-creation {
+            position: absolute;
+            border-radius: 50%;
+            background: radial-gradient(circle, rgba(255,255,255,0.7), transparent);
+            transform: translate(-50%, -50%);
+            animation: creationFlash 0.3s ease-out forwards;
+            z-index: 18;
+        }
+        
+        @keyframes creationFlash {
+            0% { width: 0; height: 0; opacity: 1; }
+            50% { width: 40px; height: 40px; opacity: 0.7; }
+            100% { width: 60px; height: 60px; opacity: 0; }
+        }
+        
+        .deflection-arc {
+            position: absolute;
+            height: 2px;
+            background: linear-gradient(90deg, var(--magnetic-field), transparent);
+            transform-origin: 0 0;
+            z-index: 6;
+            opacity: 0.6;
+        }
+        
+        /* Controls & UI */
+        .controls-panel {
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(100, 116, 139, 0.3);
+            margin-top: 30px;
+        }
+        
+        .control-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 25px;
+            border-bottom: 1px solid rgba(100, 116, 139, 0.3);
+            padding-bottom: 15px;
+        }
+        
+        .tab {
+            padding: 10px 20px;
+            background: rgba(15, 23, 42, 0.7);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            border: 1px solid transparent;
+        }
+        
+        .tab.active {
+            background: var(--accelerator-primary);
+            border-color: var(--accelerator-primary);
+        }
+        
+        .control-group {
+            margin-bottom: 25px;
+        }
+        
+        .control-title {
+            font-size: 1.2rem;
+            margin-bottom: 15px;
+            color: var(--accelerator-primary);
+        }
+        
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 10px;
+        }
+        
+        label {
+            min-width: 200px;
+            font-weight: 600;
+        }
+        
+        input[type="range"] {
+            flex: 1;
+            height: 8px;
+            border-radius: 4px;
+            background: rgba(100, 116, 139, 0.3);
+            outline: none;
+            -webkit-appearance: none;
+        }
+        
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: var(--accelerator-primary);
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+        }
+        
+        .value-display {
+            min-width: 80px;
+            text-align: center;
+            padding: 5px 10px;
+            background: rgba(30, 41, 59, 0.7);
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 15px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+        
+        button {
+            background: linear-gradient(90deg, var(--accelerator-primary), #3b82f6);
+            border: none;
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            flex: 1;
+            min-width: 150px;
+        }
+        
+        button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 18px rgba(0, 0, 0, 0.3);
+        }
+        
+        button:active {
+            transform: translateY(1px);
+        }
+        
+        .detector-selector {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .detector-option {
+            flex: 1;
+            padding: 15px;
+            background: rgba(15, 23, 42, 0.7);
+            border-radius: 8px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            border: 2px solid transparent;
+        }
+        
+        .detector-option.active {
+            border-color: var(--detector-atlas);
+        }
+        
+        .detector-option.cms.active {
+            border-color: var(--detector-cms);
+        }
+        
+        .activity-selector {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .activity-option {
+            padding: 10px;
+            background: rgba(15, 23, 42, 0.7);
+            border-radius: 8px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            border: 2px solid transparent;
+            font-size: 0.9rem;
+        }
+        
+        .activity-option.active {
+            border-color: var(--highlight);
+        }
+        
+        .stats-panel {
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(100, 116, 139, 0.3);
+            margin-top: 30px;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        
+        .stat-card {
+            background: rgba(15, 23, 42, 0.7);
+            border-radius: 12px;
+            padding: 20px;
+            border-left: 4px solid var(--highlight);
+        }
+        
+        .stat-title {
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: var(--accelerator-primary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--highlight);
+            font-family: 'Courier New', monospace;
+        }
+        
+        .event-log-panel {
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(100, 116, 139, 0.3);
+            margin-top: 30px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .event-log {
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+        }
+        
+        .log-entry {
+            margin-bottom: 8px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid rgba(100, 116, 139, 0.3);
+        }
+        
+        .log-time {
+            color: var(--highlight);
+            font-weight: bold;
+        }
+        
+        .particle-legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin: 20px 0;
+            justify-content: center;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 15px;
+            background: rgba(15, 23, 42, 0.7);
+            border-radius: 8px;
+        }
+        
+        .legend-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+        }
+        
+        .proton-legend { background: var(--proton-beam); }
+        .electron-legend { background: var(--electron-beam); }
+        .photon-legend { background: var(--photon); }
+        .muon-legend { background: var(--muon); }
+        
+        footer {
+            text-align: center;
+            margin-top: 50px;
+            padding: 25px;
+            font-size: 0.9rem;
+            opacity: 0.8;
+            border-top: 1px solid rgba(100, 116, 139, 0.3);
+        }
+        
+        .chart-container {
+            background: var(--card-bg);
+            border-radius: 16px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(100, 116, 139, 0.3);
+            margin-top: 30px;
+            height: 300px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container" x-data="dynamicParticleSimulation()">
+        <header>
+            <h1>Advanced Dynamic Particle Physics Simulation</h1>
+            <p class="subtitle">Real-time visualization of particle motion, scattering, magnetic deflection, and annihilation with rich visual feedback</p>
+            
+            <div class="particle-legend">
+                <div class="legend-item">
+                    <div class="legend-color proton-legend"></div>
+                    <span>Proton</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color electron-legend"></div>
+                    <span>Electron</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color photon-legend"></div>
+                    <span>Photon</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color muon-legend"></div>
+                    <span>Muon</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background: var(--magnetic-field);"></div>
+                    <span>Magnetic Field</span>
+                </div>
+            </div>
+        </header>
+        
+        <div class="simulation-grid">
+            <div class="view-panel accelerator-panel">
+                <h2 class="panel-title">Particle Accelerator & Collisions</h2>
+                <div class="visualization-area" id="acceleratorViz">
+                    <div class="accelerator-ring"></div>
+                    <div class="beam-pipe"></div>
+                    <div class="interaction-point"></div>
+                </div>
+                
+                <div class="detector-selector">
+                    <div class="detector-option active" @click="selectDetector('ATLAS')">
+                        <h3>ATLAS Detector</h3>
+                    </div>
+                    <div class="detector-option cms" @click="selectDetector('CMS')">
+                        <h3>CMS Detector</h3>
+                    </div>
+                </div>
+                
+                <div class="activity-selector">
+                    <div class="activity-option active" @click="selectActivity('collisions')">Collisions</div>
+                    <div class="activity-option" @click="selectActivity('scattering')">Scattering</div>
+                    <div class="activity-option" @click="selectActivity('annihilation')">Annihilation</div>
+                    <div class="activity-option" @click="selectActivity('deflection')">Magnetic Deflection</div>
+                    <div class="activity-option" @click="selectActivity('creation')">Pair Creation</div>
+                </div>
+            </div>
+            
+            <div class="view-panel detector-panel">
+                <h2 class="panel-title" x-text="`${selectedDetector} Detector Response`"></h2>
+                <div class="visualization-area">
+                    <div class="detector-visualization" id="detectorViz">
+                        <!-- Detector layers will be rendered here -->
+                    </div>
+                </div>
+                
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-title">Active Particles</div>
+                        <div class="stat-value" x-text="activeParticles"></div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-title">Collisions/sec</div>
+                        <div class="stat-value" x-text="collisionsPerSecond"></div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-title">Energy Range</div>
+                        <div class="stat-value" x-text="`${minEnergy}-${maxEnergy} MeV`"></div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-title">Magnetic Field</div>
+                        <div class="stat-value" x-text="`${magneticStrength}T`"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="view-panel motion-panel">
+            <h2 class="panel-title">Particle Motion & Activities</h2>
+            <div class="motion-area">
+                <div class="motion-visualization" id="motionViz">
+                    <div class="magnetic-field"></div>
+                    <div class="field-lines" id="fieldLines"></div>
+                    <div class="scattering-center"></div>
+                    <div class="annihilation-zone" style="top: 70%; left: 30%;"></div>
+                    <div class="annihilation-zone" style="top: 30%; left: 70%;"></div>
+                    <!-- Dynamic particles and activities will be rendered here -->
+                </div>
+            </div>
+            
+            <div class="control-group">
+                <div class="slider-container">
+                    <label for="particle-density">Particle Density</label>
+                    <input type="range" id="particle-density" min="5" max="50" step="1" 
+                           x-model="particleDensity" @input="updateParticleSystem">
+                    <div class="value-display" x-text="particleDensity"></div>
+                </div>
+                
+                <div class="slider-container">
+                    <label for="energy-range">Energy Range (MeV)</label>
+                    <input type="range" id="energy-range" min="10" max="1000" step="10" 
+                           x-model="maxEnergy" @input="updateEnergySettings">
+                    <div class="value-display" x-text="`10-${maxEnergy}`"></div>
+                </div>
+                
+                <div class="slider-container">
+                    <label for="magnetic-strength">Magnetic Field (T)</label>
+                    <input type="range" id="magnetic-strength" min="0" max="5" step="0.1" 
+                           x-model="magneticStrength" @input="updateMagneticField">
+                    <div class="value-display" x-text="`${magneticStrength}T`"></div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="controls-panel">
+            <div class="control-tabs">
+                <div class="tab active" @click="activeTab = 'dynamics'">Particle Dynamics</div>
+                <div class="tab" @click="activeTab = 'visualization'">Visualization</div>
+                <div class="tab" @click="activeTab = 'physics'">Physics Settings</div>
+            </div>
+            
+            <div x-show="activeTab === 'dynamics'">
+                <div class="control-group">
+                    <h3 class="control-title">Motion Parameters</h3>
+                    <div class="slider-container">
+                        <label for="velocity-range">Velocity Range</label>
+                        <input type="range" id="velocity-range" min="1" max="10" step="0.1" 
+                               x-model="velocityMultiplier" @input="updateMotionParameters">
+                        <div class="value-display" x-text="`${velocityMultiplier}x`"></div>
+                    </div>
+                    
+                    <div class="slider-container">
+                        <label for="scattering-rate">Scattering Probability</label>
+                        <input type="range" id="scattering-rate" min="0" max="100" step="1" 
+                               x-model="scatteringProbability" @input="updateMotionParameters">
+                        <div class="value-display" x-text="`${scatteringProbability}%`"></div>
+                    </div>
+                    
+                    <div class="slider-container">
+                        <label for="annihilation-rate">Annihilation Rate</label>
+                        <input type="range" id="annihilation-rate" min="0" max="100" step="1" 
+                               x-model="annihilationRate" @input="updateMotionParameters">
+                        <div class="value-display" x-text="`${annihilationRate}%`"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="button-group">
+                <button @click="startSimulation()">Start Simulation</button>
+                <button @click="pauseSimulation()">Pause</button>
+                <button @click="resetSimulation()">Reset</button>
+                <button @click="addParticleGroup()">Add Particle Group</button>
+                <button @click="triggerActivity()">Trigger Activity</button>
+            </div>
+        </div>
+        
+        <div class="chart-container">
+            <h2 class="panel-title">Particle Energy Distribution</h2>
+            <canvas id="energyChart" width="400" height="200"></canvas>
+        </div>
+        
+        <div class="event-log-panel">
+            <h2 class="panel-title">Particle Activity Log</h2>
+            <div class="event-log" x-html="activityLog"></div>
+        </div>
+        
+        <footer>
+            <p>Advanced Dynamic Particle Physics Simulation | Real-time motion, scattering, deflection, and annihilation visualization</p>
+            <p>Magnetic field effects, particle trails, spin indicators, and rich visual feedback</p>
+        </footer>
+    </div>
+
+    <script>
+        document.addEventListener('alpine:init', () => {
+            Alpine.data('dynamicParticleSimulation', () => ({
+                // Simulation state
+                isRunning: false,
+                simulationTime: 0,
+                activeTab: 'dynamics',
+                selectedDetector: 'ATLAS',
+                selectedActivity: 'collisions',
+                
+                // Simulation parameters
+                particleDensity: 20,
+                maxEnergy: 500,
+                minEnergy: 10,
+                magneticStrength: 2.0,
+                velocityMultiplier: 3.0,
+                scatteringProbability: 30,
+                annihilationRate: 15,
+                
+                // Statistics
+                activeParticles: 0,
+                collisionsPerSecond: 0,
+                totalCollisions: 0,
+                
+                // Visualization elements
+                beamParticles: [],
+                dynamicParticles: [],
+                fieldLines: [],
+                activityLog: '',
+                energyChart: null,
+                
+                // Particle types and properties
+                particleTypes: [
+                    { name: 'proton', color: 'var(--proton-beam)', charge: 1, mass: 938, spin: 0.5 },
+                    { name: 'electron', color: 'var(--electron-beam)', charge: -1, mass: 0.511, spin: 0.5 },
+                    { name: 'positron', color: 'var(--positron-beam)', charge: 1, mass: 0.511, spin: 0.5 },
+                    { name: 'muon', color: 'var(--muon)', charge: -1, mass: 105.7, spin: 0.5 },
+                    { name: 'photon', color: 'var(--photon)', charge: 0, mass: 0, spin: 1 },
+                    { name: 'pion', color: 'var(--pion)', charge: 1, mass: 139.6, spin: 0 }
+                ],
+                
+                init() {
+                    this.initializeSimulation();
+                    this.setupMagneticField();
+                    this.setupChart();
+                    this.startSimulation();
+                },
+                
+                initializeSimulation() {
+                    this.initializeBeams();
+                    this.setupDetector();
+                    this.generateDynamicParticles();
+                },
+                
+                initializeBeams() {
+                    this.beamParticles = [];
+                    const numParticles = 15;
+                    const radius = 140;
+                    
+                    for (let i = 0; i < numParticles; i++) {
+                        const angle = (i / numParticles) * 2 * Math.PI;
+                        
+                        // Clockwise beam
+                        this.beamParticles.push({
+                            type: this.particleTypes[0], // proton
+                            x: 150 + radius * Math.cos(angle),
+                            y: 150 + radius * Math.sin(angle),
+                            angle: angle,
+                            direction: 1,
+                            speed: 0.03
+                        });
+                        
+                        // Counter-clockwise beam
+                        this.beamParticles.push({
+                            type: this.particleTypes[0], // proton
+                            x: 150 + radius * Math.cos(angle),
+                            y: 150 + radius * Math.sin(angle),
+                            angle: angle,
+                            direction: -1,
+                            speed: 0.03
+                        });
+                    }
+                    
+                    this.renderAccelerator();
+                },
+                
+                generateDynamicParticles() {
+                    this.dynamicParticles = [];
+                    const container = document.getElementById('motionViz');
+                    const width = container.clientWidth;
+                    const height = container.clientHeight;
+                    
+                    for (let i = 0; i < this.particleDensity; i++) {
+                        const type = this.particleTypes[Math.floor(Math.random() * this.particleTypes.length)];
+                        const energy = this.minEnergy + Math.random() * (this.maxEnergy - this.minEnergy);
+                        const velocity = this.calculateVelocity(energy, type.mass);
+                        
+                        const particle = {
+                            id: i,
+                            type: type,
+                            x: Math.random() * width,
+                            y: Math.random() * height,
+                            vx: (Math.random() - 0.5) * velocity * this.velocityMultiplier,
+                            vy: (Math.random() - 0.5) * velocity * this.velocityMultiplier,
+                            energy: energy,
+                            charge: type.charge,
+                            mass: type.mass,
+                            spin: type.spin,
+                            trail: [],
+                            lastTrailTime: 0,
+                            age: 0,
+                            maxAge: 5 + Math.random() * 10
+                        };
+                        
+                        this.dynamicParticles.push(particle);
+                    }
+                    
+                    this.activeParticles = this.dynamicParticles.length;
+                    this.renderMotionVisualization();
+                },
+                
+                calculateVelocity(energy, mass) {
+                    // Simplified relativistic velocity calculation
+                    const totalEnergy = energy + mass;
+                    const p = Math.sqrt(totalEnergy * totalEnergy - mass * mass);
+                    return p / totalEnergy * 0.1; // Scale factor for visualization
+                },
+                
+                setupMagneticField() {
+                    const container = document.getElementById('fieldLines');
+                    container.innerHTML = '';
+                    this.fieldLines = [];
+                    
+                    // Create magnetic field lines
+                    const numLines = 12;
+                    const centerX = container.parentElement.clientWidth / 2;
+                    const centerY = container.parentElement.clientHeight / 2;
+                    
+                    for (let i = 0; i < numLines; i++) {
+                        const angle = (i / numLines) * Math.PI;
+                        const length = 200;
+                        
+                        const line = document.createElement('div');
+                        line.className = 'field-line';
+                        line.style.width = `${length}px`;
+                        line.style.left = `${centerX}px`;
+                        line.style.top = `${centerY}px`;
+                        line.style.transform = `rotate(${angle * 180 / Math.PI}deg)`;
+                        container.appendChild(line);
+                        
+                        this.fieldLines.push({
+                            element: line,
+                            angle: angle,
+                            strength: this.magneticStrength
+                        });
+                    }
+                },
+                
+                setupDetector() {
+                    const container = document.getElementById('detectorViz');
+                    container.innerHTML = '';
+                    
+                    const layers = [
+                        { name: 'Inner Tracker', radius: 40, thickness: 4, color: 'tracker' },
+                        { name: 'Calorimeter', radius: 80, thickness: 8, color: 'calorimeter' },
+                        { name: 'Muon System', radius: 120, thickness: 12, color: 'muon-system' }
+                    ];
+                    
+                    layers.forEach(layer => {
+                        const layerEl = document.createElement('div');
+                        layerEl.className = `detector-layer ${layer.color}`;
+                        layerEl.style.width = `${layer.radius * 2}px`;
+                        layerEl.style.height = `${layer.radius * 2}px`;
+                        layerEl.style.borderWidth = `${layer.thickness}px`;
+                        layerEl.textContent = layer.name;
+                        container.appendChild(layerEl);
+                    });
+                },
+                
+                setupChart() {
+                    const ctx = document.getElementById('energyChart').getContext('2d');
+                    this.energyChart = new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: ['0-100', '100-200', '200-300', '300-400', '400-500', '500+'],
+                            datasets: [{
+                                label: 'Particle Count',
+                                data: [12, 19, 8, 15, 7, 3],
+                                borderColor: 'rgb(59, 130, 246)',
+                                backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                                tension: 0.4,
+                                fill: true
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    title: {
+                                        display: true,
+                                        text: 'Number of Particles'
+                                    }
+                                },
+                                x: {
+                                    title: {
+                                        display: true,
+                                        text: 'Energy Range (MeV)'
+                                    }
+                                }
+                            },
+                            plugins: {
+                                title: {
+                                    display: true,
+                                    text: 'Particle Energy Distribution'
+                                }
+                            }
+                        }
+                    });
+                },
+                
+                startSimulation() {
+                    this.isRunning = true;
+                    this.simulationLoop();
+                    this.logActivity('Simulation started');
+                },
+                
+                pauseSimulation() {
+                    this.isRunning = false;
+                    this.logActivity('Simulation paused');
+                },
+                
+                resetSimulation() {
+                    this.pauseSimulation();
+                    this.simulationTime = 0;
+                    this.totalCollisions = 0;
+                    this.collisionsPerSecond = 0;
+                    this.activityLog = '';
+                    this.initializeSimulation();
+                    this.logActivity('Simulation reset');
+                },
+                
+                addParticleGroup() {
+                    const newParticles = 10;
+                    const container = document.getElementById('motionViz');
+                    const width = container.clientWidth;
+                    const height = container.clientHeight;
+                    
+                    for (let i = 0; i < newParticles; i++) {
+                        const type = this.particleTypes[Math.floor(Math.random() * this.particleTypes.length)];
+                        const energy = this.minEnergy + Math.random() * (this.maxEnergy - this.minEnergy);
+                        const velocity = this.calculateVelocity(energy, type.mass);
+                        
+                        const particle = {
+                            id: this.dynamicParticles.length + i,
+                            type: type,
+                            x: Math.random() * width,
+                            y: Math.random() * height,
+                            vx: (Math.random() - 0.5) * velocity * this.velocityMultiplier,
+                            vy: (Math.random() - 0.5) * velocity * this.velocityMultiplier,
+                            energy: energy,
+                            charge: type.charge,
+                            mass: type.mass,
+                            spin: type.spin,
+                            trail: [],
+                            lastTrailTime: 0,
+                            age: 0,
+                            maxAge: 5 + Math.random() * 10
+                        };
+                        
+                        this.dynamicParticles.push(particle);
+                    }
+                    
+                    this.activeParticles = this.dynamicParticles.length;
+                    this.logActivity(`Added ${newParticles} new particles`);
+                },
+                
+                triggerActivity() {
+                    if (this.selectedActivity === 'collisions') {
+                        this.simulateCollisionEvent();
+                    } else if (this.selectedActivity === 'scattering') {
+                        this.simulateScatteringEvent();
+                    } else if (this.selectedActivity === 'annihilation') {
+                        this.simulateAnnihilationEvent();
+                    } else if (this.selectedActivity === 'deflection') {
+                        this.simulateMagneticDeflection();
+                    } else if (this.selectedActivity === 'creation') {
+                        this.simulatePairCreation();
+                    }
+                },
+                
+                simulationLoop() {
+                    if (!this.isRunning) return;
+                    
+                    this.simulationTime += 0.016; // ~60fps
+                    
+                    // Update beam particles
+                    this.updateBeamParticles();
+                    
+                    // Update dynamic particles
+                    this.updateDynamicParticles();
+                    
+                    // Process interactions
+                    this.processParticleInteractions();
+                    
+                    // Update visualizations
+                    this.renderAccelerator();
+                    this.renderMotionVisualization();
+                    
+                    // Update statistics
+                    this.updateStatistics();
+                    
+                    // Continue loop
+                    requestAnimationFrame(() => {
+                        this.simulationLoop();
+                    });
+                },
+                
+                updateBeamParticles() {
+                    this.beamParticles.forEach(particle => {
+                        particle.angle += particle.direction * particle.speed;
+                        const radius = 140;
+                        particle.x = 150 + radius * Math.cos(particle.angle);
+                        particle.y = 150 + radius * Math.sin(particle.angle);
+                    });
+                },
+                
+                updateDynamicParticles() {
+                    const container = document.getElementById('motionViz');
+                    const width = container.clientWidth;
+                    const height = container.clientHeight;
+                    
+                    this.dynamicParticles.forEach(particle => {
+                        // Apply magnetic force to charged particles
+                        if (particle.charge !== 0 && this.magneticStrength > 0) {
+                            const force = particle.charge * this.magneticStrength * 0.01;
+                            // Lorentz force: F = q(v × B)
+                            const newVx = particle.vx - particle.vy * force;
+                            const newVy = particle.vy + particle.vx * force;
+                            particle.vx = newVx;
+                            particle.vy = newVy;
+                        }
+                        
+                        // Update position
+                        particle.x += particle.vx;
+                        particle.y += particle.vy;
+                        particle.age += 0.016;
+                        
+                        // Boundary conditions
+                        if (particle.x < 0 || particle.x > width) {
+                            particle.vx *= -0.8; // Bounce with energy loss
+                            particle.x = Math.max(0, Math.min(width, particle.x));
+                        }
+                        if (particle.y < 0 || particle.y > height) {
+                            particle.vy *= -0.8;
+                            particle.y = Math.max(0, Math.min(height, particle.y));
+                        }
+                        
+                        // Add to trail
+                        if (this.simulationTime - particle.lastTrailTime > 0.05) {
+                            particle.trail.push({ x: particle.x, y: particle.y });
+                            if (particle.trail.length > 10) {
+                                particle.trail.shift();
+                            }
+                            particle.lastTrailTime = this.simulationTime;
+                        }
+                        
+                        // Remove old particles
+                        if (particle.age > particle.maxAge) {
+                            particle.markedForRemoval = true;
+                        }
+                    });
+                    
+                    // Remove marked particles
+                    this.dynamicParticles = this.dynamicParticles.filter(p => !p.markedForRemoval);
+                    this.activeParticles = this.dynamicParticles.length;
+                },
+                
+                processParticleInteractions() {
+                    // Process scattering
+                    if (Math.random() * 100 < this.scatteringProbability) {
+                        this.simulateRandomScattering();
+                    }
+                    
+                    // Process annihilation
+                    if (Math.random() * 100 < this.annihilationRate) {
+                        this.findAndAnnihilatePairs();
+                    }
+                    
+                    // Process random collisions
+                    this.checkParticleCollisions();
+                },
+                
+                simulateRandomScattering() {
+                    if (this.dynamicParticles.length < 2) return;
+                    
+                    const index = Math.floor(Math.random() * this.dynamicParticles.length);
+                    const particle = this.dynamicParticles[index];
+                    
+                    // Create scattering effect
+                    this.createScatteringEffect(particle.x, particle.y);
+                    
+                    // Change direction
+                    const angle = Math.random() * 2 * Math.PI;
+                    const speed = Math.sqrt(particle.vx * particle.vx + particle.vy * particle.vy);
+                    particle.vx = Math.cos(angle) * speed;
+                    particle.vy = Math.sin(angle) * speed;
+                    
+                    this.logActivity(`${particle.type.name} scattered at (${Math.round(particle.x)}, ${Math.round(particle.y)})`);
+                },
+                
+                findAndAnnihilatePairs() {
+                    // Look for particle-antiparticle pairs
+                    for (let i = 0; i < this.dynamicParticles.length; i++) {
+                        for (let j = i + 1; j < this.dynamicParticles.length; j++) {
+                            const p1 = this.dynamicParticles[i];
+                            const p2 = this.dynamicParticles[j];
+                            
+                            // Check if they're particle-antiparticle pair
+                            if ((p1.type.name === 'electron' && p2.type.name === 'positron') ||
+                                (p1.type.name === 'proton' && p2.type.name === 'antiproton')) {
+                                
+                                const distance = Math.sqrt(
+                                    Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2)
+                                );
+                                
+                                if (distance < 30) { // Close enough to annihilate
+                                    this.simulateAnnihilation(p1, p2);
+                                    return;
+                                }
+                            }
+                        }
+                    }
+                },
+                
+                checkParticleCollisions() {
+                    let collisionsThisFrame = 0;
+                    
+                    for (let i = 0; i < this.dynamicParticles.length; i++) {
+                        for (let j = i + 1; j < this.dynamicParticles.length; j++) {
+                            const p1 = this.dynamicParticles[i];
+                            const p2 = this.dynamicParticles[j];
+                            
+                            const distance = Math.sqrt(
+                                Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2)
+                            );
+                            
+                            if (distance < 8) { // Collision distance
+                                this.simulateParticleCollision(p1, p2);
+                                collisionsThisFrame++;
+                            }
+                        }
+                    }
+                    
+                    if (collisionsThisFrame > 0) {
+                        this.totalCollisions += collisionsThisFrame;
+                    }
+                },
+                
+                simulateAnnihilation(p1, p2) {
+                    // Create annihilation effect
+                    this.createAnnihilationEffect(p1.x, p1.y);
+                    
+                    // Remove particles
+                    p1.markedForRemoval = true;
+                    p2.markedForRemoval = true;
+                    
+                    // Create photons
+                    this.createPhotonPair(p1.x, p1.y);
+                    
+                    this.logActivity(`${p1.type.name}-${p2.type.name} annihilation produced photons`);
+                },
+                
+                simulateParticleCollision(p1, p2) {
+                    // Simple elastic collision
+                    const dx = p2.x - p1.x;
+                    const dy = p2.y - p1.y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (distance === 0) return;
+                    
+                    const nx = dx / distance;
+                    const ny = dy / distance;
+                    
+                    // Exchange momentum (simplified)
+                    const tempVx = p1.vx;
+                    const tempVy = p1.vy;
+                    p1.vx = p2.vx;
+                    p1.vy = p2.vy;
+                    p2.vx = tempVx;
+                    p2.vy = tempVy;
+                    
+                    // Create collision effect
+                    this.createCollisionEffect((p1.x + p2.x) / 2, (p1.y + p2.y) / 2);
+                    
+                    this.logActivity(`Collision: ${p1.type.name} + ${p2.type.name}`);
+                },
+                
+                // Visualization methods
+                createScatteringEffect(x, y) {
+                    const container = document.getElementById('motionViz');
+                    const effect = document.createElement('div');
+                    effect.className = 'energy-ripple';
+                    effect.style.left = `${x}px`;
+                    effect.style.top = `${y}px`;
+                    container.appendChild(effect);
+                    
+                    setTimeout(() => effect.remove(), 1000);
+                },
+                
+                createAnnihilationEffect(x, y) {
+                    const container = document.getElementById('motionViz');
+                    const effect = document.createElement('div');
+                    effect.className = 'collision-flash';
+                    effect.style.left = `${x}px`;
+                    effect.style.top = `${y}px`;
+                    container.appendChild(effect);
+                    
+                    setTimeout(() => effect.remove(), 200);
+                },
+                
+                createCollisionEffect(x, y) {
+                    const container = document.getElementById('motionViz');
+                    const effect = document.createElement('div');
+                    effect.className = 'particle-creation';
+                    effect.style.left = `${x}px`;
+                    effect.style.top = `${y}px`;
+                    container.appendChild(effect);
+                    
+                    setTimeout(() => effect.remove(), 300);
+                },
+                
+                createPhotonPair(x, y) {
+                    for (let i = 0; i < 2; i++) {
+                        const angle = (i / 2) * Math.PI;
+                        const photon = {
+                            id: this.dynamicParticles.length + i,
+                            type: this.particleTypes[4], // photon
+                            x: x,
+                            y: y,
+                            vx: Math.cos(angle) * 4,
+                            vy: Math.sin(angle) * 4,
+                            energy: 511, // MeV for electron-positron annihilation
+                            charge: 0,
+                            mass: 0,
+                            spin: 1,
+                            trail: [],
+                            lastTrailTime: this.simulationTime,
+                            age: 0,
+                            maxAge: 3
+                        };
+                        this.dynamicParticles.push(photon);
+                    }
+                },
+                
+                renderAccelerator() {
+                    const container = document.getElementById('acceleratorViz');
+                    container.querySelectorAll('.beam-particle').forEach(el => el.remove());
+                    
+                    this.beamParticles.forEach(particle => {
+                        const el = document.createElement('div');
+                        el.className = `beam-particle ${particle.type.name}-beam`;
+                        el.style.left = `${particle.x}px`;
+                        el.style.top = `${particle.y}px`;
+                        container.appendChild(el);
+                    });
+                },
+                
+                renderMotionVisualization() {
+                    const container = document.getElementById('motionViz');
+                    container.querySelectorAll('.dynamic-particle, .particle-trail, .spin-indicator, .charge-glow, .deflection-arc').forEach(el => el.remove());
+                    
+                    this.dynamicParticles.forEach(particle => {
+                        // Create particle
+                        const particleEl = document.createElement('div');
+                        particleEl.className = 'dynamic-particle';
+                        particleEl.style.background = particle.type.color;
+                        particleEl.style.left = `${particle.x}px`;
+                        particleEl.style.top = `${particle.y}px`;
+                        container.appendChild(particleEl);
+                        
+                        // Create charge glow for charged particles
+                        if (particle.charge !== 0) {
+                            const glow = document.createElement('div');
+                            glow.className = 'charge-glow';
+                            glow.style.left = `${particle.x}px`;
+                            glow.style.top = `${particle.y}px`;
+                            glow.style.background = particle.charge > 0 ? 
+                                'radial-gradient(circle, rgba(59,130,246,0.4), transparent)' :
+                                'radial-gradient(circle, rgba(239,68,68,0.4), transparent)';
+                            container.appendChild(glow);
+                        }
+                        
+                        // Create spin indicator for fermions
+                        if (particle.spin === 0.5) {
+                            const spin = document.createElement('div');
+                            spin.className = 'spin-indicator';
+                            spin.style.borderColor = particle.type.color;
+                            spin.style.left = `${particle.x}px`;
+                            spin.style.top = `${particle.y}px`;
+                            spin.style.animationDuration = `${1 / particle.spin}s`;
+                            container.appendChild(spin);
+                        }
+                        
+                        // Create trail
+                        particle.trail.forEach((point, index) => {
+                            const trail = document.createElement('div');
+                            trail.className = 'particle-trail';
+                            trail.style.background = particle.type.color;
+                            trail.style.left = `${point.x}px`;
+                            trail.style.top = `${point.y}px`;
+                            trail.style.opacity = (index / particle.trail.length) * 0.6;
+                            container.appendChild(trail);
+                        });
+                        
+                        // Create deflection arc for charged particles in magnetic field
+                        if (particle.charge !== 0 && this.magneticStrength > 0) {
+                            const arc = document.createElement('div');
+                            arc.className = 'deflection-arc';
+                            arc.style.width = '50px';
+                            arc.style.left = `${particle.x}px`;
+                            arc.style.top = `${particle.y}px`;
+                            
+                            // Calculate deflection angle based on charge and velocity
+                            const angle = Math.atan2(particle.vy, particle.vx) * 180 / Math.PI;
+                            const deflection = particle.charge * this.magneticStrength * 10;
+                            arc.style.transform = `rotate(${angle + deflection}deg)`;
+                            container.appendChild(arc);
+                        }
+                    });
+                },
+                
+                // Special activity simulations
+                simulateCollisionEvent() {
+                    this.logActivity('Triggered collision event');
+                    // Create multiple collisions at once
+                    for (let i = 0; i < 5; i++) {
+                        setTimeout(() => {
+                            if (this.dynamicParticles.length >= 2) {
+                                const p1 = this.dynamicParticles[Math.floor(Math.random() * this.dynamicParticles.length)];
+                                const p2 = this.dynamicParticles[Math.floor(Math.random() * this.dynamicParticles.length)];
+                                if (p1 !== p2) {
+                                    this.simulateParticleCollision(p1, p2);
+                                }
+                            }
+                        }, i * 100);
+                    }
+                },
+                
+                simulateScatteringEvent() {
+                    this.logActivity('Triggered scattering event');
+                    // Multiple scattering events
+                    for (let i = 0; i < 8; i++) {
+                        setTimeout(() => {
+                            this.simulateRandomScattering();
+                        }, i * 150);
+                    }
+                },
+                
+                simulateAnnihilationEvent() {
+                    this.logActivity('Triggered annihilation event');
+                    // Create particle-antiparticle pairs and make them annihilate
+                    for (let i = 0; i < 3; i++) {
+                        setTimeout(() => {
+                            const electron = {
+                                id: this.dynamicParticles.length,
+                                type: this.particleTypes[1], // electron
+                                x: 50 + i * 40,
+                                y: 50,
+                                vx: 2,
+                                vy: 2,
+                                energy: 511,
+                                charge: -1,
+                                mass: 0.511,
+                                spin: 0.5,
+                                trail: [],
+                                lastTrailTime: this.simulationTime,
+                                age: 0,
+                                maxAge: 2
+                            };
+                            
+                            const positron = {
+                                id: this.dynamicParticles.length + 1,
+                                type: this.particleTypes[2], // positron
+                                x: 250 - i * 40,
+                                y: 250,
+                                vx: -2,
+                                vy: -2,
+                                energy: 511,
+                                charge: 1,
+                                mass: 0.511,
+                                spin: 0.5,
+                                trail: [],
+                                lastTrailTime: this.simulationTime,
+                                age: 0,
+                                maxAge: 2
+                            };
+                            
+                            this.dynamicParticles.push(electron, positron);
+                        }, i * 300);
+                    }
+                },
+                
+                simulateMagneticDeflection() {
+                    this.logActivity('Triggered magnetic deflection event');
+                    // Create charged particles that will be deflected
+                    for (let i = 0; i < 6; i++) {
+                        const type = i % 2 === 0 ? this.particleTypes[1] : this.particleTypes[2]; // electrons and positrons
+                        const particle = {
+                            id: this.dynamicParticles.length + i,
+                            type: type,
+                            x: 50,
+                            y: 50 + i * 30,
+                            vx: 4,
+                            vy: 0,
+                            energy: 100,
+                            charge: type.charge,
+                            mass: type.mass,
+                            spin: type.spin,
+                            trail: [],
+                            lastTrailTime: this.simulationTime,
+                            age: 0,
+                            maxAge: 5
+                        };
+                        this.dynamicParticles.push(particle);
+                    }
+                },
+                
+                simulatePairCreation() {
+                    this.logActivity('Triggered pair creation event');
+                    // Create photon that produces electron-positron pair
+                    const photon = {
+                        id: this.dynamicParticles.length,
+                        type: this.particleTypes[4], // photon
+                        x: 150,
+                        y: 150,
+                        vx: 0,
+                        vy: 0,
+                        energy: 1022, // Enough for pair production
+                        charge: 0,
+                        mass: 0,
+                        spin: 1,
+                        trail: [],
+                        lastTrailTime: this.simulationTime,
+                        age: 0,
+                        maxAge: 1
+                    };
+                    
+                    this.dynamicParticles.push(photon);
+                    
+                    // After short delay, replace photon with electron-positron pair
+                    setTimeout(() => {
+                        photon.markedForRemoval = true;
+                        this.createPhotonPair(photon.x, photon.y);
+                        this.logActivity('Photon converted to electron-positron pair');
+                    }, 500);
+                },
+                
+                updateStatistics() {
+                    // Update collisions per second (simplified)
+                    this.collisionsPerSecond = Math.round(this.totalCollisions / this.simulationTime * 10) / 10;
+                    
+                    // Update energy distribution chart occasionally
+                    if (Math.floor(this.simulationTime * 10) % 30 === 0) {
+                        this.updateEnergyChart();
+                    }
+                },
+                
+                updateEnergyChart() {
+                    const energyRanges = [0, 0, 0, 0, 0, 0];
+                    
+                    this.dynamicParticles.forEach(particle => {
+                        if (particle.energy < 100) energyRanges[0]++;
+                        else if (particle.energy < 200) energyRanges[1]++;
+                        else if (particle.energy < 300) energyRanges[2]++;
+                        else if (particle.energy < 400) energyRanges[3]++;
+                        else if (particle.energy < 500) energyRanges[4]++;
+                        else energyRanges[5]++;
+                    });
+                    
+                    this.energyChart.data.datasets[0].data = energyRanges;
+                    this.energyChart.update();
+                },
+                
+                logActivity(message) {
+                    const timestamp = this.simulationTime.toFixed(2);
+                    this.activityLog = `<div class="log-entry"><span class="log-time">t=${timestamp}s:</span> ${message}</div>` + this.activityLog;
+                    
+                    if (this.activityLog.split('<div class="log-entry">').length > 20) {
+                        const activities = this.activityLog.split('<div class="log-entry">');
+                        this.activityLog = activities.slice(0, 20).join('<div class="log-entry">');
+                    }
+                },
+                
+                // Control handlers
+                selectDetector(detector) {
+                    this.selectedDetector = detector;
+                    this.setupDetector();
+                    this.logActivity(`Switched to ${detector} detector`);
+                },
+                
+                selectActivity(activity) {
+                    this.selectedActivity = activity;
+                    this.logActivity(`Selected ${activity} activity mode`);
+                },
+                
+                updateParticleSystem() {
+                    this.generateDynamicParticles();
+                    this.logActivity(`Particle density updated to ${this.particleDensity}`);
+                },
+                
+                updateEnergySettings() {
+                    this.minEnergy = 10;
+                    this.logActivity(`Energy range updated to ${this.minEnergy}-${this.maxEnergy} MeV`);
+                },
+                
+                updateMagneticField() {
+                    this.setupMagneticField();
+                    this.logActivity(`Magnetic field strength set to ${this.magneticStrength}T`);
+                },
+                
+                updateMotionParameters() {
+                    this.logActivity('Motion parameters updated');
+                }
+            }));
+        });
+    </script>
+</body>
+</html>
