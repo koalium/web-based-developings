@@ -1,0 +1,795 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Fractal Visualization</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0c0c1e 0%, #1a1a2e 100%);
+            color: #e0e0ff;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+        }
+        
+        .header {
+            text-align: center;
+            padding: 1.5rem 1rem;
+            background: rgba(0, 0, 20, 0.7);
+            border-bottom: 1px solid rgba(100, 100, 255, 0.2);
+        }
+        
+        h1 {
+            font-size: clamp(1.5rem, 4vw, 2.5rem);
+            margin-bottom: 0.5rem;
+            background: linear-gradient(90deg, #8a8aff, #4a4aff);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
+        
+        .subtitle {
+            font-size: clamp(0.9rem, 2vw, 1.1rem);
+            opacity: 0.8;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        .container {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            padding: 1rem;
+            gap: 1rem;
+        }
+        
+        @media (min-width: 768px) {
+            .container {
+                flex-direction: row;
+            }
+        }
+        
+        .canvas-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            background: rgba(0, 0, 20, 0.4);
+            border: 1px solid rgba(100, 100, 255, 0.1);
+        }
+        
+        .canvas-wrapper {
+            flex: 1;
+            position: relative;
+        }
+        
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+        
+        .controls {
+            width: 100%;
+            padding: 1rem;
+            background: rgba(10, 10, 40, 0.7);
+            border-top: 1px solid rgba(100, 100, 255, 0.2);
+        }
+        
+        @media (min-width: 768px) {
+            .controls {
+                width: 320px;
+                border-top: none;
+                border-left: 1px solid rgba(100, 100, 255, 0.2);
+            }
+        }
+        
+        .control-group {
+            margin-bottom: 1.5rem;
+        }
+        
+        .control-title {
+            font-size: 1.1rem;
+            margin-bottom: 0.7rem;
+            color: #a0a0ff;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .control-title i {
+            font-size: 1.2rem;
+        }
+        
+        .slider-container {
+            margin-bottom: 1.2rem;
+        }
+        
+        .slider-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+        }
+        
+        input[type="range"] {
+            width: 100%;
+            height: 8px;
+            -webkit-appearance: none;
+            background: rgba(100, 100, 200, 0.2);
+            border-radius: 4px;
+            outline: none;
+        }
+        
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #4a4aff;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(74, 74, 255, 0.7);
+        }
+        
+        .buttons {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 0.8rem;
+            margin-top: 1.5rem;
+        }
+        
+        button {
+            padding: 0.8rem;
+            border: none;
+            border-radius: 8px;
+            background: linear-gradient(135deg, #3a3a8a 0%, #2a2a6a 100%);
+            color: #e0e0ff;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: 1px solid rgba(100, 100, 255, 0.3);
+        }
+        
+        button:hover {
+            background: linear-gradient(135deg, #4a4a9a 0%, #3a3a7a 100%);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        button.primary {
+            background: linear-gradient(135deg, #4a4aff 0%, #2a2adf 100%);
+        }
+        
+        .fractal-info {
+            margin-top: 1.5rem;
+            padding: 1rem;
+            background: rgba(20, 20, 60, 0.5);
+            border-radius: 8px;
+            border-left: 4px solid #4a4aff;
+        }
+        
+        .info-title {
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: #a0a0ff;
+        }
+        
+        .iteration-display {
+            font-size: 1.3rem;
+            text-align: center;
+            margin: 1rem 0;
+            font-weight: 700;
+            color: #8a8aff;
+        }
+        
+        .zoom-display {
+            text-align: center;
+            font-size: 1.1rem;
+            margin-bottom: 1rem;
+            color: #a0a0ff;
+        }
+        
+        .touch-hint {
+            display: none;
+            text-align: center;
+            padding: 0.5rem;
+            background: rgba(100, 100, 255, 0.1);
+            border-radius: 6px;
+            font-size: 0.9rem;
+            margin-top: 1rem;
+        }
+        
+        @media (max-width: 767px) {
+            .touch-hint {
+                display: block;
+            }
+        }
+        
+        .loading {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: rgba(10, 10, 30, 0.9);
+            z-index: 10;
+            transition: opacity 0.5s;
+        }
+        
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid rgba(100, 100, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: #4a4aff;
+            animation: spin 1s ease-in-out infinite;
+            margin-bottom: 1rem;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .footer {
+            text-align: center;
+            padding: 1rem;
+            font-size: 0.9rem;
+            opacity: 0.7;
+            border-top: 1px solid rgba(100, 100, 255, 0.2);
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>3D Fractal Visualization</h1>
+        <p class="subtitle">Explore the infinite complexity of fractal geometry with interactive 3D-like visualization. Zoom in to discover self-similar patterns at any scale.</p>
+    </div>
+    
+    <div class="container">
+        <div class="canvas-container">
+            <div class="canvas-wrapper">
+                <div class="loading" id="loading">
+                    <div class="spinner"></div>
+                    <p>Initializing fractal visualization...</p>
+                </div>
+                <canvas id="fractalCanvas"></canvas>
+            </div>
+            <div class="controls">
+                <div class="zoom-display">
+                    Zoom: <span id="zoomLevel">1x</span>
+                </div>
+                <div class="iteration-display">
+                    Depth: <span id="iterationCount">5</span>
+                </div>
+                <div class="touch-hint">
+                    👉 Pinch to zoom | Drag to pan
+                </div>
+            </div>
+        </div>
+        
+        <div class="controls">
+            <div class="control-group">
+                <div class="control-title">
+                    <span>🔧</span> Fractal Controls
+                </div>
+                
+                <div class="slider-container">
+                    <div class="slider-label">
+                        <span>Depth (Iterations)</span>
+                        <span id="depthValue">5</span>
+                    </div>
+                    <input type="range" id="depthSlider" min="1" max="10" value="5" step="1">
+                </div>
+                
+                <div class="slider-container">
+                    <div class="slider-label">
+                        <span>Rotation X</span>
+                        <span id="rotXValue">30°</span>
+                    </div>
+                    <input type="range" id="rotXSlider" min="0" max="360" value="30" step="1">
+                </div>
+                
+                <div class="slider-container">
+                    <div class="slider-label">
+                        <span>Rotation Y</span>
+                        <span id="rotYValue">15°</span>
+                    </div>
+                    <input type="range" id="rotYSlider" min="0" max="360" value="15" step="1">
+                </div>
+                
+                <div class="slider-container">
+                    <div class="slider-label">
+                        <span>Color Intensity</span>
+                        <span id="colorValue">70%</span>
+                    </div>
+                    <input type="range" id="colorSlider" min="10" max="100" value="70" step="1">
+                </div>
+            </div>
+            
+            <div class="buttons">
+                <button id="resetView" class="primary">Reset View</button>
+                <button id="autoRotate">Auto Rotate</button>
+                <button id="increaseDepth">+ Depth</button>
+                <button id="decreaseDepth">- Depth</button>
+            </div>
+            
+            <div class="fractal-info">
+                <div class="info-title">About this Fractal</div>
+                <p>This 3D-like fractal is based on the Sierpinski tetrahedron, a 3D extension of the Sierpinski triangle. Each iteration divides the tetrahedron into smaller self-similar tetrahedrons, creating infinite complexity at any zoom level.</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="footer">
+        <p>Interactive 3D Fractal Visualization | Use mouse/touch to explore the infinite complexity</p>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Get canvas and context
+            const canvas = document.getElementById('fractalCanvas');
+            const ctx = canvas.getContext('2d');
+            const loadingElement = document.getElementById('loading');
+            
+            // UI elements
+            const depthSlider = document.getElementById('depthSlider');
+            const depthValue = document.getElementById('depthValue');
+            const iterationCount = document.getElementById('iterationCount');
+            const rotXSlider = document.getElementById('rotXSlider');
+            const rotXValue = document.getElementById('rotXValue');
+            const rotYSlider = document.getElementById('rotYSlider');
+            const rotYValue = document.getElementById('rotYValue');
+            const colorSlider = document.getElementById('colorSlider');
+            const colorValue = document.getElementById('colorValue');
+            const zoomLevel = document.getElementById('zoomLevel');
+            const resetViewBtn = document.getElementById('resetView');
+            const autoRotateBtn = document.getElementById('autoRotate');
+            const increaseDepthBtn = document.getElementById('increaseDepth');
+            const decreaseDepthBtn = document.getElementById('decreaseDepth');
+            
+            // Fractal parameters
+            let fractalDepth = 5;
+            let rotationX = 30;
+            let rotationY = 15;
+            let colorIntensity = 70;
+            let zoom = 1;
+            let offsetX = 0;
+            let offsetY = 0;
+            let isDragging = false;
+            let lastX = 0;
+            let lastY = 0;
+            let autoRotate = false;
+            let animationId = null;
+            
+            // Set initial canvas size
+            function resizeCanvas() {
+                const container = canvas.parentElement;
+                canvas.width = container.clientWidth;
+                canvas.height = container.clientHeight * 0.7;
+            }
+            
+            // Initialize
+            resizeCanvas();
+            window.addEventListener('resize', resizeCanvas);
+            
+            // Hide loading screen after initialization
+            setTimeout(() => {
+                loadingElement.style.opacity = '0';
+                setTimeout(() => {
+                    loadingElement.style.display = 'none';
+                }, 500);
+            }, 1000);
+            
+            // 3D projection functions
+            function projectPoint(x, y, z) {
+                // Apply rotations
+                const rotX = rotationX * Math.PI / 180;
+                const rotY = rotationY * Math.PI / 180;
+                
+                // Rotate around X axis
+                const y1 = y * Math.cos(rotX) - z * Math.sin(rotX);
+                const z1 = y * Math.sin(rotX) + z * Math.cos(rotX);
+                
+                // Rotate around Y axis
+                const x2 = x * Math.cos(rotY) + z1 * Math.sin(rotY);
+                const z2 = -x * Math.sin(rotY) + z1 * Math.cos(rotY);
+                
+                // Apply zoom and offset
+                const scale = 150 * zoom;
+                const centerX = canvas.width / 2 + offsetX;
+                const centerY = canvas.height / 2 + offsetY;
+                
+                return {
+                    x: centerX + x2 * scale,
+                    y: centerY - y1 * scale - z2 * scale * 0.5 // Isometric projection
+                };
+            }
+            
+            // Draw a tetrahedron
+            function drawTetrahedron(v1, v2, v3, v4, depth, maxDepth) {
+                if (depth === 0) return;
+                
+                // Calculate color based on depth
+                const hue = (maxDepth - depth) * (colorIntensity / 2) + 200;
+                const alpha = depth / maxDepth * 0.7 + 0.3;
+                ctx.fillStyle = `hsla(${hue}, 80%, 60%, ${alpha})`;
+                ctx.strokeStyle = `hsla(${hue}, 100%, 70%, 0.8)`;
+                ctx.lineWidth = 2;
+                
+                // Project 3D points to 2D canvas
+                const p1 = projectPoint(v1.x, v1.y, v1.z);
+                const p2 = projectPoint(v2.x, v2.y, v2.z);
+                const p3 = projectPoint(v3.x, v3.y, v3.z);
+                const p4 = projectPoint(v4.x, v4.y, v4.z);
+                
+                // Draw the 4 faces of the tetrahedron
+                const faces = [
+                    [p1, p2, p3],
+                    [p1, p2, p4],
+                    [p1, p3, p4],
+                    [p2, p3, p4]
+                ];
+                
+                // Draw each face with a slight offset for depth effect
+                faces.forEach((face, index) => {
+                    // Draw filled polygon
+                    ctx.beginPath();
+                    ctx.moveTo(face[0].x, face[0].y);
+                    ctx.lineTo(face[1].x, face[1].y);
+                    ctx.lineTo(face[2].x, face[2].y);
+                    ctx.closePath();
+                    ctx.fill();
+                    
+                    // Draw outline
+                    ctx.stroke();
+                });
+                
+                // If we haven't reached maximum depth, draw smaller tetrahedrons
+                if (depth > 1) {
+                    // Calculate midpoints of all edges
+                    const mid12 = {
+                        x: (v1.x + v2.x) / 2,
+                        y: (v1.y + v2.y) / 2,
+                        z: (v1.z + v2.z) / 2
+                    };
+                    
+                    const mid13 = {
+                        x: (v1.x + v3.x) / 2,
+                        y: (v1.y + v3.y) / 2,
+                        z: (v1.z + v3.z) / 2
+                    };
+                    
+                    const mid14 = {
+                        x: (v1.x + v4.x) / 2,
+                        y: (v1.y + v4.y) / 2,
+                        z: (v1.z + v4.z) / 2
+                    };
+                    
+                    const mid23 = {
+                        x: (v2.x + v3.x) / 2,
+                        y: (v2.y + v3.y) / 2,
+                        z: (v2.z + v3.z) / 2
+                    };
+                    
+                    const mid24 = {
+                        x: (v2.x + v4.x) / 2,
+                        y: (v2.y + v4.y) / 2,
+                        z: (v2.z + v4.z) / 2
+                    };
+                    
+                    const mid34 = {
+                        x: (v3.x + v4.x) / 2,
+                        y: (v3.y + v4.y) / 2,
+                        z: (v3.z + v4.z) / 2
+                    };
+                    
+                    // Recursively draw the 4 smaller tetrahedrons
+                    drawTetrahedron(v1, mid12, mid13, mid14, depth - 1, maxDepth);
+                    drawTetrahedron(mid12, v2, mid23, mid24, depth - 1, maxDepth);
+                    drawTetrahedron(mid13, mid23, v3, mid34, depth - 1, maxDepth);
+                    drawTetrahedron(mid14, mid24, mid34, v4, depth - 1, maxDepth);
+                }
+            }
+            
+            // Draw the fractal
+            function drawFractal() {
+                // Clear canvas
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                
+                // Draw gradient background
+                const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+                gradient.addColorStop(0, '#0a0a1a');
+                gradient.addColorStop(1, '#151530');
+                ctx.fillStyle = gradient;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                // Define the base tetrahedron vertices
+                const size = 1;
+                const vertices = [
+                    { x: size, y: size, z: size },
+                    { x: -size, y: -size, z: size },
+                    { x: -size, y: size, z: -size },
+                    { x: size, y: -size, z: -size }
+                ];
+                
+                // Draw the fractal tetrahedron
+                drawTetrahedron(
+                    vertices[0],
+                    vertices[1],
+                    vertices[2],
+                    vertices[3],
+                    fractalDepth,
+                    fractalDepth
+                );
+                
+                // Draw center point for reference
+                const center = projectPoint(0, 0, 0);
+                ctx.fillStyle = '#ffffff';
+                ctx.beginPath();
+                ctx.arc(center.x, center.y, 4, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Draw zoom indicator
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+                ctx.font = '14px Arial';
+                ctx.fillText(`Zoom: ${zoom.toFixed(2)}x`, 20, 30);
+                ctx.fillText(`Depth: ${fractalDepth}`, 20, 50);
+            }
+            
+            // Animation loop
+            function animate() {
+                if (autoRotate) {
+                    rotationY += 0.5;
+                    if (rotationY >= 360) rotationY -= 360;
+                    rotYSlider.value = rotationY;
+                    rotYValue.textContent = `${Math.round(rotationY)}°`;
+                }
+                
+                drawFractal();
+                animationId = requestAnimationFrame(animate);
+            }
+            
+            // Start animation
+            animate();
+            
+            // Event listeners for sliders
+            depthSlider.addEventListener('input', function() {
+                fractalDepth = parseInt(this.value);
+                depthValue.textContent = fractalDepth;
+                iterationCount.textContent = fractalDepth;
+            });
+            
+            rotXSlider.addEventListener('input', function() {
+                rotationX = parseInt(this.value);
+                rotXValue.textContent = `${rotationX}°`;
+            });
+            
+            rotYSlider.addEventListener('input', function() {
+                rotationY = parseInt(this.value);
+                rotYValue.textContent = `${rotationY}°`;
+            });
+            
+            colorSlider.addEventListener('input', function() {
+                colorIntensity = parseInt(this.value);
+                colorValue.textContent = `${colorIntensity}%`;
+            });
+            
+            // Mouse/touch interactions for zoom and pan
+            canvas.addEventListener('wheel', function(e) {
+                e.preventDefault();
+                
+                const zoomFactor = 0.1;
+                const rect = canvas.getBoundingClientRect();
+                const mouseX = e.clientX - rect.left;
+                const mouseY = e.clientY - rect.top;
+                
+                // Calculate zoom center relative to canvas center
+                const zoomCenterX = mouseX - canvas.width / 2 - offsetX;
+                const zoomCenterY = mouseY - canvas.height / 2 - offsetY;
+                
+                // Adjust zoom
+                const oldZoom = zoom;
+                if (e.deltaY < 0) {
+                    zoom *= (1 + zoomFactor);
+                } else {
+                    zoom *= (1 - zoomFactor);
+                }
+                
+                // Clamp zoom
+                zoom = Math.max(0.1, Math.min(20, zoom));
+                
+                // Adjust offset to zoom towards mouse position
+                offsetX += zoomCenterX * (oldZoom - zoom) / oldZoom;
+                offsetY += zoomCenterY * (oldZoom - zoom) / oldZoom;
+                
+                // Update zoom display
+                zoomLevel.textContent = `${zoom.toFixed(1)}x`;
+            });
+            
+            // Mouse drag for panning
+            canvas.addEventListener('mousedown', function(e) {
+                isDragging = true;
+                lastX = e.clientX;
+                lastY = e.clientY;
+                canvas.style.cursor = 'grabbing';
+            });
+            
+            document.addEventListener('mousemove', function(e) {
+                if (!isDragging) return;
+                
+                const dx = e.clientX - lastX;
+                const dy = e.clientY - lastY;
+                
+                offsetX += dx;
+                offsetY += dy;
+                
+                lastX = e.clientX;
+                lastY = e.clientY;
+            });
+            
+            document.addEventListener('mouseup', function() {
+                isDragging = false;
+                canvas.style.cursor = 'grab';
+            });
+            
+            canvas.style.cursor = 'grab';
+            
+            // Touch events for mobile
+            let touchStartDistance = 0;
+            let touchStartZoom = 1;
+            
+            canvas.addEventListener('touchstart', function(e) {
+                e.preventDefault();
+                
+                if (e.touches.length === 2) {
+                    // Two-finger pinch
+                    const touch1 = e.touches[0];
+                    const touch2 = e.touches[1];
+                    touchStartDistance = Math.hypot(
+                        touch2.clientX - touch1.clientX,
+                        touch2.clientY - touch1.clientY
+                    );
+                    touchStartZoom = zoom;
+                } else if (e.touches.length === 1) {
+                    // One-finger drag
+                    isDragging = true;
+                    lastX = e.touches[0].clientX;
+                    lastY = e.touches[0].clientY;
+                }
+            });
+            
+            canvas.addEventListener('touchmove', function(e) {
+                e.preventDefault();
+                
+                if (e.touches.length === 2) {
+                    // Pinch zoom
+                    const touch1 = e.touches[0];
+                    const touch2 = e.touches[1];
+                    const touchDistance = Math.hypot(
+                        touch2.clientX - touch1.clientX,
+                        touch2.clientY - touch1.clientY
+                    );
+                    
+                    zoom = touchStartZoom * (touchDistance / touchStartDistance);
+                    zoom = Math.max(0.1, Math.min(20, zoom));
+                    zoomLevel.textContent = `${zoom.toFixed(1)}x`;
+                } else if (e.touches.length === 1 && isDragging) {
+                    // Drag pan
+                    const dx = e.touches[0].clientX - lastX;
+                    const dy = e.touches[0].clientY - lastY;
+                    
+                    offsetX += dx;
+                    offsetY += dy;
+                    
+                    lastX = e.touches[0].clientX;
+                    lastY = e.touches[0].clientY;
+                }
+            });
+            
+            canvas.addEventListener('touchend', function() {
+                isDragging = false;
+            });
+            
+            // Button event listeners
+            resetViewBtn.addEventListener('click', function() {
+                zoom = 1;
+                offsetX = 0;
+                offsetY = 0;
+                rotationX = 30;
+                rotationY = 15;
+                
+                rotXSlider.value = rotationX;
+                rotYSlider.value = rotationY;
+                rotXValue.textContent = `${rotationX}°`;
+                rotYValue.textContent = `${rotationY}°`;
+                zoomLevel.textContent = `${zoom.toFixed(1)}x`;
+            });
+            
+            autoRotateBtn.addEventListener('click', function() {
+                autoRotate = !autoRotate;
+                autoRotateBtn.textContent = autoRotate ? 'Stop Rotation' : 'Auto Rotate';
+                autoRotateBtn.style.background = autoRotate ? 
+                    'linear-gradient(135deg, #ff4a4a 0%, #df2a2a 100%)' : 
+                    'linear-gradient(135deg, #3a3a8a 0%, #2a2a6a 100%)';
+            });
+            
+            increaseDepthBtn.addEventListener('click', function() {
+                if (fractalDepth < 10) {
+                    fractalDepth++;
+                    depthSlider.value = fractalDepth;
+                    depthValue.textContent = fractalDepth;
+                    iterationCount.textContent = fractalDepth;
+                }
+            });
+            
+            decreaseDepthBtn.addEventListener('click', function() {
+                if (fractalDepth > 1) {
+                    fractalDepth--;
+                    depthSlider.value = fractalDepth;
+                    depthValue.textContent = fractalDepth;
+                    iterationCount.textContent = fractalDepth;
+                }
+            });
+            
+            // Keyboard shortcuts
+            document.addEventListener('keydown', function(e) {
+                switch(e.key) {
+                    case '+':
+                    case '=':
+                        if (fractalDepth < 10) {
+                            fractalDepth++;
+                            depthSlider.value = fractalDepth;
+                            depthValue.textContent = fractalDepth;
+                            iterationCount.textContent = fractalDepth;
+                        }
+                        break;
+                    case '-':
+                    case '_':
+                        if (fractalDepth > 1) {
+                            fractalDepth--;
+                            depthSlider.value = fractalDepth;
+                            depthValue.textContent = fractalDepth;
+                            iterationCount.textContent = fractalDepth;
+                        }
+                        break;
+                    case 'r':
+                    case 'R':
+                        autoRotate = !autoRotate;
+                        autoRotateBtn.textContent = autoRotate ? 'Stop Rotation' : 'Auto Rotate';
+                        autoRotateBtn.style.background = autoRotate ? 
+                            'linear-gradient(135deg, #ff4a4a 0%, #df2a2a 100%)' : 
+                            'linear-gradient(135deg, #3a3a8a 0%, #2a2a6a 100%)';
+                        break;
+                    case '0':
+                        zoom = 1;
+                        offsetX = 0;
+                        offsetY = 0;
+                        zoomLevel.textContent = `${zoom.toFixed(1)}x`;
+                        break;
+                }
+            });
+            
+            // Initial draw
+            drawFractal();
+        });
+    </script>
+</body>
+</html>

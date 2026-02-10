@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Firefighting Nozzle CFD – Two Phase Flow Visualization</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.min.js"></script>
+<style>
+html,body{margin:0;padding:0;width:100%;height:100%;overflow:hidden;background:#081826;font-family:Arial,Helvetica,sans-serif;color:#e6f6ff}
+#canvas-container{width:100%;height:100%}
+#panel{position:absolute;left:16px;bottom:16px;width:340px;background:rgba(5,25,45,.88);border-radius:12px;padding:16px;box-shadow:0 0 25px rgba(0,180,255,.25)}
+#panel h3{margin:0 0 10px 0;font-size:16px;color:#6fd4ff}
+.label{color:#9fdcff;font-size:12px}
+.value{font-weight:bold;color:#4de1ff}
+.row{display:flex;justify-content:space-between;margin:6px 0}
+select{width:100%;background:#0c2c4a;color:#e6f6ff;border:1px solid #3bbcff;border-radius:6px;padding:6px}
+</style>
+</head>
+<body>
+<div id="canvas-container"></div>
+<div id="panel">
+<h3>2.5 inch Firefighting Nozzle – CFD Intro</h3>
+<label class="label">Operating Mode</label>
+<select id="mode">
+<option value="solid">Solid Jet – Interior Attack</option>
+<option value="fog">Fog Pattern – Gas Cooling</option>
+<option value="low">Low Pressure – Training</option>
+<option value="high">High Pressure – Long Reach</option>
+<option value="pulse">Pulsed Flow – Compartment Control</option>
+</select>
+<div class="row"><span class="label">Inlet Pressure</span><span id="p" class="value"></span></div>
+<div class="row"><span class="label">Outlet Velocity</span><span id="v" class="value"></span></div>
+<div class="row"><span class="label">Flow Rate</span><span id="q" class="value"></span></div>
+<div class="row"><span class="label">Reynolds Number</span><span id="re" class="value"></span></div>
+<div class="row"><span class="label">Flow Regime</span><span id="regime" class="value"></span></div>
+</div>
+<script>
+// ==================== SCENE ====================
+const scene=new THREE.Scene();
+scene.fog=new THREE.Fog(0x081826,0.8,3);
+const camera=new THREE.PerspectiveCamera(60,innerWidth/innerHeight,0.01,20);
+camera.position.set(0.9,0.45,1.6);
+const renderer=new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(innerWidth,innerHeight);
+document.getElementById('canvas-container').appendChild(renderer.domElement);
+const controls=new THREE.OrbitControls(camera,renderer.domElement);
+controls.enableDamping=true;
+scene.add(new THREE.AmbientLight(0xffffff,.35));
+const dl=new THREE.DirectionalLight(0xffffff,.9);dl.position.set(5,8,6);scene.add(dl);
+
+// ==================== NOZZLE GEOMETRY ====================
+const inletD=0.0635, throatD=0.03175, length=0.32;
+let profile=[];
+for(let i=0;i<=120;i++){
+ const t=i/120;
+ const x=t*length;
+ let r;
+ if(t<0.35) r=inletD/2-(inletD/2-throatD/2)*Math.pow(t/0.35,1.6);
+ else r=throatD/2+(inletD/2-throatD/2)*Math.pow((t-0.35)/0.65,1.2);
+ profile.push(new THREE.Vector2(r,x));
+}
+const nozzle=new THREE.Mesh(
+ new THREE.LatheGeometry(profile,96),
+ new THREE.MeshPhysicalMaterial({color:0x4ea2ff,transparent:true,opacity:.85,roughness:.45,metalness:.6,clearcoat:1})
+);
+nozzle.rotation.set(0,Math.PI/2,Math.PI/2);
+nozzle.position.x=-length/2;
+scene.add(nozzle);
+
+// ==================== FLOW PARAMETERS ====================
+const rho=998, mu=0.001;
+let mode='solid';
+document.getElementById('mode').onchange=e=>mode=e.target.value;
+
+function params(){
+ let p=1e6, cone=0.05, pulse=false;
+ if(mode==='fog'){p=8e5;cone=.28}
+ if(mode==='low'){p=5e5;cone=.12}
+ if(mode==='high'){p=1.8e6;cone=.03}
+ if(mode==='pulse'){p=1.2e6;cone=.15;pulse=true}
+ return{p,cone,pulse};
+}
+
+function solve(){
+ const {p}=params();
+ const A=Math.PI*Math.pow(inletD/2,2);
+ const v=Math.sqrt(2*(p-1e5)/rho);
+ const Q=v*A;
+ const Re=rho*v*inletD/mu;
+ return{p,v,Q,Re};
+}
+
+// ==================== PRESSURE FIELD ====================
+const pGroup=new THREE.Group();scene.add(pGroup);
+function updatePressure(){
+ pGroup.clear();
+ const {p}=solve();
+ for(let i=0;i<40;i++){
+  const t=i/39;
+  const pi=p-(p-1e5)*t;
+  const c=new THREE.Color().setHSL(.66*(pi/p),.9,.5);
+  const s=new THREE.Mesh(new THREE.SphereGeometry(.004,8,8),new THREE.MeshBasicMaterial({color:c,opacity:.55,transparent:true}));
+  s.position.set(-.16+t*.32,.05,0);
+  pGroup.add(s);
+ }
+}
+
+// ==================== TWO-PHASE PARTICLES (LAGRANGIAN WATER) ====================
+
+// ==================== VOF-LIKE PHASE FRACTION FIELD ====================
+// alpha = water volume fraction (1 = pure water, 0 = air)
+const vofGroup = new THREE.Group();
+scene.add(vofGroup);
+
+function updateVOF(){
+ vofGroup.clear();
+ const {cone}=params();
+ for(let i=0;i<22;i++){
+  const x=0.18+i*0.035;
+  for(let j=0;j<10;j++){
+   const r=(j/9)*0.12;
+   const alpha=Math.exp(-Math.pow(r/(cone*1.8+0.02),2)); // Gaussian jet core
+   if(alpha<0.05) continue;
+   const col=new THREE.Color().setHSL(0.55,1,0.3+0.4*alpha);
+   const cell=new THREE.Mesh(
+    new THREE.SphereGeometry(0.004,6,6),
+    new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:alpha})
+   );
+   cell.position.set(x,r*Math.cos(j),r*Math.sin(j));
+   vofGroup.add(cell);
+  }
+ }
+}
+
+const spray=new THREE.Group();scene.add(spray);
+const droplets=[];
+const N=650;
+for(let i=0;i<N;i++){
+ const m=new THREE.Mesh(new THREE.SphereGeometry(.002,6,6),new THREE.MeshBasicMaterial({color:0x7fd8ff,transparent:true,opacity:.85}));
+ spray.add(m);reset(m);droplets.push(m);
+}
+function reset(d){
+ const {cone}=params();
+ d.life=Math.random()*1.2;
+ d.position.set(.16,0,0);
+ const a=(Math.random()-.5)*cone;
+ const b=(Math.random()-.5)*cone;
+ d.vel=new THREE.Vector3(1+Math.random()*.4,a,b);
+}
+
+// ==================== OUTLET CROSS-SECTION (VELOCITY CONTOUR) ====================
+const section=new THREE.Group();scene.add(section);
+function updateSection(){
+ section.clear();
+ const s=solve();
+ for(let i=0;i<16;i++){
+  const r=i/15*0.06;
+  const vloc=s.v*Math.exp(-r*18);
+  const c=new THREE.Color().setHSL(0.65-vloc/s.v*0.6,1,0.5);
+  const ring=new THREE.Mesh(
+   new THREE.TorusGeometry(r,0.002,8,36),
+   new THREE.MeshBasicMaterial({color:c,transparent:true,opacity:0.8})
+  );
+  ring.position.set(0.17,0,0);
+  ring.rotation.y=Math.PI/2;
+  section.add(ring);
+ }
+}
+
+// ==================== STREAMLINES ====================
+const sl=new THREE.Group();scene.add(sl);
+function streamlines(){
+ sl.clear();
+ for(let i=0;i<14;i++){
+  const y=(i/13-.5)*.07;
+  let pts=[];
+  for(let j=0;j<90;j++){
+   const x=-.16+j*.004;
+   pts.push(new THREE.Vector3(x,y*Math.cos(j*.02),0));
+  }
+  const c=new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts),90,.001,6),new THREE.MeshBasicMaterial({color:0x44ffaa,transparent:true,opacity:.6}));
+  sl.add(c);
+ }
+}
+streamlines();
+
+// ==================== COMPARTMENT (ROOM) ====================
+const room=new THREE.Group();scene.add(room);
+const roomW=2.4, roomD=3.2, roomH=2.4;
+const wallMat=new THREE.MeshStandardMaterial({color:0x1b3b55,roughness:.9,metalness:.05,side:THREE.BackSide});
+const roomBox=new THREE.Mesh(new THREE.BoxGeometry(roomW,roomH,roomD),wallMat);
+roomBox.position.set(1.0,roomH/2,0);
+room.add(roomBox);
+const floor=new THREE.Mesh(new THREE.PlaneGeometry(roomW,roomD),new THREE.MeshStandardMaterial({color:0x20384d,roughness:1}));
+floor.rotation.x=-Math.PI/2;floor.position.set(1.0,0,0);room.add(floor);
+
+// ==================== HOT GAS LAYER (THERMAL FIELD) ====================
+const hotLayer=new THREE.Group();scene.add(hotLayer);
+function updateThermal(){hotLayer.clear();for(let i=0;i<18;i++){const y=roomH*(0.55+i/18*0.45);const a=0.05+i/18*0.35;const slab=new THREE.Mesh(new THREE.BoxGeometry(roomW*0.98,roomH*0.03,roomD*0.98),new THREE.MeshBasicMaterial({color:0xff5533,transparent:true,opacity:a}));slab.position.set(1.0,y,0);hotLayer.add(slab);}}
+
+// ==================== CEILING JET STREAMLINES ====================
+const ceilingJets=new THREE.Group();scene.add(ceilingJets);
+function updateCeilingJets(){ceilingJets.clear();for(let i=0;i<10;i++){const z=(i/9-0.5)*roomD*0.6;let pts=[];for(let j=0;j<60;j++){const x=0.9+j*0.02;const y=roomH-0.05-0.02*Math.exp(-j*0.08);pts.push(new THREE.Vector3(x,y,z));}const tube=new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts),60,0.003,6),new THREE.MeshBasicMaterial({color:0xff8844,transparent:true,opacity:.55}));ceilingJets.add(tube);}}
+
+// ==================== WALL IMPINGEMENT & SPLASH ====================
+const splash=new THREE.Group();scene.add(splash);const splashDrops=[];
+for(let i=0;i<180;i++){const d=new THREE.Mesh(new THREE.SphereGeometry(.002,6,6),new THREE.MeshBasicMaterial({color:0x9fe6ff,transparent:true,opacity:.7}));splash.add(d);resetSplash(d);splashDrops.push(d);}function resetSplash(d){d.life=Math.random()*1.2;d.position.set(2.15,0.3+Math.random()*0.6,(Math.random()-.5)*0.4);d.vel=new THREE.Vector3(-0.4*Math.random(),0.3*Math.random(),(Math.random()-.5)*0.6)}
+
+// ==================== ANIMATION ====================
+
+const clock=new THREE.Clock();
+function animate(){
+ requestAnimationFrame(animate);
+ const dt=clock.getDelta();
+ const {cone,pulse}=params();
+ const s=solve();
+ droplets.forEach(d=>{
+  if(pulse && Math.sin(performance.now()*.01)<0) return;
+  d.position.addScaledVector(d.vel,dt);
+  d.vel.y+=(-.25+cone*(Math.random()-.5))*dt;
+  d.vel.z+=cone*(Math.random()-.5)*dt;
+  d.material.opacity=Math.max(0,d.material.opacity-.2*dt);
+  if(d.position.x>1.2||d.material.opacity<.05) reset(d);
+ });
+ updatePressure();
+ document.getElementById('p').textContent=(s.p/1e5).toFixed(1)+' bar';
+ document.getElementById('v').textContent=s.v.toFixed(1)+' m/s';
+ document.getElementById('q').textContent=(s.Q*1000).toFixed(1)+' L/s';
+ document.getElementById('re').textContent=Math.round(s.Re);
+ document.getElementById('regime').textContent=s.Re>4000?'Turbulent':'Transitional';
+ updateVOF();
+ updateSection();
+ // wall splash update
+ splashDrops.forEach(d=>{d.life-=dt;d.position.addScaledVector(d.vel,dt);d.vel.y-=0.6*dt;if(d.life<0)resetSplash(d)});
+ updateThermal();updateCeilingJets();updateVOF();updateSection();
+ controls.update();renderer.render(scene,camera);
+}
+animate();
+window.onresize=()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)}
+</script>
+</body>
+</html>

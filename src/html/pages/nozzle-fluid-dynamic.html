@@ -1,0 +1,1560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced CFD Nozzle Flow Analysis - Water Flow Simulation</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/libs/stats.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0a1929 0%, #0d1b2a 100%);
+            color: #e0f0ff;
+            overflow: hidden;
+            height: 100vh;
+        }
+        #container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            width: 100vw;
+        }
+        #header {
+            padding: 15px 20px;
+            background: linear-gradient(135deg, #001524 0%, #003049 100%);
+            border-bottom: 2px solid rgba(64, 180, 255, 0.3);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
+            z-index: 10;
+        }
+        h1 {
+            font-size: 1.8rem;
+            margin-bottom: 5px;
+            background: linear-gradient(90deg, #4cc9f0, #64d8ff, #80e1ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: 700;
+        }
+        .subtitle {
+            font-size: 0.95rem;
+            opacity: 0.9;
+            color: #a8d8ff;
+        }
+        #main-content {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+        #simulation-container {
+            flex: 1;
+            position: relative;
+        }
+        #canvas-container {
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+        #controls-panel {
+            width: 380px;
+            background: linear-gradient(135deg, rgba(10, 25, 47, 0.95) 0%, rgba(15, 35, 65, 0.95) 100%);
+            border-left: 2px solid rgba(64, 180, 255, 0.3);
+            padding: 20px;
+            overflow-y: auto;
+            box-shadow: -5px 0 25px rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(10px);
+        }
+        .control-section {
+            margin-bottom: 25px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid rgba(64, 180, 255, 0.2);
+        }
+        .control-section h3 {
+            margin-bottom: 15px;
+            color: #4cc9f0;
+            font-size: 1.1rem;
+            display: flex;
+            align-items: center;
+            font-weight: 600;
+        }
+        .control-section h3 i {
+            margin-right: 10px;
+        }
+        .slider-container {
+            margin-bottom: 18px;
+            background: rgba(20, 40, 70, 0.4);
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid rgba(64, 180, 255, 0.1);
+        }
+        .slider-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+        }
+        .slider-label span:first-child {
+            color: #a8d8ff;
+        }
+        .slider-label span:last-child {
+            font-weight: bold;
+            color: #64d8ff;
+            font-family: 'Courier New', monospace;
+        }
+        .slider {
+            width: 100%;
+            height: 8px;
+            -webkit-appearance: none;
+            background: linear-gradient(90deg, #1a5fb4, #40c9ff);
+            border-radius: 4px;
+            outline: none;
+        }
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: #ffffff;
+            cursor: pointer;
+            box-shadow: 0 0 12px rgba(64, 201, 255, 0.9);
+            border: 2px solid #40c9ff;
+        }
+        button {
+            background: linear-gradient(135deg, #0066cc 0%, #0099ff 100%);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            width: 100%;
+            margin-top: 8px;
+            transition: all 0.3s;
+            box-shadow: 0 4px 12px rgba(0, 102, 204, 0.3);
+        }
+        button:hover {
+            background: linear-gradient(135deg, #0088ff 0%, #00ccff 100%);
+            box-shadow: 0 6px 16px rgba(0, 136, 255, 0.4);
+            transform: translateY(-2px);
+        }
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        .button-group button {
+            flex: 1;
+            padding: 10px 15px;
+        }
+        .formula-box {
+            background: linear-gradient(135deg, rgba(20, 40, 70, 0.8) 0%, rgba(25, 50, 90, 0.8) 100%);
+            border-left: 4px solid #40c9ff;
+            padding: 15px;
+            margin: 15px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            border-radius: 0 6px 6px 0;
+            color: #cce7ff;
+        }
+        .visualization-toggle {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .toggle-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.9rem;
+            background: rgba(20, 40, 70, 0.4);
+            padding: 10px;
+            border-radius: 6px;
+            border: 1px solid rgba(64, 180, 255, 0.1);
+        }
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 24px;
+        }
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #2a3a5a;
+            transition: .4s;
+            border-radius: 24px;
+        }
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 4px;
+            bottom: 4px;
+            background: linear-gradient(135deg, #fff, #e6f2ff);
+            transition: .4s;
+            border-radius: 50%;
+        }
+        input:checked + .toggle-slider {
+            background: linear-gradient(135deg, #40c9ff, #0099ff);
+        }
+        input:checked + .toggle-slider:before {
+            transform: translateX(26px);
+        }
+        #stats {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 100;
+        }
+        #info-panel {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: linear-gradient(135deg, rgba(10, 25, 47, 0.95) 0%, rgba(15, 35, 65, 0.95) 100%);
+            border-radius: 10px;
+            padding: 20px;
+            width: 320px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(64, 180, 255, 0.3);
+            z-index: 100;
+            backdrop-filter: blur(10px);
+        }
+        .info-title {
+            color: #4cc9f0;
+            margin-bottom: 15px;
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-weight: 600;
+        }
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            font-size: 0.9rem;
+            padding-bottom: 8px;
+            border-bottom: 1px solid rgba(64, 180, 255, 0.1);
+        }
+        .info-label {
+            color: #a8d8ff;
+        }
+        .info-value {
+            font-weight: bold;
+            color: #64d8ff;
+            font-family: 'Courier New', monospace;
+        }
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .section-badge {
+            background: linear-gradient(135deg, #40c9ff, #0099ff);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+        #cfd-progress {
+            width: 100%;
+            height: 6px;
+            background: rgba(64, 180, 255, 0.2);
+            border-radius: 3px;
+            margin-top: 10px;
+            overflow: hidden;
+            display: none;
+        }
+        #cfd-progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #40c9ff, #0099ff);
+            width: 0%;
+            transition: width 0.3s;
+        }
+        .pressure-gradient {
+            height: 200px;
+            width: 30px;
+            background: linear-gradient(to bottom, #ff0000, #ff9900, #ffff00, #00ff00, #0099ff, #0000ff);
+            border-radius: 4px;
+            margin: 15px auto;
+            position: relative;
+        }
+        .gradient-label {
+            position: absolute;
+            right: -40px;
+            font-size: 0.8rem;
+        }
+        .high-pressure { top: 0; }
+        .low-pressure { bottom: 0; }
+        .flow-indicator {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            margin-right: 8px;
+            vertical-align: middle;
+        }
+        .laminar { background: #00ff00; }
+        .turbulent { background: #ff9900; }
+        .separated { background: #ff0000; }
+        @media (max-width: 1200px) {
+            #controls-panel {
+                width: 340px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <div id="header">
+            <h1>Advanced CFD Nozzle Flow Analysis</h1>
+            <div class="subtitle">High-fidelity water flow simulation with detailed CFD visualization and physics analysis</div>
+        </div>
+        
+        <div id="main-content">
+            <div id="simulation-container">
+                <div id="canvas-container"></div>
+                <div id="stats"></div>
+                
+                <div id="info-panel">
+                    <div class="info-title">
+                        <span>CFD Analysis Results</span>
+                        <span>Re: <span id="reynolds-value" class="info-value">0</span></span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Inlet Pressure:</span>
+                        <span id="pressure-in" class="info-value">10.0 bar</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Outlet Velocity:</span>
+                        <span id="velocity-out" class="info-value">0.0 m/s</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Flow Rate:</span>
+                        <span id="flow-rate" class="info-value">0.0 L/s</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Pressure Drop:</span>
+                        <span id="pressure-drop" class="info-value">0.0 bar</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Boundary Layer:</span>
+                        <span id="boundary-layer" class="info-value">0.0 mm</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Flow Regime:</span>
+                        <span id="flow-regime" class="info-value">
+                            <span class="flow-indicator laminar"></span> Laminar
+                        </span>
+                    </div>
+                    <div id="cfd-progress">
+                        <div id="cfd-progress-bar"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="controls-panel">
+                <div class="control-section">
+                    <div class="section-header">
+                        <h3>Nozzle Specifications</h3>
+                        <span class="section-badge">ASME B16.11</span>
+                    </div>
+                    
+                    <div class="slider-container">
+                        <div class="slider-label">
+                            <span>Nominal Size</span>
+                            <span id="nominal-size-value">2.5"</span>
+                        </div>
+                        <input type="range" min="1" max="3" step="0.5" value="2.5" class="slider" id="nominal-size">
+                        <div style="display: flex; justify-content: space-between; margin-top: 5px;">
+                            <span style="font-size: 0.8rem; color: #a8d8ff;">1"</span>
+                            <span style="font-size: 0.8rem; color: #a8d8ff;">1.5"</span>
+                            <span style="font-size: 0.8rem; color: #a8d8ff;">2"</span>
+                            <span style="font-size: 0.8rem; color: #64d8ff; font-weight: bold;">2.5"</span>
+                            <span style="font-size: 0.8rem; color: #a8d8ff;">3"</span>
+                        </div>
+                    </div>
+                    
+                    <div class="slider-container">
+                        <div class="slider-label">
+                            <span>Inlet Diameter</span>
+                            <span id="inlet-diameter-value">63.5 mm</span>
+                        </div>
+                        <input type="range" min="25" max="76" step="0.5" value="63.5" class="slider" id="inlet-diameter">
+                    </div>
+                    
+                    <div class="slider-container">
+                        <div class="slider-label">
+                            <span>Throat Diameter</span>
+                            <span id="throat-diameter-value">31.75 mm</span>
+                        </div>
+                        <input type="range" min="12" max="50" step="0.5" value="31.75" class="slider" id="throat-diameter">
+                    </div>
+                    
+                    <div class="slider-container">
+                        <div class="slider-label">
+                            <span>Nozzle Length</span>
+                            <span id="nozzle-length-value">300 mm</span>
+                        </div>
+                        <input type="range" min="150" max="600" step="10" value="300" class="slider" id="nozzle-length">
+                    </div>
+                </div>
+                
+                <div class="control-section">
+                    <div class="section-header">
+                        <h3>Flow Conditions</h3>
+                        <span class="section-badge">Water @ 20°C</span>
+                    </div>
+                    
+                    <div class="slider-container">
+                        <div class="slider-label">
+                            <span>Inlet Pressure</span>
+                            <span id="inlet-pressure-value">10.0 bar</span>
+                        </div>
+                        <input type="range" min="2" max="32" step="0.5" value="10" class="slider" id="inlet-pressure">
+                        <div style="display: flex; justify-content: space-between; margin-top: 5px;">
+                            <span style="font-size: 0.8rem; color: #a8d8ff;">2 bar</span>
+                            <span style="font-size: 0.8rem; color: #a8d8ff;">8 bar</span>
+                            <span style="font-size: 0.8rem; color: #64d8ff; font-weight: bold;">10 bar</span>
+                            <span style="font-size: 0.8rem; color: #a8d8ff;">20 bar</span>
+                            <span style="font-size: 0.8rem; color: #a8d8ff;">32 bar</span>
+                        </div>
+                    </div>
+                    
+                    <div class="slider-container">
+                        <div class="slider-label">
+                            <span>Back Pressure</span>
+                            <span id="back-pressure-value">1.0 bar</span>
+                        </div>
+                        <input type="range" min="0" max="10" step="0.1" value="1" class="slider" id="back-pressure">
+                    </div>
+                    
+                    <div class="slider-container">
+                        <div class="slider-label">
+                            <span>Water Temperature</span>
+                            <span id="temperature-value">20°C</span>
+                        </div>
+                        <input type="range" min="5" max="95" step="1" value="20" class="slider" id="temperature-input">
+                    </div>
+                    
+                    <div class="formula-box">
+                        Q = A × v<br>
+                        ΔP = ρ × (v²/2) × (K + fL/D)<br>
+                        Re = (ρ × v × D)/μ
+                    </div>
+                </div>
+                
+                <div class="control-section">
+                    <h3>CFD Visualization</h3>
+                    
+                    <div class="visualization-toggle">
+                        <div class="toggle-item">
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="toggle-velocity-field" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                            <span>Velocity Field</span>
+                        </div>
+                        
+                        <div class="toggle-item">
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="toggle-pressure-contour" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                            <span>Pressure Contour</span>
+                        </div>
+                        
+                        <div class="toggle-item">
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="toggle-streamlines" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                            <span>Streamlines</span>
+                        </div>
+                        
+                        <div class="toggle-item">
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="toggle-vorticity">
+                                <span class="toggle-slider"></span>
+                            </label>
+                            <span>Vorticity</span>
+                        </div>
+                    </div>
+                    
+                    <div class="visualization-toggle">
+                        <div class="toggle-item">
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="toggle-boundary-layer">
+                                <span class="toggle-slider"></span>
+                            </label>
+                            <span>Boundary Layer</span>
+                        </div>
+                        
+                        <div class="toggle-item">
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="toggle-separation">
+                                <span class="toggle-slider"></span>
+                            </label>
+                            <span>Separation</span>
+                        </div>
+                        
+                        <div class="toggle-item">
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="toggle-turbulence">
+                                <span class="-toggle-slider"></span>
+                            </label>
+                            <span>Turbulence</span>
+                        </div>
+                        
+                        <div class="toggle-item">
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="toggle-particle-tracing" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                            <span>Particle Tracing</span>
+                        </div>
+                    </div>
+                    
+                    <div class="pressure-gradient">
+                        <div class="gradient-label high-pressure">High Pressure</div>
+                        <div class="gradient-label low-pressure">Low Pressure</div>
+                    </div>
+                </div>
+                
+                <div class="control-section">
+                    <h3>CFD Solver Settings</h3>
+                    
+                    <div class="slider-container">
+                        <div class="slider-label">
+                            <span>Grid Resolution</span>
+                            <span id="grid-resolution-value">High</span>
+                        </div>
+                        <input type="range" min="1" max="5" step="1" value="4" class="slider" id="grid-resolution">
+                        <div style="display: flex; justify-content: space-between; margin-top: 5px;">
+                            <span style="font-size: 0.8rem; color: #a8d8ff;">Low</span>
+                            <span style="font-size: 0.8rem; color: #a8d8ff;">Medium</span>
+                            <span style="font-size: 0.8rem; color: #64d8ff; font-weight: bold;">High</span>
+                            <span style="font-size: 0.8rem; color: #a8d8ff;">Very High</span>
+                            <span style="font-size: 0.8rem; color: #a8d8ff;">Extreme</span>
+                        </div>
+                    </div>
+                    
+                    <div class="slider-container">
+                        <div class="slider-label">
+                            <span>Turbulence Model</span>
+                            <span id="turbulence-model-value">k-ε</span>
+                        </div>
+                        <select id="turbulence-model" style="width: 100%; padding: 8px; border-radius: 4px; background: rgba(20, 40, 70, 0.6); color: white; border: 1px solid rgba(64, 180, 255, 0.3);">
+                            <option value="laminar">Laminar</option>
+                            <option value="k-epsilon" selected>k-ε (Standard)</option>
+                            <option value="k-omega">k-ω (SST)</option>
+                            <option value="les">LES (Large Eddy)</option>
+                        </select>
+                    </div>
+                    
+                    <div class="button-group">
+                        <button id="run-cfd-button">Run CFD Analysis</button>
+                        <button id="pause-simulation">Pause</button>
+                    </div>
+                    
+                    <div class="button-group">
+                        <button id="export-data">Export Results</button>
+                        <button id="reset-button">Reset</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Main Three.js CFD Simulation
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize variables
+            let scene, camera, renderer, controls, stats;
+            let nozzleMesh, flowField, velocityArrows, pressureContour, streamlines;
+            let particleSystem, boundaryLayerMesh, separationZone;
+            let cfdSolver = {
+                running: false,
+                timeStep: 0.01,
+                iteration: 0,
+                convergence: 0,
+                gridSize: 100
+            };
+            
+            let simulationParams = {
+                nominalSize: 2.5,      // inches
+                inletDiameter: 63.5,   // mm
+                throatDiameter: 31.75, // mm
+                nozzleLength: 300,     // mm
+                inletPressure: 10,     // bar
+                backPressure: 1,       // bar
+                temperature: 20,       // °C
+                density: 998.2,        // kg/m³ @ 20°C
+                viscosity: 0.001002,   // Pa·s @ 20°C
+                showVelocityField: true,
+                showPressureContour: true,
+                showStreamlines: true,
+                showVorticity: false,
+                showBoundaryLayer: false,
+                showSeparation: false,
+                showTurbulence: false,
+                showParticleTracing: true,
+                gridResolution: 4,
+                turbulenceModel: 'k-epsilon'
+            };
+            
+            // Initialize the simulation
+            init();
+            animate();
+            
+            // Set up UI controls
+            setupControls();
+            
+            function init() {
+                // Create scene
+                scene = new THREE.Scene();
+                scene.background = new THREE.Color(0x0a1929);
+                scene.fog = new THREE.Fog(0x0a1929, 0.1, 5);
+                
+                // Create camera
+                camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+                camera.position.set(0.8, 0.4, 1.5);
+                
+                // Create renderer
+                const container = document.getElementById('canvas-container');
+                renderer = new THREE.WebGLRenderer({ 
+                    antialias: true,
+                    alpha: true,
+                    precision: 'highp'
+                });
+                renderer.setSize(container.clientWidth, container.clientHeight);
+                renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+                renderer.shadowMap.enabled = true;
+                renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+                renderer.toneMapping = THREE.ACESFilmicToneMapping;
+                renderer.toneMappingExposure = 1.0;
+                container.appendChild(renderer.domElement);
+                
+                // Add orbit controls
+                controls = new THREE.OrbitControls(camera, renderer.domElement);
+                controls.enableDamping = true;
+                controls.dampingFactor = 0.05;
+                controls.minDistance = 0.5;
+                controls.maxDistance = 5;
+                
+                // Add advanced lighting
+                const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+                scene.add(ambientLight);
+                
+                const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+                directionalLight.position.set(5, 10, 7);
+                directionalLight.castShadow = true;
+                directionalLight.shadow.mapSize.width = 2048;
+                directionalLight.shadow.mapSize.height = 2048;
+                directionalLight.shadow.camera.near = 0.5;
+                directionalLight.shadow.camera.far = 50;
+                scene.add(directionalLight);
+                
+                const rimLight = new THREE.DirectionalLight(0x4cc9f0, 0.3);
+                rimLight.position.set(-5, 5, -5);
+                scene.add(rimLight);
+                const rimLight2 = new THREE.DirectionalLight(0xeec9f0, 0.93);
+                rimLight.position.set(5,- 5, 5);
+                scene.add(rimLight2);
+                // Add a grid helper
+                const gridHelper = new THREE.GridHelper(2, 20, 0x2a3a5a, 0x1a2a4a);
+                gridHelper.position.y = -0.15;
+                scene.add(gridHelper);
+                
+                // Add coordinate axes
+                const axesHelper = new THREE.AxesHelper(0.5);
+                scene.add(axesHelper);
+                
+                // Initialize stats
+                stats = new Stats();
+                stats.showPanel(0);
+                document.getElementById('stats').appendChild(stats.dom);
+                
+                // Create the nozzle and CFD visualization
+                createNozzle();
+                createCFDVisualization();
+                
+                // Handle window resize
+                window.addEventListener('resize', onWindowResize);
+            }
+            
+            function createNozzle() {
+                // Remove existing nozzle if present
+                if (nozzleMesh) {
+                    scene.remove(nozzleMesh);
+                }
+                
+                // Convert mm to meters for Three.js
+                const scale = 0.001;
+                const inletRadius = simulationParams.inletDiameter * scale / 2;
+                const throatRadius = simulationParams.throatDiameter * scale / 2;
+                const length = simulationParams.nozzleLength * scale;
+                
+                // Create high-resolution nozzle geometry
+                const segments = 64;
+                const radialSegments = 32;
+                
+                // Create nozzle shape using parametric equations
+                const shape = new THREE.Shape();
+                const points = [];
+                
+                // Create smooth nozzle profile
+                const convergentLength = length * 0.3;
+                const divergentLength = length * 0.7;
+                
+                // Generate profile points
+                for (let i = 0; i <= 100; i++) {
+                    const t = i / 100;
+                    let x, radius;
+                    
+                    if (t < 0.3) {
+                        // Convergent section (bell curve)
+                        const t2 = t / 0.3;
+                        x = t2 * convergentLength;
+                        radius = inletRadius - (inletRadius - throatRadius) * Math.pow(t2, 1.5);
+                    } else {
+                        // Divergent section (parabolic expansion)
+                        const t2 = (t - 0.3) / 0.7;
+                        x = convergentLength + t2 * divergentLength;
+                        const expansion = throatRadius * Math.sqrt(simulationParams.inletDiameter / simulationParams.throatDiameter);
+                        radius = throatRadius + (expansion - throatRadius) * (1 - Math.pow(1 - t2, 2));
+                    }
+                    
+                    points.push(new THREE.Vector2(radius, x));
+                }
+                
+                // Create lathe geometry
+                const geometry = new THREE.LatheGeometry(points, segments);
+                
+                // Create materials
+                const nozzleMaterial = new THREE.MeshPhysicalMaterial({
+                    color: 0x4a8fe4,
+                    metalness: 0.88,
+                    roughness: 0.66,
+                    clearcoat: 1.0,
+                    clearcoatRoughness: 0.1,
+                    transparent: true,
+                    opacity: 0.85,
+                    side: THREE.DoubleSide
+                });
+                
+                nozzleMesh = new THREE.Mesh(geometry, nozzleMaterial);
+                nozzleMesh.castShadow = true;
+                nozzleMesh.receiveShadow = true;
+                
+                // Position and rotate nozzle
+                nozzleMesh.rotation.z = Math.PI / 2;
+                nozzleMesh.rotation.y = Math.PI / 2;
+                nozzleMesh.position.x = -length / 2;
+                
+                scene.add(nozzleMesh);
+                
+                // Add detailed wireframe
+                const edges = new THREE.EdgesGeometry(geometry);
+                const lineMaterial = new THREE.LineBasicMaterial({ 
+                    color: 0x40c9ff, 
+                    linewidth: 1,
+                    transparent: true,
+                    opacity: 0.3
+                });
+                const wireframe = new THREE.LineSegments(edges, lineMaterial);
+                nozzleMesh.add(wireframe);
+                
+                // Add inlet and outlet flanges
+                createFlanges(inletRadius, throatRadius, length);
+            }
+            
+            function createFlanges(inletRadius, throatRadius, length) {
+                // Create inlet flange
+                const flangeGeometry = new THREE.CylinderGeometry(inletRadius * 1.2, inletRadius * 1.2, 0.02, 32);
+                const flangeMaterial = new THREE.MeshStandardMaterial({
+                    color: 0x4a4a4a,
+                    metalness: 0.9,
+                    roughness: 0.1
+                });
+                
+                const inletFlange = new THREE.Mesh(flangeGeometry, flangeMaterial);
+                inletFlange.position.x = -length / 2 - 0.01;
+               // nozzleMesh.add(inletFlange);
+                
+                // Create outlet flange
+                const outletRadius = throatRadius * Math.sqrt(simulationParams.inletDiameter / simulationParams.throatDiameter);
+                const outletFlangeGeometry = new THREE.CylinderGeometry(outletRadius * 1.2, outletRadius * 1.2, 0.02, 32);
+                const outletFlange = new THREE.Mesh(outletFlangeGeometry, flangeMaterial);
+                outletFlange.position.x = length / 2 + 0.01;
+               // nozzleMesh.add(outletFlange);
+                
+                // Add bolt holes
+                const boltGeometry = new THREE.CylinderGeometry(0.005, 0.005, 0.04, 8);
+                const boltMaterial = new THREE.MeshStandardMaterial({ color: 0x888888, metalness: 0.95 });
+                
+                for (let i = 0; i < 8; i++) {
+                    const angle = (i / 8) * Math.PI * 2;
+                    const radius = inletRadius * 1.3;
+                    
+                    const bolt = new THREE.Mesh(boltGeometry, boltMaterial);
+                    bolt.position.x = -length / 2 - 0.01;
+                    bolt.position.y = Math.sin(angle) * radius;
+                    bolt.position.z = Math.cos(angle) * radius;
+                    //nozzleMesh.add(bolt);
+                    
+                    const outletBolt = new THREE.Mesh(boltGeometry, boltMaterial);
+                    outletBolt.position.x = length / 2 + 0.01;
+                    outletBolt.position.y = Math.sin(angle) * radius;
+                    outletBolt.position.z = Math.cos(angle) * radius;
+                    //nozzleMesh.add(outletBolt);
+                }
+            }
+            
+            function createCFDVisualization() {
+                // Clear previous visualizations
+                if (flowField) scene.remove(flowField);
+                if (velocityArrows) scene.remove(velocityArrows);
+                if (pressureContour) scene.remove(pressureContour);
+                if (streamlines) scene.remove(streamlines);
+                if (particleSystem) scene.remove(particleSystem);
+                if (boundaryLayerMesh) scene.remove(boundaryLayerMesh);
+                if (separationZone) scene.remove(separationZone);
+                
+                // Calculate flow properties using CFD equations
+                const inletArea = Math.PI * Math.pow(simulationParams.inletDiameter / 1000 / 2, 2);
+                const throatArea = Math.PI * Math.pow(simulationParams.throatDiameter / 1000 / 2, 2);
+                
+                // Convert pressure from bar to Pa
+                const inletPressurePa = simulationParams.inletPressure * 100000;
+                const backPressurePa = simulationParams.backPressure * 100000;
+                
+                // Calculate velocity using Bernoulli with losses
+                const pressureDrop = inletPressurePa - backPressurePa;
+                const velocity = Math.sqrt((2 * pressureDrop) / simulationParams.density);
+                
+                // Calculate Reynolds number
+                const characteristicLength = simulationParams.inletDiameter / 1000; // meters
+                const reynoldsNumber = (simulationParams.density * velocity * characteristicLength) / simulationParams.viscosity;
+                
+                // Calculate flow rate
+                const flowRate = velocity * inletArea * 1000; // L/s
+                
+                // Calculate boundary layer thickness (simplified)
+                const boundaryLayerThickness = 5 * characteristicLength / Math.sqrt(reynoldsNumber);
+                
+                // Determine flow regime
+                let flowRegime = "Laminar";
+                let flowIndicator = "laminar";
+                if (reynoldsNumber > 4000) {
+                    flowRegime = "Turbulent";
+                    flowIndicator = "turbulent";
+                } else if (reynoldsNumber > 2300) {
+                    flowRegime = "Transitional";
+                    flowIndicator = "turbulent";
+                }
+                
+                // Create velocity field visualization
+                if (simulationParams.showVelocityField) {
+                    createVelocityField(velocity, reynoldsNumber);
+                }
+                
+                // Create pressure contour visualization
+                if (simulationParams.showPressureContour) {
+                    createPressureContour(inletPressurePa, backPressurePa);
+                }
+                
+                // Create streamlines
+                if (simulationParams.showStreamlines) {
+                    createStreamlines(velocity, reynoldsNumber);
+                }
+                
+                // Create particle tracing
+                if (simulationParams.showParticleTracing) {
+                    createParticleTracing(velocity);
+                }
+                
+                // Create boundary layer visualization
+                if (simulationParams.showBoundaryLayer) {
+                    createBoundaryLayer(boundaryLayerThickness);
+                }
+                
+                // Create separation zone visualization
+                if (simulationParams.showSeparation && reynoldsNumber > 5000) {
+                    createSeparationZone();
+                }
+                
+                // Update info panel
+                updateInfoPanel(velocity, flowRate, pressureDrop / 100000, boundaryLayerThickness * 1000, reynoldsNumber, flowRegime, flowIndicator);
+            }
+            
+            function createVelocityField(velocity, reynoldsNumber) {
+                const arrowGroup = new THREE.Group();
+                const gridSize = 10;
+                const length = simulationParams.nozzleLength / 1000;
+                
+                for (let i = 0; i < gridSize; i++) {
+                    for (let j = 0; j < gridSize; j++) {
+                        const x = (i / gridSize) * length - length/2;
+                        const y = (j / gridSize - 0.5) * 0.1;
+                        const z = 0;
+                        
+                        // Calculate local velocity (simplified CFD model)
+                        let localVelocity = velocity;
+                        if (x < 0) {
+                            // Before nozzle - slower
+                            localVelocity = velocity * 0.8;
+                        } else if (x < length * 0.3) {
+                            // Convergent section - accelerating
+                            localVelocity = velocity * (0.8 + 0.4 * (x / (length * 0.3)));
+                        } else {
+                            // Divergent section
+                            localVelocity = velocity * (1.2 - 0.4 * ((x - length * 0.3) / (length * 0.7)));
+                        }
+                        
+                        // Add turbulence effect for high Reynolds
+                        if (reynoldsNumber > 4000) {
+                            localVelocity *= (1 + 0.1 * Math.sin(x * 20 + Date.now() * 0.001));
+                        }
+                        
+                        const arrowLength = localVelocity * 0.1;
+                        const arrowColor = reynoldsNumber > 4000 ? 0xff4444 : 0x44ff44;
+                        
+                        const arrowHelper = new THREE.ArrowHelper(
+                            new THREE.Vector3(1, 0, 0),
+                            new THREE.Vector3(x, y, z),
+                            arrowLength,
+                            arrowColor,
+                            0.02,
+                            0.015
+                        );
+                        
+                        arrowGroup.add(arrowHelper);
+                    }
+                }
+                
+                velocityArrows = arrowGroup;
+                scene.add(velocityArrows);
+            }
+            
+            function createPressureContour(inletPressure, outletPressure) {
+                const pressureGroup = new THREE.Group();
+                const segments = 50;
+                const length = simulationParams.nozzleLength / 1000;
+                
+                // Create pressure gradient along nozzle
+                for (let i = 0; i <= segments; i++) {
+                    const x = (i / segments) * length - length/2;
+                    
+                    // Calculate pressure at this position (linear approximation)
+                    let pressureRatio = 1 - (i / segments);
+                    let pressure = inletPressure + (outletPressure - inletPressure) * (i / segments);
+                    
+                    // Convert pressure to color (red = high, blue = low)
+                    const pressureNormalized = (pressure - outletPressure) / (inletPressure - outletPressure);
+                    const color = new THREE.Color();
+                    color.setHSL(0.66 * (1 - pressureNormalized), 0.8, 0.5);
+                    
+                    // Create pressure indicator
+                    const geometry = new THREE.SphereGeometry(0.005, 8, 8);
+                    const material = new THREE.MeshBasicMaterial({ 
+                        color: color,
+                        transparent: true,
+                        opacity: 0.7
+                    });
+                    
+                    const sphere = new THREE.Mesh(geometry, material);
+                    sphere.position.set(x, 0.02, 0);
+                    pressureGroup.add(sphere);
+                    
+                    // Create pressure contour lines
+                    if (i % 5 === 0) {
+                        const contourGeometry = new THREE.RingGeometry(0.03, 0.035, 16);
+                        const contourMaterial = new THREE.MeshBasicMaterial({
+                            color: color,
+                            side: THREE.DoubleSide,
+                            transparent: true,
+                            opacity: 0.4
+                        });
+                        
+                        const contour = new THREE.Mesh(contourGeometry, contourMaterial);
+                        contour.position.set(x, 0.02, 0);
+                        contour.rotation.x = Math.PI / 2;
+                        pressureGroup.add(contour);
+                    }
+                }
+                
+                pressureContour = pressureGroup;
+                scene.add(pressureContour);
+            }
+            
+            function createStreamlines(velocity, reynoldsNumber) {
+                const streamlinesGroup = new THREE.Group();
+                const numLines = 20;
+                const length = simulationParams.nozzleLength / 1000;
+                
+                // Create multiple streamlines
+                for (let line = 0; line < numLines; line++) {
+                    const points = [];
+                    const startY = (line / numLines - 0.5) * 0.08;
+                    
+                    for (let i = 0; i <= 100; i++) {
+                        const x = (i / 100) * length - length/2;
+                        const t = i / 100;
+                        
+                        // Calculate streamline position with realistic flow profile
+                        let y = startY;
+                        let z = 0;
+                        
+                        // Add parabolic flow profile (laminar)
+                        if (reynoldsNumber < 2300) {
+                            const r = Math.abs(startY) / 0.04;
+                            y = startY * (1 - r * r);
+                        }
+                        
+                        // Add turbulence for high Reynolds
+                        if (reynoldsNumber > 4000) {
+                            y += 0.005 * Math.sin(x * 30 + line * 0.5 + Date.now() * 0.001);
+                            z += 0.003 * Math.cos(x * 25 + line * 0.3 + Date.now() * 0.001);
+                        }
+                        
+                        // Add boundary layer effect near walls
+                        if (Math.abs(startY) > 0.03) {
+                            y *= 0.8;
+                        }
+                        
+                        points.push(new THREE.Vector3(x, y, z));
+                    }
+                    
+                    // Create curve from points
+                    const curve = new THREE.CatmullRomCurve3(points);
+                    const geometry = new THREE.TubeGeometry(curve, 100, 0.001, 8, false);
+                    
+                    // Color based on velocity
+                    const hue = 0.66 * (line / numLines);
+                    const material = new THREE.MeshBasicMaterial({
+                        color: new THREE.Color().setHSL(hue, 0.8, 0.6),
+                        transparent: true,
+                        opacity: 0.7
+                    });
+                    
+                    const streamline = new THREE.Mesh(geometry, material);
+                    streamlinesGroup.add(streamline);
+                }
+                
+                streamlines = streamlinesGroup;
+                scene.add(streamlines);
+            }
+            
+            function createParticleTracing(velocity) {
+                const particleGroup = new THREE.Group();
+                const particleCount = 200;
+                
+                // Create particles
+                const particleGeometry = new THREE.SphereGeometry(0.002, 8, 8);
+                const particleMaterial = new THREE.MeshBasicMaterial({
+                    color: 0x40c9ff,
+                    transparent: true,
+                    opacity: 0.8
+                });
+                
+                // Store particle data for animation
+                particleSystem = {
+                    group: particleGroup,
+                    particles: [],
+                    positions: [],
+                    velocities: [],
+                    ages: []
+                };
+                
+                for (let i = 0; i < particleCount; i++) {
+                    const particle = new THREE.Mesh(particleGeometry, particleMaterial);
+                    
+                    // Random starting position
+                    const x = -simulationParams.nozzleLength / 2000;
+                    const y = (Math.random() - 0.5) * 0.06;
+                    const z = (Math.random() - 0.5) * 0.06;
+                    
+                    particle.position.set(x, y, z);
+                    particleGroup.add(particle);
+                    
+                    particleSystem.particles.push(particle);
+                    particleSystem.positions.push(new THREE.Vector3(x, y, z));
+                    particleSystem.velocities.push(new THREE.Vector3(velocity * 0.1, 0, 0));
+                    particleSystem.ages.push(Math.random() * 100);
+                }
+                
+                scene.add(particleGroup);
+            }
+            
+            function createBoundaryLayer(thickness) {
+                const boundaryGroup = new THREE.Group();
+                const length = simulationParams.nozzleLength / 1000;
+                const segments = 20;
+                
+                // Create boundary layer visualization
+                for (let i = 0; i <= segments; i++) {
+                    const x = (i / segments) * length - length/2;
+                    const localThickness = thickness * (1 + 0.2 * Math.sin(x * 10));
+                    
+                    // Create boundary layer surface
+                    const geometry = new THREE.PlaneGeometry(0.001, localThickness);
+                    const material = new THREE.MeshBasicMaterial({
+                        color: 0xff9900,
+                        side: THREE.DoubleSide,
+                        transparent: true,
+                        opacity: 0.3
+                    });
+                    
+                    const plane = new THREE.Mesh(geometry, material);
+                    plane.position.set(x, 0.04 + localThickness/2, 0);
+                    plane.rotation.z = Math.PI / 2;
+                    boundaryGroup.add(plane);
+                    
+                    // Mirror for other side
+                    const plane2 = plane.clone();
+                    plane2.position.y = -0.04 - localThickness/2;
+                    boundaryGroup.add(plane2);
+                }
+                
+                boundaryLayerMesh = boundaryGroup;
+                scene.add(boundaryLayerMesh);
+            }
+            
+            function createSeparationZone() {
+                const separationGroup = new THREE.Group();
+                const length = simulationParams.nozzleLength / 1000;
+                
+                // Create separation zone visualization (vortex)
+                for (let i = 0; i < 5; i++) {
+                    const x = length * 0.6 - length/2 + i * 0.02;
+                    
+                    const geometry = new THREE.TorusGeometry(0.015, 0.003, 8, 16);
+                    const material = new THREE.MeshBasicMaterial({
+                        color: 0xff0000,
+                        transparent: true,
+                        opacity: 0.4
+                    });
+                    
+                    const torus = new THREE.Mesh(geometry, material);
+                    torus.position.set(x, 0, 0);
+                    torus.rotation.x = Math.PI / 2;
+                    separationGroup.add(torus);
+                }
+                
+                separationZone = separationGroup;
+                scene.add(separationZone);
+            }
+            
+            function updateInfoPanel(velocity, flowRate, pressureDrop, boundaryLayer, reynoldsNumber, flowRegime, flowIndicator) {
+                document.getElementById('velocity-out').textContent = velocity.toFixed(2) + " m/s";
+                document.getElementById('flow-rate').textContent = flowRate.toFixed(2) + " L/s";
+                document.getElementById('pressure-drop').textContent = pressureDrop.toFixed(2) + " bar";
+                document.getElementById('boundary-layer').textContent = boundaryLayer.toFixed(2) + " mm";
+                document.getElementById('reynolds-value').textContent = reynoldsNumber.toFixed(0);
+                
+                // Update flow regime with indicator
+                const regimeElement = document.getElementById('flow-regime');
+                const indicatorClass = flowIndicator === 'turbulent' ? 'turbulent' : 'laminar';
+                regimeElement.innerHTML = `<span class="flow-indicator ${indicatorClass}"></span> ${flowRegime}`;
+                
+                // Update inlet pressure display
+                document.getElementById('pressure-in').textContent = simulationParams.inletPressure.toFixed(1) + " bar";
+            }
+            
+            function runCFDAnalysis() {
+                const progressBar = document.getElementById('cfd-progress-bar');
+                const progressContainer = document.getElementById('cfd-progress');
+                
+                progressContainer.style.display = 'block';
+                cfdSolver.running = true;
+                cfdSolver.iteration = 0;
+                cfdSolver.convergence = 0;
+                
+                // Simulate CFD solving process
+                const interval = setInterval(() => {
+                    if (!cfdSolver.running) {
+                        clearInterval(interval);
+                        return;
+                    }
+                    
+                    cfdSolver.iteration++;
+                    cfdSolver.convergence = 1 - Math.exp(-cfdSolver.iteration / 50);
+                    
+                    // Update progress bar
+                    progressBar.style.width = (cfdSolver.convergence * 100) + '%';
+                    
+                    // Update info panel with simulated convergence
+                    document.getElementById('reynolds-value').textContent = 
+                        Math.floor(simulationParams.inletPressure * 10000 + cfdSolver.iteration * 100).toLocaleString();
+                    
+                    if (cfdSolver.convergence >= 0.99) {
+                        clearInterval(interval);
+                        cfdSolver.running = false;
+                        setTimeout(() => {
+                            progressContainer.style.display = 'none';
+                            alert("CFD Analysis Complete!\nConvergence achieved after " + cfdSolver.iteration + " iterations.");
+                        }, 500);
+                    }
+                }, 50);
+            }
+            
+            function setupControls() {
+                // Nozzle geometry controls
+                document.getElementById('nominal-size').addEventListener('input', function(e) {
+                    const size = parseFloat(e.target.value);
+                    simulationParams.nominalSize = size;
+                    
+                    // Update diameters based on nominal size
+                    if (size === 1) {
+                        simulationParams.inletDiameter = 25.4;
+                        simulationParams.throatDiameter = 12.7;
+                    } else if (size === 1.5) {
+                        simulationParams.inletDiameter = 38.1;
+                        simulationParams.throatDiameter = 19.05;
+                    } else if (size === 2) {
+                        simulationParams.inletDiameter = 50.8;
+                        simulationParams.throatDiameter = 25.4;
+                    } else if (size === 2.5) {
+                        simulationParams.inletDiameter = 63.5;
+                        simulationParams.throatDiameter = 31.75;
+                    } else if (size === 3) {
+                        simulationParams.inletDiameter = 76.2;
+                        simulationParams.throatDiameter = 38.1;
+                    }
+                    
+                    document.getElementById('nominal-size-value').textContent = size + '"';
+                    document.getElementById('inlet-diameter').value = simulationParams.inletDiameter;
+                    document.getElementById('inlet-diameter-value').textContent = simulationParams.inletDiameter + " mm";
+                    document.getElementById('throat-diameter').value = simulationParams.throatDiameter;
+                    document.getElementById('throat-diameter-value').textContent = simulationParams.throatDiameter + " mm";
+                    
+                    recreateVisualization();
+                });
+                
+                document.getElementById('inlet-diameter').addEventListener('input', function(e) {
+                    simulationParams.inletDiameter = parseFloat(e.target.value);
+                    document.getElementById('inlet-diameter-value').textContent = simulationParams.inletDiameter.toFixed(1) + " mm";
+                    recreateVisualization();
+                });
+                
+                document.getElementById('throat-diameter').addEventListener('input', function(e) {
+                    simulationParams.throatDiameter = parseFloat(e.target.value);
+                    document.getElementById('throat-diameter-value').textContent = simulationParams.throatDiameter.toFixed(1) + " mm";
+                    recreateVisualization();
+                });
+                
+                document.getElementById('nozzle-length').addEventListener('input', function(e) {
+                    simulationParams.nozzleLength = parseFloat(e.target.value);
+                    document.getElementById('nozzle-length-value').textContent = simulationParams.nozzleLength + " mm";
+                    recreateVisualization();
+                });
+                
+                // Flow condition controls
+                document.getElementById('inlet-pressure').addEventListener('input', function(e) {
+                    simulationParams.inletPressure = parseFloat(e.target.value);
+                    document.getElementById('inlet-pressure-value').textContent = simulationParams.inletPressure.toFixed(1) + " bar";
+                    recreateVisualization();
+                });
+                
+                document.getElementById('back-pressure').addEventListener('input', function(e) {
+                    simulationParams.backPressure = parseFloat(e.target.value);
+                    document.getElementById('back-pressure-value').textContent = simulationParams.backPressure.toFixed(1) + " bar";
+                    recreateVisualization();
+                });
+                
+                document.getElementById('temperature-input').addEventListener('input', function(e) {
+                    simulationParams.temperature = parseFloat(e.target.value);
+                    
+                    // Update water properties based on temperature
+                    if (simulationParams.temperature <= 10) {
+                        simulationParams.density = 999.7;
+                        simulationParams.viscosity = 0.001307;
+                    } else if (simulationParams.temperature <= 20) {
+                        simulationParams.density = 998.2;
+                        simulationParams.viscosity = 0.001002;
+                    } else if (simulationParams.temperature <= 30) {
+                        simulationParams.density = 995.7;
+                        simulationParams.viscosity = 0.000798;
+                    } else if (simulationParams.temperature <= 40) {
+                        simulationParams.density = 992.2;
+                        simulationParams.viscosity = 0.000653;
+                    } else {
+                        simulationParams.density = 988.1;
+                        simulationParams.viscosity = 0.000547;
+                    }
+                    
+                    document.getElementById('temperature-value').textContent = simulationParams.temperature + "°C";
+                    recreateVisualization();
+                });
+                
+                // Visualization toggles
+                document.getElementById('toggle-velocity-field').addEventListener('change', function(e) {
+                    simulationParams.showVelocityField = e.target.checked;
+                    recreateVisualization();
+                });
+                
+                document.getElementById('toggle-pressure-contour').addEventListener('change', function(e) {
+                    simulationParams.showPressureContour = e.target.checked;
+                    recreateVisualization();
+                });
+                
+                document.getElementById('toggle-streamlines').addEventListener('change', function(e) {
+                    simulationParams.showStreamlines = e.target.checked;
+                    recreateVisualization();
+                });
+                
+                document.getElementById('toggle-vorticity').addEventListener('change', function(e) {
+                    simulationParams.showVorticity = e.target.checked;
+                    // This would toggle vorticity visualization
+                });
+                
+                document.getElementById('toggle-boundary-layer').addEventListener('change', function(e) {
+                    simulationParams.showBoundaryLayer = e.target.checked;
+                    recreateVisualization();
+                });
+                
+                document.getElementById('toggle-separation').addEventListener('change', function(e) {
+                    simulationParams.showSeparation = e.target.checked;
+                    recreateVisualization();
+                });
+                
+                document.getElementById('toggle-turbulence').addEventListener('change', function(e) {
+                    simulationParams.showTurbulence = e.target.checked;
+                    recreateVisualization();
+                });
+                
+                document.getElementById('toggle-particle-tracing').addEventListener('change', function(e) {
+                    simulationParams.showParticleTracing = e.target.checked;
+                    recreateVisualization();
+                });
+                
+                // CFD solver controls
+                document.getElementById('grid-resolution').addEventListener('input', function(e) {
+                    const value = parseInt(e.target.value);
+                    simulationParams.gridResolution = value;
+                    
+                    const resolutions = ["Low", "Medium", "High", "Very High", "Extreme"];
+                    document.getElementById('grid-resolution-value').textContent = resolutions[value - 1];
+                    
+                    // Adjust grid size based on resolution
+                    cfdSolver.gridSize = [50, 100, 200, 400, 800][value - 1];
+                });
+                
+                document.getElementById('turbulence-model').addEventListener('change', function(e) {
+                    simulationParams.turbulenceModel = e.target.value;
+                    document.getElementById('turbulence-model-value').textContent = 
+                        e.target.options[e.target.selectedIndex].text;
+                });
+                
+                // Buttons
+                document.getElementById('run-cfd-button').addEventListener('click', function() {
+                    runCFDAnalysis();
+                });
+                
+                document.getElementById('pause-simulation').addEventListener('click', function() {
+                    cfdSolver.running = !cfdSolver.running;
+                    this.textContent = cfdSolver.running ? "Pause" : "Resume";
+                });
+                
+                document.getElementById('export-data').addEventListener('click', function() {
+                    // Simulate data export
+                    const data = {
+                        timestamp: new Date().toISOString(),
+                        nozzle: simulationParams,
+                        results: {
+                            velocity: parseFloat(document.getElementById('velocity-out').textContent),
+                            flowRate: parseFloat(document.getElementById('flow-rate').textContent),
+                            pressureDrop: parseFloat(document.getElementById('pressure-drop').textContent),
+                            reynoldsNumber: parseFloat(document.getElementById('reynolds-value').textContent)
+                        }
+                    };
+                    
+                    const dataStr = JSON.stringify(data, null, 2);
+                    const dataBlob = new Blob([dataStr], {type: 'application/json'});
+                    
+                    // Create download link
+                    const a = document.createElement('a');
+                    a.href = URL.createObjectURL(dataBlob);
+                    a.download = `cfd-analysis-${new Date().toISOString().slice(0,19)}.json`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    
+                    alert("CFD data exported successfully!");
+                });
+                
+                document.getElementById('reset-button').addEventListener('click', function() {
+                    // Reset all parameters to defaults
+                    simulationParams = {
+                        nominalSize: 2.5,
+                        inletDiameter: 63.5,
+                        throatDiameter: 31.75,
+                        nozzleLength: 250,
+                        inletPressure: 18,
+                        backPressure: 1,
+                        temperature: 20,
+                        density: 998.2,
+                        viscosity: 0.001002,
+                        showVelocityField: true,
+                        showPressureContour: true,
+                        showStreamlines: true,
+                        showVorticity: false,
+                        showBoundaryLayer: false,
+                        showSeparation: false,
+                        showTurbulence: false,
+                        showParticleTracing: true,
+                        gridResolution: 4,
+                        turbulenceModel: 'k-epsilon'
+                    };
+                    
+                    // Update all controls
+                    document.getElementById('nominal-size').value = simulationParams.nominalSize;
+                    document.getElementById('nominal-size-value').textContent = simulationParams.nominalSize + '"';
+                    
+                    document.getElementById('inlet-diameter').value = simulationParams.inletDiameter;
+                    document.getElementById('inlet-diameter-value').textContent = simulationParams.inletDiameter + " mm";
+                    
+                    document.getElementById('throat-diameter').value = simulationParams.throatDiameter;
+                    document.getElementById('throat-diameter-value').textContent = simulationParams.throatDiameter + " mm";
+                    
+                    document.getElementById('nozzle-length').value = simulationParams.nozzleLength;
+                    document.getElementById('nozzle-length-value').textContent = simulationParams.nozzleLength + " mm";
+                    
+                    document.getElementById('inlet-pressure').value = simulationParams.inletPressure;
+                    document.getElementById('inlet-pressure-value').textContent = simulationParams.inletPressure.toFixed(1) + " bar";
+                    
+                    document.getElementById('back-pressure').value = simulationParams.backPressure;
+                    document.getElementById('back-pressure-value').textContent = simulationParams.backPressure.toFixed(1) + " bar";
+                    
+                    document.getElementById('temperature-input').value = simulationParams.temperature;
+                    document.getElementById('temperature-value').textContent = simulationParams.temperature + "°C";
+                    
+                    document.getElementById('grid-resolution').value = simulationParams.gridResolution;
+                    document.getElementById('grid-resolution-value').textContent = "High";
+                    
+                    document.getElementById('turbulence-model').value = simulationParams.turbulenceModel;
+                    document.getElementById('turbulence-model-value').textContent = "k-ε (Standard)";
+                    
+                    // Reset toggles
+                    const toggles = [
+                        'toggle-velocity-field',
+                        'toggle-pressure-contour',
+                        'toggle-streamlines',
+                        'toggle-vorticity',
+                        'toggle-boundary-layer',
+                        'toggle-separation',
+                        'toggle-turbulence',
+                        'toggle-particle-tracing'
+                    ];
+                    
+                    toggles.forEach(id => {
+                        const element = document.getElementById(id);
+                        element.checked = simulationParams[id.replace('toggle-', '')];
+                    });
+                    
+                    recreateVisualization();
+                    alert("Simulation reset to default parameters.");
+                });
+            }
+            
+            function recreateVisualization() {
+                createNozzle();
+                createCFDVisualization();
+            }
+            
+            function onWindowResize() {
+                const container = document.getElementById('canvas-container');
+                camera.aspect = container.clientWidth / container.clientHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(container.clientWidth, container.clientHeight);
+            }
+            
+            function animateParticles() {
+                if (!particleSystem || !simulationParams.showParticleTracing) return;
+                
+                const length = simulationParams.nozzleLength / 1000;
+                
+                particleSystem.particles.forEach((particle, i) => {
+                    // Update position
+                    particleSystem.positions[i].add(particleSystem.velocities[i]);
+                    particleSystem.ages[i] += 0.1;
+                    
+                    // Apply some turbulence
+                    if (Math.random() < 0.1) {
+                        particleSystem.velocities[i].y += (Math.random() - 0.5) * 0.01;
+                        particleSystem.velocities[i].z += (Math.random() - 0.5) * 0.01;
+                    }
+                    
+                    // Reset particle if it leaves the nozzle
+                    if (particleSystem.positions[i].x > length/2 + 0.1) {
+                        particleSystem.positions[i].x = -length/2;
+                        particleSystem.positions[i].y = (Math.random() - 0.5) * 0.06;
+                        particleSystem.positions[i].z = (Math.random() - 0.5) * 0.06;
+                        particleSystem.velocities[i].set(0.5, 0, 0);
+                        particleSystem.ages[i] = 0;
+                    }
+                    
+                    // Update particle position
+                    particle.position.copy(particleSystem.positions[i]);
+                    
+                    // Fade in/out based on age
+                    const age = particleSystem.ages[i] % 100;
+                    particle.material.opacity = age < 20 ? age/20 : age > 80 ? (100-age)/20 : 1;
+                });
+            }
+            
+            function animate() {
+                requestAnimationFrame(animate);
+                stats.begin();
+                
+                // Update controls
+                controls.update();
+                
+                // Animate flow visualizations
+                if (streamlines && simulationParams.showStreamlines) {
+                    streamlines.rotation.y += 0.001;
+                }
+                
+                // Animate velocity arrows
+                if (velocityArrows && simulationParams.showVelocityField) {
+                    velocityArrows.children.forEach((arrow, index) => {
+                        const pulse = Math.sin(Date.now() * 0.001 + index * 0.1) * 0.1 + 0.9;
+                        arrow.scale.set(pulse, pulse, pulse);
+                    });
+                }
+                
+                // Animate particles
+                animateParticles();
+                
+                // Animate pressure contour
+                if (pressureContour && simulationParams.showPressureContour) {
+                    pressureContour.children.forEach((child, index) => {
+                        if (index % 2 === 0) {
+                            child.scale.y = Math.sin(Date.now() * 0.001 + index) * 0.1 + 1;
+                        }
+                    });
+                }
+                
+                renderer.render(scene, camera);
+                stats.end();
+            }
+        });
+    </script>
+</body>
+</html>

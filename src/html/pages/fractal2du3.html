@@ -1,0 +1,1531 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Adaptive 3D Fractal Engine</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #0a0a1a 0%, #0c0c22 100%);
+            color: #e0e0ff;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow-x: hidden;
+        }
+        
+        .header {
+            text-align: center;
+            padding: 1.2rem 1rem;
+            background: rgba(5, 5, 25, 0.95);
+            border-bottom: 1px solid rgba(100, 100, 255, 0.2);
+            position: relative;
+            z-index: 100;
+        }
+        
+        h1 {
+            font-size: clamp(1.5rem, 4vw, 2.2rem);
+            margin-bottom: 0.4rem;
+            background: linear-gradient(90deg, #6a6aff, #8a8aff);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            font-weight: 600;
+        }
+        
+        .subtitle {
+            font-size: clamp(0.8rem, 2vw, 1rem);
+            opacity: 0.8;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        
+        .container {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            padding: 0.8rem;
+            gap: 0.8rem;
+            max-width: 1600px;
+            margin: 0 auto;
+            width: 100%;
+        }
+        
+        @media (min-width: 1024px) {
+            .container {
+                flex-direction: row;
+            }
+        }
+        
+        .main-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 0.8rem;
+            min-height: 500px;
+        }
+        
+        .canvas-container {
+            flex: 1;
+            position: relative;
+            border-radius: 12px;
+            overflow: hidden;
+            background: rgba(0, 0, 15, 0.7);
+            border: 1px solid rgba(100, 100, 255, 0.1);
+            min-height: 400px;
+        }
+        
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+        }
+        
+        .canvas-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            pointer-events: none;
+        }
+        
+        .performance-indicator {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 6px 12px;
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            font-size: 0.85rem;
+            backdrop-filter: blur(5px);
+        }
+        
+        .performance-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #4CAF50;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 0.6; }
+            50% { opacity: 1; }
+        }
+        
+        .performance-dot.warning {
+            background: #FF9800;
+            animation: pulseWarning 1s infinite;
+        }
+        
+        @keyframes pulseWarning {
+            0%, 100% { opacity: 0.8; }
+            50% { opacity: 1; box-shadow: 0 0 10px #FF9800; }
+        }
+        
+        .performance-dot.critical {
+            background: #F44336;
+            animation: pulseCritical 0.5s infinite;
+        }
+        
+        @keyframes pulseCritical {
+            0%, 100% { opacity: 0.9; }
+            50% { opacity: 1; box-shadow: 0 0 15px #F44336; }
+        }
+        
+        .progress-tracker {
+            position: absolute;
+            bottom: 12px;
+            left: 12px;
+            right: 12px;
+            background: rgba(0, 0, 0, 0.6);
+            height: 4px;
+            border-radius: 2px;
+            overflow: hidden;
+        }
+        
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #4a4aff, #6a6aff);
+            width: 0%;
+            transition: width 0.3s ease;
+            position: relative;
+        }
+        
+        .progress-bar::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(90deg, 
+                transparent, 
+                rgba(255, 255, 255, 0.4), 
+                transparent);
+            animation: shimmer 2s infinite;
+        }
+        
+        @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+        
+        .status-bar {
+            position: absolute;
+            bottom: 20px;
+            left: 0;
+            right: 0;
+            text-align: center;
+            font-size: 0.9rem;
+            color: rgba(255, 255, 255, 0.9);
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+            padding: 0 12px;
+        }
+        
+        .control-panel {
+            width: 100%;
+            background: rgba(10, 10, 40, 0.8);
+            border-radius: 12px;
+            padding: 1.2rem;
+            border: 1px solid rgba(100, 100, 255, 0.1);
+            max-height: 600px;
+            overflow-y: auto;
+        }
+        
+        @media (min-width: 1024px) {
+            .control-panel {
+                width: 340px;
+                max-height: none;
+            }
+        }
+        
+        .control-group {
+            margin-bottom: 1.2rem;
+            padding-bottom: 1.2rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        
+        .control-title {
+            font-size: 1rem;
+            margin-bottom: 0.8rem;
+            color: #a0a0ff;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .control-title i {
+            font-size: 1.1rem;
+        }
+        
+        .slider-container {
+            margin-bottom: 1rem;
+        }
+        
+        .slider-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+        }
+        
+        .slider-value {
+            color: #8a8aff;
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+        
+        input[type="range"] {
+            width: 100%;
+            height: 6px;
+            -webkit-appearance: none;
+            background: rgba(100, 100, 255, 0.1);
+            border-radius: 3px;
+            outline: none;
+        }
+        
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #6a6aff;
+            cursor: pointer;
+            border: 2px solid rgba(255, 255, 255, 0.2);
+            transition: all 0.2s ease;
+        }
+        
+        input[type="range"]::-webkit-slider-thumb:hover {
+            background: #8a8aff;
+            transform: scale(1.1);
+        }
+        
+        .fractal-buttons {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+            gap: 0.6rem;
+            margin-bottom: 1.2rem;
+        }
+        
+        .fractal-btn {
+            padding: 0.7rem 0.5rem;
+            border: none;
+            border-radius: 8px;
+            background: rgba(30, 30, 80, 0.5);
+            color: #c0c0ff;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-align: center;
+            border: 1px solid transparent;
+        }
+        
+        .fractal-btn:hover {
+            background: rgba(40, 40, 100, 0.7);
+            border-color: rgba(100, 100, 255, 0.3);
+        }
+        
+        .fractal-btn.active {
+            background: linear-gradient(135deg, #4a4aff, #2a2adf);
+            border-color: #6a6aff;
+            color: white;
+            font-weight: 600;
+        }
+        
+        .action-buttons {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 0.6rem;
+            margin: 1.2rem 0;
+        }
+        
+        .action-btn {
+            padding: 0.8rem;
+            border: none;
+            border-radius: 8px;
+            background: rgba(40, 40, 90, 0.6);
+            color: #e0e0ff;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        
+        .action-btn:hover:not(:disabled) {
+            background: rgba(50, 50, 110, 0.8);
+            transform: translateY(-1px);
+        }
+        
+        .action-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .action-btn.primary {
+            background: linear-gradient(135deg, #4a4aff, #2a2adf);
+        }
+        
+        .action-btn.warning {
+            background: linear-gradient(135deg, #ff9800, #ff6f00);
+        }
+        
+        .performance-monitor {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-top: 1rem;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        
+        .monitor-title {
+            font-size: 0.95rem;
+            margin-bottom: 0.8rem;
+            color: #a0a0ff;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .monitor-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.8rem;
+        }
+        
+        .monitor-item {
+            text-align: center;
+            padding: 0.6rem;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 6px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        
+        .monitor-value {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: #8a8aff;
+            margin-bottom: 0.2rem;
+        }
+        
+        .monitor-label {
+            font-size: 0.75rem;
+            color: #a0a0ff;
+            opacity: 0.8;
+        }
+        
+        .adaptive-info {
+            background: rgba(0, 20, 40, 0.3);
+            border-radius: 8px;
+            padding: 0.8rem;
+            margin-top: 1rem;
+            font-size: 0.8rem;
+            line-height: 1.4;
+            border-left: 3px solid #4a4aff;
+        }
+        
+        .footer {
+            text-align: center;
+            padding: 1rem;
+            font-size: 0.8rem;
+            opacity: 0.7;
+            border-top: 1px solid rgba(100, 100, 255, 0.1);
+            background: rgba(5, 5, 25, 0.9);
+            margin-top: auto;
+        }
+        
+        .loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(5, 5, 20, 0.95);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            transition: opacity 0.3s ease;
+        }
+        
+        .adaptive-loader {
+            width: 60px;
+            height: 60px;
+            position: relative;
+            margin-bottom: 1rem;
+        }
+        
+        .adaptive-loader div {
+            position: absolute;
+            border: 2px solid transparent;
+            border-top-color: #4a4aff;
+            border-radius: 50%;
+            animation: adaptiveSpin 1.5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+        }
+        
+        .adaptive-loader div:nth-child(1) {
+            width: 60px;
+            height: 60px;
+            animation-delay: 0s;
+        }
+        
+        .adaptive-loader div:nth-child(2) {
+            width: 45px;
+            height: 45px;
+            top: 7.5px;
+            left: 7.5px;
+            animation-delay: 0.1s;
+        }
+        
+        .adaptive-loader div:nth-child(3) {
+            width: 30px;
+            height: 30px;
+            top: 15px;
+            left: 15px;
+            animation-delay: 0.2s;
+        }
+        
+        @keyframes adaptiveSpin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .quality-indicator {
+            position: absolute;
+            top: 12px;
+            left: 12px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            color: #a0a0ff;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .touch-hint {
+            text-align: center;
+            padding: 0.6rem;
+            background: rgba(100, 100, 255, 0.1);
+            border-radius: 8px;
+            font-size: 0.8rem;
+            margin-top: 0.8rem;
+            display: none;
+            border: 1px solid rgba(100, 100, 255, 0.2);
+        }
+        
+        @media (max-width: 768px) {
+            .touch-hint {
+                display: block;
+            }
+            
+            .container {
+                padding: 0.5rem;
+            }
+            
+            .canvas-container {
+                min-height: 350px;
+            }
+        }
+        
+        /* Smooth transitions */
+        .smooth-transition {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Adaptive 3D Fractal Engine</h1>
+        <p class="subtitle">Intelligent rendering system that adapts to your device performance for smooth visualization</p>
+    </div>
+    
+    <div class="container">
+        <div class="main-area">
+            <div class="canvas-container">
+                <div class="loading-overlay" id="loadingOverlay">
+                    <div class="adaptive-loader">
+                        <div></div>
+                        <div></div>
+                        <div></div>
+                    </div>
+                    <div id="loadingText">Initializing Adaptive Renderer...</div>
+                    <div id="loadingProgress" style="margin-top: 10px; font-size: 0.85rem; color: #8a8aff;"></div>
+                </div>
+                <canvas id="fractalCanvas"></canvas>
+                <div class="canvas-overlay">
+                    <div class="performance-indicator">
+                        <div class="performance-dot" id="perfDot"></div>
+                        <span id="perfStatus">Optimal</span>
+                    </div>
+                    <div class="quality-indicator" id="qualityIndicator">
+                        Quality: <span id="qualityValue">High</span>
+                    </div>
+                    <div class="progress-tracker">
+                        <div class="progress-bar" id="progressBar"></div>
+                    </div>
+                    <div class="status-bar" id="statusBar">
+                        Ready - Click to explore fractals
+                    </div>
+                </div>
+            </div>
+            
+            <div class="touch-hint">
+                👉 Pinch to zoom • Drag to rotate • Two-finger pan
+            </div>
+        </div>
+        
+        <div class="control-panel">
+            <div class="control-group">
+                <div class="control-title">
+                    <span>🌀</span> Fractal Type
+                </div>
+                <div class="fractal-buttons">
+                    <button class="fractal-btn active" data-type="sierpinski">Sierpinski</button>
+                    <button class="fractal-btn" data-type="menger">Menger</button>
+                    <button class="fractal-btn" data-type="tree">3D Tree</button>
+                    <button class="fractal-btn" data-type="julia">Julia Set</button>
+                    <button class="fractal-btn" data-type="dragon">Dragon</button>
+                    <button class="fractal-btn" data-type="crystal">Crystal</button>
+                </div>
+            </div>
+            
+            <div class="control-group">
+                <div class="control-title">
+                    <span>⚙️</span> Rendering Controls
+                </div>
+                
+                <div class="slider-container">
+                    <div class="slider-label">
+                        <span>Depth</span>
+                        <span class="slider-value" id="depthValue">5</span>
+                    </div>
+                    <input type="range" id="depthSlider" min="1" max="10" value="5" step="1">
+                </div>
+                
+                <div class="slider-container">
+                    <div class="slider-label">
+                        <span>Quality</span>
+                        <span class="slider-value" id="qualitySliderValue">Auto</span>
+                    </div>
+                    <input type="range" id="qualitySlider" min="1" max="5" value="3" step="1">
+                </div>
+                
+                <div class="slider-container">
+                    <div class="slider-label">
+                        <span>Rotation</span>
+                        <span class="slider-value" id="rotationValue">30°</span>
+                    </div>
+                    <input type="range" id="rotationSlider" min="0" max="360" value="30" step="1">
+                </div>
+            </div>
+            
+            <div class="action-buttons">
+                <button class="action-btn primary" id="resetBtn">
+                    <span>↺</span> Reset View
+                </button>
+                <button class="action-btn" id="autoRotateBtn">
+                    <span>⟳</span> Auto Rotate
+                </button>
+                <button class="action-btn" id="progressiveBtn">
+                    <span>⏵</span> Progressive
+                </button>
+                <button class="action-btn warning" id="optimizeBtn">
+                    <span>⚡</span> Optimize
+                </button>
+            </div>
+            
+            <div class="performance-monitor">
+                <div class="monitor-title">
+                    <span>📊 Performance Monitor</span>
+                    <span id="cpuLoad">CPU: 15%</span>
+                </div>
+                <div class="monitor-grid">
+                    <div class="monitor-item">
+                        <div class="monitor-value" id="fpsValue">60</div>
+                        <div class="monitor-label">FPS</div>
+                    </div>
+                    <div class="monitor-item">
+                        <div class="monitor-value" id="frameTime">16ms</div>
+                        <div class="monitor-label">Frame Time</div>
+                    </div>
+                    <div class="monitor-item">
+                        <div class="monitor-value" id="memoryUsage">45%</div>
+                        <div class="monitor-label">Memory</div>
+                    </div>
+                    <div class="monitor-item">
+                        <div class="monitor-value" id="renderCount">1,024</div>
+                        <div class="monitor-label">Elements</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="adaptive-info">
+                <strong>Adaptive Rendering:</strong> System automatically adjusts quality based on performance. Green dot = Optimal, Yellow = Adjusting, Red = Reduced quality.
+            </div>
+        </div>
+    </div>
+    
+    <div class="footer">
+        <p>Adaptive 3D Fractal Engine • Performance-optimized rendering • Real-time system monitoring</p>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Performance tracking variables
+            let performanceData = {
+                fps: 60,
+                frameTime: 16,
+                frameTimes: [],
+                lastFrameTime: performance.now(),
+                frameCount: 0,
+                cpuLoad: 15,
+                memoryUsage: 45,
+                qualityLevel: 3,
+                renderMode: 'adaptive',
+                isThrottled: false,
+                throttleTimeout: null
+            };
+            
+            // Fractal rendering variables
+            let fractalParams = {
+                type: 'sierpinski',
+                depth: 5,
+                maxDepth: 10,
+                rotation: 30,
+                zoom: 1,
+                offsetX: 0,
+                offsetY: 0,
+                autoRotate: false,
+                progressiveMode: false,
+                progressiveStep: 0
+            };
+            
+            // DOM elements
+            const canvas = document.getElementById('fractalCanvas');
+            const ctx = canvas.getContext('2d', { alpha: false });
+            const loadingOverlay = document.getElementById('loadingOverlay');
+            const loadingText = document.getElementById('loadingText');
+            const loadingProgress = document.getElementById('loadingProgress');
+            const perfDot = document.getElementById('perfDot');
+            const perfStatus = document.getElementById('perfStatus');
+            const qualityIndicator = document.getElementById('qualityIndicator');
+            const qualityValue = document.getElementById('qualityValue');
+            const progressBar = document.getElementById('progressBar');
+            const statusBar = document.getElementById('statusBar');
+            const fpsValue = document.getElementById('fpsValue');
+            const frameTime = document.getElementById('frameTime');
+            const memoryUsage = document.getElementById('memoryUsage');
+            const renderCount = document.getElementById('renderCount');
+            const cpuLoad = document.getElementById('cpuLoad');
+            
+            // Control elements
+            const fractalBtns = document.querySelectorAll('.fractal-btn');
+            const depthSlider = document.getElementById('depthSlider');
+            const depthValue = document.getElementById('depthValue');
+            const qualitySlider = document.getElementById('qualitySlider');
+            const qualitySliderValue = document.getElementById('qualitySliderValue');
+            const rotationSlider = document.getElementById('rotationSlider');
+            const rotationValue = document.getElementById('rotationValue');
+            const resetBtn = document.getElementById('resetBtn');
+            const autoRotateBtn = document.getElementById('autoRotateBtn');
+            const progressiveBtn = document.getElementById('progressiveBtn');
+            const optimizeBtn = document.getElementById('optimizeBtn');
+            
+            // Initialize canvas with proper size
+            function initCanvas() {
+                const dpr = Math.min(window.devicePixelRatio || 1, performanceData.qualityLevel);
+                canvas.width = canvas.clientWidth * dpr;
+                canvas.height = canvas.clientHeight * dpr;
+                ctx.scale(dpr, dpr);
+                updateStatus("Canvas initialized", "info");
+            }
+            
+            // Progressive loading system
+            function progressiveLoad() {
+                const steps = [
+                    { text: "Initializing engine...", progress: 10 },
+                    { text: "Loading fractal algorithms...", progress: 25 },
+                    { text: "Setting up adaptive rendering...", progress: 45 },
+                    { text: "Calibrating performance...", progress: 65 },
+                    { text: "Preparing visualization...", progress: 85 },
+                    { text: "Ready for exploration!", progress: 100 }
+                ];
+                
+                let currentStep = 0;
+                
+                function nextStep() {
+                    if (currentStep < steps.length) {
+                        const step = steps[currentStep];
+                        loadingText.textContent = step.text;
+                        progressBar.style.width = step.progress + '%';
+                        loadingProgress.textContent = `${step.progress}%`;
+                        
+                        // Simulate different load times
+                        const delay = 300 + Math.random() * 500;
+                        setTimeout(nextStep, delay);
+                        currentStep++;
+                    } else {
+                        // Complete loading
+                        setTimeout(() => {
+                            loadingOverlay.style.opacity = '0';
+                            setTimeout(() => {
+                                loadingOverlay.style.display = 'none';
+                                updateStatus("System ready", "success");
+                                startPerformanceMonitoring();
+                            }, 300);
+                        }, 500);
+                    }
+                }
+                
+                nextStep();
+            }
+            
+            // Start performance monitoring
+            function startPerformanceMonitoring() {
+                // Monitor FPS
+                function monitorFPS() {
+                    const now = performance.now();
+                    const delta = now - performanceData.lastFrameTime;
+                    
+                    performanceData.frameCount++;
+                    
+                    if (delta >= 1000) {
+                        performanceData.fps = Math.round((performanceData.frameCount * 1000) / delta);
+                        performanceData.lastFrameTime = now;
+                        performanceData.frameCount = 0;
+                        
+                        updatePerformanceDisplay();
+                        adaptiveQualityControl();
+                    }
+                    
+                    requestAnimationFrame(monitorFPS);
+                }
+                
+                // Monitor frame time
+                function monitorFrameTime() {
+                    const frameStart = performance.now();
+                    
+                    // Schedule next frame time check
+                    setTimeout(() => {
+                        const frameEnd = performance.now();
+                        const time = frameEnd - frameStart;
+                        
+                        performanceData.frameTimes.push(time);
+                        if (performanceData.frameTimes.length > 60) {
+                            performanceData.frameTimes.shift();
+                        }
+                        
+                        const avg = performanceData.frameTimes.reduce((a, b) => a + b, 0) / performanceData.frameTimes.length;
+                        performanceData.frameTime = Math.round(avg);
+                        
+                        // Simulate CPU load based on frame time (for demo)
+                        performanceData.cpuLoad = Math.min(100, Math.round((avg / 16) * 30));
+                        
+                        // Simulate memory usage
+                        performanceData.memoryUsage = 30 + Math.sin(Date.now() / 10000) * 20;
+                        
+                        monitorFrameTime();
+                    }, 1000 / 60); // Check every ~16ms
+                }
+                
+                monitorFPS();
+                monitorFrameTime();
+            }
+            
+            // Adaptive quality control
+            function adaptiveQualityControl() {
+                const { fps, frameTime, qualityLevel } = performanceData;
+                let newQualityLevel = qualityLevel;
+                let performanceStatus = "optimal";
+                
+                // Adjust quality based on performance
+                if (fps < 30 || frameTime > 33) {
+                    // Performance is poor, reduce quality
+                    newQualityLevel = Math.max(1, qualityLevel - 1);
+                    performanceStatus = "critical";
+                    updateStatus("Reducing quality for better performance", "warning");
+                } else if (fps < 45 || frameTime > 25) {
+                    // Performance is moderate, consider reducing quality
+                    if (qualityLevel > 2) {
+                        newQualityLevel = qualityLevel - 1;
+                    }
+                    performanceStatus = "warning";
+                } else if (fps >= 55 && frameTime < 18 && qualityLevel < 5) {
+                    // Performance is excellent, increase quality
+                    newQualityLevel = Math.min(5, qualityLevel + 1);
+                    performanceStatus = "optimal";
+                }
+                
+                // Update quality if changed
+                if (newQualityLevel !== qualityLevel) {
+                    performanceData.qualityLevel = newQualityLevel;
+                    updateQualityDisplay();
+                    initCanvas(); // Re-initialize canvas with new DPR
+                }
+                
+                // Update performance indicator
+                updatePerformanceIndicator(performanceStatus);
+            }
+            
+            // Update performance display
+            function updatePerformanceDisplay() {
+                fpsValue.textContent = performanceData.fps;
+                frameTime.textContent = performanceData.frameTime + 'ms';
+                memoryUsage.textContent = Math.round(performanceData.memoryUsage) + '%';
+                cpuLoad.textContent = 'CPU: ' + performanceData.cpuLoad + '%';
+            }
+            
+            // Update quality display
+            function updateQualityDisplay() {
+                const levels = ['Very Low', 'Low', 'Medium', 'High', 'Ultra'];
+                qualityValue.textContent = levels[performanceData.qualityLevel - 1];
+                qualitySliderValue.textContent = qualitySlider.value == 3 ? 'Auto' : levels[qualitySlider.value - 1];
+            }
+            
+            // Update performance indicator
+            function updatePerformanceIndicator(status) {
+                perfDot.className = 'performance-dot';
+                perfStatus.textContent = status.charAt(0).toUpperCase() + status.slice(1);
+                
+                switch(status) {
+                    case 'optimal':
+                        perfDot.style.background = '#4CAF50';
+                        break;
+                    case 'warning':
+                        perfDot.classList.add('warning');
+                        break;
+                    case 'critical':
+                        perfDot.classList.add('critical');
+                        break;
+                }
+            }
+            
+            // Update status bar
+            function updateStatus(message, type = 'info') {
+                statusBar.textContent = message;
+                statusBar.style.color = type === 'success' ? '#4CAF50' : 
+                                       type === 'warning' ? '#FF9800' : 
+                                       type === 'error' ? '#F44336' : 
+                                       'rgba(255, 255, 255, 0.9)';
+            }
+            
+            // Optimized fractal rendering with time slicing
+            function renderFractalWithTimeSlice() {
+                const startTime = performance.now();
+                const timeBudget = 1000 / 60; // ~16ms per frame for 60fps
+                
+                // Clear canvas with optimized background
+                const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+                gradient.addColorStop(0, '#0a0a1a');
+                gradient.addColorStop(1, '#151530');
+                ctx.fillStyle = gradient;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                // Set rendering quality based on performance
+                ctx.imageSmoothingEnabled = performanceData.qualityLevel >= 3;
+                ctx.imageSmoothingQuality = performanceData.qualityLevel >= 4 ? 'high' : 'low';
+                
+                // Apply rotation
+                ctx.save();
+                const centerX = canvas.width / 2;
+                const centerY = canvas.height / 2;
+                ctx.translate(centerX + fractalParams.offsetX, centerY + fractalParams.offsetY);
+                ctx.rotate(fractalParams.rotation * Math.PI / 180);
+                ctx.scale(fractalParams.zoom, fractalParams.zoom);
+                
+                let elementsRendered = 0;
+                
+                // Render based on fractal type
+                switch(fractalParams.type) {
+                    case 'sierpinski':
+                        elementsRendered = renderSierpinski();
+                        break;
+                    case 'menger':
+                        elementsRendered = renderMenger();
+                        break;
+                    case 'tree':
+                        elementsRendered = renderTree();
+                        break;
+                    case 'julia':
+                        elementsRendered = renderJulia();
+                        break;
+                    case 'dragon':
+                        elementsRendered = renderDragon();
+                        break;
+                    case 'crystal':
+                        elementsRendered = renderCrystal();
+                        break;
+                }
+                
+                ctx.restore();
+                
+                // Update render count
+                renderCount.textContent = elementsRendered.toLocaleString();
+                
+                // Check if we exceeded time budget
+                const renderTime = performance.now() - startTime;
+                if (renderTime > timeBudget && !performanceData.isThrottled) {
+                    performanceData.isThrottled = true;
+                    
+                    // Throttle rendering
+                    clearTimeout(performanceData.throttleTimeout);
+                    performanceData.throttleTimeout = setTimeout(() => {
+                        performanceData.isThrottled = false;
+                    }, 100);
+                    
+                    updateStatus("Rendering throttled for smoother performance", "warning");
+                }
+                
+                return elementsRendered;
+            }
+            
+            // Optimized Sierpinski renderer
+            function renderSierpinski() {
+                const maxDepth = fractalParams.progressiveMode ? 
+                    Math.min(fractalParams.progressiveStep, fractalParams.depth) : 
+                    fractalParams.depth;
+                
+                let count = 0;
+                const queue = [{x: 0, y: 0, size: 150, depth: maxDepth}];
+                
+                while (queue.length > 0 && count < 5000) { // Limit elements per frame
+                    const {x, y, size, depth} = queue.shift();
+                    
+                    if (depth <= 0) continue;
+                    
+                    // Draw triangle
+                    const half = size / 2;
+                    ctx.beginPath();
+                    ctx.moveTo(x, y - size);
+                    ctx.lineTo(x - half, y + half);
+                    ctx.lineTo(x + half, y + half);
+                    ctx.closePath();
+                    
+                    // Color based on depth
+                    const hue = 200 + (maxDepth - depth) * 30;
+                    ctx.fillStyle = `hsla(${hue}, 80%, 60%, ${0.2 + depth * 0.1})`;
+                    ctx.strokeStyle = `hsla(${hue}, 100%, 70%, 0.3)`;
+                    ctx.lineWidth = 1;
+                    
+                    ctx.fill();
+                    ctx.stroke();
+                    count++;
+                    
+                    // Add children for next depth
+                    if (depth > 1) {
+                        const newSize = size / 2;
+                        queue.push(
+                            {x: x, y: y - newSize, size: newSize, depth: depth - 1},
+                            {x: x - newSize, y: y + newSize/2, size: newSize, depth: depth - 1},
+                            {x: x + newSize, y: y + newSize/2, size: newSize, depth: depth - 1}
+                        );
+                    }
+                }
+                
+                return count;
+            }
+            
+            // Optimized Menger sponge renderer
+            function renderMenger() {
+                let count = 0;
+                const size = 100;
+                const iterations = fractalParams.progressiveMode ? 
+                    Math.min(fractalParams.progressiveStep, 3) : 3;
+                
+                function drawCube(x, y, z, size, depth) {
+                    if (depth <= 0) return;
+                    
+                    // Simplified cube drawing
+                    ctx.strokeStyle = `rgba(100, 150, 255, ${0.1 + depth * 0.3})`;
+                    ctx.lineWidth = depth;
+                    
+                    // Draw a simple square for performance
+                    ctx.strokeRect(x - size/2, y - size/2, size, size);
+                    count++;
+                    
+                    if (depth > 1) {
+                        const newSize = size / 3;
+                        for (let dx = -1; dx <= 1; dx++) {
+                            for (let dy = -1; dy <= 1; dy++) {
+                                for (let dz = -1; dz <= 1; dz++) {
+                                    // Menger sponge pattern
+                                    const holes = Math.abs(dx) + Math.abs(dy) + Math.abs(dz);
+                                    if (holes > 1) {
+                                        drawCube(
+                                            x + dx * newSize,
+                                            y + dy * newSize,
+                                            z + dz * newSize,
+                                            newSize,
+                                            depth - 1
+                                        );
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                drawCube(0, 0, 0, size, iterations);
+                return count;
+            }
+            
+            // Optimized 3D tree renderer
+            function renderTree() {
+                let count = 0;
+                const maxDepth = fractalParams.progressiveMode ? 
+                    Math.min(fractalParams.progressiveStep, fractalParams.depth) : 
+                    fractalParams.depth;
+                
+                function drawBranch(x, y, length, angle, depth, width) {
+                    if (depth <= 0) return;
+                    
+                    const endX = x + Math.cos(angle) * length;
+                    const endY = y + Math.sin(angle) * length;
+                    
+                    // Draw branch
+                    ctx.beginPath();
+                    ctx.moveTo(x, y);
+                    ctx.lineTo(endX, endY);
+                    
+                    // Style based on depth
+                    ctx.strokeStyle = `rgba(139, 69, 19, ${0.2 + depth * 0.2})`;
+                    ctx.lineWidth = width;
+                    ctx.stroke();
+                    count++;
+                    
+                    if (depth > 1) {
+                        const newLength = length * 0.7;
+                        const newWidth = width * 0.7;
+                        const branchAngle = Math.PI / 6;
+                        
+                        // Create child branches
+                        drawBranch(endX, endY, newLength, angle - branchAngle, depth - 1, newWidth);
+                        drawBranch(endX, endY, newLength, angle + branchAngle, depth - 1, newWidth);
+                        
+                        // Sometimes add a third branch
+                        if (Math.random() > 0.5) {
+                            drawBranch(endX, endY, newLength * 0.8, angle, depth - 1, newWidth * 0.8);
+                        }
+                    } else {
+                        // Draw leaf at the end
+                        ctx.fillStyle = `rgba(50, 200, 50, 0.6)`;
+                        ctx.beginPath();
+                        ctx.arc(endX, endY, 3, 0, Math.PI * 2);
+                        ctx.fill();
+                        count++;
+                    }
+                }
+                
+                drawBranch(0, 100, 80, -Math.PI/2, maxDepth, 8);
+                return count;
+            }
+            
+            // Optimized Julia set renderer
+            function renderJulia() {
+                const width = canvas.width;
+                const height = canvas.height;
+                const imageData = ctx.createImageData(width, height);
+                const data = imageData.data;
+                
+                const maxIterations = fractalParams.progressiveMode ? 
+                    Math.min(fractalParams.progressiveStep * 10, 100) : 50;
+                const zoom = fractalParams.zoom * 2;
+                
+                // Adaptive resolution based on quality
+                const step = performanceData.qualityLevel >= 4 ? 1 : 
+                           performanceData.qualityLevel >= 3 ? 2 : 3;
+                
+                for (let y = 0; y < height; y += step) {
+                    for (let x = 0; x < width; x += step) {
+                        // Convert to complex coordinates
+                        const cx = (x - width/2) / (0.5 * zoom * width) - 0.7;
+                        const cy = (y - height/2) / (0.5 * zoom * height);
+                        
+                        let zx = cx;
+                        let zy = cy;
+                        let iteration = 0;
+                        
+                        while (iteration < maxIterations) {
+                            const x2 = zx * zx;
+                            const y2 = zy * zy;
+                            
+                            if (x2 + y2 > 4) break;
+                            
+                            const newX = x2 - y2 - 0.7;
+                            const newY = 2 * zx * zy + 0.27015;
+                            
+                            zx = newX;
+                            zy = newY;
+                            iteration++;
+                        }
+                        
+                        // Color based on iterations
+                        const idx = (y * width + x) * 4;
+                        const color = iteration === maxIterations ? 0 : iteration * 10;
+                        
+                        data[idx] = color;
+                        data[idx + 1] = color * 0.7;
+                        data[idx + 2] = color * 1.3;
+                        data[idx + 3] = 255;
+                        
+                        // Fill neighboring pixels for lower resolutions
+                        if (step > 1) {
+                            for (let dy = 0; dy < step && y + dy < height; dy++) {
+                                for (let dx = 0; dx < step && x + dx < width; dx++) {
+                                    if (dx === 0 && dy === 0) continue;
+                                    const neighborIdx = ((y + dy) * width + (x + dx)) * 4;
+                                    data[neighborIdx] = data[idx];
+                                    data[neighborIdx + 1] = data[idx + 1];
+                                    data[neighborIdx + 2] = data[idx + 2];
+                                    data[neighborIdx + 3] = data[idx + 3];
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                ctx.putImageData(imageData, 0, 0);
+                return width * height / (step * step);
+            }
+            
+            // Dragon curve renderer
+            function renderDragon() {
+                let count = 0;
+                const points = [];
+                const maxDepth = fractalParams.progressiveMode ? 
+                    Math.min(fractalParams.progressiveStep, fractalParams.depth) : 
+                    fractalParams.depth;
+                
+                function generateDragon(x, y, length, depth, angle) {
+                    if (depth <= 0) {
+                        points.push({x, y});
+                        return {x: x + Math.cos(angle) * length, y: y + Math.sin(angle) * length};
+                    }
+                    
+                    const newLength = length / Math.sqrt(2);
+                    
+                    const mid1 = generateDragon(x, y, newLength, depth - 1, angle - Math.PI/4);
+                    const mid2 = generateDragon(mid1.x, mid1.y, newLength, depth - 1, angle + Math.PI/4);
+                    
+                    return mid2;
+                }
+                
+                generateDragon(0, 0, 100, maxDepth, 0);
+                
+                // Draw the curve
+                if (points.length > 1) {
+                    ctx.beginPath();
+                    ctx.moveTo(points[0].x, points[0].y);
+                    
+                    for (let i = 1; i < points.length; i++) {
+                        ctx.lineTo(points[i].x, points[i].y);
+                    }
+                    
+                    ctx.strokeStyle = `rgba(255, 100, 100, 0.8)`;
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                    count = points.length;
+                }
+                
+                return count;
+            }
+            
+            // Crystal fractal renderer
+            function renderCrystal() {
+                let count = 0;
+                const maxDepth = fractalParams.progressiveMode ? 
+                    Math.min(fractalParams.progressiveStep, 4) : 4;
+                
+                function drawCrystal(x, y, size, depth) {
+                    if (depth <= 0) return;
+                    
+                    // Draw hexagon
+                    ctx.beginPath();
+                    for (let i = 0; i < 6; i++) {
+                        const angle = i * Math.PI / 3;
+                        const px = x + Math.cos(angle) * size;
+                        const py = y + Math.sin(angle) * size;
+                        
+                        if (i === 0) {
+                            ctx.moveTo(px, py);
+                        } else {
+                            ctx.lineTo(px, py);
+                        }
+                    }
+                    ctx.closePath();
+                    
+                    // Crystal-like colors
+                    const hue = 180 + depth * 20;
+                    ctx.fillStyle = `hsla(${hue}, 70%, 60%, ${0.1 + depth * 0.15})`;
+                    ctx.strokeStyle = `hsla(${hue}, 100%, 80%, 0.3)`;
+                    ctx.lineWidth = 1;
+                    
+                    ctx.fill();
+                    ctx.stroke();
+                    count++;
+                    
+                    if (depth > 1) {
+                        const newSize = size * 0.5;
+                        for (let i = 0; i < 6; i++) {
+                            const angle = i * Math.PI / 3;
+                            const newX = x + Math.cos(angle) * size * 0.75;
+                            const newY = y + Math.sin(angle) * size * 0.75;
+                            drawCrystal(newX, newY, newSize, depth - 1);
+                        }
+                    }
+                }
+                
+                drawCrystal(0, 0, 80, maxDepth);
+                return count;
+            }
+            
+            // Progressive rendering system
+            function startProgressiveRendering() {
+                if (!fractalParams.progressiveMode) return;
+                
+                fractalParams.progressiveStep = 0;
+                
+                function nextStep() {
+                    if (fractalParams.progressiveMode && fractalParams.progressiveStep < fractalParams.depth + 3) {
+                        fractalParams.progressiveStep++;
+                        updateStatus(`Progressive rendering: Step ${fractalParams.progressiveStep} of ${fractalParams.depth + 3}`, "info");
+                        
+                        // Render next step
+                        requestAnimationFrame(renderFractalWithTimeSlice);
+                        
+                        // Schedule next step with adaptive timing
+                        const delay = Math.max(100, 500 - performanceData.fps * 5);
+                        setTimeout(nextStep, delay);
+                    } else {
+                        updateStatus("Progressive rendering complete", "success");
+                        fractalParams.progressiveMode = false;
+                        progressiveBtn.innerHTML = '<span>⏵</span> Progressive';
+                    }
+                }
+                
+                nextStep();
+            }
+            
+            // Main animation loop with adaptive timing
+            function animationLoop() {
+                if (performanceData.isThrottled) {
+                    // Skip this frame if throttled
+                    requestAnimationFrame(animationLoop);
+                    return;
+                }
+                
+                // Update rotation if auto-rotate is enabled
+                if (fractalParams.autoRotate) {
+                    fractalParams.rotation += 0.5;
+                    if (fractalParams.rotation >= 360) fractalParams.rotation -= 360;
+                    rotationSlider.value = fractalParams.rotation;
+                    rotationValue.textContent = Math.round(fractalParams.rotation) + '°';
+                }
+                
+                // Render the fractal
+                renderFractalWithTimeSlice();
+                
+                // Schedule next frame with adaptive timing
+                const targetFPS = Math.min(60, performanceData.fps + 5);
+                setTimeout(() => {
+                    requestAnimationFrame(animationLoop);
+                }, 1000 / targetFPS);
+            }
+            
+            // Event listeners
+            fractalBtns.forEach(btn => {
+                btn.addEventListener('click', function() {
+                    fractalBtns.forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                    fractalParams.type = this.dataset.type;
+                    fractalParams.progressiveStep = 0;
+                    
+                    updateStatus(`Switched to ${this.textContent} fractal`, "info");
+                    
+                    // Reset progressive mode
+                    fractalParams.progressiveMode = false;
+                    progressiveBtn.innerHTML = '<span>⏵</span> Progressive';
+                });
+            });
+            
+            depthSlider.addEventListener('input', function() {
+                fractalParams.depth = parseInt(this.value);
+                depthValue.textContent = fractalParams.depth;
+                updateStatus(`Depth set to ${fractalParams.depth} iterations`, "info");
+            });
+            
+            qualitySlider.addEventListener('input', function() {
+                if (this.value == 3) {
+                    performanceData.renderMode = 'adaptive';
+                    qualitySliderValue.textContent = 'Auto';
+                    updateStatus("Quality set to adaptive mode", "info");
+                } else {
+                    performanceData.renderMode = 'manual';
+                    performanceData.qualityLevel = parseInt(this.value);
+                    updateQualityDisplay();
+                    initCanvas();
+                    updateStatus(`Quality set to ${qualityValue.textContent}`, "info");
+                }
+            });
+            
+            rotationSlider.addEventListener('input', function() {
+                fractalParams.rotation = parseInt(this.value);
+                rotationValue.textContent = fractalParams.rotation + '°';
+            });
+            
+            resetBtn.addEventListener('click', function() {
+                fractalParams.zoom = 1;
+                fractalParams.offsetX = 0;
+                fractalParams.offsetY = 0;
+                fractalParams.rotation = 30;
+                fractalParams.autoRotate = false;
+                
+                rotationSlider.value = fractalParams.rotation;
+                rotationValue.textContent = fractalParams.rotation + '°';
+                autoRotateBtn.innerHTML = '<span>⟳</span> Auto Rotate';
+                
+                updateStatus("View reset to default", "success");
+            });
+            
+            autoRotateBtn.addEventListener('click', function() {
+                fractalParams.autoRotate = !fractalParams.autoRotate;
+                this.innerHTML = fractalParams.autoRotate ? 
+                    '<span>⏸</span> Stop Rotate' : 
+                    '<span>⟳</span> Auto Rotate';
+                
+                updateStatus(fractalParams.autoRotate ? 
+                    "Auto rotation enabled" : "Auto rotation disabled", 
+                    fractalParams.autoRotate ? "success" : "info");
+            });
+            
+            progressiveBtn.addEventListener('click', function() {
+                fractalParams.progressiveMode = !fractalParams.progressiveMode;
+                
+                if (fractalParams.progressiveMode) {
+                    this.innerHTML = '<span>⏸</span> Stop';
+                    updateStatus("Starting progressive rendering...", "info");
+                    startProgressiveRendering();
+                } else {
+                    this.innerHTML = '<span>⏵</span> Progressive';
+                    updateStatus("Progressive rendering stopped", "info");
+                }
+            });
+            
+            optimizeBtn.addEventListener('click', function() {
+                // Force optimization
+                performanceData.qualityLevel = 2;
+                performanceData.renderMode = 'manual';
+                qualitySlider.value = 2;
+                updateQualityDisplay();
+                initCanvas();
+                
+                updateStatus("Optimized for performance - Reduced quality", "warning");
+                
+                // Revert after 5 seconds
+                setTimeout(() => {
+                    if (performanceData.renderMode === 'manual') {
+                        performanceData.renderMode = 'adaptive';
+                        qualitySlider.value = 3;
+                        qualitySliderValue.textContent = 'Auto';
+                        updateStatus("Returned to adaptive mode", "info");
+                    }
+                }, 5000);
+            });
+            
+            // Mouse/touch interactions
+            let isDragging = false;
+            let lastX = 0;
+            let lastY = 0;
+            
+            canvas.addEventListener('mousedown', function(e) {
+                isDragging = true;
+                lastX = e.clientX;
+                lastY = e.clientY;
+                canvas.style.cursor = 'grabbing';
+                updateStatus("Drag to rotate, scroll to zoom", "info");
+            });
+            
+            document.addEventListener('mousemove', function(e) {
+                if (!isDragging) return;
+                
+                const dx = e.clientX - lastX;
+                const dy = e.clientY - lastY;
+                
+                fractalParams.rotation += dx * 0.5;
+                fractalParams.offsetX += dx;
+                fractalParams.offsetY += dy;
+                
+                rotationSlider.value = fractalParams.rotation;
+                rotationValue.textContent = Math.round(fractalParams.rotation) + '°';
+                
+                lastX = e.clientX;
+                lastY = e.clientY;
+            });
+            
+            document.addEventListener('mouseup', function() {
+                isDragging = false;
+                canvas.style.cursor = 'grab';
+            });
+            
+            canvas.addEventListener('wheel', function(e) {
+                e.preventDefault();
+                
+                const zoomFactor = 0.1;
+                fractalParams.zoom *= e.deltaY < 0 ? (1 + zoomFactor) : (1 - zoomFactor);
+                fractalParams.zoom = Math.max(0.1, Math.min(10, fractalParams.zoom));
+                
+                updateStatus(`Zoom: ${fractalParams.zoom.toFixed(1)}x`, "info");
+            });
+            
+            // Touch interactions
+            let touchStartDistance = 0;
+            let touchStartZoom = 1;
+            
+            canvas.addEventListener('touchstart', function(e) {
+                e.preventDefault();
+                
+                if (e.touches.length === 2) {
+                    const touch1 = e.touches[0];
+                    const touch2 = e.touches[1];
+                    touchStartDistance = Math.hypot(
+                        touch2.clientX - touch1.clientX,
+                        touch2.clientY - touch1.clientY
+                    );
+                    touchStartZoom = fractalParams.zoom;
+                } else if (e.touches.length === 1) {
+                    isDragging = true;
+                    lastX = e.touches[0].clientX;
+                    lastY = e.touches[0].clientY;
+                }
+            });
+            
+            canvas.addEventListener('touchmove', function(e) {
+                e.preventDefault();
+                
+                if (e.touches.length === 2) {
+                    const touch1 = e.touches[0];
+                    const touch2 = e.touches[1];
+                    const touchDistance = Math.hypot(
+                        touch2.clientX - touch1.clientX,
+                        touch2.clientY - touch1.clientY
+                    );
+                    
+                    fractalParams.zoom = touchStartZoom * (touchDistance / touchStartDistance);
+                    fractalParams.zoom = Math.max(0.1, Math.min(10, fractalParams.zoom));
+                    
+                    updateStatus(`Zoom: ${fractalParams.zoom.toFixed(1)}x`, "info");
+                } else if (e.touches.length === 1 && isDragging) {
+                    const dx = e.touches[0].clientX - lastX;
+                    const dy = e.touches[0].clientY - lastY;
+                    
+                    fractalParams.rotation += dx * 0.5;
+                    fractalParams.offsetX += dx;
+                    fractalParams.offsetY += dy;
+                    
+                    rotationSlider.value = fractalParams.rotation;
+                    rotationValue.textContent = Math.round(fractalParams.rotation) + '°';
+                    
+                    lastX = e.touches[0].clientX;
+                    lastY = e.touches[0].clientY;
+                }
+            });
+            
+            canvas.addEventListener('touchend', function() {
+                isDragging = false;
+            });
+            
+            // Initialize and start
+            initCanvas();
+            progressiveLoad();
+            
+            // Start animation loop after loading
+            setTimeout(() => {
+                animationLoop();
+            }, 2000);
+            
+            // Handle window resize
+            window.addEventListener('resize', function() {
+                initCanvas();
+                updateStatus("Canvas resized", "info");
+            });
+        });
+    </script>
+</body>
+</html>

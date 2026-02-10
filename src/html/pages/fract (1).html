@@ -1,0 +1,1466 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quantum Fractal Explorer</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: none;
+        }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: #000;
+            color: #fff;
+        }
+
+        #app {
+            width: 100%;
+            height: 100%;
+            position: relative;
+        }
+
+        canvas {
+            display: block;
+            outline: none;
+        }
+
+        /* Loading Screen */
+        #loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            transition: opacity 0.5s ease;
+        }
+
+        .loader {
+            width: 60px;
+            height: 60px;
+            border: 3px solid rgba(100, 200, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: #64c8ff;
+            animation: spin 1s ease-in-out infinite;
+            margin-bottom: 20px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Minimal UI Overlay */
+        .ui-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 100;
+        }
+
+        .ui-overlay > * {
+            pointer-events: auto;
+        }
+
+        /* Top Info Bar */
+        .top-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            background: rgba(0, 10, 20, 0.7);
+            backdrop-filter: blur(10px);
+            padding: 10px 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 101;
+            border-bottom: 1px solid rgba(100, 200, 255, 0.2);
+        }
+
+        .top-bar.hidden {
+            transform: translateY(-100%);
+        }
+
+        .fractal-info {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .fractal-name {
+            font-size: 14px;
+            font-weight: 600;
+            color: #64c8ff;
+        }
+
+        .depth-indicator {
+            font-size: 13px;
+            color: #a0e7ff;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .depth-value {
+            font-weight: 700;
+            color: #00ffaa;
+            text-shadow: 0 0 10px rgba(0, 255, 170, 0.5);
+        }
+
+        .performance-indicator {
+            font-size: 12px;
+            color: #88ccff;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .fps-counter {
+            padding: 2px 8px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 3px;
+            font-family: monospace;
+        }
+
+        .fps-good { color: #00ffaa; }
+        .fps-medium { color: #ffff00; }
+        .fps-low { color: #ff5555; }
+
+        /* Bottom Controls */
+        .bottom-controls {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background: rgba(0, 10, 20, 0.7);
+            backdrop-filter: blur(10px);
+            padding: 15px;
+            z-index: 101;
+            border-top: 1px solid rgba(100, 200, 255, 0.2);
+            transform: translateY(0);
+            transition: transform 0.3s ease;
+        }
+
+        .bottom-controls.hidden {
+            transform: translateY(100%);
+        }
+
+        .control-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .control-group {
+            background: rgba(0, 20, 40, 0.5);
+            border-radius: 8px;
+            padding: 10px;
+            border: 1px solid rgba(100, 200, 255, 0.1);
+        }
+
+        .control-label {
+            font-size: 11px;
+            color: #88ccff;
+            margin-bottom: 5px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .control-value {
+            font-size: 12px;
+            color: #00ffaa;
+            font-weight: 600;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            height: 4px;
+            background: rgba(100, 200, 255, 0.1);
+            border-radius: 2px;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #64c8ff;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(100, 200, 255, 0.8);
+        }
+
+        /* Action Buttons */
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .action-btn {
+            padding: 8px 15px;
+            border-radius: 6px;
+            border: none;
+            background: linear-gradient(135deg, #1a5f7a, #64c8ff);
+            color: white;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            min-width: 120px;
+            justify-content: center;
+        }
+
+        .action-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(100, 200, 255, 0.4);
+        }
+
+        .action-btn:active {
+            transform: translateY(0);
+        }
+
+        .action-btn.active {
+            background: linear-gradient(135deg, #00ffaa, #00cc88);
+            box-shadow: 0 0 20px rgba(0, 255, 170, 0.5);
+        }
+
+        /* Quick Access Buttons */
+        .quick-access {
+            position: fixed;
+            right: 15px;
+            bottom: 80px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 102;
+        }
+
+        .quick-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: rgba(0, 20, 40, 0.8);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(100, 200, 255, 0.3);
+            color: #a0e7ff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 18px;
+        }
+
+        .quick-btn:hover {
+            background: rgba(100, 200, 255, 0.9);
+            color: #000;
+            transform: scale(1.1);
+        }
+
+        /* Fractal Preset Selector */
+        .preset-selector {
+            position: fixed;
+            left: 15px;
+            bottom: 80px;
+            background: rgba(0, 20, 40, 0.9);
+            backdrop-filter: blur(15px);
+            border-radius: 10px;
+            padding: 15px;
+            width: 250px;
+            border: 1px solid rgba(100, 200, 255, 0.3);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            z-index: 102;
+            display: none;
+        }
+
+        .preset-title {
+            font-size: 14px;
+            color: #64c8ff;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+
+        .preset-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+        }
+
+        .preset-item {
+            padding: 8px 10px;
+            background: rgba(0, 40, 80, 0.5);
+            border-radius: 6px;
+            font-size: 12px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: 1px solid transparent;
+        }
+
+        .preset-item:hover {
+            background: rgba(100, 200, 255, 0.3);
+            transform: translateY(-2px);
+        }
+
+        .preset-item.active {
+            background: rgba(100, 200, 255, 0.5);
+            border-color: #64c8ff;
+            color: white;
+            box-shadow: 0 0 15px rgba(100, 200, 255, 0.5);
+        }
+
+        /* Visual Feedback */
+        .visual-feedback {
+            position: fixed;
+            pointer-events: none;
+            z-index: 999;
+        }
+
+        .zoom-feedback {
+            position: absolute;
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            border: 2px solid rgba(0, 255, 170, 0.8);
+            animation: pulse 0.5s ease-out;
+            box-shadow: 0 0 30px rgba(0, 255, 170, 0.5);
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(0.5); opacity: 1; }
+            100% { transform: scale(2); opacity: 0; }
+        }
+
+        .touch-indicator {
+            position: absolute;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: rgba(100, 200, 255, 0.3);
+            border: 2px solid rgba(100, 200, 255, 0.8);
+            animation: touchPulse 0.3s ease-out;
+        }
+
+        @keyframes touchPulse {
+            0% { transform: scale(0.8); opacity: 1; }
+            100% { transform: scale(1.5); opacity: 0; }
+        }
+
+        /* Auto-Exploration Indicator */
+        .auto-explore-indicator {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px 20px;
+            border-radius: 20px;
+            border: 2px solid #00ffaa;
+            color: #00ffaa;
+            font-size: 14px;
+            font-weight: 600;
+            z-index: 103;
+            display: none;
+            box-shadow: 0 0 30px rgba(0, 255, 170, 0.3);
+        }
+
+        /* Step Indicator */
+        .step-indicator {
+            position: fixed;
+            bottom: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 20, 40, 0.9);
+            padding: 8px 15px;
+            border-radius: 15px;
+            font-size: 12px;
+            color: #a0e7ff;
+            z-index: 102;
+            border: 1px solid rgba(100, 200, 255, 0.3);
+            display: none;
+        }
+
+        /* Help Overlay */
+        .help-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.95);
+            z-index: 1000;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            padding: 20px;
+        }
+
+        .help-content {
+            max-width: 600px;
+            background: rgba(0, 20, 40, 0.9);
+            border-radius: 15px;
+            padding: 30px;
+            border: 1px solid rgba(100, 200, 255, 0.3);
+        }
+
+        .help-title {
+            color: #64c8ff;
+            font-size: 24px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .help-section {
+            margin-bottom: 20px;
+        }
+
+        .help-section h3 {
+            color: #00ffaa;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+
+        .help-section p {
+            color: #a0e7ff;
+            font-size: 14px;
+            line-height: 1.5;
+            margin-bottom: 8px;
+        }
+
+        .close-help {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: rgba(100, 200, 255, 0.2);
+            border: none;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+        }
+
+        /* Responsive Adjustments */
+        @media (max-width: 768px) {
+            .control-row {
+                grid-template-columns: 1fr;
+            }
+            
+            .action-btn {
+                min-width: 100px;
+                padding: 6px 12px;
+                font-size: 11px;
+            }
+            
+            .preset-selector {
+                width: 200px;
+                left: 10px;
+                bottom: 70px;
+            }
+            
+            .preset-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .quick-access {
+                bottom: 60px;
+                right: 10px;
+            }
+            
+            .quick-btn {
+                width: 36px;
+                height: 36px;
+                font-size: 16px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .top-bar {
+                padding: 8px 10px;
+            }
+            
+            .fractal-info {
+                gap: 8px;
+            }
+            
+            .fractal-name {
+                font-size: 12px;
+            }
+            
+            .depth-indicator {
+                font-size: 11px;
+            }
+            
+            .bottom-controls {
+                padding: 10px;
+            }
+            
+            .control-group {
+                padding: 8px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div id="loading">
+            <div class="loader"></div>
+            <div style="margin-top: 15px; color: #64c8ff; font-size: 14px;">Initializing Quantum Fractal Engine...</div>
+        </div>
+
+        <div class="ui-overlay">
+            <!-- Top Info Bar -->
+            <div class="top-bar" id="topBar">
+                <div class="fractal-info">
+                    <div class="fractal-name" id="fractalName">Mandelbulb 3D</div>
+                    <div class="depth-indicator">
+                        Depth: <span class="depth-value" id="depthValue">1.0x</span>
+                    </div>
+                </div>
+                <div class="performance-indicator">
+                    <div class="fps-counter" id="fpsCounter">60 FPS</div>
+                    <div id="qualityIndicator">High Quality</div>
+                </div>
+            </div>
+
+            <!-- Bottom Controls -->
+            <div class="bottom-controls" id="bottomControls">
+                <div class="control-row">
+                    <div class="control-group">
+                        <div class="control-label">
+                            <span>Detail Level</span>
+                            <span class="control-value" id="detailValue">8</span>
+                        </div>
+                        <input type="range" id="detailSlider" min="4" max="20" value="8" step="1">
+                    </div>
+                    <div class="control-group">
+                        <div class="control-label">
+                            <span>Color Intensity</span>
+                            <span class="control-value" id="colorValue">1.0</span>
+                        </div>
+                        <input type="range" id="colorSlider" min="0.1" max="3" value="1.0" step="0.1">
+                    </div>
+                    <div class="control-group">
+                        <div class="control-label">
+                            <span>Animation Speed</span>
+                            <span class="control-value" id="speedValue">0.5</span>
+                        </div>
+                        <input type="range" id="speedSlider" min="0" max="2" value="0.5" step="0.1">
+                    </div>
+                </div>
+                
+                <div class="action-buttons">
+                    <button class="action-btn" id="autoExploreBtn">
+                        <span>▶</span> Auto Explore
+                    </button>
+                    <button class="action-btn" id="nextStepBtn">
+                        <span>⏭</span> Next Step
+                    </button>
+                    <button class="action-btn" id="resetViewBtn">
+                        <span>↺</span> Reset View
+                    </button>
+                    <button class="action-btn" id="screenshotBtn">
+                        <span>📸</span> Screenshot
+                    </button>
+                </div>
+            </div>
+
+            <!-- Quick Access Buttons -->
+            <div class="quick-access">
+                <div class="quick-btn" id="toggleUI">≡</div>
+                <div class="quick-btn" id="presetBtn">⚙</div>
+                <div class="quick-btn" id="helpBtn">?</div>
+                <div class="quick-btn" id="fullscreenBtn">⛶</div>
+            </div>
+
+            <!-- Preset Selector -->
+            <div class="preset-selector" id="presetSelector">
+                <div class="preset-title">Select Fractal Type</div>
+                <div class="preset-grid">
+                    <div class="preset-item active" data-preset="mandelbulb">Mandelbulb 3D</div>
+                    <div class="preset-item" data-preset="julia">Julia Set 3D</div>
+                    <div class="preset-item" data-preset="quaternion">Quaternion</div>
+                    <div class="preset-item" data-preset="menger">Menger Sponge</div>
+                    <div class="preset-item" data-preset="sierpinski">Sierpinski</div>
+                    <div class="preset-item" data-preset="apollonian">Apollonian</div>
+                    <div class="preset-item" data-preset="kaleido">Kaleidoscope</div>
+                    <div class="preset-item" data-preset="mandelbox">Mandelbox</div>
+                </div>
+            </div>
+
+            <!-- Auto Exploration Indicator -->
+            <div class="auto-explore-indicator" id="autoExploreIndicator">
+                Auto Exploration Active
+            </div>
+
+            <!-- Step Indicator -->
+            <div class="step-indicator" id="stepIndicator">
+                Step: <span id="stepNumber">1</span>/<span id="totalSteps">∞</span>
+            </div>
+
+            <!-- Visual Feedback Container -->
+            <div class="visual-feedback" id="visualFeedback"></div>
+
+            <!-- Help Overlay -->
+            <div class="help-overlay" id="helpOverlay">
+                <button class="close-help" id="closeHelpBtn">×</button>
+                <div class="help-content">
+                    <h2 class="help-title">Quantum Fractal Explorer Guide</h2>
+                    
+                    <div class="help-section">
+                        <h3>Controls</h3>
+                        <p>• Mouse/Touch: Drag to rotate</p>
+                        <p>• Scroll/Pinch: Zoom in/out</p>
+                        <p>• Right-click/Double-tap: Pan view</p>
+                    </div>
+                    
+                    <div class="help-section">
+                        <h3>Features</h3>
+                        <p>• Auto Exploration: Automatically explores fractal depths</p>
+                        <p>• Step Mode: Manual step-by-step exploration</p>
+                        <p>• Multiple Fractals: 8 different fractal types</p>
+                        <p>• Adaptive Performance: Auto-adjusts quality for smooth experience</p>
+                    </div>
+                    
+                    <div class="help-section">
+                        <h3>Performance Tips</h3>
+                        <p>• Lower Detail Level for better performance</p>
+                        <p>• Close other applications for best experience</p>
+                        <p>• Enable GPU acceleration in browser settings</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Performance-optimized fractal engine
+        class FractalExplorer {
+            constructor() {
+                this.scene = null;
+                this.camera = null;
+                this.renderer = null;
+                this.fractalMesh = null;
+                this.fractalMaterial = null;
+                this.controls = null;
+                
+                // Performance settings
+                this.targetFPS = 60;
+                this.frameTime = 1000 / this.targetFPS;
+                this.lastFrameTime = 0;
+                this.fps = 60;
+                this.frameCount = 0;
+                this.lastFpsUpdate = 0;
+                
+                // Fractal settings
+                this.zoomDepth = 1.0;
+                this.autoExplore = false;
+                this.animationSpeed = 0.5;
+                this.fractalType = 'mandelbulb';
+                this.colorIntensity = 1.0;
+                this.detailLevel = 8;
+                this.stepCount = 0;
+                
+                // UI state
+                this.uiVisible = true;
+                this.autoExploreActive = false;
+                this.presetMenuOpen = false;
+                
+                // Performance monitoring
+                this.renderTime = 0;
+                this.qualityLevel = 'high';
+                this.adaptiveQuality = true;
+                
+                // Initialize
+                this.init();
+            }
+            
+            async init() {
+                // Detect device capability
+                this.detectDeviceCapability();
+                
+                // Create scene
+                this.scene = new THREE.Scene();
+                this.scene.background = new THREE.Color(0x000000);
+                
+                // Create camera
+                this.camera = new THREE.PerspectiveCamera(
+                    60,
+                    window.innerWidth / window.innerHeight,
+                    0.001,
+                    1000
+                );
+                this.camera.position.set(2, 2, 2);
+                
+                // Create optimized renderer
+                this.renderer = new THREE.WebGLRenderer({
+                    antialias: this.qualityLevel !== 'low',
+                    alpha: false,
+                    powerPreference: 'high-performance',
+                    precision: 'highp',
+                    depth: true,
+                    stencil: false
+                });
+                
+                this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
+                this.renderer.shadowMap.enabled = false;
+                this.renderer.outputEncoding = THREE.sRGBEncoding;
+                this.renderer.autoClear = true;
+                
+                document.getElementById('app').appendChild(this.renderer.domElement);
+                
+                // Create fractal
+                this.createFractal();
+                
+                // Setup lighting (minimal for performance)
+                const ambientLight = new THREE.AmbientLight(0x222222);
+                this.scene.add(ambientLight);
+                
+                // Add fog for depth
+                this.scene.fog = new THREE.Fog(0x000000, 5, 50);
+                
+                // Initialize UI
+                this.initUI();
+                
+                // Hide loading screen
+                setTimeout(() => {
+                    document.getElementById('loading').style.opacity = '0';
+                    setTimeout(() => {
+                        document.getElementById('loading').style.display = 'none';
+                    }, 500);
+                }, 1000);
+                
+                // Start animation loop
+                this.animate();
+                
+                // Event listeners
+                window.addEventListener('resize', () => this.onResize());
+                window.addEventListener('visibilitychange', () => this.onVisibilityChange());
+            }
+            
+            detectDeviceCapability() {
+                const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+                const memory = navigator.deviceMemory || 4;
+                const cores = navigator.hardwareConcurrency || 4;
+                
+                if (isMobile && (memory < 4 || cores < 4)) {
+                    this.qualityLevel = 'low';
+                    this.targetFPS = 30;
+                    this.adaptiveQuality = false;
+                } else if (isMobile) {
+                    this.qualityLevel = 'medium';
+                    this.targetFPS = 45;
+                } else {
+                    this.qualityLevel = 'high';
+                    this.targetFPS = 60;
+                }
+                
+                this.frameTime = 1000 / this.targetFPS;
+            }
+            
+            createFractal() {
+                // Clean up existing fractal
+                if (this.fractalMesh) {
+                    this.scene.remove(this.fractalMesh);
+                    if (this.fractalMesh.geometry) this.fractalMesh.geometry.dispose();
+                    if (this.fractalMesh.material) this.fractalMesh.material.dispose();
+                }
+                
+                // Optimized geometry based on quality
+                const segments = this.qualityLevel === 'high' ? 96 : 
+                                this.qualityLevel === 'medium' ? 64 : 48;
+                
+                const geometry = new THREE.SphereGeometry(2, segments, segments);
+                
+                // Ultra-optimized shader with multiple fractal types
+                this.fractalMaterial = new THREE.ShaderMaterial({
+                    uniforms: {
+                        time: { value: 0 },
+                        zoom: { value: 1.0 },
+                        colorIntensity: { value: this.colorIntensity },
+                        detail: { value: this.detailLevel },
+                        fractalType: { value: this.getFractalTypeIndex() },
+                        power: { value: 8.0 },
+                        juliaC: { value: new THREE.Vector3(0.4, 0.3, 0.2) },
+                        colorOffset: { value: 0.0 }
+                    },
+                    vertexShader: `
+                        varying vec3 vPosition;
+                        varying vec3 vNormal;
+                        
+                        void main() {
+                            vPosition = position;
+                            vNormal = normalize(normalMatrix * normal);
+                            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                        }
+                    `,
+                    fragmentShader: `
+                        precision highp float;
+                        
+                        uniform float time;
+                        uniform float zoom;
+                        uniform float colorIntensity;
+                        uniform int detail;
+                        uniform int fractalType;
+                        uniform float power;
+                        uniform vec3 juliaC;
+                        uniform float colorOffset;
+                        
+                        varying vec3 vPosition;
+                        varying vec3 vNormal;
+                        
+                        // Optimized distance estimators
+                        float mandelbulbDE(vec3 pos, int iterations) {
+                            vec3 z = pos;
+                            float dr = 1.0;
+                            float r = 0.0;
+                            
+                            for (int i = 0; i < 30; i++) {
+                                if (i >= iterations) break;
+                                
+                                r = length(z);
+                                if (r > 2.0) break;
+                                
+                                float theta = acos(z.z / r);
+                                float phi = atan(z.y, z.x);
+                                dr = pow(r, power - 1.0) * power * dr + 1.0;
+                                
+                                float zr = pow(r, power);
+                                theta = theta * power;
+                                phi = phi * power;
+                                
+                                z = zr * vec3(sin(theta) * cos(phi), sin(phi) * sin(theta), cos(theta));
+                                z += pos;
+                            }
+                            
+                            return 0.5 * log(r) * r / dr;
+                        }
+                        
+                        float juliaDE(vec3 pos, int iterations) {
+                            vec3 z = pos;
+                            float dr = 1.0;
+                            float r = 0.0;
+                            
+                            for (int i = 0; i < 30; i++) {
+                                if (i >= iterations) break;
+                                
+                                r = length(z);
+                                if (r > 2.0) break;
+                                
+                                float theta = acos(z.z / r);
+                                float phi = atan(z.y, z.x);
+                                dr = pow(r, 3.0 - 1.0) * 3.0 * dr + 1.0;
+                                
+                                float zr = pow(r, 3.0);
+                                theta = theta * 3.0;
+                                phi = phi * 3.0;
+                                
+                                z = zr * vec3(sin(theta) * cos(phi), sin(phi) * sin(theta), cos(theta));
+                                z += juliaC;
+                            }
+                            
+                            return 0.5 * log(r) * r / dr;
+                        }
+                        
+                        float quaternionDE(vec3 pos, int iterations) {
+                            vec4 c = vec4(pos, 0.0);
+                            vec4 z = c;
+                            float dr = 1.0;
+                            float r = 0.0;
+                            
+                            for (int i = 0; i < 30; i++) {
+                                if (i >= iterations) break;
+                                
+                                r = length(z);
+                                if (r > 2.0) break;
+                                
+                                dr = 2.0 * r * dr + 1.0;
+                                
+                                // Quaternion multiplication
+                                float x = z.x, y = z.y, zz = z.z, w = z.w;
+                                z = vec4(
+                                    x*x - y*y - zz*zz - w*w,
+                                    2.0*x*y,
+                                    2.0*x*zz,
+                                    2.0*x*w
+                                ) + c;
+                            }
+                            
+                            return 0.5 * log(r) * r / dr;
+                        }
+                        
+                        float mengerSpongeDE(vec3 p, int iterations) {
+                            float scale = 3.0;
+                            vec3 offset = vec3(1.0);
+                            
+                            for (int i = 0; i < 20; i++) {
+                                if (i >= iterations / 2) break;
+                                
+                                p = abs(p) - offset;
+                                if (p.x < p.y) p.xy = p.yx;
+                                if (p.x < p.z) p.xz = p.zx;
+                                if (p.y < p.z) p.yz = p.zy;
+                                
+                                p = p * scale - offset * (scale - 1.0);
+                                if (p.z < -0.5) p.z += scale - 1.0;
+                            }
+                            
+                            return (length(p) - 2.0) * pow(scale, -float(iterations / 2));
+                        }
+                        
+                        float sierpinskiDE(vec3 p, int iterations) {
+                            float scale = 2.0;
+                            
+                            for (int i = 0; i < 20; i++) {
+                                if (i >= iterations / 2) break;
+                                
+                                p = abs(p);
+                                if (p.x - p.y < 0.0) p.xy = p.yx;
+                                if (p.x - p.z < 0.0) p.xz = p.zx;
+                                if (p.y - p.z < 0.0) p.yz = p.zy;
+                                
+                                p = p * scale - vec3(1.0) * (scale - 1.0);
+                            }
+                            
+                            return length(p) * pow(scale, -float(iterations / 2));
+                        }
+                        
+                        float map(vec3 pos, int iterations) {
+                            if (fractalType == 0) return mandelbulbDE(pos, iterations);
+                            else if (fractalType == 1) return juliaDE(pos, iterations);
+                            else if (fractalType == 2) return quaternionDE(pos, iterations);
+                            else if (fractalType == 3) return mengerSpongeDE(pos, iterations);
+                            else if (fractalType == 4) return sierpinskiDE(pos, iterations);
+                            else return mandelbulbDE(pos, iterations);
+                        }
+                        
+                        vec3 palette(float t) {
+                            vec3 a = vec3(0.5, 0.5, 0.5);
+                            vec3 b = vec3(0.5, 0.5, 0.5);
+                            vec3 c = vec3(1.0, 1.0, 1.0);
+                            vec3 d = vec3(colorOffset, 0.33, 0.67);
+                            
+                            return a + b * cos(6.28318 * (c * t + d));
+                        }
+                        
+                        void main() {
+                            vec3 rayDir = normalize(vPosition - cameraPosition);
+                            vec3 rayOrigin = cameraPosition * zoom;
+                            
+                            float totalDist = 0.0;
+                            vec3 pos = rayOrigin;
+                            float dist = 0.0;
+                            int steps;
+                            int maxSteps = detail * 2;
+                            
+                            for (steps = 0; steps < 60; steps++) {
+                                if (steps > maxSteps) break;
+                                dist = map(pos, detail);
+                                totalDist += dist;
+                                pos += rayDir * dist;
+                                
+                                if (dist < 0.001) break;
+                                if (totalDist > 20.0) break;
+                            }
+                            
+                            // Calculate glow and color
+                            float glow = 1.0 - float(steps) / 60.0;
+                            vec3 normal = vec3(0.0, 1.0, 0.0); // Simplified normal
+                            
+                            // Lighting
+                            vec3 lightDir = normalize(vec3(1.0, 1.0, 1.0));
+                            float diffuse = max(dot(normal, lightDir), 0.1);
+                            float specular = pow(max(dot(reflect(-lightDir, normal), -rayDir), 0.0), 16.0);
+                            
+                            // Color based on position and time
+                            float colorT = length(pos) * 0.1 + time * 0.05;
+                            vec3 baseColor = palette(colorT);
+                            
+                            // Final color
+                            vec3 color = baseColor * diffuse + vec3(1.0) * specular * 0.2;
+                            color += baseColor * glow * 0.5;
+                            color *= colorIntensity;
+                            
+                            // Fog
+                            float fogFactor = exp(-totalDist * 0.1);
+                            color = mix(vec3(0.0, 0.05, 0.1), color, fogFactor);
+                            
+                            gl_FragColor = vec4(color, 1.0);
+                        }
+                    `,
+                    side: THREE.BackSide
+                });
+                
+                this.fractalMesh = new THREE.Mesh(geometry, this.fractalMaterial);
+                this.scene.add(this.fractalMesh);
+            }
+            
+            getFractalTypeIndex() {
+                const types = ['mandelbulb', 'julia', 'quaternion', 'menger', 'sierpinski', 'apollonian', 'kaleido', 'mandelbox'];
+                return types.indexOf(this.fractalType);
+            }
+            
+            initUI() {
+                // Sliders
+                const detailSlider = document.getElementById('detailSlider');
+                const colorSlider = document.getElementById('colorSlider');
+                const speedSlider = document.getElementById('speedSlider');
+                
+                detailSlider.value = this.detailLevel;
+                colorSlider.value = this.colorIntensity;
+                speedSlider.value = this.animationSpeed;
+                
+                detailSlider.addEventListener('input', (e) => {
+                    this.detailLevel = parseInt(e.target.value);
+                    document.getElementById('detailValue').textContent = this.detailLevel;
+                    if (this.fractalMaterial) {
+                        this.fractalMaterial.uniforms.detail.value = this.detailLevel;
+                    }
+                });
+                
+                colorSlider.addEventListener('input', (e) => {
+                    this.colorIntensity = parseFloat(e.target.value);
+                    document.getElementById('colorValue').textContent = this.colorIntensity.toFixed(1);
+                    if (this.fractalMaterial) {
+                        this.fractalMaterial.uniforms.colorIntensity.value = this.colorIntensity;
+                    }
+                });
+                
+                speedSlider.addEventListener('input', (e) => {
+                    this.animationSpeed = parseFloat(e.target.value);
+                    document.getElementById('speedValue').textContent = this.animationSpeed.toFixed(1);
+                });
+                
+                // Buttons
+                document.getElementById('autoExploreBtn').addEventListener('click', () => {
+                    this.toggleAutoExplore();
+                });
+                
+                document.getElementById('nextStepBtn').addEventListener('click', () => {
+                    this.performStep();
+                });
+                
+                document.getElementById('resetViewBtn').addEventListener('click', () => {
+                    this.resetView();
+                });
+                
+                document.getElementById('screenshotBtn').addEventListener('click', () => {
+                    this.takeScreenshot();
+                });
+                
+                document.getElementById('toggleUI').addEventListener('click', () => {
+                    this.toggleUI();
+                });
+                
+                document.getElementById('presetBtn').addEventListener('click', () => {
+                    this.togglePresetMenu();
+                });
+                
+                document.getElementById('helpBtn').addEventListener('click', () => {
+                    this.showHelp();
+                });
+                
+                document.getElementById('fullscreenBtn').addEventListener('click', () => {
+                    this.toggleFullscreen();
+                });
+                
+                document.getElementById('closeHelpBtn').addEventListener('click', () => {
+                    this.hideHelp();
+                });
+                
+                // Preset items
+                document.querySelectorAll('.preset-item').forEach(item => {
+                    item.addEventListener('click', (e) => {
+                        const preset = e.target.dataset.preset;
+                        this.changeFractal(preset);
+                        
+                        // Update active state
+                        document.querySelectorAll('.preset-item').forEach(i => {
+                            i.classList.remove('active');
+                        });
+                        e.target.classList.add('active');
+                        
+                        this.togglePresetMenu();
+                    });
+                });
+                
+                // Close preset menu when clicking outside
+                document.addEventListener('click', (e) => {
+                    const presetBtn = document.getElementById('presetBtn');
+                    const presetSelector = document.getElementById('presetSelector');
+                    
+                    if (!presetBtn.contains(e.target) && !presetSelector.contains(e.target)) {
+                        presetSelector.style.display = 'none';
+                        this.presetMenuOpen = false;
+                    }
+                });
+                
+                // Touch/Mouse interactions for visual feedback
+                this.setupInteractions();
+            }
+            
+            toggleAutoExplore() {
+                this.autoExploreActive = !this.autoExploreActive;
+                const btn = document.getElementById('autoExploreBtn');
+                const indicator = document.getElementById('autoExploreIndicator');
+                
+                if (this.autoExploreActive) {
+                    btn.classList.add('active');
+                    btn.innerHTML = '<span>⏸</span> Stop Explore';
+                    indicator.style.display = 'block';
+                    this.stepCount = 0;
+                    document.getElementById('stepIndicator').style.display = 'block';
+                } else {
+                    btn.classList.remove('active');
+                    btn.innerHTML = '<span>▶</span> Auto Explore';
+                    indicator.style.display = 'none';
+                }
+            }
+            
+            performStep() {
+                this.stepCount++;
+                document.getElementById('stepNumber').textContent = this.stepCount;
+                
+                // Random zoom and rotation for exploration
+                this.zoomDepth *= 1.1;
+                if (this.fractalMesh) {
+                    this.fractalMesh.rotation.y += 0.1;
+                    this.fractalMesh.rotation.x += 0.05;
+                }
+                
+                if (this.fractalMaterial) {
+                    this.fractalMaterial.uniforms.zoom.value = this.zoomDepth;
+                    this.fractalMaterial.uniforms.colorOffset.value += 0.1;
+                }
+                
+                this.updateDepthText();
+                this.showVisualFeedback('zoom');
+            }
+            
+            resetView() {
+                this.zoomDepth = 1.0;
+                this.stepCount = 0;
+                this.autoExploreActive = false;
+                
+                if (this.fractalMesh) {
+                    this.fractalMesh.rotation.set(0, 0, 0);
+                }
+                
+                if (this.fractalMaterial) {
+                    this.fractalMaterial.uniforms.zoom.value = 1.0;
+                    this.fractalMaterial.uniforms.colorOffset.value = 0.0;
+                }
+                
+                document.getElementById('autoExploreBtn').classList.remove('active');
+                document.getElementById('autoExploreBtn').innerHTML = '<span>▶</span> Auto Explore';
+                document.getElementById('autoExploreIndicator').style.display = 'none';
+                document.getElementById('stepIndicator').style.display = 'none';
+                
+                this.updateDepthText();
+                this.showVisualFeedback('reset');
+            }
+            
+            changeFractal(preset) {
+                this.fractalType = preset;
+                
+                // Update UI
+                const names = {
+                    'mandelbulb': 'Mandelbulb 3D',
+                    'julia': 'Julia Set 3D',
+                    'quaternion': 'Quaternion Fractal',
+                    'menger': 'Menger Sponge',
+                    'sierpinski': 'Sierpinski Tetrahedron',
+                    'apollonian': 'Apollonian Gasket',
+                    'kaleido': 'Kaleidoscope',
+                    'mandelbox': 'Mandelbox'
+                };
+                
+                document.getElementById('fractalName').textContent = names[preset] || preset;
+                
+                // Update shader uniform
+                if (this.fractalMaterial) {
+                    this.fractalMaterial.uniforms.fractalType.value = this.getFractalTypeIndex();
+                }
+                
+                this.showVisualFeedback('fractalChange');
+            }
+            
+            toggleUI() {
+                this.uiVisible = !this.uiVisible;
+                const topBar = document.getElementById('topBar');
+                const bottomControls = document.getElementById('bottomControls');
+                
+                if (this.uiVisible) {
+                    topBar.classList.remove('hidden');
+                    bottomControls.classList.remove('hidden');
+                } else {
+                    topBar.classList.add('hidden');
+                    bottomControls.classList.add('hidden');
+                }
+                
+                document.getElementById('presetSelector').style.display = 'none';
+                this.presetMenuOpen = false;
+            }
+            
+            togglePresetMenu() {
+                this.presetMenuOpen = !this.presetMenuOpen;
+                document.getElementById('presetSelector').style.display = 
+                    this.presetMenuOpen ? 'block' : 'none';
+            }
+            
+            showHelp() {
+                document.getElementById('helpOverlay').style.display = 'flex';
+            }
+            
+            hideHelp() {
+                document.getElementById('helpOverlay').style.display = 'none';
+            }
+            
+            toggleFullscreen() {
+                if (!document.fullscreenElement) {
+                    document.documentElement.requestFullscreen().catch(err => {
+                        console.log(`Error attempting to enable fullscreen: ${err.message}`);
+                    });
+                } else {
+                    if (document.exitFullscreen) {
+                        document.exitFullscreen();
+                    }
+                }
+            }
+            
+            takeScreenshot() {
+                this.renderer.domElement.toBlob(blob => {
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `fractal-${Date.now()}.png`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                }, 'image/png', 1.0);
+                
+                this.showVisualFeedback('screenshot');
+            }
+            
+            showVisualFeedback(type) {
+                const feedback = document.getElementById('visualFeedback');
+                
+                if (type === 'zoom') {
+                    const div = document.createElement('div');
+                    div.className = 'zoom-feedback';
+                    div.style.left = '50%';
+                    div.style.top = '50%';
+                    div.style.transform = 'translate(-50%, -50%)';
+                    feedback.appendChild(div);
+                    
+                    setTimeout(() => div.remove(), 500);
+                } else if (type === 'touch') {
+                    // Touch feedback is handled in setupInteractions
+                } else if (type === 'fractalChange') {
+                    // Flash effect
+                    document.body.style.backgroundColor = '#64c8ff';
+                    setTimeout(() => {
+                        document.body.style.backgroundColor = '#000';
+                    }, 100);
+                }
+            }
+            
+            setupInteractions() {
+                const canvas = this.renderer.domElement;
+                let touchStartTime = 0;
+                
+                // Touch interactions
+                canvas.addEventListener('touchstart', (e) => {
+                    touchStartTime = Date.now();
+                    
+                    // Show touch indicators
+                    Array.from(e.touches).forEach(touch => {
+                        const div = document.createElement('div');
+                        div.className = 'touch-indicator';
+                        div.style.left = `${touch.clientX - 15}px`;
+                        div.style.top = `${touch.clientY - 15}px`;
+                        document.getElementById('visualFeedback').appendChild(div);
+                        
+                        setTimeout(() => div.remove(), 300);
+                    });
+                });
+                
+                canvas.addEventListener('touchmove', (e) => {
+                    e.preventDefault();
+                });
+                
+                // Double tap to toggle UI
+                canvas.addEventListener('touchend', (e) => {
+                    const touchDuration = Date.now() - touchStartTime;
+                    if (touchDuration < 300 && e.touches.length === 0) {
+                        // Double tap detection
+                        this.toggleUI();
+                    }
+                });
+                
+                // Mouse interactions
+                canvas.addEventListener('dblclick', () => {
+                    this.toggleUI();
+                });
+                
+                // Prevent context menu
+                canvas.addEventListener('contextmenu', (e) => {
+                    e.preventDefault();
+                });
+            }
+            
+            updateDepthText() {
+                document.getElementById('depthValue').textContent = this.zoomDepth.toFixed(1) + 'x';
+            }
+            
+            updatePerformance(fps, renderTime) {
+                document.getElementById('fpsCounter').textContent = `${fps} FPS`;
+                
+                // Color code FPS
+                const fpsElement = document.getElementById('fpsCounter');
+                fpsElement.className = 'fps-counter ';
+                if (fps >= 50) fpsElement.classList.add('fps-good');
+                else if (fps >= 30) fpsElement.classList.add('fps-medium');
+                else fpsElement.classList.add('fps-low');
+                
+                // Update quality indicator
+                document.getElementById('qualityIndicator').textContent = 
+                    this.qualityLevel.charAt(0).toUpperCase() + this.qualityLevel.slice(1) + ' Quality';
+            }
+            
+            onResize() {
+                this.camera.aspect = window.innerWidth / window.innerHeight;
+                this.camera.updateProjectionMatrix();
+                this.renderer.setSize(window.innerWidth, window.innerHeight);
+            }
+            
+            onVisibilityChange() {
+                if (document.hidden) {
+                    // Reduce processing when tab is not visible
+                    this.targetFPS = 10;
+                } else {
+                    this.targetFPS = this.qualityLevel === 'low' ? 30 : 
+                                   this.qualityLevel === 'medium' ? 45 : 60;
+                }
+                this.frameTime = 1000 / this.targetFPS;
+            }
+            
+            animate(currentTime = 0) {
+                requestAnimationFrame((time) => this.animate(time));
+                
+                // Throttle frame rate
+                const delta = currentTime - this.lastFrameTime;
+                if (delta < this.frameTime) return;
+                
+                this.lastFrameTime = currentTime;
+                
+                // Update FPS counter
+                this.frameCount++;
+                if (currentTime - this.lastFpsUpdate >= 1000) {
+                    this.fps = Math.round((this.frameCount * 1000) / (currentTime - this.lastFpsUpdate));
+                    this.frameCount = 0;
+                    this.lastFpsUpdate = currentTime;
+                    this.updatePerformance(this.fps, this.renderTime);
+                }
+                
+                // Measure render time
+                const renderStart = performance.now();
+                
+                // Update time uniform
+                if (this.fractalMaterial) {
+                    this.fractalMaterial.uniforms.time.value = currentTime * 0.001 * this.animationSpeed;
+                }
+                
+                // Auto exploration logic
+                if (this.autoExploreActive) {
+                    this.performAutoExplore();
+                }
+                
+                // Rotate fractal slowly
+                if (this.fractalMesh) {
+                    this.fractalMesh.rotation.y += 0.001 * this.animationSpeed;
+                    this.fractalMesh.rotation.x += 0.0005 * this.animationSpeed;
+                }
+                
+                // Render
+                this.renderer.render(this.scene, this.camera);
+                
+                // Calculate render time
+                this.renderTime = performance.now() - renderStart;
+            }
+            
+            performAutoExplore() {
+                // Automatic exploration algorithm
+                this.stepCount++;
+                document.getElementById('stepNumber').textContent = this.stepCount;
+                
+                // Gradually increase zoom
+                this.zoomDepth *= 1.01;
+                
+                // Change color offset slowly
+                if (this.fractalMaterial) {
+                    this.fractalMaterial.uniforms.zoom.value = this.zoomDepth;
+                    this.fractalMaterial.uniforms.colorOffset.value += 0.005;
+                    
+                    // Occasionally change detail level
+                    if (this.stepCount % 100 === 0 && this.detailLevel < 16) {
+                        this.detailLevel++;
+                        this.fractalMaterial.uniforms.detail.value = this.detailLevel;
+                        document.getElementById('detailValue').textContent = this.detailLevel;
+                        document.getElementById('detailSlider').value = this.detailLevel;
+                    }
+                }
+                
+                this.updateDepthText();
+                
+                // Show occasional visual feedback
+                if (this.stepCount % 50 === 0) {
+                    this.showVisualFeedback('zoom');
+                }
+            }
+        }
+        
+        // Initialize the fractal explorer when page loads
+        window.addEventListener('DOMContentLoaded', () => {
+            // Prevent multiple initializations
+            if (!window.fractalExplorer) {
+                window.fractalExplorer = new FractalExplorer();
+            }
+        });
+        
+        // Handle fullscreen changes
+        document.addEventListener('fullscreenchange', () => {
+            if (window.fractalExplorer) {
+                window.fractalExplorer.onResize();
+            }
+        });
+    </script>
+</body>
+</html>

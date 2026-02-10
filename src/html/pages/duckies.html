@@ -1,0 +1,328 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Duck Hunter | Final Living World</title>
+<style>
+html,body{
+  margin:0;overflow:hidden;
+  background:#0b1220;
+  touch-action:manipulation;
+}
+#hud{
+  position:fixed;top:12px;left:12px;right:12px;
+  display:flex;justify-content:space-between;
+  color:#f8fafc;font-family:system-ui;
+  font-weight:600;z-index:10;
+  text-shadow:0 2px 6px #000;
+}
+#crosshair{
+  position:fixed;top:50%;left:50%;
+  width:46px;height:46px;
+  border:2px solid #67e8f9;
+  border-radius:50%;
+  transform:translate(-50%,-50%);
+  pointer-events:none;
+  box-shadow:0 0 20px #22d3ee;
+}
+</style>
+</head>
+<body>
+
+<div id="hud">
+  <div>🎯 Score: <span id="score">0</span></div>
+  <div>🦆 Ducks: <span id="ducks">0</span></div>
+</div>
+<div id="crosshair"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+<script>
+/* ================= SCENE ================= */
+const scene=new THREE.Scene();
+scene.fog=new THREE.FogExp2(0x2b1220,0.0025);
+
+/* ================= CAMERA ================= */
+const camera=new THREE.PerspectiveCamera(60,innerWidth/innerHeight,0.1,300);
+camera.position.set(0,3,45);
+
+/* ================= RENDERER ================= */
+const renderer=new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(innerWidth,innerHeight);
+renderer.setPixelRatio(devicePixelRatio);
+renderer.outputColorSpace=THREE.SRGBColorSpace;
+document.body.appendChild(renderer.domElement);
+
+/* ================= LIGHT ================= */
+scene.add(new THREE.HemisphereLight(0x9cd6ff,0x0b3d2e,0.9));
+const sun=new THREE.DirectionalLight(0xf0f1d1,1.2);
+sun.position.set(0,12,0);
+scene.add(sun);
+const sun1=new THREE.DirectionalLight(0xf0f1a1,1.4);
+sun1.position.set(6,12,6);
+scene.add(sun1);
+const sun2=new THREE.DirectionalLight(0xe0e191,1.6);
+sun2.position.set(-6,12,-6);
+scene.add(sun2);
+
+/* ================= SKY ================= */
+const sky=new THREE.Mesh(
+  new THREE.SphereGeometry(120,32,32),
+  new THREE.MeshBasicMaterial({color:0x1e3a8a,side:THREE.BackSide})
+);
+scene.add(sky);
+
+/* ================= CLOUDS ================= */
+const clouds=[];
+for(let i=0;i<10;i++){
+  const c=new THREE.Mesh(
+    new THREE.PlaneGeometry(10,4),
+    new THREE.MeshBasicMaterial({
+      color:0xe0f2fe,transparent:true,opacity:0.18
+    })
+  );
+  c.position.set(Math.random()*50-25,Math.random()*6+6,Math.random()*-40);
+  scene.add(c);clouds.push(c);
+}
+
+/* ================= GROUND ================= */
+const ground=new THREE.Mesh(
+  new THREE.PlaneGeometry(300,100),
+  new THREE.MeshStandardMaterial({color:0x14532d,roughness:0.9})
+);
+ground.rotation.x=-Math.PI/2;
+ground.position.y=-2.5;
+scene.add(ground);
+
+/* ================= WIND FIELD ================= */
+function wind(x,y,t){
+  return {
+    x:Math.sin(t*0.001+y)*0.04,
+    y:Math.cos(t*0.001+x)*0.02
+  };
+}
+
+/* ================= DUCK SHADER ================= */
+function duckShader(color){
+  return new THREE.ShaderMaterial({
+    uniforms:{
+      time:{value:0},
+      baseColor:{value:new THREE.Color(color)},
+      lightDir:{value:new THREE.Vector3(0.4,1,0.6).normalize()}
+    },
+    vertexShader:`
+      uniform float time;
+      varying vec3 vNormal;
+      varying vec3 vPos;
+      void main(){
+        vNormal=normal;
+        vec3 pos=position;
+        pos+=normal*sin(time*3.0+position.y*6.0)*0.03;
+        vPos=pos;
+        gl_Position=projectionMatrix*modelViewMatrix*vec4(pos,1.0);
+      }
+    `,
+    fragmentShader:`
+      uniform vec3 baseColor;
+      uniform vec3 lightDir;
+      varying vec3 vNormal;
+      varying vec3 vPos;
+      void main(){
+        float light=max(dot(normalize(vNormal),lightDir),0.0);
+        float feather=sin(vPos.y*20.0)*0.04;
+        vec3 col=baseColor+feather;
+        col*=light*1.4+0.4;
+        gl_FragColor=vec4(col,1.0);
+      }
+    `
+  });
+}
+
+/* ================= WING ================= */
+function createWing(color=0xffbb99,side,size=1){
+  const wing=new THREE.Mesh(
+    new THREE.PlaneGeometry(1.2,0.6,6,1),
+    new THREE.MeshStandardMaterial({
+      color:color,transparent:true,opacity:0.85,
+      side:THREE.DoubleSide
+    })
+  );
+  wing.scale.set(1.2,0.8,1.44);
+  wing.position.x=side*0.7*size;
+  wing.rotation.x=side*Math.PI/3;
+  wing.rotation.y= side*Math.PI/3;
+  wing.rotation.z=side*Math.PI/3;
+
+  return wing;
+}
+
+/* ================= DUCK TYPES ================= */
+const duckTypes=[
+ {color:0x62d3ae,speed:0.0041,score:80,size:1,head:0x32c3ad},
+ {color:0x3a6fc5,speed:0.0033,score:65,size:0.8,head:0x199d16},
+ {color:0xa9a3a6,speed:0.0025,score:70,size:0.6,head:0xc2c811}
+];
+
+const ducks=[],particles=[];
+let score=0;
+
+/* ================= CREATE DUCK ================= */
+function createDuck(){
+  const type=duckTypes[Math.floor(Math.random()*duckTypes.length)];
+  const g=new THREE.Group();
+
+  const body=new THREE.Mesh(
+    new THREE.SphereGeometry(0.5*type.size,32,32),
+    duckShader(type.color)
+  );
+  body.scale.set(0.9,1.0,1.9);
+  g.add(body);
+
+  const head=new THREE.Mesh(
+    new THREE.SphereGeometry(0.25*type.size,24,24),
+    duckShader(type.head)
+  );
+  head.position.set(1.7*type.size*0,0.5*type.size,type.size*0.95);
+  head.scale.set(0.8,1.1,1.66);
+  g.add(head);
+  
+ const head1=new THREE.Mesh(
+    new THREE.SphereGeometry(0.25*type.size,24,24),
+    duckShader(0xffff00)
+  );
+  head1.position.set(1.7*type.size*0,0.5*type.size,type.size*1.15);
+  head1.scale.set(0.8,0.41,1.66);
+  g.add(head1);
+
+  const lw=createWing(type.head,-1,type.size), rw=createWing(type.head,1,type.size);
+  lw.scale.set(1.44*type.size,type.size,type.size*1.44);
+  rw.scale.set(1.44*type.size,type.size,type.size*1.44);
+  g.add(lw,rw);
+
+  const curve=new THREE.CatmullRomCurve3([
+    new THREE.Vector3(-2+Math.random()*-2,-2,32+Math.random()*5),
+    new THREE.Vector3(3,-1,30),
+    new THREE.Vector3(-2+Math.random()*-2,1+Math.random()*1,23+Math.random()*8),
+    new THREE.Vector3(3,1.5,21),
+
+    new THREE.Vector3(-4+Math.random()*4,2+Math.random()*2,20-Math.random()*3),
+ new THREE.Vector3(5+Math.random()*-4,2.5+Math.random()*2,16-Math.random()*+3),
+    new THREE.Vector3(Math.random()*4,3+Math.random()*-2,15-Math.random()*5),
+  new THREE.Vector3(Math.random()*-4,3.5+Math.random()*2,12-Math.random()*6)
+  ]);
+
+  g.position.copy(curve.getPointAt(0));
+  g.userData={
+    t:0,curve,
+    speed:type.speed+0.0003*(0.5-Math.random()),
+    wings:[lw,rw],
+    hit:false,
+    score:type.score,
+    size:type.size,
+    mats:[body.material,head.material]
+  };
+  scene.add(g);ducks.push(g);
+}
+
+/* ================= HIT EFFECT ================= */
+function hitEffect(pos,size){
+  for(let i=0;i<Math.round(30*size);i++){
+    const p=new THREE.Mesh(
+      new THREE.SphereGeometry(0.05),
+      new THREE.MeshBasicMaterial({color:0xfef08a})
+    );
+    p.position.copy(pos);
+    p.userData={
+      vx:(Math.random()-.5)*0.3,
+      vy:Math.random()*0.3,
+      life:40
+    };
+    scene.add(p);particles.push(p);
+  }
+}
+
+/* ================= INPUT ================= */
+const raycaster=new THREE.Raycaster();
+const pointer=new THREE.Vector2();
+addEventListener('pointerdown',e=>{
+  pointer.x=(e.clientX/innerWidth)*2-1;
+  pointer.y=-(e.clientY/innerHeight)*2+1;
+  raycaster.setFromCamera(pointer,camera);
+  const hit=raycaster.intersectObjects(ducks,true);
+  if(hit.length){
+    const d=hit[0].object.parent;
+    if(!d.userData.hit){
+      d.userData.hit=true;
+      hitEffect(d.position,d.userData.size);
+      score+=d.userData.score;
+      document.getElementById('score').textContent=score;
+      navigator.vibrate?.(40);
+    }
+  }
+});
+
+
+
+/* ================= LOOP ================= */
+let lastSpawn=0;
+function animate(t){
+  requestAnimationFrame(animate);
+
+  clouds.forEach(c=>c.position.x+=0.01);
+
+  if(t-lastSpawn>1200){createDuck();lastSpawn=t;}
+
+  ducks.forEach(d=>{
+    d.userData.mats.forEach(m=>m.uniforms.time.value=t*0.001);
+    const w=wind(d.position.x,d.position.y,t);
+
+    if(!d.userData.hit){
+      d.userData.t+=d.userData.speed;
+      const p=d.userData.curve.getPointAt(d.userData.t%1);
+      d.position.copy(p);
+      d.position.x+=w.x; d.position.y+=w.y;
+      d.lookAt(d.userData.curve.getPointAt((d.userData.t+0.01)%1));
+
+      const flap=Math.sin(t*0.02+d.position.x)*0.6;
+      d.userData.wings[0].rotation.y= flap+w.y;
+      d.userData.wings[0].rotation.x= flap-w.x;
+      d.userData.wings[1].rotation.y= flap+w.y;
+      d.userData.wings[1].rotation.x= flap+w.x;
+    }else{
+      d.position.y-=0.12;
+      d.position.x+=w.x*2;
+      d.rotation.z+=0.15;
+    }
+  });
+
+  for(let i=particles.length-1;i>=0;i--){
+    const p=particles[i];
+    p.position.x+=p.userData.vx;
+    p.position.y+=p.userData.vy;
+    p.userData.vy-=0.01;
+    p.userData.life--;
+    if(p.userData.life<=0){
+      scene.remove(p);particles.splice(i,1);
+    }
+  }
+
+  for(let i=ducks.length-1;i>=0;i--){
+    if(ducks[i].position.y<-6){
+      scene.remove(ducks[i]);ducks.splice(i,1);
+    }
+  }
+
+  document.getElementById('ducks').textContent=ducks.length;
+  renderer.render(scene,camera);
+}
+animate();
+
+/* ================= RESIZE ================= */
+addEventListener('resize',()=>{
+  camera.aspect=innerWidth/innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth,innerHeight);
+});
+</script>
+</body>
+</html>

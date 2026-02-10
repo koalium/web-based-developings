@@ -1,0 +1,2030 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Nexus Fractal Explorer</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: none;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+        
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: #000000;
+            color: #ffffff;
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+            position: fixed;
+            overscroll-behavior: none;
+        }
+        
+        #canvas-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+            background: radial-gradient(circle at center, #001122 0%, #000000 100%);
+        }
+        
+        /* Floating UI Buttons */
+        .ui-floating-btn {
+            position: absolute;
+            z-index: 100;
+            background: rgba(0, 20, 40, 0.9);
+            backdrop-filter: blur(20px);
+            border: 2px solid rgba(0, 255, 204, 0.3);
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+            color: #00ffcc;
+            font-size: 1.5rem;
+        }
+        
+        .ui-floating-btn:hover {
+            transform: scale(1.1);
+            background: rgba(0, 40, 80, 0.95);
+            border-color: #00ffcc;
+            box-shadow: 0 0 30px rgba(0, 255, 204, 0.5);
+        }
+        
+        .ui-floating-btn:active {
+            transform: scale(0.95);
+        }
+        
+        #btn-menu {
+            top: 20px;
+            left: 20px;
+        }
+        
+        #btn-fractals {
+            top: 20px;
+            right: 20px;
+        }
+        
+        #btn-controls {
+            bottom: 20px;
+            right: 20px;
+        }
+        
+        #btn-visuals {
+            bottom: 20px;
+            left: 20px;
+        }
+        
+        #btn-fullscreen {
+            top: 90px;
+            left: 20px;
+        }
+        
+        #btn-help {
+            top: 90px;
+            right: 20px;
+        }
+        
+        /* UI Panels (Hidden by default) */
+        .ui-panel {
+            position: absolute;
+            z-index: 99;
+            background: rgba(0, 15, 30, 0.95);
+            backdrop-filter: blur(30px);
+            border: 1px solid rgba(0, 255, 204, 0.2);
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            overflow: hidden;
+            opacity: 0;
+            visibility: hidden;
+            transform: scale(0.95);
+        }
+        
+        .ui-panel.active {
+            opacity: 1;
+            visibility: visible;
+            transform: scale(1);
+        }
+        
+        .panel-header {
+            padding: 20px;
+            border-bottom: 1px solid rgba(0, 255, 204, 0.2);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(0, 30, 60, 0.5);
+        }
+        
+        .panel-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #00ffcc;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .panel-close {
+            background: none;
+            border: none;
+            color: #88aaff;
+            font-size: 1.5rem;
+            cursor: pointer;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+        
+        .panel-close:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: #00ffcc;
+        }
+        
+        .panel-content {
+            padding: 20px;
+            max-height: 70vh;
+            overflow-y: auto;
+        }
+        
+        /* Main Menu Panel */
+        #panel-menu {
+            top: 100px;
+            left: 20px;
+            width: 300px;
+            max-width: calc(100vw - 40px);
+        }
+        
+        .menu-item {
+            padding: 15px;
+            margin: 10px 0;
+            background: rgba(0, 40, 80, 0.3);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 1px solid transparent;
+        }
+        
+        .menu-item:hover {
+            background: rgba(0, 60, 120, 0.5);
+            transform: translateX(5px);
+            border-color: rgba(0, 255, 204, 0.3);
+        }
+        
+        .menu-item:active {
+            transform: translateX(2px);
+        }
+        
+        .menu-icon {
+            font-size: 1.5rem;
+            color: #00ffcc;
+        }
+        
+        .menu-text {
+            flex: 1;
+        }
+        
+        .menu-badge {
+            background: rgba(0, 255, 204, 0.2);
+            color: #00ffcc;
+            padding: 4px 8px;
+            border-radius: 10px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+        
+        /* Fractal Selection Panel */
+        #panel-fractals {
+            top: 100px;
+            right: 20px;
+            width: 350px;
+            max-width: calc(100vw - 40px);
+        }
+        
+        .fractal-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 15px;
+        }
+        
+        .fractal-card {
+            background: rgba(0, 30, 60, 0.4);
+            border-radius: 12px;
+            padding: 15px;
+            cursor: pointer;
+            transition: all 0.3s;
+            border: 2px solid transparent;
+            text-align: center;
+        }
+        
+        .fractal-card:hover {
+            background: rgba(0, 60, 120, 0.6);
+            transform: translateY(-5px);
+        }
+        
+        .fractal-card.active {
+            background: rgba(0, 100, 200, 0.4);
+            border-color: #00ffcc;
+            box-shadow: 0 10px 30px rgba(0, 255, 204, 0.2);
+        }
+        
+        .fractal-icon {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .fractal-name {
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+        
+        .fractal-desc {
+            font-size: 0.8rem;
+            opacity: 0.8;
+        }
+        
+        /* Controls Panel */
+        #panel-controls {
+            bottom: 100px;
+            right: 20px;
+            width: 400px;
+            max-width: calc(100vw - 40px);
+        }
+        
+        .control-group {
+            margin-bottom: 25px;
+        }
+        
+        .group-title {
+            font-size: 1rem;
+            font-weight: 600;
+            color: #88ccff;
+            margin-bottom: 15px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid rgba(0, 255, 204, 0.1);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .control-item {
+            margin-bottom: 15px;
+        }
+        
+        .control-label {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        
+        .control-name {
+            color: #aaddff;
+            font-size: 0.95rem;
+        }
+        
+        .control-value {
+            color: #00ffcc;
+            font-weight: 600;
+            font-family: 'Courier New', monospace;
+            min-width: 60px;
+            text-align: right;
+        }
+        
+        .slider-container {
+            position: relative;
+            height: 30px;
+        }
+        
+        input[type="range"] {
+            width: 100%;
+            height: 8px;
+            -webkit-appearance: none;
+            background: linear-gradient(to right, #003366, #00aaff, #00ffcc);
+            border-radius: 4px;
+            outline: none;
+            margin: 0;
+        }
+        
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: #ffffff;
+            cursor: pointer;
+            border: 2px solid #00ffcc;
+            box-shadow: 0 0 15px rgba(0, 255, 204, 0.8);
+            transition: transform 0.1s;
+        }
+        
+        input[type="range"]::-webkit-slider-thumb:active {
+            transform: scale(1.2);
+        }
+        
+        .button-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 12px;
+            margin-top: 20px;
+        }
+        
+        .panel-btn {
+            padding: 14px;
+            border-radius: 12px;
+            border: none;
+            background: linear-gradient(135deg, rgba(0, 170, 255, 0.9), rgba(0, 255, 204, 0.9));
+            color: white;
+            font-weight: 600;
+            font-size: 0.95rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        
+        .panel-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 170, 255, 0.4);
+        }
+        
+        .panel-btn:active {
+            transform: translateY(0);
+        }
+        
+        /* Visuals Panel */
+        #panel-visuals {
+            bottom: 100px;
+            left: 20px;
+            width: 350px;
+            max-width: calc(100vw - 40px);
+        }
+        
+        .color-palette {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        
+        .color-swatch {
+            aspect-ratio: 1;
+            border-radius: 10px;
+            cursor: pointer;
+            border: 3px solid transparent;
+            transition: all 0.2s;
+        }
+        
+        .color-swatch:hover {
+            transform: scale(1.1);
+        }
+        
+        .color-swatch.active {
+            border-color: white;
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
+        }
+        
+        /* Help Panel */
+        #panel-help {
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 90%;
+            max-width: 600px;
+            max-height: 80vh;
+        }
+        
+        .help-section {
+            margin-bottom: 25px;
+        }
+        
+        .help-title {
+            color: #00ffcc;
+            font-size: 1.1rem;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .help-content {
+            background: rgba(0, 30, 60, 0.3);
+            padding: 15px;
+            border-radius: 10px;
+            font-size: 0.95rem;
+            line-height: 1.6;
+        }
+        
+        /* HUD Elements */
+        .hud-element {
+            position: absolute;
+            z-index: 50;
+            background: rgba(0, 20, 40, 0.7);
+            backdrop-filter: blur(10px);
+            border-radius: 10px;
+            padding: 12px 16px;
+            border: 1px solid rgba(0, 255, 204, 0.2);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+            transition: all 0.3s;
+        }
+        
+        #hud-info {
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            min-width: 200px;
+            text-align: center;
+        }
+        
+        #hud-fps {
+            top: 20px;
+            right: 100px;
+            font-family: 'Courier New', monospace;
+            font-weight: 600;
+            color: #00ffcc;
+        }
+        
+        #hud-zoom {
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            min-width: 180px;
+            text-align: center;
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: #00ffcc;
+            text-shadow: 0 0 15px rgba(0, 255, 204, 0.5);
+        }
+        
+        /* Visual Feedback Elements */
+        .feedback-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1000;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        
+        .zoom-feedback {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #00ffcc;
+            font-size: 4rem;
+            font-weight: 800;
+            text-shadow: 0 0 30px rgba(0, 255, 204, 0.8);
+            animation: pulse 1s ease-out;
+        }
+        
+        @keyframes pulse {
+            0% { transform: translate(-50%, -50%) scale(0.5); opacity: 0; }
+            50% { opacity: 1; }
+            100% { transform: translate(-50%, -50%) scale(1.2); opacity: 0; }
+        }
+        
+        /* Touch Controls (Mobile Only) */
+        .touch-zone {
+            position: absolute;
+            z-index: 10;
+            display: none;
+        }
+        
+        #touch-left {
+            top: 0;
+            left: 0;
+            width: 30%;
+            height: 100%;
+        }
+        
+        #touch-right {
+            top: 0;
+            right: 0;
+            width: 30%;
+            height: 100%;
+        }
+        
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .ui-floating-btn {
+                width: 50px;
+                height: 50px;
+                font-size: 1.3rem;
+            }
+            
+            #btn-menu, #btn-fractals, #btn-fullscreen, #btn-help {
+                top: 15px;
+            }
+            
+            #btn-menu { left: 15px; }
+            #btn-fractals { right: 15px; }
+            #btn-fullscreen { left: 80px; }
+            #btn-help { right: 80px; }
+            
+            #btn-controls { bottom: 15px; right: 15px; }
+            #btn-visuals { bottom: 15px; left: 15px; }
+            
+            .ui-panel {
+                width: calc(100vw - 30px) !important;
+                max-width: none !important;
+                left: 15px !important;
+                right: 15px !important;
+                top: 80px !important;
+                bottom: 80px !important;
+                max-height: calc(100vh - 160px) !important;
+            }
+            
+            #panel-menu, #panel-fractals {
+                bottom: auto;
+            }
+            
+            #panel-controls, #panel-visuals {
+                top: 80px;
+            }
+            
+            .hud-element {
+                padding: 10px 14px;
+                font-size: 0.9rem;
+            }
+            
+            #hud-fps {
+                right: 80px;
+            }
+            
+            .touch-zone {
+                display: block;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .ui-floating-btn {
+                width: 45px;
+                height: 45px;
+                font-size: 1.2rem;
+            }
+            
+            #btn-fullscreen { left: 70px; }
+            #btn-help { right: 70px; }
+            
+            .fractal-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+            
+            .button-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        /* Scrollbar Styling */
+        .panel-content::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        .panel-content::-webkit-scrollbar-track {
+            background: rgba(0, 20, 40, 0.3);
+            border-radius: 3px;
+        }
+        
+        .panel-content::-webkit-scrollbar-thumb {
+            background: linear-gradient(to bottom, #00aaff, #00ffcc);
+            border-radius: 3px;
+        }
+        
+        /* Loading Animation */
+        #loading-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000000;
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: opacity 0.5s ease;
+        }
+        
+        .loading-spinner {
+            width: 80px;
+            height: 80px;
+            border: 5px solid rgba(0, 255, 204, 0.1);
+            border-top-color: #00ffcc;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        /* Fullscreen mode */
+        body.fullscreen .hud-element,
+        body.fullscreen .ui-floating-btn,
+        body.fullscreen .ui-panel {
+            opacity: 0.2;
+            pointer-events: none;
+        }
+        
+        body.fullscreen .hud-element:hover,
+        body.fullscreen .ui-floating-btn:hover,
+        body.fullscreen .ui-panel:hover {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        
+        /* Tooltip */
+        .tooltip {
+            position: absolute;
+            background: rgba(0, 20, 40, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(0, 255, 204, 0.3);
+            border-radius: 8px;
+            padding: 10px 15px;
+            font-size: 0.9rem;
+            z-index: 1000;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s;
+            max-width: 250px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+        }
+        
+        .tooltip.show {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+    <div id="canvas-container"></div>
+    
+    <!-- Loading Overlay -->
+    <div id="loading-overlay">
+        <div class="loading-spinner"></div>
+        <div style="color: #00ffcc; font-size: 1.2rem; margin-top: 20px;">Initializing Quantum Fractal Engine...</div>
+        <div id="loading-text" style="color: #88ccff; margin-top: 10px; text-align: center;">Loading shaders and geometry</div>
+    </div>
+    
+    <!-- Floating UI Buttons -->
+    <div class="ui-floating-btn" id="btn-menu" title="Main Menu">☰</div>
+    <div class="ui-floating-btn" id="btn-fractals" title="Fractal Types">🌀</div>
+    <div class="ui-floating-btn" id="btn-controls" title="Controls">🎮</div>
+    <div class="ui-floating-btn" id="btn-visuals" title="Visual Effects">🎨</div>
+    <div class="ui-floating-btn" id="btn-fullscreen" title="Fullscreen">⛶</div>
+    <div class="ui-floating-btn" id="btn-help" title="Help">❓</div>
+    
+    <!-- UI Panels -->
+    <div class="ui-panel" id="panel-menu">
+        <div class="panel-header">
+            <div class="panel-title">📱 Main Menu</div>
+            <button class="panel-close">×</button>
+        </div>
+        <div class="panel-content">
+            <div class="menu-item" data-action="new-fractal">
+                <div class="menu-icon">✨</div>
+                <div class="menu-text">New Fractal</div>
+                <div class="menu-badge">NEW</div>
+            </div>
+            <div class="menu-item" data-action="save-view">
+                <div class="menu-icon">💾</div>
+                <div class="menu-text">Save Current View</div>
+            </div>
+            <div class="menu-item" data-action="load-view">
+                <div class="menu-icon">📂</div>
+                <div class="menu-text">Load Saved View</div>
+            </div>
+            <div class="menu-item" data-action="export-image">
+                <div class="menu-icon">📸</div>
+                <div class="menu-text">Export Image</div>
+            </div>
+            <div class="menu-item" data-action="settings">
+                <div class="menu-icon">⚙️</div>
+                <div class="menu-text">Settings</div>
+            </div>
+            <div class="menu-item" data-action="performance">
+                <div class="menu-icon">🚀</div>
+                <div class="menu-text">Performance Monitor</div>
+                <div class="menu-badge">FPS</div>
+            </div>
+            <div class="menu-item" data-action="about">
+                <div class="menu-icon">ℹ️</div>
+                <div class="menu-text">About</div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="ui-panel" id="panel-fractals">
+        <div class="panel-header">
+            <div class="panel-title">🌀 Fractal Types</div>
+            <button class="panel-close">×</button>
+        </div>
+        <div class="panel-content">
+            <div class="fractal-grid">
+                <div class="fractal-card active" data-fractal="mandelbulb">
+                    <div class="fractal-icon">🌌</div>
+                    <div class="fractal-name">Mandelbulb 3D</div>
+                    <div class="fractal-desc">3D extension of Mandelbrot</div>
+                </div>
+                <div class="fractal-card" data-fractal="julia">
+                    <div class="fractal-icon">🌟</div>
+                    <div class="fractal-name">Julia Set 3D</div>
+                    <div class="fractal-desc">Complex Julia variations</div>
+                </div>
+                <div class="fractal-card" data-fractal="menger">
+                    <div class="fractal-icon">🧊</div>
+                    <div class="fractal-name">Menger Sponge</div>
+                    <div class="fractal-desc">3D Cantor set</div>
+                </div>
+                <div class="fractal-card" data-fractal="sierpinski">
+                    <div class="fractal-icon">🔺</div>
+                    <div class="fractal-name">Sierpinski</div>
+                    <div class="fractal-desc">Tetrahedron fractal</div>
+                </div>
+                <div class="fractal-card" data-fractal="apollonian">
+                    <div class="fractal-icon">🔵</div>
+                    <div class="fractal-name">Apollonian</div>
+                    <div class="fractal-desc">Sphere packing</div>
+                </div>
+                <div class="fractal-card" data-fractal="quaternion">
+                    <div class="fractal-icon">🌀</div>
+                    <div class="fractal-name">Quaternion</div>
+                    <div class="fractal-desc">4D projections</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="ui-panel" id="panel-controls">
+        <div class="panel-header">
+            <div class="panel-title">🎮 Navigation Controls</div>
+            <button class="panel-close">×</button>
+        </div>
+        <div class="panel-content">
+            <div class="control-group">
+                <div class="group-title">📊 Movement</div>
+                <div class="control-item">
+                    <div class="control-label">
+                        <span class="control-name">Move Speed</span>
+                        <span class="control-value" id="move-speed-value">1.0</span>
+                    </div>
+                    <div class="slider-container">
+                        <input type="range" id="move-speed" min="0.1" max="3.0" value="1.0" step="0.1">
+                    </div>
+                </div>
+                <div class="control-item">
+                    <div class="control-label">
+                        <span class="control-name">Rotate Speed</span>
+                        <span class="control-value" id="rotate-speed-value">1.0</span>
+                    </div>
+                    <div class="slider-container">
+                        <input type="range" id="rotate-speed" min="0.1" max="3.0" value="1.0" step="0.1">
+                    </div>
+                </div>
+                <div class="control-item">
+                    <div class="control-label">
+                        <span class="control-name">Zoom Speed</span>
+                        <span class="control-value" id="zoom-speed-value">1.0</span>
+                    </div>
+                    <div class="slider-container">
+                        <input type="range" id="zoom-speed" min="0.1" max="3.0" value="1.0" step="0.1">
+                    </div>
+                </div>
+            </div>
+            
+            <div class="control-group">
+                <div class="group-title">⚡ Fractal Parameters</div>
+                <div class="control-item">
+                    <div class="control-label">
+                        <span class="control-name">Iterations</span>
+                        <span class="control-value" id="iterations-value">16</span>
+                    </div>
+                    <div class="slider-container">
+                        <input type="range" id="iterations-slider" min="4" max="32" value="16" step="2">
+                    </div>
+                </div>
+                <div class="control-item">
+                    <div class="control-label">
+                        <span class="control-name">Power</span>
+                        <span class="control-value" id="power-value">8.0</span>
+                    </div>
+                    <div class="slider-container">
+                        <input type="range" id="power-slider" min="2" max="16" value="8.0" step="0.5">
+                    </div>
+                </div>
+                <div class="control-item">
+                    <div class="control-label">
+                        <span class="control-name">Detail</span>
+                        <span class="control-value" id="detail-value">0.5</span>
+                    </div>
+                    <div class="slider-container">
+                        <input type="range" id="detail-slider" min="0.1" max="1.0" value="0.5" step="0.1">
+                    </div>
+                </div>
+            </div>
+            
+            <div class="button-grid">
+                <button class="panel-btn" id="btn-reset-view">
+                    <span>↺</span> Reset View
+                </button>
+                <button class="panel-btn" id="btn-auto-explore">
+                    <span>⚡</span> Auto Explore
+                </button>
+                <button class="panel-btn" id="btn-record-path">
+                    <span>🔴</span> Record Path
+                </button>
+                <button class="panel-btn" id="btn-play-path">
+                    <span>▶️</span> Play Path
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="ui-panel" id="panel-visuals">
+        <div class="panel-header">
+            <div class="panel-title">🎨 Visual Effects</div>
+            <button class="panel-close">×</button>
+        </div>
+        <div class="panel-content">
+            <div class="control-group">
+                <div class="group-title">🌈 Color Palette</div>
+                <div class="color-palette">
+                    <div class="color-swatch active" style="background: linear-gradient(45deg, #ff0080, #00ffcc);" data-palette="0"></div>
+                    <div class="color-swatch" style="background: linear-gradient(45deg, #00aaff, #aaff00);" data-palette="1"></div>
+                    <div class="color-swatch" style="background: linear-gradient(45deg, #ff5500, #aa00ff);" data-palette="2"></div>
+                    <div class="color-swatch" style="background: linear-gradient(45deg, #00ff88, #0088ff);" data-palette="3"></div>
+                    <div class="color-swatch" style="background: linear-gradient(45deg, #ffaa00, #ff0066);" data-palette="4"></div>
+                    <div class="color-swatch" style="background: linear-gradient(45deg, #00ffff, #ff00ff);" data-palette="5"></div>
+                </div>
+            </div>
+            
+            <div class="control-group">
+                <div class="group-title">✨ Effects</div>
+                <div class="control-item">
+                    <div class="control-label">
+                        <span class="control-name">Glow</span>
+                        <span class="control-value" id="glow-value">0.5</span>
+                    </div>
+                    <div class="slider-container">
+                        <input type="range" id="glow-slider" min="0" max="1" value="0.5" step="0.1">
+                    </div>
+                </div>
+                <div class="control-item">
+                    <div class="control-label">
+                        <span class="control-name">Bloom</span>
+                        <span class="control-value" id="bloom-value">0.3</span>
+                    </div>
+                    <div class="slider-container">
+                        <input type="range" id="bloom-slider" min="0" max="1" value="0.3" step="0.1">
+                    </div>
+                </div>
+                <div class="control-item">
+                    <div class="control-label">
+                        <span class="control-name">Vignette</span>
+                        <span class="control-value" id="vignette-value">0.5</span>
+                    </div>
+                    <div class="slider-container">
+                        <input type="range" id="vignette-slider" min="0" max="1" value="0.5" step="0.1">
+                    </div>
+                </div>
+            </div>
+            
+            <div class="control-group">
+                <div class="group-title">🎯 Display</div>
+                <div class="control-item">
+                    <div class="control-label">
+                        <span class="control-name">Brightness</span>
+                        <span class="control-value" id="brightness-value">1.0</span>
+                    </div>
+                    <div class="slider-container">
+                        <input type="range" id="brightness-slider" min="0.1" max="2.0" value="1.0" step="0.1">
+                    </div>
+                </div>
+                <div class="control-item">
+                    <div class="control-label">
+                        <span class="control-name">Contrast</span>
+                        <span class="control-value" id="contrast-value">1.0</span>
+                    </div>
+                    <div class="slider-container">
+                        <input type="range" id="contrast-slider" min="0.1" max="3.0" value="1.0" step="0.1">
+                    </div>
+                </div>
+                <div class="control-item">
+                    <div class="control-label">
+                        <span class="control-name">Saturation</span>
+                        <span class="control-value" id="saturation-value">1.0</span>
+                    </div>
+                    <div class="slider-container">
+                        <input type="range" id="saturation-slider" min="0" max="2.0" value="1.0" step="0.1">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="ui-panel" id="panel-help">
+        <div class="panel-header">
+            <div class="panel-title">❓ Help & Controls</div>
+            <button class="panel-close">×</button>
+        </div>
+        <div class="panel-content">
+            <div class="help-section">
+                <div class="help-title">🎮 Navigation Controls</div>
+                <div class="help-content">
+                    <p><strong>Mouse/Touch:</strong></p>
+                    <ul>
+                        <li>Left Click/Drag: Rotate view</li>
+                        <li>Right Click/Drag: Pan camera</li>
+                        <li>Scroll/Pinch: Zoom in/out</li>
+                        <li>Middle Click: Reset view</li>
+                    </ul>
+                    <p><strong>Touch Gestures:</strong></p>
+                    <ul>
+                        <li>One finger: Rotate</li>
+                        <li>Two fingers: Zoom</li>
+                        <li>Three fingers: Pan</li>
+                        <li>Double tap: Toggle fullscreen</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="help-section">
+                <div class="help-title">⚡ Quick Actions</div>
+                <div class="help-content">
+                    <p><strong>Floating Buttons:</strong></p>
+                    <ul>
+                        <li>☰ Main Menu: Save/load views, settings</li>
+                        <li>🌀 Fractals: Change fractal type</li>
+                        <li>🎮 Controls: Navigation parameters</li>
+                        <li>🎨 Visuals: Color and effect controls</li>
+                        <li>⛶ Fullscreen: Toggle fullscreen mode</li>
+                        <li>❓ Help: Show this guide</li>
+                    </ul>
+                </div>
+            </div>
+            
+            <div class="help-section">
+                <div class="help-title">✨ Tips & Tricks</div>
+                <div class="help-content">
+                    <ul>
+                        <li>Use Auto Explore for automatic fractal discovery</li>
+                        <li>Adjust iteration count for detail vs performance</li>
+                        <li>Try different color palettes for unique visuals</li>
+                        <li>Save interesting views for later</li>
+                        <li>On mobile, use multi-touch gestures for best control</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- HUD Elements -->
+    <div class="hud-element" id="hud-info">
+        <div>Fractal: <span id="hud-fractal-name">Mandelbulb 3D</span></div>
+        <div>Iterations: <span id="hud-iterations">16</span></div>
+    </div>
+    
+    <div class="hud-element" id="hud-fps">
+        FPS: <span id="fps-counter">60</span>
+    </div>
+    
+    <div class="hud-element" id="hud-zoom">
+        Zoom: <span id="zoom-level">1.0x</span>
+    </div>
+    
+    <!-- Visual Feedback Overlays -->
+    <div class="feedback-overlay" id="zoom-feedback">
+        <div class="zoom-feedback" id="zoom-feedback-text">+</div>
+    </div>
+    
+    <!-- Tooltip -->
+    <div class="tooltip" id="tooltip"></div>
+    
+    <!-- Touch Zones (Mobile Only) -->
+    <div class="touch-zone" id="touch-left"></div>
+    <div class="touch-zone" id="touch-right"></div>
+
+    <script>
+        // Ultimate Fractal Explorer with Collapsible UI
+        'use strict';
+        
+        // Configuration
+        const CONFIG = {
+            INITIAL_ZOOM: 1.0,
+            MAX_ZOOM: 1000.0,
+            MIN_ZOOM: 0.001,
+            MOVE_SPEED: 0.05,
+            ROTATE_SPEED: 0.02,
+            ZOOM_SPEED: 0.1,
+            TARGET_FPS: 60,
+            MAX_ITERATIONS: 32,
+            UI_HIDE_TIMEOUT: 3000,
+            TOUCH_SENSITIVITY: 0.01
+        };
+        
+        // Core variables
+        let scene, camera, renderer;
+        let fractalMaterial;
+        let currentFractal = 'mandelbulb';
+        let isAutoExploring = false;
+        let animationTime = 0;
+        let zoom = CONFIG.INITIAL_ZOOM;
+        let cameraPosition = new THREE.Vector3(3, 3, 3);
+        let cameraRotation = new THREE.Euler(0, 0, 0);
+        let isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+        let frameId = null;
+        let lastTime = 0;
+        let fps = 60;
+        let frameCount = 0;
+        let renderStartTime = 0;
+        let uiHideTimeout = null;
+        let activePanel = null;
+        
+        // Performance tracking
+        const perf = {
+            fps: 60,
+            renderTime: 0,
+            currentIterations: 16,
+            adaptiveQuality: true,
+            qualityLevel: 'high'
+        };
+        
+        // Initialize the application
+        async function init() {
+            updateLoadingText("Initializing 3D engine...");
+            
+            // Create scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x000000);
+            
+            // Create camera
+            const aspect = window.innerWidth / window.innerHeight;
+            camera = new THREE.PerspectiveCamera(60, aspect, 0.001, 1000);
+            camera.position.copy(cameraPosition);
+            
+            updateLoadingText("Setting up renderer...");
+            
+            // Create optimized renderer
+            renderer = new THREE.WebGLRenderer({
+                antialias: !isMobile,
+                alpha: false,
+                powerPreference: 'high-performance',
+                precision: isMobile ? 'mediump' : 'highp',
+                preserveDrawingBuffer: true
+            });
+            
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, isMobile ? 1.5 : 2));
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setClearColor(0x000000, 1);
+            
+            document.getElementById('canvas-container').appendChild(renderer.domElement);
+            
+            updateLoadingText("Creating fractal geometry...");
+            
+            // Create fractal material
+            createFractalMaterial();
+            
+            updateLoadingText("Setting up lighting...");
+            
+            // Setup lighting
+            setupLighting();
+            
+            updateLoadingText("Initializing UI...");
+            
+            // Initialize UI
+            initUI();
+            
+            updateLoadingText("Ready!");
+            
+            // Hide loading screen
+            setTimeout(() => {
+                document.getElementById('loading-overlay').style.opacity = '0';
+                setTimeout(() => {
+                    document.getElementById('loading-overlay').style.display = 'none';
+                    showWelcomeMessage();
+                }, 500);
+            }, 500);
+            
+            // Start animation loop
+            animate();
+            
+            // Handle resize
+            window.addEventListener('resize', onWindowResize, { passive: true });
+            
+            // Auto-hide UI
+            startUIHideTimer();
+            
+            // Show touch zones on mobile
+            if (isMobile) {
+                document.getElementById('touch-left').style.display = 'block';
+                document.getElementById('touch-right').style.display = 'block';
+            }
+        }
+        
+        function updateLoadingText(text) {
+            document.getElementById('loading-text').textContent = text;
+        }
+        
+        function createFractalMaterial() {
+            // Clean up previous material
+            if (fractalMaterial) {
+                fractalMaterial.dispose();
+            }
+            
+            // Create shader material
+            fractalMaterial = new THREE.ShaderMaterial({
+                uniforms: {
+                    time: { value: 0 },
+                    zoom: { value: zoom },
+                    power: { value: 8.0 },
+                    iterations: { value: perf.currentIterations },
+                    glow: { value: 0.5 },
+                    bloom: { value: 0.3 },
+                    vignette: { value: 0.5 },
+                    brightness: { value: 1.0 },
+                    contrast: { value: 1.0 },
+                    saturation: { value: 1.0 },
+                    colorScheme: { value: 0 },
+                    cameraPos: { value: camera.position },
+                    fractalType: { value: 0 },
+                    resolution: { value: new THREE.Vector2(window.innerWidth, window.innerHeight) }
+                },
+                vertexShader: `
+                    varying vec3 vPosition;
+                    varying vec3 vNormal;
+                    varying vec2 vUv;
+                    
+                    void main() {
+                        vPosition = position;
+                        vNormal = normalize(normalMatrix * normal);
+                        vUv = uv;
+                        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                    }
+                `,
+                fragmentShader: getFractalShader(),
+                side: THREE.BackSide,
+                transparent: false
+            });
+            
+            // Create fractal geometry
+            const geometry = new THREE.SphereGeometry(2.5, 
+                isMobile ? 96 : 128, 
+                isMobile ? 48 : 64
+            );
+            
+            const fractalMesh = new THREE.Mesh(geometry, fractalMaterial);
+            scene.add(fractalMesh);
+        }
+        
+        function getFractalShader() {
+            return `
+                precision highp float;
+                
+                uniform float time;
+                uniform float zoom;
+                uniform float power;
+                uniform int iterations;
+                uniform float glow;
+                uniform float bloom;
+                uniform float vignette;
+                uniform float brightness;
+                uniform float contrast;
+                uniform float saturation;
+                uniform int colorScheme;
+                uniform vec3 cameraPos;
+                uniform int fractalType;
+                uniform vec2 resolution;
+                
+                varying vec3 vPosition;
+                varying vec3 vNormal;
+                varying vec2 vUv;
+                
+                // Distance estimators for different fractals
+                float mandelbulbDE(vec3 pos) {
+                    vec3 z = pos;
+                    float dr = 1.0;
+                    float r = 0.0;
+                    
+                    for (int i = 0; i < 50; i++) {
+                        if (i >= iterations) break;
+                        
+                        r = length(z);
+                        if (r > 4.0) break;
+                        
+                        float theta = acos(z.z / r);
+                        float phi = atan(z.y, z.x);
+                        dr = pow(r, power - 1.0) * power * dr + 1.0;
+                        
+                        float zr = pow(r, power);
+                        theta = theta * power;
+                        phi = phi * power;
+                        
+                        z = zr * vec3(sin(theta) * cos(phi), sin(phi) * sin(theta), cos(theta));
+                        z += pos;
+                    }
+                    
+                    return 0.5 * log(r) * r / dr;
+                }
+                
+                float mengerSpongeDE(vec3 p) {
+                    p = abs(p);
+                    if (p.x < p.y) p.xy = p.yx;
+                    if (p.x < p.z) p.xz = p.zx;
+                    if (p.y < p.z) p.yz = p.zy;
+                    
+                    p = p * 3.0 - 2.0;
+                    
+                    float scale = 1.0;
+                    for (int i = 0; i < 20; i++) {
+                        if (i >= iterations / 2) break;
+                        
+                        p = abs(p);
+                        if (p.x < p.y) p.xy = p.yx;
+                        if (p.x < p.z) p.xz = p.zx;
+                        if (p.y < p.z) p.yz = p.zy;
+                        
+                        p = p * 3.0 - 2.0;
+                        scale *= 3.0;
+                    }
+                    
+                    return length(p) / scale;
+                }
+                
+                float sierpinskiDE(vec3 p) {
+                    float scale = 2.0;
+                    for (int i = 0; i < 20; i++) {
+                        if (i >= iterations / 2) break;
+                        p = abs(p);
+                        if (p.x < p.y) p.xy = p.yx;
+                        if (p.x < p.z) p.xz = p.zx;
+                        if (p.y < p.z) p.yz = p.zy;
+                        
+                        p = p * scale - vec3(scale - 1.0);
+                        if (p.z < -0.5 * (scale - 1.0)) p.z += scale - 1.0;
+                    }
+                    
+                    return length(p) * pow(scale, -float(iterations / 2));
+                }
+                
+                // Color palettes
+                vec3 palette1(float t) {
+                    vec3 a = vec3(0.5, 0.5, 0.5);
+                    vec3 b = vec3(0.5, 0.5, 0.5);
+                    vec3 c = vec3(1.0, 1.0, 1.0);
+                    vec3 d = vec3(0.0, 0.33, 0.67);
+                    return a + b * cos(6.28318 * (c * t + d));
+                }
+                
+                vec3 palette2(float t) {
+                    return vec3(0.5 + 0.5 * cos(6.28318 * (t + 0.0)),
+                                0.5 + 0.5 * cos(6.28318 * (t + 0.33)),
+                                0.5 + 0.5 * cos(6.28318 * (t + 0.67)));
+                }
+                
+                vec3 palette3(float t) {
+                    return mix(vec3(1.0, 0.0, 0.5), vec3(0.0, 1.0, 1.0), t);
+                }
+                
+                vec3 palette4(float t) {
+                    return mix(vec3(0.0, 0.5, 1.0), vec3(1.0, 0.5, 0.0), t);
+                }
+                
+                vec3 palette5(float t) {
+                    return vec3(t, t * 0.5, 1.0 - t);
+                }
+                
+                vec3 palette6(float t) {
+                    return mix(vec3(1.0, 0.0, 0.0), mix(vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 1.0), t), t);
+                }
+                
+                vec3 getColor(float t, int scheme) {
+                    if (scheme == 0) return palette1(t);
+                    else if (scheme == 1) return palette2(t);
+                    else if (scheme == 2) return palette3(t);
+                    else if (scheme == 3) return palette4(t);
+                    else if (scheme == 4) return palette5(t);
+                    else return palette6(t);
+                }
+                
+                void main() {
+                    vec2 uv = (gl_FragCoord.xy * 2.0 - resolution) / resolution.y;
+                    
+                    // Camera setup
+                    vec3 ro = cameraPos * zoom;
+                    vec3 rd = normalize(vec3(uv, 1.5));
+                    
+                    // Apply camera rotation
+                    float cosY = cos(cameraPos.y);
+                    float sinY = sin(cameraPos.y);
+                    float cosP = cos(cameraPos.x);
+                    float sinP = sin(cameraPos.x);
+                    
+                    rd = vec3(
+                        rd.x * cosY - rd.z * sinY,
+                        rd.y,
+                        rd.x * sinY + rd.z * cosY
+                    );
+                    
+                    rd = vec3(
+                        rd.x,
+                        rd.y * cosP - rd.z * sinP,
+                        rd.y * sinP + rd.z * cosP
+                    );
+                    
+                    // Ray marching
+                    float totalDist = 0.0;
+                    vec3 pos = ro;
+                    float minDist = 1000.0;
+                    int steps = 0;
+                    
+                    for (int i = 0; i < 80; i++) {
+                        if (i >= iterations * 2) break;
+                        steps = i;
+                        
+                        float dist;
+                        if (fractalType == 0) {
+                            dist = mandelbulbDE(pos);
+                        } else if (fractalType == 1) {
+                            dist = mengerSpongeDE(pos);
+                        } else {
+                            dist = sierpinskiDE(pos);
+                        }
+                        
+                        minDist = min(minDist, dist);
+                        totalDist += dist;
+                        pos += rd * dist;
+                        
+                        if (dist < 0.002 * zoom) break;
+                        if (totalDist > 20.0) break;
+                    }
+                    
+                    // Calculate color
+                    float depth = length(pos - ro);
+                    float t = depth * 0.2 + time * 0.1;
+                    
+                    vec3 color = getColor(t, colorScheme);
+                    
+                    // Add glow effect
+                    float glowFactor = glow * exp(-minDist * 20.0);
+                    color += vec3(glowFactor) * getColor(t + 0.5, colorScheme);
+                    
+                    // Add bloom
+                    color += color * bloom * (1.0 - float(steps) / 80.0);
+                    
+                    // Apply post-processing
+                    color = mix(vec3(0.5), color, contrast);
+                    color *= brightness;
+                    
+                    // Apply saturation
+                    float luminance = dot(color, vec3(0.299, 0.587, 0.114));
+                    color = mix(vec3(luminance), color, saturation);
+                    
+                    // Add vignette
+                    vec2 uvCenter = gl_FragCoord.xy / resolution - 0.5;
+                    float vignetteFactor = 1.0 - dot(uvCenter, uvCenter) * vignette;
+                    color *= vignetteFactor;
+                    
+                    // Fog
+                    float fog = exp(-depth * 0.1);
+                    color = mix(vec3(0.02, 0.04, 0.08), color, fog);
+                    
+                    gl_FragColor = vec4(color, 1.0);
+                }
+            `;
+        }
+        
+        function setupLighting() {
+            const ambientLight = new THREE.AmbientLight(0x222222);
+            scene.add(ambientLight);
+            
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(5, 5, 5);
+            scene.add(directionalLight);
+        }
+        
+        function initUI() {
+            // Floating button click handlers
+            document.getElementById('btn-menu').addEventListener('click', () => togglePanel('panel-menu'));
+            document.getElementById('btn-fractals').addEventListener('click', () => togglePanel('panel-fractals'));
+            document.getElementById('btn-controls').addEventListener('click', () => togglePanel('panel-controls'));
+            document.getElementById('btn-visuals').addEventListener('click', () => togglePanel('panel-visuals'));
+            document.getElementById('btn-fullscreen').addEventListener('click', toggleFullscreen);
+            document.getElementById('btn-help').addEventListener('click', () => togglePanel('panel-help'));
+            
+            // Panel close buttons
+            document.querySelectorAll('.panel-close').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    closeAllPanels();
+                    resetUIHideTimer();
+                });
+            });
+            
+            // Menu items
+            document.querySelectorAll('.menu-item').forEach(item => {
+                item.addEventListener('click', () => {
+                    const action = item.dataset.action;
+                    handleMenuAction(action);
+                    closeAllPanels();
+                });
+            });
+            
+            // Fractal selection
+            document.querySelectorAll('.fractal-card').forEach(card => {
+                card.addEventListener('click', () => {
+                    document.querySelectorAll('.fractal-card').forEach(c => c.classList.remove('active'));
+                    card.classList.add('active');
+                    currentFractal = card.dataset.fractal;
+                    fractalMaterial.uniforms.fractalType.value = getFractalTypeIndex(currentFractal);
+                    document.getElementById('hud-fractal-name').textContent = 
+                        card.querySelector('.fractal-name').textContent;
+                    showFeedback('✨ ' + card.querySelector('.fractal-name').textContent + ' loaded!');
+                });
+            });
+            
+            // Color palette selection
+            document.querySelectorAll('.color-swatch').forEach(swatch => {
+                swatch.addEventListener('click', () => {
+                    document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('active'));
+                    swatch.classList.add('active');
+                    fractalMaterial.uniforms.colorScheme.value = parseInt(swatch.dataset.palette);
+                });
+            });
+            
+            // Control sliders
+            setupSlider('move-speed', 'move-speed-value', 1.0);
+            setupSlider('rotate-speed', 'rotate-speed-value', 1.0);
+            setupSlider('zoom-speed', 'zoom-speed-value', 1.0);
+            setupSlider('iterations-slider', 'iterations-value', 16, (value) => {
+                perf.currentIterations = parseInt(value);
+                fractalMaterial.uniforms.iterations.value = perf.currentIterations;
+                document.getElementById('hud-iterations').textContent = value;
+            });
+            setupSlider('power-slider', 'power-value', 8.0, (value) => {
+                fractalMaterial.uniforms.power.value = parseFloat(value);
+            });
+            setupSlider('glow-slider', 'glow-value', 0.5, (value) => {
+                fractalMaterial.uniforms.glow.value = parseFloat(value);
+            });
+            setupSlider('bloom-slider', 'bloom-value', 0.3, (value) => {
+                fractalMaterial.uniforms.bloom.value = parseFloat(value);
+            });
+            setupSlider('vignette-slider', 'vignette-value', 0.5, (value) => {
+                fractalMaterial.uniforms.vignette.value = parseFloat(value);
+            });
+            setupSlider('brightness-slider', 'brightness-value', 1.0, (value) => {
+                fractalMaterial.uniforms.brightness.value = parseFloat(value);
+            });
+            setupSlider('contrast-slider', 'contrast-value', 1.0, (value) => {
+                fractalMaterial.uniforms.contrast.value = parseFloat(value);
+            });
+            setupSlider('saturation-slider', 'saturation-value', 1.0, (value) => {
+                fractalMaterial.uniforms.saturation.value = parseFloat(value);
+            });
+            
+            // Control buttons
+            document.getElementById('btn-reset-view').addEventListener('click', resetView);
+            document.getElementById('btn-auto-explore').addEventListener('click', toggleAutoExplore);
+            
+            // Mouse and touch events for canvas
+            const canvas = renderer.domElement;
+            
+            // Mouse events
+            let isDragging = false;
+            let lastMouseX = 0;
+            let lastMouseY = 0;
+            
+            canvas.addEventListener('mousedown', (e) => {
+                isDragging = true;
+                lastMouseX = e.clientX;
+                lastMouseY = e.clientY;
+                resetUIHideTimer();
+                e.preventDefault();
+            });
+            
+            canvas.addEventListener('mousemove', (e) => {
+                if (!isDragging) return;
+                
+                const deltaX = (e.clientX - lastMouseX) * CONFIG.ROTATE_SPEED * 0.01;
+                const deltaY = (e.clientY - lastMouseY) * CONFIG.ROTATE_SPEED * 0.01;
+                
+                cameraRotation.y -= deltaX;
+                cameraRotation.x -= deltaY;
+                cameraRotation.x = Math.max(-Math.PI/2, Math.min(Math.PI/2, cameraRotation.x));
+                
+                lastMouseX = e.clientX;
+                lastMouseY = e.clientY;
+                updateCamera();
+            });
+            
+            canvas.addEventListener('mouseup', () => {
+                isDragging = false;
+            });
+            
+            canvas.addEventListener('wheel', (e) => {
+                e.preventDefault();
+                const delta = e.deltaY > 0 ? 1.1 : 0.9;
+                zoom = Math.max(CONFIG.MIN_ZOOM, Math.min(CONFIG.MAX_ZOOM, zoom * delta));
+                updateZoomDisplay();
+                updateCamera();
+                showZoomFeedback(delta < 1 ? '+' : '-');
+                resetUIHideTimer();
+            });
+            
+            // Touch events
+            canvas.addEventListener('touchstart', (e) => {
+                if (e.touches.length === 1) {
+                    isDragging = true;
+                    lastMouseX = e.touches[0].clientX;
+                    lastMouseY = e.touches[0].clientY;
+                }
+                resetUIHideTimer();
+                e.preventDefault();
+            }, { passive: false });
+            
+            canvas.addEventListener('touchmove', (e) => {
+                if (!isDragging || e.touches.length !== 1) return;
+                
+                const deltaX = (e.touches[0].clientX - lastMouseX) * CONFIG.TOUCH_SENSITIVITY;
+                const deltaY = (e.touches[0].clientY - lastMouseY) * CONFIG.TOUCH_SENSITIVITY;
+                
+                cameraRotation.y -= deltaX;
+                cameraRotation.x -= deltaY;
+                cameraRotation.x = Math.max(-Math.PI/2, Math.min(Math.PI/2, cameraRotation.x));
+                
+                lastMouseX = e.touches[0].clientX;
+                lastMouseY = e.touches[0].clientY;
+                updateCamera();
+                e.preventDefault();
+            }, { passive: false });
+            
+            canvas.addEventListener('touchend', () => {
+                isDragging = false;
+            });
+            
+            // Touch zones for mobile
+            if (isMobile) {
+                setupTouchZones();
+            }
+            
+            // Tooltip system
+            setupTooltips();
+        }
+        
+        function setupSlider(sliderId, valueId, defaultValue, callback = null) {
+            const slider = document.getElementById(sliderId);
+            const valueDisplay = document.getElementById(valueId);
+            
+            slider.value = defaultValue;
+            valueDisplay.textContent = defaultValue;
+            
+            slider.addEventListener('input', () => {
+                const value = slider.value;
+                valueDisplay.textContent = value;
+                if (callback) callback(value);
+                resetUIHideTimer();
+            });
+        }
+        
+        function setupTouchZones() {
+            const leftZone = document.getElementById('touch-left');
+            const rightZone = document.getElementById('touch-right');
+            
+            // Left zone: rotate
+            leftZone.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                const touch = e.touches[0];
+                lastMouseX = touch.clientX;
+                lastMouseY = touch.clientY;
+                leftZone.style.background = 'rgba(0, 255, 204, 0.1)';
+            });
+            
+            leftZone.addEventListener('touchmove', (e) => {
+                e.preventDefault();
+                if (e.touches.length !== 1) return;
+                
+                const touch = e.touches[0];
+                const deltaX = (touch.clientX - lastMouseX) * CONFIG.TOUCH_SENSITIVITY;
+                const deltaY = (touch.clientY - lastMouseY) * CONFIG.TOUCH_SENSITIVITY;
+                
+                cameraRotation.y -= deltaX;
+                cameraRotation.x -= deltaY;
+                cameraRotation.x = Math.max(-Math.PI/2, Math.min(Math.PI/2, cameraRotation.x));
+                
+                lastMouseX = touch.clientX;
+                lastMouseY = touch.clientY;
+                updateCamera();
+            });
+            
+            leftZone.addEventListener('touchend', () => {
+                leftZone.style.background = 'transparent';
+            });
+            
+            // Right zone: zoom
+            let pinchStart = 0;
+            
+            rightZone.addEventListener('touchstart', (e) => {
+                if (e.touches.length === 2) {
+                    pinchStart = getTouchDistance(e.touches[0], e.touches[1]);
+                }
+                rightZone.style.background = 'rgba(0, 170, 255, 0.1)';
+            });
+            
+            rightZone.addEventListener('touchmove', (e) => {
+                if (e.touches.length === 2) {
+                    const currentPinch = getTouchDistance(e.touches[0], e.touches[1]);
+                    const delta = currentPinch - pinchStart;
+                    
+                    if (Math.abs(delta) > 5) {
+                        zoom = Math.max(CONFIG.MIN_ZOOM, Math.min(CONFIG.MAX_ZOOM, 
+                            zoom * (1 - delta * 0.001)));
+                        updateZoomDisplay();
+                        updateCamera();
+                        pinchStart = currentPinch;
+                        showZoomFeedback(delta > 0 ? '-' : '+');
+                    }
+                }
+            });
+            
+            rightZone.addEventListener('touchend', () => {
+                rightZone.style.background = 'transparent';
+            });
+        }
+        
+        function getTouchDistance(touch1, touch2) {
+            const dx = touch1.clientX - touch2.clientX;
+            const dy = touch1.clientY - touch2.clientY;
+            return Math.sqrt(dx * dx + dy * dy);
+        }
+        
+        function setupTooltips() {
+            const tooltip = document.getElementById('tooltip');
+            
+            document.querySelectorAll('.ui-floating-btn, .menu-item, .fractal-card, .color-swatch, .panel-btn').forEach(el => {
+                el.addEventListener('mouseenter', (e) => {
+                    const title = el.getAttribute('title') || 
+                                el.querySelector('.fractal-name')?.textContent ||
+                                el.querySelector('.menu-text')?.textContent ||
+                                el.textContent.trim();
+                    
+                    tooltip.textContent = title;
+                    tooltip.classList.add('show');
+                    
+                    const rect = el.getBoundingClientRect();
+                    tooltip.style.left = rect.left + 'px';
+                    tooltip.style.top = (rect.top - 10) + 'px';
+                });
+                
+                el.addEventListener('mouseleave', () => {
+                    tooltip.classList.remove('show');
+                });
+            });
+        }
+        
+        function togglePanel(panelId) {
+            const panel = document.getElementById(panelId);
+            
+            if (activePanel === panelId) {
+                panel.classList.remove('active');
+                activePanel = null;
+            } else {
+                closeAllPanels();
+                panel.classList.add('active');
+                activePanel = panelId;
+            }
+            
+            resetUIHideTimer();
+        }
+        
+        function closeAllPanels() {
+            document.querySelectorAll('.ui-panel').forEach(panel => {
+                panel.classList.remove('active');
+            });
+            activePanel = null;
+        }
+        
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(err => {
+                    console.log(`Error attempting to enable fullscreen: ${err.message}`);
+                });
+                document.body.classList.add('fullscreen');
+            } else {
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                    document.body.classList.remove('fullscreen');
+                }
+            }
+            resetUIHideTimer();
+        }
+        
+        function handleMenuAction(action) {
+            switch(action) {
+                case 'new-fractal':
+                    createFractalMaterial();
+                    showFeedback('✨ New fractal created!');
+                    break;
+                case 'save-view':
+                    saveCurrentView();
+                    break;
+                case 'load-view':
+                    loadSavedView();
+                    break;
+                case 'export-image':
+                    exportImage();
+                    break;
+                case 'settings':
+                    showFeedback('⚙️ Settings panel coming soon!');
+                    break;
+                case 'performance':
+                    showFeedback('🚀 Performance: ' + perf.fps + ' FPS');
+                    break;
+                case 'about':
+                    showFeedback('🌀 Nexus Fractal Explorer v1.0');
+                    break;
+            }
+        }
+        
+        function getFractalTypeIndex(type) {
+            const types = ['mandelbulb', 'julia', 'menger', 'sierpinski', 'apollonian', 'quaternion'];
+            return types.indexOf(type);
+        }
+        
+        function updateCamera() {
+            camera.position.copy(cameraPosition);
+            camera.rotation.copy(cameraRotation);
+            
+            if (fractalMaterial) {
+                fractalMaterial.uniforms.zoom.value = zoom;
+                fractalMaterial.uniforms.cameraPos.value.copy(cameraPosition);
+            }
+        }
+        
+        function updateZoomDisplay() {
+            document.getElementById('zoom-level').textContent = zoom.toFixed(2) + 'x';
+        }
+        
+        function resetView() {
+            zoom = CONFIG.INITIAL_ZOOM;
+            cameraPosition.set(3, 3, 3);
+            cameraRotation.set(0, 0, 0);
+            updateCamera();
+            updateZoomDisplay();
+            showFeedback('↺ View reset!');
+        }
+        
+        function toggleAutoExplore() {
+            isAutoExploring = !isAutoExploring;
+            const btn = document.getElementById('btn-auto-explore');
+            if (isAutoExploring) {
+                btn.innerHTML = '<span>⏸</span> Stop Explore';
+                showFeedback('⚡ Auto-explore started!');
+            } else {
+                btn.innerHTML = '<span>⚡</span> Auto Explore';
+                showFeedback('⏸ Auto-explore stopped!');
+            }
+        }
+        
+        function saveCurrentView() {
+            const view = {
+                zoom: zoom,
+                position: cameraPosition.toArray(),
+                rotation: cameraRotation.toArray(),
+                fractalType: fractalMaterial.uniforms.fractalType.value,
+                iterations: perf.currentIterations,
+                timestamp: Date.now()
+            };
+            
+            localStorage.setItem('fractalView', JSON.stringify(view));
+            showFeedback('💾 View saved!');
+        }
+        
+        function loadSavedView() {
+            const saved = localStorage.getItem('fractalView');
+            if (saved) {
+                try {
+                    const view = JSON.parse(saved);
+                    zoom = view.zoom;
+                    cameraPosition.fromArray(view.position);
+                    cameraRotation.fromArray(view.rotation);
+                    fractalMaterial.uniforms.fractalType.value = view.fractalType;
+                    perf.currentIterations = view.iterations;
+                    
+                    updateCamera();
+                    updateZoomDisplay();
+                    document.getElementById('iterations-slider').value = view.iterations;
+                    document.getElementById('iterations-value').textContent = view.iterations;
+                    document.getElementById('hud-iterations').textContent = view.iterations;
+                    
+                    showFeedback('📂 View loaded!');
+                } catch (e) {
+                    showFeedback('❌ Error loading view');
+                }
+            } else {
+                showFeedback('📭 No saved view found');
+            }
+        }
+        
+        function exportImage() {
+            renderer.domElement.toBlob(blob => {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `fractal-${Date.now()}.png`;
+                a.click();
+                URL.revokeObjectURL(url);
+                showFeedback('📸 Image exported!');
+            });
+        }
+        
+        function showFeedback(message) {
+            const feedback = document.createElement('div');
+            feedback.className = 'hud-element';
+            feedback.style.cssText = `
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background: rgba(0, 30, 60, 0.9);
+                color: #00ffcc;
+                padding: 15px 25px;
+                border-radius: 15px;
+                font-weight: 600;
+                z-index: 1000;
+                animation: fadeInOut 2s ease;
+                white-space: nowrap;
+            `;
+            
+            const style = document.createElement('style');
+            style.textContent = `
+                @keyframes fadeInOut {
+                    0% { opacity: 0; transform: translate(-50%, -50%) scale(0.8); }
+                    15% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+                    85% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+                    100% { opacity: 0; transform: translate(-50%, -50%) scale(1.2); }
+                }
+            `;
+            document.head.appendChild(style);
+            
+            feedback.textContent = message;
+            document.body.appendChild(feedback);
+            
+            setTimeout(() => {
+                feedback.remove();
+                style.remove();
+            }, 2000);
+        }
+        
+        function showZoomFeedback(direction) {
+            const feedback = document.getElementById('zoom-feedback');
+            const text = document.getElementById('zoom-feedback-text');
+            
+            text.textContent = direction === '+' ? '🔍+' : '🔍-';
+            feedback.style.opacity = '1';
+            
+            setTimeout(() => {
+                feedback.style.opacity = '0';
+            }, 500);
+        }
+        
+        function showWelcomeMessage() {
+            setTimeout(() => {
+                showFeedback('🌀 Welcome to Nexus Fractal Explorer!');
+            }, 500);
+        }
+        
+        function startUIHideTimer() {
+            if (isMobile) {
+                uiHideTimeout = setTimeout(() => {
+                    document.querySelectorAll('.hud-element, .ui-floating-btn').forEach(el => {
+                        el.style.opacity = '0.3';
+                        el.style.pointerEvents = 'none';
+                    });
+                }, CONFIG.UI_HIDE_TIMEOUT);
+            }
+        }
+        
+        function resetUIHideTimer() {
+            if (isMobile) {
+                clearTimeout(uiHideTimeout);
+                document.querySelectorAll('.hud-element, .ui-floating-btn').forEach(el => {
+                    el.style.opacity = '1';
+                    el.style.pointerEvents = 'auto';
+                });
+                startUIHideTimer();
+            }
+        }
+        
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            
+            if (fractalMaterial) {
+                fractalMaterial.uniforms.resolution.value.set(window.innerWidth, window.innerHeight);
+            }
+            
+            // Update HUD positions for mobile
+            if (isMobile) {
+                const hudZoom = document.getElementById('hud-zoom');
+                hudZoom.style.bottom = '80px';
+            }
+        }
+        
+        function animate(currentTime = 0) {
+            frameId = requestAnimationFrame(animate);
+            
+            // Calculate FPS
+            frameCount++;
+            if (currentTime - lastTime >= 1000) {
+                perf.fps = Math.round((frameCount * 1000) / (currentTime - lastTime));
+                frameCount = 0;
+                lastTime = currentTime;
+                document.getElementById('fps-counter').textContent = perf.fps;
+            }
+            
+            // Start render time measurement
+            renderStartTime = performance.now();
+            
+            // Update time
+            animationTime += 0.016;
+            
+            // Update fractal material
+            if (fractalMaterial) {
+                fractalMaterial.uniforms.time.value = animationTime;
+                
+                // Auto explore mode
+                if (isAutoExploring) {
+                    cameraRotation.y += 0.005;
+                    cameraRotation.x = Math.sin(animationTime * 0.2) * 0.3;
+                    zoom = 1.0 + Math.sin(animationTime * 0.1) * 2.0;
+                    updateZoomDisplay();
+                }
+                
+                updateCamera();
+            }
+            
+            // Render scene
+            renderer.render(scene, camera);
+            
+            // Calculate render time
+            perf.renderTime = performance.now() - renderStartTime;
+            
+            // Adaptive quality adjustment
+            if (perf.adaptiveQuality && perf.fps < 45 && perf.currentIterations > 4) {
+                perf.currentIterations = Math.max(4, perf.currentIterations - 2);
+                fractalMaterial.uniforms.iterations.value = perf.currentIterations;
+                document.getElementById('hud-iterations').textContent = perf.currentIterations;
+                document.getElementById('iterations-slider').value = perf.currentIterations;
+                document.getElementById('iterations-value').textContent = perf.currentIterations;
+            }
+        }
+        
+        // Initialize when page loads
+        window.addEventListener('load', init);
+        
+        // Handle fullscreen changes
+        document.addEventListener('fullscreenchange', () => {
+            if (!document.fullscreenElement) {
+                document.body.classList.remove('fullscreen');
+            }
+        });
+        
+        // Clean up on page unload
+        window.addEventListener('beforeunload', () => {
+            if (frameId) cancelAnimationFrame(frameId);
+            if (renderer) renderer.dispose();
+        });
+    </script>
+</body>
+</html>

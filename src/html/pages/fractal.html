@@ -1,0 +1,1507 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced 3D Fractal Explorer</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #0a0e17 0%, #121828 100%);
+            color: #e0f0ff;
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+            position: fixed;
+        }
+        
+        #header {
+            padding: clamp(10px, 2vh, 20px);
+            text-align: center;
+            background: rgba(8, 18, 36, 0.85);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(0, 150, 255, 0.2);
+            z-index: 100;
+            position: relative;
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
+        }
+        
+        h1 {
+            font-size: clamp(1.5rem, 4vw, 2.2rem);
+            margin-bottom: 0.3rem;
+            background: linear-gradient(90deg, #4cc9f0, #4361ee, #3a0ca3);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: 800;
+            letter-spacing: -0.5px;
+        }
+        
+        .subtitle {
+            font-size: clamp(0.8rem, 2vw, 0.95rem);
+            opacity: 0.85;
+            max-width: 800px;
+            margin: 0 auto;
+            line-height: 1.4;
+            font-weight: 300;
+        }
+        
+        #container {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        #canvas-container {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+        
+        #loading {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #0a0e17 0%, #121828 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 200;
+            transition: opacity 0.5s ease;
+        }
+        
+        .progress-container {
+            width: 80%;
+            max-width: 300px;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 2px;
+            overflow: hidden;
+            margin-top: 20px;
+        }
+        
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #4361ee, #4cc9f0);
+            width: 0%;
+            transition: width 0.3s ease;
+            border-radius: 2px;
+        }
+        
+        .spinner {
+            width: 60px;
+            height: 60px;
+            border: 3px solid rgba(76, 201, 240, 0.1);
+            border-radius: 50%;
+            border-top-color: #4cc9f0;
+            animation: spin 1s cubic-bezier(0.68, -0.55, 0.265, 1.55) infinite;
+            margin-bottom: 20px;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        #ui-overlay {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            z-index: 50;
+            padding: 15px;
+            pointer-events: none;
+        }
+        
+        #ui-overlay > * {
+            pointer-events: auto;
+        }
+        
+        #controls {
+            background: rgba(8, 18, 36, 0.85);
+            backdrop-filter: blur(15px);
+            border-radius: 20px;
+            padding: 20px;
+            width: 100%;
+            max-width: 600px;
+            border: 1px solid rgba(67, 97, 238, 0.2);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+            transition: transform 0.3s ease;
+        }
+        
+        #controls.collapsed {
+            transform: translateY(calc(100% - 50px));
+        }
+        
+        .control-toggle {
+            position: absolute;
+            top: -25px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 50px;
+            height: 25px;
+            background: rgba(67, 97, 238, 0.9);
+            border-radius: 15px 15px 0 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            color: white;
+            font-size: 0.8rem;
+        }
+        
+        .control-group {
+            margin-bottom: 20px;
+        }
+        
+        .control-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .control-title {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: #a5d8ff;
+        }
+        
+        .control-value {
+            font-size: 0.9rem;
+            color: #4cc9f0;
+            font-weight: 600;
+            min-width: 60px;
+            text-align: right;
+        }
+        
+        .slider-container {
+            position: relative;
+            height: 30px;
+            display: flex;
+            align-items: center;
+        }
+        
+        input[type="range"] {
+            flex: 1;
+            height: 6px;
+            -webkit-appearance: none;
+            appearance: none;
+            background: linear-gradient(90deg, rgba(67, 97, 238, 0.3), rgba(76, 201, 240, 0.8));
+            border-radius: 3px;
+            outline: none;
+            margin: 0 10px;
+        }
+        
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: #ffffff;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(76, 201, 240, 0.8), 0 0 20px rgba(67, 97, 238, 0.6);
+            border: 2px solid #4cc9f0;
+            transition: transform 0.1s ease;
+        }
+        
+        input[type="range"]::-webkit-slider-thumb:active {
+            transform: scale(1.2);
+        }
+        
+        input[type="range"]::-moz-range-thumb {
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: #ffffff;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(76, 201, 240, 0.8);
+            border: 2px solid #4cc9f0;
+        }
+        
+        .button-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 12px;
+            margin-top: 20px;
+        }
+        
+        .btn {
+            padding: 14px 16px;
+            border-radius: 12px;
+            border: none;
+            background: linear-gradient(135deg, rgba(67, 97, 238, 0.9), rgba(76, 201, 240, 0.9));
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            box-shadow: 0 4px 15px rgba(67, 97, 238, 0.3);
+        }
+        
+        .btn:hover, .btn:active {
+            background: linear-gradient(135deg, rgba(76, 201, 240, 0.9), rgba(67, 97, 238, 0.9));
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(67, 97, 238, 0.4);
+        }
+        
+        .btn:active {
+            transform: translateY(0);
+        }
+        
+        .btn-icon {
+            font-size: 1.1rem;
+        }
+        
+        #info-panel {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(8, 18, 36, 0.85);
+            backdrop-filter: blur(15px);
+            border-radius: 15px;
+            padding: 20px;
+            width: 100%;
+            max-width: 300px;
+            border: 1px solid rgba(67, 97, 238, 0.2);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            z-index: 50;
+        }
+        
+        #info-panel h3 {
+            color: #a5d8ff;
+            margin-bottom: 12px;
+            font-size: 1.1rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            font-size: 0.9rem;
+        }
+        
+        .info-label {
+            color: #89b6ff;
+        }
+        
+        .info-value {
+            color: #4cc9f0;
+            font-weight: 600;
+        }
+        
+        #depth-indicator {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid rgba(67, 97, 238, 0.2);
+        }
+        
+        #depth-text {
+            font-size: 1.5rem;
+            color: #ffffff;
+            font-weight: 800;
+            text-align: center;
+            text-shadow: 0 0 10px rgba(76, 201, 240, 0.7);
+            margin-top: 5px;
+        }
+        
+        #performance {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(8, 18, 36, 0.85);
+            backdrop-filter: blur(15px);
+            border-radius: 15px;
+            padding: 15px;
+            border: 1px solid rgba(67, 97, 238, 0.2);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            z-index: 50;
+        }
+        
+        .perf-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-size: 0.85rem;
+        }
+        
+        .perf-label {
+            color: #89b6ff;
+        }
+        
+        .perf-value {
+            color: #4cc9f0;
+            font-weight: 600;
+        }
+        
+        #quick-actions {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            z-index: 50;
+        }
+        
+        .action-btn {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: rgba(8, 18, 36, 0.85);
+            backdrop-filter: blur(15px);
+            border: 1px solid rgba(67, 97, 238, 0.3);
+            color: #a5d8ff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 1.2rem;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            transition: all 0.2s ease;
+        }
+        
+        .action-btn:hover, .action-btn:active {
+            background: rgba(67, 97, 238, 0.9);
+            color: white;
+            transform: scale(1.1);
+        }
+        
+        .action-btn:active {
+            transform: scale(1);
+        }
+        
+        #preset-menu {
+            position: absolute;
+            bottom: 80px;
+            right: 20px;
+            background: rgba(8, 18, 36, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 15px;
+            padding: 15px;
+            width: 200px;
+            border: 1px solid rgba(67, 97, 238, 0.3);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+            z-index: 60;
+            display: none;
+        }
+        
+        .preset-title {
+            color: #a5d8ff;
+            margin-bottom: 12px;
+            font-size: 1rem;
+            text-align: center;
+        }
+        
+        .preset-item {
+            padding: 10px 15px;
+            background: rgba(67, 97, 238, 0.1);
+            border-radius: 10px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 0.9rem;
+        }
+        
+        .preset-item:hover {
+            background: rgba(67, 97, 238, 0.3);
+            transform: translateX(5px);
+        }
+        
+        .preset-item.active {
+            background: rgba(67, 97, 238, 0.5);
+            color: white;
+        }
+        
+        #touch-hint {
+            position: absolute;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(8, 18, 36, 0.9);
+            backdrop-filter: blur(15px);
+            border-radius: 15px;
+            padding: 15px;
+            max-width: 300px;
+            border: 1px solid rgba(67, 97, 238, 0.3);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+            z-index: 50;
+            display: none;
+            text-align: center;
+        }
+        
+        .hint-icon {
+            font-size: 1.5rem;
+            margin-bottom: 10px;
+        }
+        
+        #touch-hint p {
+            font-size: 0.9rem;
+            line-height: 1.4;
+        }
+        
+        @media (max-width: 768px) {
+            #info-panel, #performance {
+                position: relative;
+                top: auto;
+                left: auto;
+                right: auto;
+                max-width: 100%;
+                margin: 10px 15px;
+                width: calc(100% - 30px);
+            }
+            
+            #quick-actions {
+                bottom: 100px;
+                right: 15px;
+            }
+            
+            .action-btn {
+                width: 45px;
+                height: 45px;
+            }
+            
+            #controls {
+                padding: 15px;
+                border-radius: 15px 15px 0 0;
+            }
+            
+            .button-row {
+                grid-template-columns: 1fr 1fr;
+            }
+            
+            .btn {
+                padding: 12px 14px;
+                font-size: 0.85rem;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            #header {
+                padding: 12px 10px;
+            }
+            
+            h1 {
+                font-size: 1.5rem;
+            }
+            
+            .button-row {
+                grid-template-columns: 1fr;
+            }
+            
+            #controls.collapsed {
+                transform: translateY(calc(100% - 40px));
+            }
+            
+            .control-toggle {
+                width: 40px;
+                height: 20px;
+                font-size: 0.7rem;
+            }
+            
+            #quick-actions {
+                bottom: 90px;
+            }
+            
+            .action-btn {
+                width: 40px;
+                height: 40px;
+                font-size: 1rem;
+            }
+        }
+        
+        @media (hover: none) and (pointer: coarse) {
+            #touch-hint {
+                display: block;
+                animation: fadeInOut 6s ease forwards;
+            }
+            
+            @keyframes fadeInOut {
+                0%, 100% { opacity: 0; }
+                10%, 80% { opacity: 1; }
+            }
+            
+            input[type="range"]::-webkit-slider-thumb {
+                width: 28px;
+                height: 28px;
+            }
+            
+            .btn {
+                padding: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="header">
+        <h1>Advanced 3D Fractal Explorer</h1>
+        <p class="subtitle">Explore infinite fractal dimensions with adaptive performance. Touch-friendly controls with progressive detail loading.</p>
+    </div>
+    
+    <div id="container">
+        <div id="canvas-container"></div>
+        
+        <div id="loading">
+            <div class="spinner"></div>
+            <p>Initializing Fractal Engine...</p>
+            <div class="progress-container">
+                <div class="progress-bar" id="progress-bar"></div>
+            </div>
+            <p id="loading-text" style="margin-top: 10px; font-size: 0.9rem; opacity: 0.8;">Optimizing for your device...</p>
+        </div>
+        
+        <div id="performance">
+            <div class="perf-row">
+                <span class="perf-label">FPS:</span>
+                <span class="perf-value" id="fps-counter">60</span>
+            </div>
+            <div class="perf-row">
+                <span class="perf-label">Quality:</span>
+                <span class="perf-value" id="quality-indicator">High</span>
+            </div>
+            <div class="perf-row">
+                <span class="perf-label">Render Time:</span>
+                <span class="perf-value" id="render-time">0ms</span>
+            </div>
+        </div>
+        
+        <div id="info-panel">
+            <h3>📊 Fractal Information</h3>
+            <div class="info-row">
+                <span class="info-label">Type:</span>
+                <span class="info-value" id="fractal-type">Mandelbulb 3D</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Iterations:</span>
+                <span class="info-value" id="iteration-count">24</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Complexity:</span>
+                <span class="info-value" id="complexity-level">Medium</span>
+            </div>
+            <div id="depth-indicator">
+                <div class="info-row">
+                    <span class="info-label">Zoom Depth:</span>
+                    <span class="info-value" id="depth-text">1.0x</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">Position:</span>
+                    <span class="info-value" id="position-info">0,0,0</span>
+                </div>
+            </div>
+        </div>
+        
+        <div id="quick-actions">
+            <div class="action-btn" id="preset-btn">🔮</div>
+            <div class="action-btn" id="screenshot-btn">📸</div>
+            <div class="action-btn" id="vr-toggle">👁️</div>
+            <div class="action-btn" id="help-btn">❓</div>
+        </div>
+        
+        <div id="preset-menu">
+            <div class="preset-title">Fractal Presets</div>
+            <div class="preset-item active" data-preset="mandelbulb">Mandelbulb 3D</div>
+            <div class="preset-item" data-preset="julia">Julia Set 3D</div>
+            <div class="preset-item" data-preset="sierpinski">Sierpinski Tetrahedron</div>
+            <div class="preset-item" data-preset="menger">Menger Sponge</div>
+            <div class="preset-item" data-preset="apollonian">Apollonian Gasket</div>
+        </div>
+        
+        <div id="touch-hint">
+            <div class="hint-icon">👆</div>
+            <p>Pinch to zoom • Swipe to rotate • Two fingers to pan</p>
+        </div>
+        
+        <div id="ui-overlay">
+            <div id="controls">
+                <div class="control-toggle" id="toggle-controls">▼</div>
+                
+                <div class="control-group">
+                    <div class="control-header">
+                        <span class="control-title">Fractal Detail</span>
+                        <span class="control-value" id="detail-value">12</span>
+                    </div>
+                    <div class="slider-container">
+                        <input type="range" id="detail-slider" min="4" max="32" value="12" step="2">
+                    </div>
+                </div>
+                
+                <div class="control-group">
+                    <div class="control-header">
+                        <span class="control-title">Animation Speed</span>
+                        <span class="control-value" id="speed-value">0.7</span>
+                    </div>
+                    <div class="slider-container">
+                        <input type="range" id="speed-slider" min="0" max="2" value="0.7" step="0.1">
+                    </div>
+                </div>
+                
+                <div class="control-group">
+                    <div class="control-header">
+                        <span class="control-title">Color Scheme</span>
+                        <span class="control-value" id="color-value">Spectrum</span>
+                    </div>
+                    <div class="slider-container">
+                        <input type="range" id="color-slider" min="0" max="4" value="2" step="1">
+                    </div>
+                </div>
+                
+                <div class="control-group">
+                    <div class="control-header">
+                        <span class="control-title">Performance Mode</span>
+                        <span class="control-value" id="perf-value">Adaptive</span>
+                    </div>
+                    <div class="slider-container">
+                        <input type="range" id="perf-slider" min="0" max="2" value="1" step="1">
+                    </div>
+                </div>
+                
+                <div class="button-row">
+                    <button id="reset-btn" class="btn">
+                        <span class="btn-icon">↺</span> Reset View
+                    </button>
+                    <button id="auto-zoom-btn" class="btn">
+                        <span class="btn-icon">⚡</span> Auto-Zoom
+                    </button>
+                    <button id="record-btn" class="btn">
+                        <span class="btn-icon">🎬</span> Record Path
+                    </button>
+                    <button id="share-btn" class="btn">
+                        <span class="btn-icon">🔗</span> Share View
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Performance-optimized Three.js fractal explorer
+        let scene, camera, renderer, controls;
+        let fractalMesh, fractalMaterial;
+        let zoomDepth = 1.0;
+        let autoZoom = false;
+        let animationSpeed = 0.7;
+        let fractalType = 'mandelbulb';
+        let clock = new THREE.Clock();
+        let isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+        let deviceCapability = 'high'; // Will be adjusted based on device
+        let renderTime = 0;
+        let frameCount = 0;
+        let lastTime = performance.now();
+        let fps = 60;
+        let isRecordingPath = false;
+        let recordedPath = [];
+        let adaptiveQuality = true;
+        let controlsCollapsed = false;
+        
+        // Performance monitoring
+        const perfMonitor = {
+            fps: 60,
+            renderTime: 0,
+            quality: 'high',
+            targetFPS: isMobile ? 50 : 60,
+            adjustQuality: function() {
+                if (!adaptiveQuality) return;
+                
+                if (this.fps < this.targetFPS - 10) {
+                    // Lower quality
+                    if (this.quality === 'high') {
+                        this.quality = 'medium';
+                        adjustFractalDetail(8);
+                    } else if (this.quality === 'medium') {
+                        this.quality = 'low';
+                        adjustFractalDetail(6);
+                    }
+                } else if (this.fps > this.targetFPS + 5 && this.quality !== 'high') {
+                    // Increase quality
+                    if (this.quality === 'low') {
+                        this.quality = 'medium';
+                        adjustFractalDetail(8);
+                    } else if (this.quality === 'medium') {
+                        this.quality = 'high';
+                        adjustFractalDetail(12);
+                    }
+                }
+                document.getElementById('quality-indicator').textContent = this.quality.charAt(0).toUpperCase() + this.quality.slice(1);
+            }
+        };
+        
+        // Initialize with progressive loading
+        async function init() {
+            // Show loading progress
+            updateLoadingProgress(10, "Detecting device capabilities...");
+            
+            // Detect device capabilities
+            detectDeviceCapability();
+            
+            // Create scene with optimized settings
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0a0e17);
+            
+            // Create camera with FOV adjusted for mobile
+            camera = new THREE.PerspectiveCamera(
+                isMobile ? 70 : 60, 
+                window.innerWidth / window.innerHeight, 
+                0.01, 
+                1000
+            );
+            camera.position.set(2.5, 2, 2.5);
+            
+            updateLoadingProgress(30, "Setting up renderer...");
+            
+            // Create optimized renderer
+            renderer = new THREE.WebGLRenderer({ 
+                antialias: deviceCapability !== 'low',
+                alpha: true,
+                powerPreference: deviceCapability === 'low' ? 'low-power' : 'high-performance'
+            });
+            
+            // Set pixel ratio based on device capability
+            const pixelRatio = deviceCapability === 'high' ? Math.min(window.devicePixelRatio, 2) : 1;
+            renderer.setPixelRatio(pixelRatio);
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = deviceCapability !== 'low';
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            renderer.outputEncoding = THREE.sRGBEncoding;
+            
+            // Add renderer to DOM
+            document.getElementById('canvas-container').appendChild(renderer.domElement);
+            
+            updateLoadingProgress(50, "Initializing controls...");
+            
+            // Create optimized controls
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            configureControls();
+            
+            updateLoadingProgress(70, "Generating fractal...");
+            
+            // Create fractal with adaptive detail
+            createFractal();
+            
+            updateLoadingProgress(90, "Setting up lighting...");
+            
+            // Add optimized lighting
+            setupLighting();
+            
+            // Add fog for depth
+            scene.fog = new THREE.Fog(0x0a0e17, 5, 25);
+            
+            updateLoadingProgress(100, "Ready!");
+            
+            // Hide loading screen after a short delay
+            setTimeout(() => {
+                document.getElementById('loading').style.opacity = '0';
+                setTimeout(() => {
+                    document.getElementById('loading').style.display = 'none';
+                }, 500);
+            }, 500);
+            
+            // Initialize UI
+            initUI();
+            
+            // Add event listeners
+            window.addEventListener('resize', onWindowResize);
+            
+            // Start animation loop with adaptive frame rate
+            animate();
+        }
+        
+        function detectDeviceCapability() {
+            const memory = navigator.deviceMemory || 4; // GB
+            const cores = navigator.hardwareConcurrency || 4;
+            const isLowEnd = isMobile && (memory < 4 || cores < 4);
+            
+            if (isLowEnd) {
+                deviceCapability = 'low';
+                perfMonitor.targetFPS = 30;
+            } else if (isMobile) {
+                deviceCapability = 'medium';
+                perfMonitor.targetFPS = 50;
+            } else {
+                deviceCapability = 'high';
+                perfMonitor.targetFPS = 60;
+            }
+            
+            console.log(`Device capability: ${deviceCapability}, Target FPS: ${perfMonitor.targetFPS}`);
+        }
+        
+        function configureControls() {
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.minDistance = 0.1;
+            controls.maxDistance = 20;
+            controls.maxPolarAngle = Math.PI;
+            
+            // Adjust sensitivity for mobile
+            if (isMobile) {
+                controls.rotateSpeed = 0.3;
+                controls.zoomSpeed = 0.5;
+                controls.panSpeed = 0.3;
+            } else {
+                controls.rotateSpeed = 0.5;
+                controls.zoomSpeed = 0.8;
+                controls.panSpeed = 0.5;
+            }
+            
+            // Make controls touch-friendly
+            controls.touchRotate = true;
+            controls.touchZoom = true;
+            controls.touchPan = true;
+            controls.screenSpacePanning = true;
+            
+            // Update zoom depth when user interacts
+            controls.addEventListener('change', function() {
+                if (!autoZoom && !isRecordingPath) {
+                    zoomDepth = Math.max(1, Math.pow(2, (controls.maxDistance - controls.getDistance()) * 0.3));
+                    updateDepthText();
+                    updatePositionInfo();
+                }
+            });
+        }
+        
+        function createFractal() {
+            // Remove existing fractal if present
+            if (fractalMesh) {
+                scene.remove(fractalMesh);
+                if (fractalMesh.geometry) fractalMesh.geometry.dispose();
+                if (fractalMesh.material) fractalMesh.material.dispose();
+            }
+            
+            // Determine geometry complexity based on device
+            const segments = deviceCapability === 'high' ? 128 : (deviceCapability === 'medium' ? 96 : 64);
+            const geometry = new THREE.SphereGeometry(1.8, segments, segments);
+            
+            // Create optimized shader material
+            const detailLevel = deviceCapability === 'high' ? 12 : (deviceCapability === 'medium' ? 8 : 6);
+            
+            fractalMaterial = new THREE.ShaderMaterial({
+                uniforms: {
+                    time: { value: 0.0 },
+                    detail: { value: detailLevel },
+                    colorScheme: { value: 2 },
+                    zoom: { value: 1.0 },
+                    fractalType: { value: 0 },
+                    power: { value: 8.0 },
+                    juliaC: { value: new THREE.Vector3(0.4, 0.3, 0.2) }
+                },
+                vertexShader: `
+                    varying vec3 vPosition;
+                    varying vec3 vNormal;
+                    
+                    void main() {
+                        vPosition = position;
+                        vNormal = normalize(normalMatrix * normal);
+                        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+                    }
+                `,
+                fragmentShader: `
+                    precision highp float;
+                    
+                    uniform float time;
+                    uniform int detail;
+                    uniform int colorScheme;
+                    uniform float zoom;
+                    uniform int fractalType;
+                    uniform float power;
+                    uniform vec3 juliaC;
+                    
+                    varying vec3 vPosition;
+                    varying vec3 vNormal;
+                    
+                    // Optimized Mandelbulb distance estimator
+                    float mandelbulbDE(vec3 pos, int iter) {
+                        vec3 z = pos;
+                        float dr = 1.0;
+                        float r = 0.0;
+                        float power = power;
+                        
+                        for (int i = 0; i < 50; i++) {
+                            if (i >= iter) break;
+                            
+                            r = length(z);
+                            if (r > 2.0) break;
+                            
+                            // Convert to spherical coordinates
+                            float theta = acos(z.z / r);
+                            float phi = atan(z.y, z.x);
+                            dr = pow(r, power - 1.0) * power * dr + 1.0;
+                            
+                            // Scale and rotate
+                            float zr = pow(r, power);
+                            theta = theta * power;
+                            phi = phi * power;
+                            
+                            // Convert back to cartesian
+                            z = zr * vec3(sin(theta) * cos(phi), sin(phi) * sin(theta), cos(theta));
+                            z += pos;
+                        }
+                        
+                        return 0.5 * log(r) * r / dr;
+                    }
+                    
+                    // Julia set distance estimator
+                    float juliaDE(vec3 pos, int iter) {
+                        vec3 z = pos;
+                        float dr = 1.0;
+                        float r = 0.0;
+                        
+                        for (int i = 0; i < 50; i++) {
+                            if (i >= iter) break;
+                            
+                            r = length(z);
+                            if (r > 2.0) break;
+                            
+                            float theta = acos(z.z / r);
+                            float phi = atan(z.y, z.x);
+                            dr = pow(r, 4.0 - 1.0) * 4.0 * dr + 1.0;
+                            
+                            float zr = pow(r, 4.0);
+                            theta = theta * 4.0;
+                            phi = phi * 4.0;
+                            
+                            z = zr * vec3(sin(theta) * cos(phi), sin(phi) * sin(theta), cos(theta));
+                            z += juliaC;
+                        }
+                        
+                        return 0.5 * log(r) * r / dr;
+                    }
+                    
+                    // Sierpinski tetrahedron distance estimator
+                    float sierpinskiDE(vec3 p, int iter) {
+                        float scale = 2.0;
+                        for (int i = 0; i < 20; i++) {
+                            if (i >= iter / 2) break;
+                            p = abs(p);
+                            if (p.x < p.y) p.xy = p.yx;
+                            if (p.x < p.z) p.xz = p.zx;
+                            if (p.y < p.z) p.yz = p.zy;
+                            
+                            p = p * scale - vec3(scale - 1.0);
+                            if (p.z < -0.5 * (scale - 1.0)) p.z += scale - 1.0;
+                        }
+                        
+                        return length(p) * pow(scale, -float(iter / 2));
+                    }
+                    
+                    // Color palettes
+                    vec3 palette1(float t) {
+                        vec3 a = vec3(0.5, 0.5, 0.5);
+                        vec3 b = vec3(0.5, 0.5, 0.5);
+                        vec3 c = vec3(1.0, 1.0, 1.0);
+                        vec3 d = vec3(0.0, 0.33, 0.67);
+                        return a + b * cos(6.28318 * (c * t + d));
+                    }
+                    
+                    vec3 palette2(float t) {
+                        return vec3(0.5 + 0.5 * cos(6.28318 * (t + 0.0)),
+                                    0.5 + 0.5 * cos(6.28318 * (t + 0.33)),
+                                    0.5 + 0.5 * cos(6.28318 * (t + 0.67)));
+                    }
+                    
+                    vec3 palette3(float t) {
+                        return mix(vec3(0.2, 0.4, 1.0), vec3(1.0, 0.2, 0.4), t);
+                    }
+                    
+                    vec3 getColor(float t, int scheme) {
+                        if (scheme == 0) return palette1(t);
+                        else if (scheme == 1) return palette2(t);
+                        else if (scheme == 2) return palette3(t);
+                        else if (scheme == 3) return vec3(t, t * 0.5, 1.0 - t);
+                        else return vec3(1.0, 0.5 + t * 0.5, 0.0);
+                    }
+                    
+                    // Main ray marching function
+                    float map(vec3 pos, int iter) {
+                        if (fractalType == 0) {
+                            return mandelbulbDE(pos, iter);
+                        } else if (fractalType == 1) {
+                            return juliaDE(pos, iter);
+                        } else if (fractalType == 2) {
+                            return sierpinskiDE(pos, iter);
+                        } else {
+                            return mandelbulbDE(pos, iter);
+                        }
+                    }
+                    
+                    // Fast normal calculation
+                    vec3 calcNormal(vec3 pos, int iter) {
+                        const float eps = 0.001;
+                        vec2 e = vec2(eps, 0);
+                        float d = map(pos, iter);
+                        return normalize(vec3(
+                            map(pos + e.xyy, iter) - d,
+                            map(pos + e.yxy, iter) - d,
+                            map(pos + e.yyx, iter) - d
+                        ));
+                    }
+                    
+                    void main() {
+                        // Ray setup
+                        vec3 rayDir = normalize(vPosition - cameraPosition);
+                        vec3 rayOrigin = cameraPosition;
+                        
+                        // Apply zoom
+                        rayOrigin *= zoom;
+                        
+                        // Adaptive ray marching
+                        float totalDist = 0.0;
+                        vec3 pos = rayOrigin;
+                        float dist = 0.0;
+                        int steps;
+                        int maxSteps = detail * 2;
+                        
+                        for (steps = 0; steps < 80; steps++) {
+                            if (steps > maxSteps) break;
+                            dist = map(pos, detail);
+                            totalDist += dist;
+                            pos += rayDir * dist;
+                            
+                            if (dist < 0.001) break;
+                            if (totalDist > 20.0) break;
+                        }
+                        
+                        // Calculate color
+                        float glow = 1.0 - float(steps) / 80.0;
+                        vec3 normal = calcNormal(pos, detail);
+                        
+                        // Lighting
+                        vec3 lightDir = normalize(vec3(1.0, 2.0, 1.0));
+                        float diffuse = max(dot(normal, lightDir), 0.1);
+                        float specular = pow(max(dot(reflect(-lightDir, normal), -rayDir), 0.0), 32.0);
+                        
+                        // Base color based on position and time
+                        float colorT = length(pos) * 0.2 + time * 0.1;
+                        vec3 baseColor = getColor(colorT, colorScheme);
+                        
+                        // Final color composition
+                        vec3 color = baseColor * diffuse + vec3(1.0) * specular * 0.3;
+                        color += baseColor * glow * 0.7;
+                        
+                        // Fog
+                        float fogFactor = exp(-totalDist * 0.15);
+                        color = mix(vec3(0.05, 0.08, 0.15), color, fogFactor);
+                        
+                        gl_FragColor = vec4(color, 1.0);
+                    }
+                `,
+                side: THREE.BackSide,
+                transparent: false
+            });
+            
+            // Create mesh
+            fractalMesh = new THREE.Mesh(geometry, fractalMaterial);
+            scene.add(fractalMesh);
+            
+            // Update UI
+            document.getElementById('detail-value').textContent = detailLevel;
+            document.getElementById('detail-slider').value = detailLevel;
+        }
+        
+        function setupLighting() {
+            // Ambient light
+            const ambientLight = new THREE.AmbientLight(0x333333);
+            scene.add(ambientLight);
+            
+            // Main directional light
+            const mainLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            mainLight.position.set(5, 5, 5);
+            mainLight.castShadow = deviceCapability !== 'low';
+            if (deviceCapability !== 'low') {
+                mainLight.shadow.mapSize.width = 1024;
+                mainLight.shadow.mapSize.height = 1024;
+            }
+            scene.add(mainLight);
+            
+            // Fill light
+            const fillLight = new THREE.DirectionalLight(0x4466cc, 0.4);
+            fillLight.position.set(-5, 3, -5);
+            scene.add(fillLight);
+        }
+        
+        function initUI() {
+            // Detail slider
+            const detailSlider = document.getElementById('detail-slider');
+            const detailValue = document.getElementById('detail-value');
+            
+            detailSlider.addEventListener('input', function() {
+                const value = this.value;
+                detailValue.textContent = value;
+                if (fractalMaterial) {
+                    fractalMaterial.uniforms.detail.value = parseInt(value);
+                    document.getElementById('iteration-count').textContent = value;
+                }
+            });
+            
+            // Speed slider
+            const speedSlider = document.getElementById('speed-slider');
+            const speedValue = document.getElementById('speed-value');
+            
+            speedSlider.addEventListener('input', function() {
+                const value = parseFloat(this.value).toFixed(1);
+                speedValue.textContent = value;
+                animationSpeed = parseFloat(value);
+            });
+            
+            // Color slider
+            const colorSlider = document.getElementById('color-slider');
+            const colorValue = document.getElementById('color-value');
+            const colorSchemes = ['Rainbow', 'Cosmic', 'Spectrum', 'Ocean', 'Fire'];
+            
+            colorSlider.addEventListener('input', function() {
+                const idx = parseInt(this.value);
+                colorValue.textContent = colorSchemes[idx];
+                if (fractalMaterial) {
+                    fractalMaterial.uniforms.colorScheme.value = idx;
+                }
+            });
+            
+            // Performance slider
+            const perfSlider = document.getElementById('perf-slider');
+            const perfValue = document.getElementById('perf-value');
+            const perfModes = ['Low', 'Adaptive', 'High'];
+            
+            perfSlider.addEventListener('input', function() {
+                const idx = parseInt(this.value);
+                perfValue.textContent = perfModes[idx];
+                adaptiveQuality = idx === 1;
+                if (idx === 0) {
+                    perfMonitor.quality = 'low';
+                    adjustFractalDetail(6);
+                } else if (idx === 2) {
+                    adaptiveQuality = false;
+                    perfMonitor.quality = 'high';
+                    adjustFractalDetail(16);
+                }
+            });
+            
+            // Reset button
+            document.getElementById('reset-btn').addEventListener('click', function() {
+                controls.reset();
+                zoomDepth = 1.0;
+                if (fractalMaterial) {
+                    fractalMaterial.uniforms.zoom.value = 1.0;
+                }
+                updateDepthText();
+                autoZoom = false;
+                document.getElementById('auto-zoom-btn').innerHTML = '<span class="btn-icon">⚡</span> Auto-Zoom';
+                isRecordingPath = false;
+                recordedPath = [];
+            });
+            
+            // Auto-zoom button
+            document.getElementById('auto-zoom-btn').addEventListener('click', function() {
+                autoZoom = !autoZoom;
+                this.innerHTML = autoZoom ? 
+                    '<span class="btn-icon">⏸️</span> Stop Zoom' : 
+                    '<span class="btn-icon">⚡</span> Auto-Zoom';
+            });
+            
+            // Record path button
+            document.getElementById('record-btn').addEventListener('click', function() {
+                isRecordingPath = !isRecordingPath;
+                if (isRecordingPath) {
+                    recordedPath = [];
+                    this.innerHTML = '<span class="btn-icon">🔴</span> Stop Record';
+                } else {
+                    this.innerHTML = '<span class="btn-icon">🎬</span> Record Path';
+                    if (recordedPath.length > 0) {
+                        // Could play back recorded path here
+                        console.log(`Recorded path with ${recordedPath.length} points`);
+                    }
+                }
+            });
+            
+            // Share button
+            document.getElementById('share-btn').addEventListener('click', function() {
+                // Create a shareable URL or image
+                const viewState = {
+                    zoom: zoomDepth.toFixed(2),
+                    position: camera.position.toArray().map(v => v.toFixed(2)),
+                    fractal: fractalType,
+                    detail: detailSlider.value
+                };
+                
+                const shareText = `Check out my 3D fractal view! Zoom: ${viewState.zoom}x, Fractal: ${fractalType}`;
+                
+                if (navigator.share) {
+                    navigator.share({
+                        title: '3D Fractal Explorer',
+                        text: shareText,
+                        url: window.location.href
+                    });
+                } else {
+                    // Fallback: copy to clipboard
+                    navigator.clipboard.writeText(shareText).then(() => {
+                        alert('View details copied to clipboard!');
+                    });
+                }
+            });
+            
+            // Toggle controls
+            document.getElementById('toggle-controls').addEventListener('click', function() {
+                controlsCollapsed = !controlsCollapsed;
+                const controlsEl = document.getElementById('controls');
+                controlsEl.classList.toggle('collapsed');
+                this.textContent = controlsCollapsed ? '▲' : '▼';
+            });
+            
+            // Preset menu
+            const presetBtn = document.getElementById('preset-btn');
+            const presetMenu = document.getElementById('preset-menu');
+            const presetItems = document.querySelectorAll('.preset-item');
+            
+            presetBtn.addEventListener('click', function() {
+                presetMenu.style.display = presetMenu.style.display === 'block' ? 'none' : 'block';
+            });
+            
+            presetItems.forEach(item => {
+                item.addEventListener('click', function() {
+                    const preset = this.getAttribute('data-preset');
+                    changeFractalPreset(preset);
+                    
+                    // Update active state
+                    presetItems.forEach(i => i.classList.remove('active'));
+                    this.classList.add('active');
+                    
+                    // Close menu
+                    presetMenu.style.display = 'none';
+                });
+            });
+            
+            // Screenshot button
+            document.getElementById('screenshot-btn').addEventListener('click', function() {
+                renderer.domElement.toBlob(function(blob) {
+                    const a = document.createElement('a');
+                    const url = URL.createObjectURL(blob);
+                    a.href = url;
+                    a.download = `fractal-${Date.now()}.png`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                }, 'image/png', 0.95);
+            });
+            
+            // VR toggle button (simulated)
+            document.getElementById('vr-toggle').addEventListener('click', function() {
+                const isVrMode = this.textContent === '👁️';
+                this.textContent = isVrMode ? '📱' : '👁️';
+                
+                if (isVrMode) {
+                    // Simulate VR mode by changing FOV
+                    camera.fov = 100;
+                    camera.updateProjectionMatrix();
+                } else {
+                    camera.fov = isMobile ? 70 : 60;
+                    camera.updateProjectionMatrix();
+                }
+            });
+            
+            // Help button
+            document.getElementById('help-btn').addEventListener('click', function() {
+                alert(`3D Fractal Explorer Controls:
+                
+• Pinch or scroll to zoom
+• Swipe or drag to rotate
+• Two-finger drag to pan
+• Adjust sliders for different effects
+• Try different fractal presets
+• Auto-zoom for automatic exploration
+
+Performance automatically adapts to your device.`);
+            });
+            
+            // Close preset menu when clicking outside
+            document.addEventListener('click', function(event) {
+                if (!presetBtn.contains(event.target) && !presetMenu.contains(event.target)) {
+                    presetMenu.style.display = 'none';
+                }
+            });
+        }
+        
+        function changeFractalPreset(preset) {
+            fractalType = preset;
+            
+            // Update fractal type display
+            const typeNames = {
+                'mandelbulb': 'Mandelbulb 3D',
+                'julia': 'Julia Set 3D',
+                'sierpinski': 'Sierpinski Tetrahedron',
+                'menger': 'Menger Sponge',
+                'apollonian': 'Apollonian Gasket'
+            };
+            
+            document.getElementById('fractal-type').textContent = typeNames[preset] || preset;
+            
+            // Update shader uniform
+            if (fractalMaterial) {
+                const typeIndex = ['mandelbulb', 'julia', 'sierpinski', 'menger', 'apollonian'].indexOf(preset);
+                fractalMaterial.uniforms.fractalType.value = Math.max(typeIndex, 0);
+                
+                // Adjust parameters for specific fractals
+                if (preset === 'mandelbulb') {
+                    fractalMaterial.uniforms.power.value = 8.0;
+                } else if (preset === 'julia') {
+                    fractalMaterial.uniforms.juliaC.value = new THREE.Vector3(
+                        0.4 + Math.sin(performance.now() * 0.001) * 0.2,
+                        0.3 + Math.cos(performance.now() * 0.001) * 0.2,
+                        0.2
+                    );
+                }
+            }
+            
+            // Adjust detail level for different fractals
+            const detailSlider = document.getElementById('detail-slider');
+            if (preset === 'sierpinski' || preset === 'menger') {
+                detailSlider.value = Math.min(16, parseInt(detailSlider.value));
+            }
+            detailSlider.dispatchEvent(new Event('input'));
+        }
+        
+        function adjustFractalDetail(newDetail) {
+            if (fractalMaterial) {
+                fractalMaterial.uniforms.detail.value = newDetail;
+                document.getElementById('detail-value').textContent = newDetail;
+                document.getElementById('detail-slider').value = newDetail;
+                document.getElementById('iteration-count').textContent = newDetail;
+                
+                // Update complexity level
+                const complexity = newDetail <= 8 ? 'Low' : (newDetail <= 16 ? 'Medium' : 'High');
+                document.getElementById('complexity-level').textContent = complexity;
+            }
+        }
+        
+        function updateDepthText() {
+            document.getElementById('depth-text').textContent = zoomDepth.toFixed(1) + 'x';
+            
+            // Update fractal material zoom uniform
+            if (fractalMaterial) {
+                fractalMaterial.uniforms.zoom.value = zoomDepth;
+            }
+        }
+        
+        function updatePositionInfo() {
+            const pos = camera.position;
+            document.getElementById('position-info').textContent = 
+                `${pos.x.toFixed(1)}, ${pos.y.toFixed(1)}, ${pos.z.toFixed(1)}`;
+        }
+        
+        function updateLoadingProgress(percent, text) {
+            document.getElementById('progress-bar').style.width = percent + '%';
+            document.getElementById('loading-text').textContent = text;
+        }
+        
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+        
+        // Performance-optimized animation loop
+        function animate() {
+            const currentTime = performance.now();
+            const deltaTime = currentTime - lastTime;
+            lastTime = currentTime;
+            
+            // Calculate FPS
+            frameCount++;
+            if (deltaTime >= 1000) {
+                fps = Math.round((frameCount * 1000) / deltaTime);
+                frameCount = 0;
+                lastTime = currentTime;
+                
+                // Update FPS display
+                document.getElementById('fps-counter').textContent = fps;
+                
+                // Adjust quality based on performance
+                perfMonitor.fps = fps;
+                perfMonitor.adjustQuality();
+            }
+            
+            // Update time uniform
+            const time = clock.getElapsedTime();
+            if (fractalMaterial) {
+                fractalMaterial.uniforms.time.value = time * animationSpeed;
+            }
+            
+            // Auto-zoom effect
+            if (autoZoom) {
+                zoomDepth = 1 + Math.sin(time * 0.1) * 10;
+                updateDepthText();
+                
+                // Slight camera movement
+                const zoomFactor = 1 + Math.sin(time * 0.05) * 0.3;
+                controls.minDistance = 0.1 / zoomFactor;
+                
+                // Rotate fractal
+                fractalMesh.rotation.y = time * 0.05;
+                fractalMesh.rotation.x = time * 0.025;
+            }
+            
+            // Record path if enabled
+            if (isRecordingPath && recordedPath.length < 1000) {
+                recordedPath.push({
+                    position: camera.position.clone(),
+                    zoom: zoomDepth,
+                    time: time
+                });
+            }
+            
+            // Measure render time
+            const renderStart = performance.now();
+            
+            // Update controls
+            controls.update();
+            
+            // Render scene
+            renderer.render(scene, camera);
+            
+            // Calculate render time
+            renderTime = performance.now() - renderStart;
+            document.getElementById('render-time').textContent = Math.round(renderTime) + 'ms';
+            
+            // Request next frame with adaptive timing
+            setTimeout(() => {
+                requestAnimationFrame(animate);
+            }, 1000 / perfMonitor.targetFPS - renderTime);
+        }
+        
+        // Initialize when page loads
+        window.addEventListener('DOMContentLoaded', init);
+        
+        // Handle visibility change for performance
+        document.addEventListener('visibilitychange', function() {
+            if (document.hidden) {
+                // Reduce quality when tab is not visible
+                perfMonitor.targetFPS = 10;
+            } else {
+                // Restore target FPS
+                perfMonitor.targetFPS = isMobile ? 50 : 60;
+            }
+        });
+    </script>
+</body>
+</html>

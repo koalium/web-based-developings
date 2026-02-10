@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>3D Firefighting Nozzle CFD Simulation</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.min.js"></script>
+<style>
+body, html { margin:0; padding:0; width:100%; height:100%; overflow:hidden; background:#0a1929; color:#e0f0ff; font-family:sans-serif; }
+#info-panel { position:absolute; bottom:20px; left:20px; background:rgba(0,30,60,0.85); padding:15px; border-radius:8px; width:320px; }
+.info-row { display:flex; justify-content:space-between; margin-bottom:8px; }
+.info-label { color:#a8d8ff; }
+.info-value { color:#64d8ff; font-weight:bold; }
+#canvas-container { width:100%; height:100%; }
+</style>
+</head>
+<body>
+<div id="canvas-container"></div>
+<div id="info-panel">
+<div style="margin-bottom:12px;">
+<label style="color:#a8d8ff;font-size:12px;">Operating Condition</label>
+<select id="condition-select" style="width:100%;padding:6px;margin-top:4px;background:#0e2a45;color:#e0f0ff;border:1px solid #40c9ff;border-radius:4px;">
+<option value="attack">Attack Mode – Solid Jet</option>
+<option value="fog">Fog Mode – Wide Spray</option>
+<option value="low">Low Pressure / Training</option>
+<option value="high">High Pressure / Long Reach</option>
+<option value="pulse">Pulsed Fire Attack</option>
+</select>
+</div>
+<div class="info-row"><span class="info-label">Inlet Pressure</span><span id="pressure-in" class="info-value">10 bar</span></div>
+<div class="info-row"><span class="info-label">Outlet Velocity</span><span id="velocity-out" class="info-value">0 m/s</span></div>
+<div class="info-row"><span class="info-label">Flow Rate</span><span id="flow-rate" class="info-value">0 L/s</span></div>
+<div class="info-row"><span class="info-label">Reynolds No.</span><span id="re-number" class="info-value">0</span></div>
+</div>
+<script>
+let scene = new THREE.Scene();
+let camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 10);
+camera.position.set(0.8,0.4,1.5);
+
+let renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(window.innerWidth,window.innerHeight);
+document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+let controls = new THREE.OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+
+// Lighting
+scene.add(new THREE.AmbientLight(0xffffff,0.4));
+let dirLight = new THREE.DirectionalLight(0xffffff,0.8);
+dirLight.position.set(5,10,7);
+scene.add(dirLight);
+
+// Nozzle geometry
+let nozzleLength = 0.3; // meters
+let inletDia = 0.0635; // meters
+let throatDia = 0.03175; // meters
+let segments = 64;
+
+let points=[];
+for(let i=0;i<=100;i++){
+ let t=i/100;
+ let x,radius;
+ if(t<0.3){ x=t*nozzleLength*0.3; radius=inletDia/2 - (inletDia/2-throatDia/2)*Math.pow(t/0.3,1.5); }
+ else{ x=nozzleLength*0.3+(t-0.3)*nozzleLength*0.7; radius=throatDia/2 + (inletDia/2-throatDia/2)*(t-0.3)/0.7; }
+ points.push(new THREE.Vector2(radius,x));
+}
+let nozzleGeo=new THREE.LatheGeometry(points,segments);
+let nozzleMat=new THREE.MeshPhysicalMaterial({color:0x4a8fe4, metalness:0.8, roughness:0.6, clearcoat:1, transparent:true, opacity:0.85});
+let nozzleMesh=new THREE.Mesh(nozzleGeo,nozzleMat);
+nozzleMesh.rotation.z=Math.PI/2;
+nozzleMesh.rotation.y=Math.PI/2;
+nozzleMesh.position.x=-nozzleLength/2;
+scene.add(nozzleMesh);
+
+// CFD Flow Simulation
+let currentCondition='attack';
+
+document.getElementById('condition-select')?.addEventListener('change',e=>{
+ currentCondition=e.target.value;
+});
+
+function computeCFD(){
+ const density=998.2;
+ const viscosity=0.001002;
+ let inletPressure=10e5;
+ let sprayAngle=0.05;
+ let pulse=false;
+ if(currentCondition==='fog'){ inletPressure=8e5; sprayAngle=0.25; }
+ if(currentCondition==='low'){ inletPressure=5e5; sprayAngle=0.1; }
+ if(currentCondition==='high'){ inletPressure=18e5; sprayAngle=0.03; }
+ if(currentCondition==='pulse'){ inletPressure=12e5; sprayAngle=0.12; pulse=true; }
+
+ const backPressure=1e5;
+ const area=Math.PI*Math.pow(inletDia/2,2);
+ const velocity=Math.sqrt(2*(inletPressure-backPressure)/density);
+ const flowRate=velocity*area*1000;
+ const Re=density*velocity*inletDia/viscosity;
+ return {velocity,flowRate,Re};
+}
+
+// Velocity arrows
+let arrowGroup=new THREE.Group();
+for(let i=0;i<10;i++){
+ let arrow=new THREE.ArrowHelper(new THREE.Vector3(1,0,0), new THREE.Vector3(-0.15+i*0.03,0,0),0.05,0x44ff44);
+ arrowGroup.add(arrow);
+}
+scene.add(arrowGroup);
+
+function updateInfo(){
+ let cfd=computeCFD();
+ document.getElementById('velocity-out').textContent=cfd.velocity.toFixed(2)+' m/s';
+ document.getElementById('flow-rate').textContent=cfd.flowRate.toFixed(2)+' L/s';
+ document.getElementById('re-number').textContent=cfd.Re.toFixed(0);
+}
+
+function animate(){
+ requestAnimationFrame(animate);
+ controls.update();
+ renderer.render(scene,camera);
+ updateInfo();
+}
+animate();
+// ===== EXTENDED CFD: PARTICLES, PRESSURE FIELD, TWO-PHASE JET =====
+
+// Pressure field visualization
+let pressureGroup = new THREE.Group();
+scene.add(pressureGroup);
+
+function createPressureField(){
+ pressureGroup.clear();
+ const inletP = 10e5;
+ const outletP = 1e5;
+ for(let i=0;i<30;i++){
+  const t=i/29;
+  const p=inletP+(outletP-inletP)*t;
+  const norm=(p-outletP)/(inletP-outletP);
+  const color=new THREE.Color().setHSL(0.66*(1-norm),0.9,0.5);
+  const sphere=new THREE.Mesh(
+   new THREE.SphereGeometry(0.004,8,8),
+   new THREE.MeshBasicMaterial({color,transparent:true,opacity:0.6})
+  );
+  sphere.position.set(-0.15+t*0.3,0.05,0);
+  pressureGroup.add(sphere);
+ }
+}
+createPressureField();
+
+// Two-phase particle jet (water + air)
+let particleGroup=new THREE.Group();
+scene.add(particleGroup);
+
+let particles=[];
+const particleCount=400;
+for(let i=0;i<particleCount;i++){
+ let mat=new THREE.MeshBasicMaterial({color:0x66ccff,transparent:true,opacity:0.8});
+ let geo=new THREE.SphereGeometry(0.002,6,6);
+ let mesh=new THREE.Mesh(geo,mat);
+ resetParticle(mesh);
+ particleGroup.add(mesh);
+ particles.push(mesh);
+}
+
+function resetParticle(p){
+ p.position.set(0.15,0,0);
+ p.velocity=new THREE.Vector3(
+  1+Math.random()*0.4,
+  (Math.random()-0.5)*0.2,
+  (Math.random()-0.5)*0.2
+ );
+}
+
+function updateParticles(dt){
+ particles.forEach(p=>{
+  if(pulse){
+   const mod=Math.sin(performance.now()*0.01);
+   if(mod<0) return;
+  }
+  p.position.addScaledVector(p.velocity,dt);
+  p.velocity.x*=0.995;
+  p.velocity.y+=(-0.25+sprayAngle*(Math.random()-0.5))*dt;
+  p.velocity.z+=sprayAngle*(Math.random()-0.5)*dt;
+  p.material.opacity=Math.max(0,p.material.opacity-0.18*dt);
+  if(p.position.x>1||p.material.opacity<0.05) resetParticle(p);
+ });
+}
+(dt){
+ particles.forEach(p=>{
+  p.position.addScaledVector(p.velocity,dt);
+  p.velocity.y-=0.3*dt; // gravity + air entrainment
+  p.material.opacity=Math.max(0,p.material.opacity-0.15*dt);
+  if(p.position.x>1||p.material.opacity<0.05) resetParticle(p);
+ });
+}
+
+// Streamlines (finite-volume inspired)
+let streamlineGroup=new THREE.Group();
+scene.add(streamlineGroup);
+
+function createStreamlines(){
+ streamlineGroup.clear();
+ for(let i=0;i<12;i++){
+  let pts=[];
+  let y=(i/11-0.5)*0.06;
+  for(let j=0;j<80;j++){
+   let x=-0.15+j*0.00375;
+   let vel=1+0.8*Math.exp(-Math.abs(y)*15);
+   let yy=y*Math.cos(j*0.02);
+   pts.push(new THREE.Vector3(x,yy,0));
+  }
+  let curve=new THREE.CatmullRomCurve3(pts);
+  let tube=new THREE.Mesh(
+   new THREE.TubeGeometry(curve,80,0.001,6,false),
+   new THREE.MeshBasicMaterial({color:0x44ffaa,transparent:true,opacity:0.6})
+  );
+  streamlineGroup.add(tube);
+ }
+}
+createStreamlines();
+
+// Boundary layer visualization
+let blLayer=new THREE.Mesh(
+ new THREE.CylinderGeometry(0.032,0.02,0.3,32,1,true),
+ new THREE.MeshBasicMaterial({color:0xffaa00,transparent:true,opacity:0.25,side:THREE.DoubleSide})
+);
+blLayer.rotation.z=Math.PI/2;
+blLayer.rotation.y=Math.PI/2;
+scene.add(blLayer);
+
+// Enhanced animation loop
+let clock=new THREE.Clock();
+function animate(){
+ requestAnimationFrame(animate);
+ let dt=clock.getDelta();
+ updateParticles(dt);
+ controls.update();
+ renderer.render(scene,camera);
+ updateInfo();
+}
+animate();
+</script>
+</body>
+</html>
